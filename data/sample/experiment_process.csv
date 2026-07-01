@@ -1,0 +1,8 @@
+sample_id,material,process_temp_C,process_time_min,pressure_mpa,thickness_um,resistivity_ohm_cm,hardness_HV,yield_percent
+S1,Al2O3,700,30,1.0,1.2,0.0031,420,91
+S2,Al2O3,750,30,1.2,1.4,0.0028,435,94
+S3,TiO2,700,45,0.9,1.1,0.0042,390,87
+S4,TiO2,800,60,1.4,1.8,0.0025,455,96
+S5,ZrO2,750,45,1.1,1.5,0.0030,440,93
+S6,ZrO2,850,60,1.5,2.0,0.0021,470,98
+S7,Al2O3,650,30,0.8,1.0,0.0050,370,80
