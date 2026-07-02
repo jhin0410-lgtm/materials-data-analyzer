@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jhin0410-lgtm/materials-data-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/jhin0410-lgtm/materials-data-analyzer/actions/workflows/ci.yml)
 
-`materials-data-analyzer` is a Python-based analysis helper for engineering datasets stored as CSV files. It is aimed at materials experiments, process-condition tables, reliability records, and battery/OLED-style performance datasets where rows represent samples, process runs, or time-series measurements.
+`materials-data-analyzer` is a Python-based toolkit for engineering CSV datasets. It supports first-pass analysis of materials experiments, process-condition tables, reliability records, quality logs, and battery/OLED-style performance data, and includes a data-driven virtual experiment screening workflow for exploring candidate conditions with baseline surrogate models.
 
 This project is not an automatic engineering decision system. It helps organize and summarize data through missing-value checks, descriptive statistics, groupby summaries, correlation analysis, visualization, and Markdown reports. Engineering interpretation still depends on the data source, test conditions, measurement method, and domain review.
 
@@ -16,6 +16,7 @@ The project provides a CLI workflow around CSV files:
 - calculate simple condition-based summaries,
 - rank observed rows by selected target columns,
 - generate charts and Markdown reports under `outputs/`.
+- generate virtual experiment design tables from observed feature ranges and screen candidate conditions with baseline surrogate models,
 
 It is intentionally separate from `materials-characterization-analyzer`. XRD, SEM, and EDS workflows belong to that other project; this repository focuses on general CSV-based experiment, process, reliability, and quality data.
 
@@ -174,10 +175,14 @@ This project focuses on CSV-based experiment, process, quality, and reliability 
 
 ## Future Work
 
+### Data and Report Quality
 - Add clearer input schema examples for common materials, process, reliability, battery, and OLED CSV formats.
-- Extend the v0.2 data profile helper into optional report sections without changing the default CLI workflow.
+- Extend the data profile helper into optional report sections.
 - Add more focused report templates for different engineering dataset types.
+
+### Virtual Experiment Workflow
 - Add optional configuration files for selecting target columns, feature ranges, and output naming.
-- Add Latin Hypercube design, 2D response-surface plots, uncertainty estimation, XGBoost, Bayesian optimization, active learning, and deep learning only in later stages after the baseline virtual experiment workflow is stable.
-- Improve documentation around interpreting SPC, screening, and regression outputs cautiously.
-- Add more tests for CLI-level workflows and generated output files.
+- Add Latin Hypercube design, 2D response-surface plots, and uncertainty estimation after the baseline virtual experiment workflow is stable.
+
+### Advanced Modeling
+- Explore XGBoost, Bayesian optimization, active learning, and deep learning only in later stages after real-data case studies and baseline validation.
