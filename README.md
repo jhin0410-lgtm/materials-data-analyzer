@@ -82,6 +82,24 @@ Run SPC analysis on the demo factory log:
 python src/process_data.py --mode spc --input data/sample/factory_log.csv --target temperature_c --lsl 690 --usl 710 --run-name demo_spc
 ```
 
+Run reliability summary on the included demo reliability dataset:
+
+```bash
+python src/process_data.py --mode reliability --input data/sample/experiment_reliability.csv --run-name demo_reliability
+```
+
+Run smart-factory log screening on the included demo factory log:
+
+```bash
+python src/process_data.py --mode smart_factory --input data/sample/factory_log.csv --run-name demo_smart_factory
+```
+
+Run the demo simulation workflow:
+
+```bash
+python src/process_data.py --mode simulation --input data/sample/experiment_process.csv --target yield_percent --features process_temp_c process_time_min pressure_mpa thickness_um --scenario-input data/sample/simulation_scenarios.csv --run-name demo_simulation
+```
+
 Run the test suite:
 
 ```bash
@@ -91,6 +109,8 @@ pytest -q
 ## Demo Data Notice
 
 The CSV files in `data/sample/` and `data/raw/` are small demo/synthetic datasets for exercising the workflow. They are not real equipment exports, production records, customer data, or validated experimental results.
+
+The `data/raw/` folder currently contains demo/synthetic data only. See [`data/raw/README.md`](data/raw/README.md) before adding any real raw data.
 
 The names and columns are intentionally engineering-like so the workflow can demonstrate materials/process analysis patterns. Any figures or reports generated from these files should be described as demo output only.
 

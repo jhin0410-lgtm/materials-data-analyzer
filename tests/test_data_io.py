@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
+import uuid
+from collections.abc import Iterator
 from pathlib import Path
 
 import pandas as pd
@@ -21,18 +24,28 @@ from io_utils import load_data
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-TEST_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "test_data_io"
+TEST_OUTPUT_ROOT = PROJECT_ROOT / "outputs" / "test_data_io"
 
 
-def _write_test_file(name: str, content: str) -> Path:
-    TEST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    path = TEST_OUTPUT_DIR / name
+@pytest.fixture
+def test_work_dir() -> Iterator[Path]:
+    path = TEST_OUTPUT_ROOT / uuid.uuid4().hex
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        yield path
+    finally:
+        if path.exists():
+            shutil.rmtree(path)
+
+
+def _write_test_file(directory: Path, name: str, content: str) -> Path:
+    path = directory / name
     path.write_text(content, encoding="utf-8")
     return path
 
 
-def test_load_engineering_csv_reads_valid_csv() -> None:
-    csv_path = _write_test_file("valid.csv", "sample_id,value\nS1,1.5\nS2,2.5\n")
+def test_load_engineering_csv_reads_valid_csv(test_work_dir: Path) -> None:
+    csv_path = _write_test_file(test_work_dir, "valid.csv", "sample_id,value\nS1,1.5\nS2,2.5\n")
 
     result = load_engineering_csv(csv_path)
 
@@ -40,29 +53,29 @@ def test_load_engineering_csv_reads_valid_csv() -> None:
     assert result["value"].tolist() == [1.5, 2.5]
 
 
-def test_load_engineering_csv_missing_file_raises_file_not_found() -> None:
-    missing_path = TEST_OUTPUT_DIR / "missing.csv"
+def test_load_engineering_csv_missing_file_raises_file_not_found(test_work_dir: Path) -> None:
+    missing_path = test_work_dir / "missing.csv"
 
     with pytest.raises(FileNotFoundError, match="Input file was not found"):
         load_engineering_csv(missing_path)
 
 
-def test_load_engineering_csv_unsupported_extension_raises_value_error() -> None:
-    xlsx_path = _write_test_file("unsupported.xlsx", "not,a,real,xlsx\n")
+def test_load_engineering_csv_unsupported_extension_raises_value_error(test_work_dir: Path) -> None:
+    xlsx_path = _write_test_file(test_work_dir, "unsupported.xlsx", "not,a,real,xlsx\n")
 
     with pytest.raises(ValueError, match="Unsupported input file extension"):
         load_engineering_csv(xlsx_path)
 
 
-def test_load_engineering_csv_empty_file_raises_value_error() -> None:
-    empty_path = _write_test_file("empty.csv", "")
+def test_load_engineering_csv_empty_file_raises_value_error(test_work_dir: Path) -> None:
+    empty_path = _write_test_file(test_work_dir, "empty.csv", "")
 
     with pytest.raises(ValueError, match="input file is empty"):
         load_engineering_csv(empty_path)
 
 
-def test_load_engineering_csv_too_few_rows_raises_value_error() -> None:
-    small_path = _write_test_file("too_small.csv", "sample_id,value\nS1,1.0\n")
+def test_load_engineering_csv_too_few_rows_raises_value_error(test_work_dir: Path) -> None:
+    small_path = _write_test_file(test_work_dir, "too_small.csv", "sample_id,value\nS1,1.0\n")
 
     with pytest.raises(ValueError, match="too few rows"):
         load_engineering_csv(small_path)
@@ -76,8 +89,10 @@ def test_strip_column_whitespace_strips_headers() -> None:
     assert result.columns.tolist() == ["material", "yield_percent"]
 
 
-def test_load_engineering_csv_detects_duplicate_columns_after_strip() -> None:
-    duplicate_path = _write_test_file("duplicate_columns.csv", "sample_id, sample_id\nS1,1\nS2,2\n")
+def test_load_engineering_csv_detects_duplicate_columns_after_strip(test_work_dir: Path) -> None:
+    duplicate_path = _write_test_file(
+        test_work_dir, "duplicate_columns.csv", "sample_id, sample_id\nS1,1\nS2,2\n"
+    )
 
     with pytest.raises(ValueError, match="Duplicate column"):
         load_engineering_csv(duplicate_path)
@@ -180,6 +195,8 @@ def test_existing_demo_csv_loads_through_existing_load_data_wrapper() -> None:
 
 
 def test_existing_eda_cli_still_runs_with_demo_csv() -> None:
+    run_name = f"test_data_io_cli_{uuid.uuid4().hex}"
+    output_dir = PROJECT_ROOT / "outputs" / run_name
     command = [
         sys.executable,
         "src/process_data.py",
@@ -188,10 +205,14 @@ def test_existing_eda_cli_still_runs_with_demo_csv() -> None:
         "--input",
         "data/sample/experiment_process.csv",
         "--run-name",
-        "test_data_io_cli",
+        run_name,
     ]
 
-    result = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
+    try:
+        result = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
 
-    assert result.returncode == 0, result.stderr
-    assert (PROJECT_ROOT / "outputs" / "test_data_io_cli" / "reports").exists()
+        assert result.returncode == 0, result.stderr
+        assert (output_dir / "reports").exists()
+    finally:
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
