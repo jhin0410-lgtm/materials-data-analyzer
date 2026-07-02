@@ -94,6 +94,12 @@ The CSV files in `data/sample/` and `data/raw/` are small demo/synthetic dataset
 
 The names and columns are intentionally engineering-like so the workflow can demonstrate materials/process analysis patterns. Any figures or reports generated from these files should be described as demo output only.
 
+## Case Studies
+
+Future real-data case studies can be documented under [`docs/case_studies/`](docs/case_studies/). A Markdown template is provided at [`docs/case_studies/case_study_template.md`](docs/case_studies/case_study_template.md).
+
+At this stage, no real experimental, process, factory, customer, or production dataset is included. Case study writeups should clearly state the data source, whether the data is public or anonymized, the commands used, generated outputs, engineering interpretation, and limitations.
+
 ## Example Outputs
 
 `outputs/` is ignored by Git because it contains local run artifacts. Representative README images are preserved in `docs/images/`.
