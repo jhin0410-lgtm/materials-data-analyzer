@@ -42,7 +42,7 @@ This project packages that first-pass workflow so repeated CSV reviews are easie
 - Reliability mode: summary tables and figures for thermal-cycle style reliability datasets.
 - Smart-factory mode: simple 3-sigma anomaly candidate screening for process logs.
 - SPC mode: I chart, moving range chart, and optional capability metrics when specification limits are provided.
-- Simulation mode: regression-based what-if modeling for demo datasets, with clear caution that predictions do not guarantee experimental outcomes.
+- Simulation mode: data-driven virtual experiment screening with a baseline surrogate model, scenario CSV prediction, generated virtual design tables, candidate ranking, feature summary, and sensitivity summary.
 
 ## Installation
 
@@ -94,10 +94,16 @@ Run smart-factory log screening on the included demo factory log:
 python src/process_data.py --mode smart_factory --input data/sample/factory_log.csv --run-name demo_smart_factory
 ```
 
-Run the demo simulation workflow:
+Run the demo simulation workflow with a scenario CSV:
 
 ```bash
 python src/process_data.py --mode simulation --input data/sample/experiment_process.csv --target yield_percent --features process_temp_c process_time_min pressure_mpa thickness_um --scenario-input data/sample/simulation_scenarios.csv --run-name demo_simulation
+```
+
+Run virtual experiment screening without a scenario CSV. In this case, the CLI generates candidate conditions from the observed feature min/max ranges:
+
+```bash
+python src/process_data.py --mode simulation --input data/sample/experiment_process.csv --target yield_percent --features process_temp_c process_time_min pressure_mpa thickness_um --design-method random --design-samples 100 --run-name demo_virtual_experiment
 ```
 
 Run the test suite:
@@ -155,7 +161,8 @@ outputs/{run_name}/reports/
 - Top and bottom condition tables are observed-row screening results, not process optimization.
 - 3-sigma anomaly flags are first-pass review candidates, not confirmed fault diagnoses.
 - SPC and capability outputs require appropriate sampling assumptions and specification limits.
-- Regression-based simulation is a simple modeling aid for demo workflows and does not guarantee real experimental outcomes.
+- Simulation mode is data-driven virtual experiment screening, not physics simulation, automatic optimization, or a replacement for real experiments.
+- Generated virtual experiment designs use observed feature min/max ranges by default; predictions are candidate screening aids and need domain review plus validation experiments.
 - This project does not perform XRD, SEM, or EDS analysis.
 - The v0.2 data profile summarizes dataset structure and missingness only; it does not automatically validate engineering conclusions.
 
@@ -170,6 +177,7 @@ This project focuses on CSV-based experiment, process, quality, and reliability 
 - Add clearer input schema examples for common materials, process, reliability, battery, and OLED CSV formats.
 - Extend the v0.2 data profile helper into optional report sections without changing the default CLI workflow.
 - Add more focused report templates for different engineering dataset types.
-- Add optional configuration files for selecting target columns and output naming.
+- Add optional configuration files for selecting target columns, feature ranges, and output naming.
+- Add Latin Hypercube design, 2D response-surface plots, uncertainty estimation, XGBoost, Bayesian optimization, active learning, and deep learning only in later stages after the baseline virtual experiment workflow is stable.
 - Improve documentation around interpreting SPC, screening, and regression outputs cautiously.
 - Add more tests for CLI-level workflows and generated output files.

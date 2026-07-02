@@ -82,6 +82,36 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--design-method",
+        choices=("random", "grid"),
+        default="random",
+        required=False,
+        help=(
+            "Virtual experiment design method for simulation mode when "
+            "--scenario-input is omitted. Default: random"
+        ),
+    )
+    parser.add_argument(
+        "--design-samples",
+        type=int,
+        default=100,
+        required=False,
+        help=(
+            "Number of random virtual experiment rows to generate when "
+            "--design-method random is used. Default: 100"
+        ),
+    )
+    parser.add_argument(
+        "--grid-levels",
+        type=int,
+        default=5,
+        required=False,
+        help=(
+            "Number of levels per feature for grid virtual experiment design. "
+            "Default: 5"
+        ),
+    )
+    parser.add_argument(
         "--goal",
         choices=("maximize", "minimize"),
         default="maximize",
@@ -184,6 +214,9 @@ def run_selected_analysis(args: argparse.Namespace) -> dict[str, Path]:
             features=args.features,
             scenario_input=args.scenario_input,
             goal=args.goal,
+            design_method=args.design_method,
+            design_samples=args.design_samples,
+            grid_levels=args.grid_levels,
         )
 
     analysis_runner = get_analysis_runner()[args.mode]

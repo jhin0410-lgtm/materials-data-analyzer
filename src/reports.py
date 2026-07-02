@@ -539,18 +539,30 @@ def build_simulation_report(
     metrics_df: pd.DataFrame,
     feature_importance_df: pd.DataFrame,
     figure_results: list[tuple[str, str]],
+    feature_summary_path: Path | None = None,
+    feature_ranges_path: Path | None = None,
+    sensitivity_summary_path: Path | None = None,
+    feature_ranges_df: pd.DataFrame | None = None,
+    sensitivity_summary_df: pd.DataFrame | None = None,
+    virtual_experiment_result: dict[str, object] | None = None,
     scenario_result: dict[str, object] | None = None,
 ) -> str:
-    """Build the Markdown report for regression-based simulation mode."""
+    """Build the Markdown report for virtual experiment screening."""
     report = [
         "# Simulation Report",
         "",
         "## Run",
         "- Mode: `simulation`",
+        "- Analysis type: `data-driven virtual experiment screening`",
         f"- Output folder: `{display_path(output_paths.root)}`",
         "",
         "## Important Notes",
-        "- This regression model is trained on observed rows and does not prove process optimization. Predictions may be unreliable outside the training-data range.",
+        "- This mode uses a baseline surrogate model trained on observed tabular engineering data.",
+        "- This is not physics simulation, automatic optimization, or a replacement for real experiments.",
+        "- Predicted values and rankings are candidate condition screening aids only.",
+        "- Generated virtual designs stay within the observed feature min/max ranges from the modeling data.",
+        "- Model metrics and predictions may not transfer outside the data quality, range, and assumptions of the input dataset.",
+        "- Domain knowledge and validation experiments are still required before using any condition in practice.",
         "",
         "## Input",
         f"- Source file: `{display_path(input_path)}`",
@@ -567,39 +579,81 @@ def build_simulation_report(
         f"- Predictions: `{display_path(predictions_path)}`",
         f"- Model metrics: `{display_path(metrics_path)}`",
         f"- Feature importance: `{display_path(feature_importance_path)}`",
-        "",
-        "## Metrics",
-        dataframe_to_markdown(metrics_df),
-        "",
-        "## Feature Importance",
-        dataframe_to_markdown(feature_importance_df),
-        "",
-        "## Figures",
-        *figure_results_to_markdown(figure_results),
-        "",
     ]
 
-    if scenario_result:
-        scenario_figure_results = scenario_result["figure_results"]
+    if feature_summary_path:
+        report.append(f"- Feature summary: `{display_path(feature_summary_path)}`")
+    if feature_ranges_path:
+        report.append(f"- Feature ranges: `{display_path(feature_ranges_path)}`")
+    if sensitivity_summary_path:
+        report.append(
+            f"- Sensitivity summary: `{display_path(sensitivity_summary_path)}`"
+        )
+
+    report.extend(
+        [
+            "",
+            "## Model Metrics",
+            dataframe_to_markdown(metrics_df),
+            "",
+            "## Observed Feature Ranges",
+            dataframe_to_markdown(feature_ranges_df)
+            if feature_ranges_df is not None
+            else "No feature range summary was provided.",
+            "",
+            "## Feature Summary",
+            dataframe_to_markdown(feature_importance_df),
+            "",
+            "## Sensitivity Summary",
+            dataframe_to_markdown(sensitivity_summary_df)
+            if sensitivity_summary_df is not None
+            else "No sensitivity summary was provided.",
+            "",
+            "## Model Figures",
+            *figure_results_to_markdown(figure_results),
+            "",
+        ]
+    )
+
+    screening_result = virtual_experiment_result or scenario_result
+    if screening_result:
+        scenario_figure_results = screening_result["figure_results"]
+        scenario_input_path = screening_result.get("scenario_input_path")
+        scenario_input_line = (
+            f"- Scenario input path: `{display_path(scenario_input_path)}`"
+            if scenario_input_path
+            else "- Scenario input path: not provided; generated virtual design was used."
+        )
         report.extend(
             [
-                "## Scenario-Based What-if Prediction",
+                "## Virtual Experiment Screening",
                 "",
-                "- Scenario prediction is model-based what-if output from observed data. It does not guarantee real experiment results, especially outside the training-data range.",
+                "- Candidate rows are predicted with the baseline surrogate model and ranked as screening aids.",
+                "- The ranking should not be read as a confirmed best condition or validated process recipe.",
                 "",
-                f"- Scenario input path: `{display_path(scenario_result['scenario_input_path'])}`",
-                f"- Scenario row count: {scenario_result['scenario_row_count']}",
-                f"- Valid prediction row count: {scenario_result['valid_prediction_row_count']}",
-                f"- Excluded row count: {scenario_result['excluded_row_count']}",
-                f"- Predicted target column: `{scenario_result['predicted_column']}`",
-                f"- Goal: `{scenario_result['goal']}`",
-                f"- Scenario predictions CSV: `{display_path(scenario_result['predictions_path'])}`",
-                f"- Scenario ranking CSV: `{display_path(scenario_result['ranking_path'])}`",
+                f"- Candidate source: `{screening_result.get('candidate_source', 'scenario_input')}`",
+                scenario_input_line,
+                f"- Design method: `{screening_result.get('design_method', 'scenario_input')}`",
+                f"- Candidate row count: {screening_result.get('candidate_row_count', screening_result.get('scenario_row_count'))}",
+                f"- Valid prediction row count: {screening_result['valid_prediction_row_count']}",
+                f"- Excluded row count: {screening_result['excluded_row_count']}",
+                f"- Predicted target column: `{screening_result['predicted_column']}`",
+                f"- Goal: `{screening_result['goal']}`",
+                f"- Virtual experiment design CSV: `{display_path(screening_result.get('design_path'))}`"
+                if screening_result.get("design_path")
+                else "- Virtual experiment design CSV: not saved.",
+                f"- Virtual experiment predictions CSV: `{display_path(screening_result.get('virtual_predictions_path'))}`"
+                if screening_result.get("virtual_predictions_path")
+                else f"- Scenario predictions CSV: `{display_path(screening_result['predictions_path'])}`",
+                f"- Scenario-compatible predictions CSV: `{display_path(screening_result.get('scenario_predictions_path'))}`"
+                if screening_result.get("scenario_predictions_path")
+                else "",
+                f"- Scenario ranking CSV: `{display_path(screening_result['ranking_path'])}`",
                 "",
-                "### Top 5 Scenario Ranking",
-                dataframe_to_markdown(scenario_result["top5_ranking"]),
+                "### Top 5 Candidate Screening Ranking",
+                dataframe_to_markdown(screening_result["top5_ranking"]),
                 "",
-                "### Scenario Figures",
+                "### Virtual Experiment Figures",
                 *figure_results_to_markdown(scenario_figure_results),
                 "",
             ]

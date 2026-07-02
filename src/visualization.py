@@ -969,16 +969,24 @@ def plot_feature_importance(
     feature_importance_df: pd.DataFrame,
     output_path: Path,
 ) -> tuple[Path | None, str]:
-    """Create a horizontal bar chart of model feature importance."""
-    required_columns = ["feature", "importance"]
-    if any(column not in feature_importance_df.columns for column in required_columns):
+    """Create a horizontal bar chart of model feature summary values."""
+    if "feature" not in feature_importance_df.columns:
         return None, FIGURE_COLUMN_MISSING_MESSAGE
 
-    plot_df = feature_importance_df[required_columns].dropna()
+    if "importance" in feature_importance_df.columns:
+        value_column = "importance"
+        x_label = "importance"
+    elif "abs_coefficient" in feature_importance_df.columns:
+        value_column = "abs_coefficient"
+        x_label = "absolute coefficient"
+    else:
+        return None, FIGURE_COLUMN_MISSING_MESSAGE
+
+    plot_df = feature_importance_df[["feature", value_column]].dropna()
     if plot_df.empty:
         return None, FIGURE_NO_VALID_DATA_MESSAGE
 
-    plot_df = plot_df.sort_values("importance", ascending=True)
+    plot_df = plot_df.sort_values(value_column, ascending=True)
 
     plt, matplotlib_reason = try_get_pyplot()
     if plt is None:
@@ -986,9 +994,9 @@ def plot_feature_importance(
 
     fig_height = max(4, len(plot_df) * 0.45 + 1.5)
     fig, ax = plt.subplots(figsize=(8, fig_height))
-    ax.barh(plot_df["feature"], plot_df["importance"], color="#59a14f")
-    ax.set_title("Feature Importance")
-    ax.set_xlabel("importance")
+    ax.barh(plot_df["feature"], plot_df[value_column], color="#59a14f")
+    ax.set_title("Feature Summary")
+    ax.set_xlabel(x_label)
     ax.set_ylabel("feature")
     ax.grid(axis="x", linestyle="--", alpha=0.3)
     fig.tight_layout()
@@ -999,7 +1007,7 @@ def plot_feature_importance(
 
 def create_simulation_figures(
     predictions_df: pd.DataFrame,
-    feature_importance_df: pd.DataFrame,
+    feature_summary_df: pd.DataFrame,
     output_paths: OutputPaths,
 ) -> list[tuple[str, str]]:
     """Create simulation-mode figures and collect report-friendly statuses."""
@@ -1012,10 +1020,78 @@ def create_simulation_figures(
     add_figure_result(figure_results, "Actual vs predicted", path, reason)
 
     path, reason = plot_feature_importance(
-        feature_importance_df=feature_importance_df,
+        feature_importance_df=feature_summary_df,
         output_path=output_paths.figures / "feature_importance.png",
     )
-    add_figure_result(figure_results, "Feature importance", path, reason)
+    add_figure_result(figure_results, "Feature summary", path, reason)
+
+    return figure_results
+
+
+def plot_feature_response(
+    predictions_df: pd.DataFrame,
+    feature_column: str,
+    predicted_column: str,
+    output_path: Path,
+) -> tuple[Path | None, str]:
+    """Create a 1D feature-response plot for virtual experiment predictions."""
+    required_columns = [feature_column, predicted_column]
+    if any(column not in predictions_df.columns for column in required_columns):
+        return None, FIGURE_COLUMN_MISSING_MESSAGE
+
+    plot_df = predictions_df[required_columns].dropna().sort_values(feature_column)
+    if plot_df.empty:
+        return None, FIGURE_NO_VALID_DATA_MESSAGE
+
+    plt, matplotlib_reason = try_get_pyplot()
+    if plt is None:
+        return None, matplotlib_reason or "matplotlib could not be loaded"
+
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ax.plot(
+        plot_df[feature_column],
+        plot_df[predicted_column],
+        marker="o",
+        linestyle="-",
+        color="#4c78a8",
+        alpha=0.8,
+    )
+    ax.set_title(f"Predicted {predicted_column} vs {feature_column}")
+    ax.set_xlabel(feature_column)
+    ax.set_ylabel(predicted_column)
+    ax.grid(True, linestyle="--", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    return output_path, "created"
+
+
+def create_feature_response_figures(
+    predictions_df: pd.DataFrame,
+    feature_columns: list[str],
+    predicted_column: str,
+    output_paths: OutputPaths,
+    max_features: int = 2,
+) -> list[tuple[str, str]]:
+    """Create 1D feature-response figures for the first few features."""
+    figure_results: list[tuple[str, str]] = []
+
+    for feature_column in feature_columns[:max_features]:
+        path, reason = plot_feature_response(
+            predictions_df=predictions_df,
+            feature_column=feature_column,
+            predicted_column=predicted_column,
+            output_path=(
+                output_paths.figures
+                / f"feature_response_{safe_file_stem(feature_column)}.png"
+            ),
+        )
+        add_figure_result(
+            figure_results,
+            f"Feature response: {feature_column}",
+            path,
+            reason,
+        )
 
     return figure_results
 
@@ -1048,7 +1124,7 @@ def plot_scenario_prediction_ranking(
         plot_df[predicted_column],
         color="#4c78a8",
     )
-    title = "Scenario Prediction Ranking"
+    title = "Candidate Prediction Ranking"
     if was_truncated:
         title += " (Top 30)"
     ax.set_title(title)
@@ -1075,6 +1151,13 @@ def create_scenario_prediction_figures(
         predicted_column=predicted_column,
         output_path=output_paths.figures / "scenario_prediction_ranking.png",
     )
-    add_figure_result(figure_results, "Scenario prediction ranking", path, reason)
+    add_figure_result(figure_results, "Candidate prediction ranking", path, reason)
+
+    path, reason = plot_scenario_prediction_ranking(
+        scenario_ranking_df=scenario_ranking_df,
+        predicted_column=predicted_column,
+        output_path=output_paths.figures / "prediction_ranking.png",
+    )
+    add_figure_result(figure_results, "Prediction ranking", path, reason)
 
     return figure_results
