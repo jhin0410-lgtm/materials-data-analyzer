@@ -133,6 +133,12 @@ outputs/{run_name}/reports/
 - This project does not perform XRD, SEM, or EDS analysis.
 - The v0.2 data profile summarizes dataset structure and missingness only; it does not automatically validate engineering conclusions.
 
+## Related Project
+
+[`materials-characterization-analyzer`](https://github.com/jhin0410-lgtm/materials-characterization-analyzer) is a separate project for XRD, SEM, and EDS characterization data.
+
+This project focuses on CSV-based experiment, process, quality, and reliability datasets. The characterization analyzer focuses on materials characterization equipment outputs such as spectra, images, and elemental composition tables.
+
 ## Future Work
 
 - Add clearer input schema examples for common materials, process, reliability, battery, and OLED CSV formats.
