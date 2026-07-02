@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from config import OUTPUT_DIR, PROJECT_ROOT, OutputPaths
+from data_io import load_engineering_csv
 
 
 def resolve_project_path(path_value: str | Path) -> Path:
@@ -27,26 +28,8 @@ def display_path(path: Path) -> str:
 
 
 def load_data(input_path: Path) -> pd.DataFrame:
-    """Load a CSV file and turn common problems into friendly errors."""
-    if not input_path.exists():
-        raise FileNotFoundError(
-            f"Input file was not found: {input_path}\n"
-            "Please check the file path or create the CSV file first."
-        )
-
-    try:
-        return pd.read_csv(input_path)
-    except pd.errors.EmptyDataError as exc:
-        raise ValueError(
-            f"The input file is empty: {input_path}\n"
-            "Please add CSV rows before running the analyzer."
-        ) from exc
-    except pd.errors.ParserError as exc:
-        raise ValueError(
-            f"The input file could not be parsed as CSV: {input_path}\n"
-            "Please check that the file is saved in a valid CSV format."
-        ) from exc
-
+    """Load a CSV file through the v0.2 validation layer."""
+    return load_engineering_csv(input_path)
 
 def load_csv(input_path: Path) -> pd.DataFrame:
     """Compatibility alias for the older function name."""

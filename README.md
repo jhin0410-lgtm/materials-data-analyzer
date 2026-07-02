@@ -34,6 +34,8 @@ This project packages that first-pass workflow so repeated CSV reviews are easie
 
 ## Features
 
+- CSV input validation layer: file/extension checks, empty-file handling, duplicate column detection after header cleanup, and minimum-shape validation.
+- Dataset profile helper: row/column counts, missing-value ratios, duplicate-row count, numeric summary, categorical summary, and conservative datetime-like column detection.
 - EDA mode: missing-value summary, numeric summary, IQR outlier screening, correlation matrix, histograms, and correlation heatmap.
 - Process mode: observed-row screening by target value, material-level summary, temperature-bin summary, and target correlation ranking.
 - Multi-objective screening: simple min-max scoring across selected target columns.
@@ -129,10 +131,12 @@ outputs/{run_name}/reports/
 - SPC and capability outputs require appropriate sampling assumptions and specification limits.
 - Regression-based simulation is a simple modeling aid for demo workflows and does not guarantee real experimental outcomes.
 - This project does not perform XRD, SEM, or EDS analysis.
+- The v0.2 data profile summarizes dataset structure and missingness only; it does not automatically validate engineering conclusions.
 
 ## Future Work
 
 - Add clearer input schema examples for common materials, process, reliability, battery, and OLED CSV formats.
+- Extend the v0.2 data profile helper into optional report sections without changing the default CLI workflow.
 - Add more focused report templates for different engineering dataset types.
 - Add optional configuration files for selecting target columns and output naming.
 - Improve documentation around interpreting SPC, screening, and regression outputs cautiously.
