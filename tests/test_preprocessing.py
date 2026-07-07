@@ -25,3 +25,17 @@ def test_clean_data_converts_blank_strings_to_missing_values() -> None:
     result = clean_data(df)
 
     assert pd.isna(result.loc[1, "material"])
+
+
+def test_clean_data_preserves_duplicate_rows() -> None:
+    df = pd.DataFrame(
+        {
+            "sample_id": ["S1", "S1", "S2"],
+            "yield_percent": [90.0, 90.0, 95.0],
+        }
+    )
+
+    result = clean_data(df)
+
+    assert len(result) == 3
+    assert int(result.duplicated().sum()) == 1

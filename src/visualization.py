@@ -1005,6 +1005,64 @@ def plot_feature_importance(
     return output_path, "created"
 
 
+def plot_residual_vs_predicted(
+    predictions_df: pd.DataFrame,
+    output_path: Path,
+) -> tuple[Path | None, str]:
+    """Create a residual-vs-predicted diagnostic plot."""
+    required_columns = ["predicted", "residual"]
+    if any(column not in predictions_df.columns for column in required_columns):
+        return None, FIGURE_COLUMN_MISSING_MESSAGE
+
+    plot_df = predictions_df[required_columns].dropna()
+    if plot_df.empty:
+        return None, FIGURE_NO_VALID_DATA_MESSAGE
+
+    plt, matplotlib_reason = try_get_pyplot()
+    if plt is None:
+        return None, matplotlib_reason or "matplotlib could not be loaded"
+
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ax.scatter(plot_df["predicted"], plot_df["residual"], color="#4c78a8", alpha=0.85)
+    ax.axhline(0, color="#e15759", linestyle="--")
+    ax.set_title("Residual vs Predicted")
+    ax.set_xlabel("predicted")
+    ax.set_ylabel("residual")
+    ax.grid(True, linestyle="--", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    return output_path, "created"
+
+
+def plot_residual_histogram(
+    predictions_df: pd.DataFrame,
+    output_path: Path,
+) -> tuple[Path | None, str]:
+    """Create a histogram of residuals."""
+    if "residual" not in predictions_df.columns:
+        return None, FIGURE_COLUMN_MISSING_MESSAGE
+
+    residuals = predictions_df["residual"].dropna()
+    if residuals.empty:
+        return None, FIGURE_NO_VALID_DATA_MESSAGE
+
+    plt, matplotlib_reason = try_get_pyplot()
+    if plt is None:
+        return None, matplotlib_reason or "matplotlib could not be loaded"
+
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ax.hist(residuals, bins=12, color="#f28e2b", edgecolor="white")
+    ax.axvline(0, color="#e15759", linestyle="--")
+    ax.set_title("Residual Histogram")
+    ax.set_xlabel("residual")
+    ax.set_ylabel("count")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    return output_path, "created"
+
+
 def create_simulation_figures(
     predictions_df: pd.DataFrame,
     feature_summary_df: pd.DataFrame,
@@ -1024,6 +1082,18 @@ def create_simulation_figures(
         output_path=output_paths.figures / "feature_importance.png",
     )
     add_figure_result(figure_results, "Feature summary", path, reason)
+
+    path, reason = plot_residual_vs_predicted(
+        predictions_df=predictions_df,
+        output_path=output_paths.figures / "residual_vs_predicted.png",
+    )
+    add_figure_result(figure_results, "Residual vs predicted", path, reason)
+
+    path, reason = plot_residual_histogram(
+        predictions_df=predictions_df,
+        output_path=output_paths.figures / "residual_histogram.png",
+    )
+    add_figure_result(figure_results, "Residual histogram", path, reason)
 
     return figure_results
 

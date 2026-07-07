@@ -56,7 +56,9 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     - Strip leading and trailing spaces from text columns.
     - Treat empty strings as missing values.
     - Convert text columns to numbers when most values look numeric.
-    - Remove exact duplicate rows.
+
+    Exact duplicate rows are intentionally preserved because repeated
+    experiments or repeated measurements can be meaningful engineering data.
     """
     cleaned_df = df.copy()
     cleaned_df = cleaned_df.dropna(how="all")
@@ -79,7 +81,6 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
                 if success_rate >= 0.9:
                     cleaned_df[column] = converted
 
-    cleaned_df = cleaned_df.drop_duplicates()
     return cleaned_df.reset_index(drop=True)
 
 

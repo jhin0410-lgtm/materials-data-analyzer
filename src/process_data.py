@@ -112,6 +112,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--group-column",
+        default=None,
+        required=False,
+        help=(
+            "Optional group column for group-aware simulation validation. "
+            "Example: battery_id"
+        ),
+    )
+    parser.add_argument(
         "--goal",
         choices=("maximize", "minimize"),
         default="maximize",
@@ -217,6 +226,7 @@ def run_selected_analysis(args: argparse.Namespace) -> dict[str, Path]:
             design_method=args.design_method,
             design_samples=args.design_samples,
             grid_levels=args.grid_levels,
+            group_column=args.group_column,
         )
 
     analysis_runner = get_analysis_runner()[args.mode]

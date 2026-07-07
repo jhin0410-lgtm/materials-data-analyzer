@@ -1,0 +1,109 @@
+# Project Structure
+
+`materials_data_analyzer` is a **Tabular Engineering Data Analysis & Virtual Experiment Screening Platform**.
+
+This document separates core platform code, case-study utilities, optional connectors, generated artifacts, and local raw data.
+
+## Core Platform
+
+Core platform files are required for the CLI analyzer workflow:
+
+```text
+src/process_data.py
+src/analyzers/
+src/data_io.py
+src/io_utils.py
+src/preprocessing.py
+src/reports.py
+src/visualization.py
+src/config.py
+src/dataset_registry.py
+src/schema_mapping.py
+src/domain_constraints.py
+src/data_validation.py
+src/results.py
+```
+
+These files support CSV loading, validation, EDA, process analysis, reliability analysis, SPC, smart-factory log analysis, simulation screening, reporting, plotting, and future API/Streamlit result schemas.
+
+## Case Study Utilities
+
+Case-study utilities prepare public or external datasets for the core analyzer:
+
+```text
+src/loaders/
+scripts/build_kaggle_battery_summary.py
+scripts/build_kaggle_battery_discharge_features.py
+scripts/compare_simulation_runs.py
+```
+
+These are not analyzer modes. They convert source-specific data into analyzer-ready tabular CSV files.
+
+## Optional Connectors
+
+The connector layer is optional and experimental:
+
+```text
+src/connectors/
+scripts/ingest_data.py
+configs/data_sources.example.yaml
+```
+
+Connectors may help ingest from external data sources, but the core analyzer remains a local CSV-first CLI platform.
+
+## Case Study Documentation
+
+Real-data demonstrations live under:
+
+```text
+data/case_studies/
+```
+
+The Kaggle NASA battery case study is the main representative real-data demonstration:
+
+```text
+data/case_studies/kaggle_battery/
+```
+
+It documents source data, processing steps, analysis-ready filtering, simulation-run comparison, limitations, and next steps.
+
+## Generated Artifacts
+
+Generated artifacts include:
+
+```text
+data/processed/
+outputs/
+```
+
+`data/processed/` may contain curated case-study summary tables. `outputs/` contains regenerable analyzer run outputs and should generally stay local. See [`OUTPUTS_POLICY.md`](OUTPUTS_POLICY.md) for the repository-level outputs policy.
+
+## Sample Data
+
+Synthetic demo data lives under:
+
+```text
+data/sample/
+```
+
+These files are for tests, quickstart commands, and pipeline demonstration. They are not real experimental or production records.
+
+## Local Raw Data
+
+Local raw-data staging lives under:
+
+```text
+data/raw/
+```
+
+Raw downloaded datasets, API responses, Kaggle files, credentials, and large source archives should not be committed.
+
+## Tests
+
+The pytest suite lives under:
+
+```text
+tests/
+```
+
+It covers the core analyzer, data readiness helpers, loaders, optional connectors, script utilities, and simulation validation behavior.

@@ -1,3 +1,4 @@
+# --- 파이썬 및 환경 관련 ---
 __pycache__/
 **/__pycache__/
 *.py[cod]
@@ -7,5 +8,26 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.env
+*.env
 
+# --- Raw 및 Local 데이터셋 ---
+# Ignore all raw/local downloaded data.
+data/raw/**
+
+# Keep only the top-level raw data policy document.
+!data/raw/
+!data/raw/README.md
+
+# --- 설정 및 자격 증명 (민감 정보) ---
+configs/*.local.yaml
+.kaggle/
+kaggle.json
+**/kaggle.json
+api_credentials.*
+*credentials*.json
+*credentials*.yaml
+*credentials*.yml
+
+# --- 기타 ---
 outputs/

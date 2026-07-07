@@ -26,10 +26,16 @@ MAX_GRID_DESIGN_ROWS = 10_000
 def load_sklearn_tools() -> dict[str, Any]:
     """Import scikit-learn only when simulation mode is actually used."""
     try:
+        from sklearn.base import clone
         from sklearn.ensemble import RandomForestRegressor
         from sklearn.linear_model import LinearRegression
         from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-        from sklearn.model_selection import train_test_split
+        from sklearn.model_selection import (
+            GroupKFold,
+            GroupShuffleSplit,
+            KFold,
+            train_test_split,
+        )
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             "Missing Python package: scikit-learn\n"
@@ -38,8 +44,12 @@ def load_sklearn_tools() -> dict[str, Any]:
         ) from exc
 
     return {
+        "GroupKFold": GroupKFold,
+        "GroupShuffleSplit": GroupShuffleSplit,
+        "KFold": KFold,
         "LinearRegression": LinearRegression,
         "RandomForestRegressor": RandomForestRegressor,
+        "clone": clone,
         "mean_absolute_error": mean_absolute_error,
         "mean_squared_error": mean_squared_error,
         "r2_score": r2_score,
@@ -132,12 +142,40 @@ def validate_simulation_columns(
     return validate_simulation_inputs(df=df, target=target, features=features)
 
 
+def validate_group_column(df: pd.DataFrame, group_column: str | None) -> str | None:
+    """Clean and validate an optional group column for group-aware validation."""
+    if group_column is None:
+        return None
+
+    cleaned_group_column = clean_column_name(group_column)
+    if cleaned_group_column not in df.columns:
+        available_columns = ", ".join(df.columns)
+        raise ValueError(
+            "Simulation mode could not find the group column.\n"
+            f"Requested group column: {group_column}\n"
+            "After column-name cleanup, it was searched as: "
+            f"{cleaned_group_column}\n"
+            f"Available columns are: {available_columns}"
+        )
+
+    return cleaned_group_column
+
+
 def prepare_virtual_experiment_training_data(
-    df: pd.DataFrame, target_column: str, feature_columns: list[str]
+    df: pd.DataFrame,
+    target_column: str,
+    feature_columns: list[str],
+    group_column: str | None = None,
 ) -> pd.DataFrame:
     """Drop rows with missing target/features and keep modeling columns."""
     modeling_columns = feature_columns + [target_column]
-    training_df = df[modeling_columns].dropna().copy()
+    if group_column and group_column not in modeling_columns:
+        modeling_columns.append(group_column)
+
+    required_columns = feature_columns + [target_column]
+    if group_column:
+        required_columns.append(group_column)
+    training_df = df[modeling_columns].dropna(subset=required_columns).copy()
 
     if len(training_df) < 5:
         raise ValueError(
@@ -151,13 +189,17 @@ def prepare_virtual_experiment_training_data(
 
 
 def prepare_simulation_training_data(
-    df: pd.DataFrame, target_column: str, feature_columns: list[str]
+    df: pd.DataFrame,
+    target_column: str,
+    feature_columns: list[str],
+    group_column: str | None = None,
 ) -> pd.DataFrame:
     """Backward-compatible wrapper for simulation training data preparation."""
     return prepare_virtual_experiment_training_data(
         df=df,
         target_column=target_column,
         feature_columns=feature_columns,
+        group_column=group_column,
     )
 
 
@@ -216,7 +258,7 @@ def fit_surrogate_model(
 
 def split_training_evaluation_data(
     training_df: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, str, str]:
+) -> tuple[pd.DataFrame, pd.DataFrame, str, str, str]:
     """Split data for evaluation, with a clear fallback for small datasets."""
     sklearn_tools = load_sklearn_tools()
 
@@ -226,13 +268,56 @@ def split_training_evaluation_data(
         )
         split_note = "train/test split used (test_size=0.2, random_state=42)"
         metric_dataset = "test"
-        return train_df, test_df, split_note, metric_dataset
+        return train_df, test_df, split_note, metric_dataset, "random_split"
 
     split_note = (
         "Small dataset fallback: train/test split was skipped; metrics use "
         "the training rows."
     )
-    return training_df, training_df, split_note, "training"
+    return training_df, training_df, split_note, "training", "random_split"
+
+
+def split_training_evaluation_data_grouped(
+    training_df: pd.DataFrame,
+    group_column: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, str, str, str]:
+    """Split data with GroupShuffleSplit so groups do not cross train/test."""
+    sklearn_tools = load_sklearn_tools()
+    validation_type = f"group_split_by_{group_column}"
+    group_count = training_df[group_column].nunique(dropna=False)
+    if group_count < 2:
+        split_note = (
+            "Group train/test split skipped because fewer than 2 unique groups "
+            f"were available in group_column={group_column}."
+        )
+        return training_df, training_df, split_note, "training", validation_type
+
+    splitter = sklearn_tools["GroupShuffleSplit"](
+        n_splits=1,
+        test_size=0.2,
+        random_state=42,
+    )
+    groups = training_df[group_column]
+    train_index, test_index = next(
+        splitter.split(training_df, training_df.index, groups=groups)
+    )
+    train_df = training_df.iloc[train_index].copy()
+    test_df = training_df.iloc[test_index].copy()
+    split_note = (
+        "Group-aware train/test split used "
+        f"(GroupShuffleSplit, test_size=0.2, group_column={group_column})."
+    )
+    return train_df, test_df, split_note, "test", validation_type
+
+
+def split_model_validation_data(
+    training_df: pd.DataFrame,
+    group_column: str | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, str, str, str]:
+    """Choose random or group-aware train/test validation split."""
+    if group_column:
+        return split_training_evaluation_data_grouped(training_df, group_column)
+    return split_training_evaluation_data(training_df)
 
 
 def build_prediction_rows(
@@ -241,10 +326,18 @@ def build_prediction_rows(
     dataset_df: pd.DataFrame,
     feature_columns: list[str],
     target_column: str,
+    group_column: str | None = None,
 ) -> pd.DataFrame:
     """Create prediction rows with actual value, prediction, and residual."""
     predictions = model.predict(dataset_df[feature_columns])
-    prediction_df = dataset_df[["model_row_id", *feature_columns, target_column]].copy()
+    prediction_columns = ["model_row_id", *feature_columns, target_column]
+    if (
+        group_column
+        and group_column in dataset_df.columns
+        and group_column not in prediction_columns
+    ):
+        prediction_columns.append(group_column)
+    prediction_df = dataset_df[prediction_columns].copy()
     prediction_df.insert(1, "dataset", dataset_name)
     prediction_df["actual"] = prediction_df[target_column]
     prediction_df["predicted"] = predictions
@@ -258,6 +351,7 @@ def calculate_model_metrics(
     dataset_name: str,
     row_count: int,
     split_note: str,
+    validation_type: str,
     r2_score: Any,
     mean_absolute_error: Any,
     mean_squared_error: Any,
@@ -271,6 +365,7 @@ def calculate_model_metrics(
         [
             {
                 "dataset": dataset_name,
+                "validation_type": validation_type,
                 "row_count": row_count,
                 "r2": r2,
                 "mae": mae,
@@ -288,6 +383,7 @@ def evaluate_surrogate_model(
     target_column: str,
     dataset_name: str,
     split_note: str,
+    validation_type: str = "random_split",
 ) -> pd.DataFrame:
     """Evaluate a fitted surrogate model on an evaluation table."""
     sklearn_tools = load_sklearn_tools()
@@ -298,10 +394,202 @@ def evaluate_surrogate_model(
         dataset_name=dataset_name,
         row_count=len(eval_df),
         split_note=split_note,
+        validation_type=validation_type,
         r2_score=sklearn_tools["r2_score"],
         mean_absolute_error=sklearn_tools["mean_absolute_error"],
         mean_squared_error=sklearn_tools["mean_squared_error"],
     )
+
+
+def build_train_test_metrics(
+    model: Any,
+    train_df: pd.DataFrame,
+    eval_df: pd.DataFrame,
+    feature_columns: list[str],
+    target_column: str,
+    metric_dataset: str,
+    split_note: str,
+    validation_type: str = "random_split",
+) -> pd.DataFrame:
+    """Build train and optional test metrics for model validation."""
+    train_metrics = evaluate_surrogate_model(
+        model=model,
+        eval_df=train_df,
+        feature_columns=feature_columns,
+        target_column=target_column,
+        dataset_name="train",
+        split_note=split_note,
+        validation_type=validation_type,
+    )
+    if metric_dataset != "test":
+        return train_metrics
+
+    test_metrics = evaluate_surrogate_model(
+        model=model,
+        eval_df=eval_df,
+        feature_columns=feature_columns,
+        target_column=target_column,
+        dataset_name="test",
+        split_note=split_note,
+        validation_type=validation_type,
+    )
+    return pd.concat([train_metrics, test_metrics], ignore_index=True)
+
+
+def build_overfitting_diagnostics(metrics_df: pd.DataFrame) -> pd.DataFrame:
+    """Compare train/test metrics and flag possible overfitting signals."""
+    columns = ["diagnostic", "train_value", "test_value", "gap", "interpretation"]
+    if "test" not in metrics_df["dataset"].tolist():
+        return pd.DataFrame(
+            [
+                {
+                    "diagnostic": "train_test_split",
+                    "train_value": np.nan,
+                    "test_value": np.nan,
+                    "gap": np.nan,
+                    "interpretation": (
+                        "Train/test split was not available; overfitting "
+                        "diagnostics were not assessed."
+                    ),
+                }
+            ],
+            columns=columns,
+        )
+
+    train_row = metrics_df[metrics_df["dataset"] == "train"].iloc[0]
+    test_row = metrics_df[metrics_df["dataset"] == "test"].iloc[0]
+    r2_gap = train_row["r2"] - test_row["r2"]
+    rmse_ratio = (
+        test_row["rmse"] / train_row["rmse"]
+        if pd.notna(train_row["rmse"]) and train_row["rmse"] != 0
+        else np.nan
+    )
+
+    r2_interpretation = (
+        "possible overfitting signal: train R2 is much higher than test R2"
+        if pd.notna(r2_gap) and r2_gap > 0.2
+        else "no strong overfitting signal from R2 gap"
+    )
+    rmse_interpretation = (
+        "possible overfitting signal: test RMSE is much higher than train RMSE"
+        if pd.notna(rmse_ratio) and rmse_ratio > 1.5
+        else "no strong overfitting signal from RMSE ratio"
+    )
+
+    return pd.DataFrame(
+        [
+            {
+                "diagnostic": "r2_gap",
+                "train_value": train_row["r2"],
+                "test_value": test_row["r2"],
+                "gap": r2_gap,
+                "interpretation": r2_interpretation,
+            },
+            {
+                "diagnostic": "rmse_ratio",
+                "train_value": train_row["rmse"],
+                "test_value": test_row["rmse"],
+                "gap": rmse_ratio,
+                "interpretation": rmse_interpretation,
+            },
+        ],
+        columns=columns,
+    )
+
+
+def choose_cross_validation_splits(row_count: int) -> int | None:
+    """Choose an adjusted cross-validation split count for small datasets."""
+    if row_count < 2:
+        return None
+    if row_count >= 10:
+        return 5
+    return max(2, min(5, row_count // 2))
+
+
+def calculate_cross_validation_metrics(
+    model: Any,
+    training_df: pd.DataFrame,
+    feature_columns: list[str],
+    target_column: str,
+    group_column: str | None = None,
+) -> pd.DataFrame:
+    """Run adjusted K-fold cross-validation for the surrogate model."""
+    columns = ["fold", "validation_type", "r2", "mae", "rmse", "note"]
+    sklearn_tools = load_sklearn_tools()
+    if group_column:
+        validation_type = f"group_kfold_by_{group_column}"
+        group_count = training_df[group_column].nunique(dropna=False)
+        if group_count < 2:
+            return pd.DataFrame(
+                [
+                    {
+                        "fold": "skipped",
+                        "validation_type": validation_type,
+                        "r2": np.nan,
+                        "mae": np.nan,
+                        "rmse": np.nan,
+                        "note": (
+                            "Group cross-validation skipped because fewer than "
+                            "2 unique groups were available."
+                        ),
+                    }
+                ],
+                columns=columns,
+            )
+        splitter = sklearn_tools["GroupKFold"](n_splits=min(5, group_count))
+        split_iterator = splitter.split(
+            training_df,
+            training_df[target_column],
+            groups=training_df[group_column],
+        )
+    else:
+        validation_type = "random_kfold"
+        n_splits = choose_cross_validation_splits(len(training_df))
+        if n_splits is None:
+            return pd.DataFrame(columns=columns)
+        splitter = sklearn_tools["KFold"](
+            n_splits=n_splits,
+            shuffle=True,
+            random_state=42,
+        )
+        split_iterator = splitter.split(training_df)
+    rows: list[dict[str, object]] = []
+
+    for fold_index, (train_index, test_index) in enumerate(
+        split_iterator, start=1
+    ):
+        fold_train_df = training_df.iloc[train_index]
+        fold_test_df = training_df.iloc[test_index]
+        fold_model = sklearn_tools["clone"](model)
+        fold_model.fit(fold_train_df[feature_columns], fold_train_df[target_column])
+        predicted = fold_model.predict(fold_test_df[feature_columns])
+        r2 = (
+            np.nan
+            if len(fold_test_df) < 2
+            else sklearn_tools["r2_score"](fold_test_df[target_column], predicted)
+        )
+        mae = sklearn_tools["mean_absolute_error"](
+            fold_test_df[target_column], predicted
+        )
+        rmse = float(
+            np.sqrt(
+                sklearn_tools["mean_squared_error"](
+                    fold_test_df[target_column], predicted
+                )
+            )
+        )
+        rows.append(
+            {
+                "fold": fold_index,
+                "validation_type": validation_type,
+                "r2": r2,
+                "mae": mae,
+                "rmse": rmse,
+                "note": "",
+            }
+        )
+
+    return pd.DataFrame(rows, columns=columns)
 
 
 def build_feature_summary_table(
@@ -818,24 +1106,36 @@ def run_simulation_analysis(
     design_method: str = "random",
     design_samples: int = 100,
     grid_levels: int = 5,
+    group_column: str | None = None,
 ) -> dict[str, Path]:
     """Run data-driven virtual experiment screening with a surrogate model."""
     target_column, feature_columns = validate_simulation_inputs(
         df=df, target=target, features=features
     )
+    cleaned_group_column = validate_group_column(df=df, group_column=group_column)
     training_df = prepare_virtual_experiment_training_data(
         df=df,
         target_column=target_column,
         feature_columns=feature_columns,
+        group_column=cleaned_group_column,
     )
     feature_ranges_df = summarize_feature_ranges(
         training_df=training_df,
         feature_columns=feature_columns,
     )
 
-    train_df, eval_df, split_note, metric_dataset = split_training_evaluation_data(
-        training_df
+    train_df, eval_df, split_note, metric_dataset, validation_type = (
+        split_model_validation_data(
+            training_df=training_df,
+            group_column=cleaned_group_column,
+        )
     )
+    train_test_group_overlap_count: int | None = None
+    if cleaned_group_column and metric_dataset == "test":
+        train_groups = set(train_df[cleaned_group_column].dropna().astype(str))
+        test_groups = set(eval_df[cleaned_group_column].dropna().astype(str))
+        train_test_group_overlap_count = len(train_groups & test_groups)
+
     model, model_type = create_surrogate_model("random_forest")
     model = fit_surrogate_model(
         model=model,
@@ -850,6 +1150,7 @@ def run_simulation_analysis(
         dataset_df=train_df,
         feature_columns=feature_columns,
         target_column=target_column,
+        group_column=cleaned_group_column,
     )
     if metric_dataset == "test":
         eval_predictions = build_prediction_rows(
@@ -858,6 +1159,7 @@ def run_simulation_analysis(
             dataset_df=eval_df,
             feature_columns=feature_columns,
             target_column=target_column,
+            group_column=cleaned_group_column,
         )
         predictions_df = pd.concat(
             [train_predictions, eval_predictions], ignore_index=True
@@ -866,13 +1168,26 @@ def run_simulation_analysis(
         eval_predictions = train_predictions
         predictions_df = train_predictions
 
-    metrics_df = evaluate_surrogate_model(
+    train_test_metrics_df = build_train_test_metrics(
         model=model,
+        train_df=train_df,
         eval_df=eval_df,
         feature_columns=feature_columns,
         target_column=target_column,
-        dataset_name=metric_dataset,
+        metric_dataset=metric_dataset,
         split_note=split_note,
+        validation_type=validation_type,
+    )
+    metrics_df = train_test_metrics_df
+    overfitting_diagnostics_df = build_overfitting_diagnostics(
+        train_test_metrics_df
+    )
+    cross_validation_metrics_df = calculate_cross_validation_metrics(
+        model=model,
+        training_df=training_df,
+        feature_columns=feature_columns,
+        target_column=target_column,
+        group_column=cleaned_group_column,
     )
     feature_summary_df = build_feature_summary_table(
         model=model, feature_columns=feature_columns
@@ -913,6 +1228,17 @@ def run_simulation_analysis(
     metrics_path = save_dataframe(
         metrics_df, output_paths.processed / "model_metrics.csv"
     )
+    train_test_metrics_path = save_dataframe(
+        train_test_metrics_df, output_paths.processed / "train_test_metrics.csv"
+    )
+    overfitting_diagnostics_path = save_dataframe(
+        overfitting_diagnostics_df,
+        output_paths.processed / "overfitting_diagnostics.csv",
+    )
+    cross_validation_metrics_path = save_dataframe(
+        cross_validation_metrics_df,
+        output_paths.processed / "cross_validation_metrics.csv",
+    )
     feature_ranges_path = save_dataframe(
         feature_ranges_df, output_paths.processed / "feature_ranges.csv"
     )
@@ -952,7 +1278,16 @@ def run_simulation_analysis(
         sensitivity_summary_path=sensitivity_summary_path,
         feature_ranges_df=feature_ranges_df,
         sensitivity_summary_df=sensitivity_summary_df,
+        train_test_metrics_path=train_test_metrics_path,
+        overfitting_diagnostics_path=overfitting_diagnostics_path,
+        cross_validation_metrics_path=cross_validation_metrics_path,
+        train_test_metrics_df=train_test_metrics_df,
+        overfitting_diagnostics_df=overfitting_diagnostics_df,
+        cross_validation_metrics_df=cross_validation_metrics_df,
         virtual_experiment_result=virtual_experiment_result,
+        group_column=cleaned_group_column,
+        validation_type=validation_type,
+        train_test_group_overlap_count=train_test_group_overlap_count,
     )
     report_path = save_text_report(
         report_text, output_paths.reports / "simulation_report.md"

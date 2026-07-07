@@ -11,11 +11,17 @@ import pytest
 
 from config import OutputPaths
 from analyzers.simulation import (
+    build_overfitting_diagnostics,
     build_feature_summary_table,
     build_sensitivity_summary,
+    build_prediction_rows,
     build_scenario_predictions,
+    build_train_test_metrics,
+    calculate_cross_validation_metrics,
+    create_surrogate_model,
     generate_virtual_experiment_design,
     run_simulation_analysis,
+    split_model_validation_data,
     summarize_feature_ranges,
     validate_scenario_input,
     validate_simulation_columns,
@@ -221,6 +227,192 @@ def test_build_feature_summary_table_for_random_forest_model() -> None:
     assert summary_df.loc[0, "feature"] == "pressure_mpa"
 
 
+def test_build_train_test_metrics_creates_train_and_test_rows() -> None:
+    train_df = pd.DataFrame(
+        {
+            "process_temp_c": [700.0, 750.0, 800.0],
+            "pressure_mpa": [1.0, 1.5, 2.0],
+            "yield_percent": [710.0, 765.0, 820.0],
+        }
+    )
+    test_df = pd.DataFrame(
+        {
+            "process_temp_c": [720.0, 780.0],
+            "pressure_mpa": [1.2, 1.8],
+            "yield_percent": [732.0, 798.0],
+        }
+    )
+
+    metrics_df = build_train_test_metrics(
+        model=DummyRegressionModel(),
+        train_df=train_df,
+        eval_df=test_df,
+        feature_columns=["process_temp_c", "pressure_mpa"],
+        target_column="yield_percent",
+        metric_dataset="test",
+        split_note="test split",
+    )
+
+    assert metrics_df["dataset"].tolist() == ["train", "test"]
+    assert {"r2", "mae", "rmse"}.issubset(metrics_df.columns)
+
+
+def test_overfitting_diagnostics_uses_possible_overfitting_language() -> None:
+    metrics_df = pd.DataFrame(
+        {
+            "dataset": ["train", "test"],
+            "row_count": [8, 2],
+            "r2": [0.99, 0.10],
+            "mae": [0.1, 3.0],
+            "rmse": [0.2, 4.0],
+            "note": ["split", "split"],
+        }
+    )
+
+    diagnostics_df = build_overfitting_diagnostics(metrics_df)
+
+    assert "possible overfitting signal" in " ".join(
+        diagnostics_df["interpretation"].tolist()
+    )
+
+
+def test_cross_validation_split_count_adjusts_to_row_count() -> None:
+    training_df = pd.DataFrame(
+        {
+            "process_temp_c": [float(650 + index * 10) for index in range(12)],
+            "pressure_mpa": [0.8 + index * 0.05 for index in range(12)],
+            "yield_percent": [80.0 + index for index in range(12)],
+        }
+    )
+    model, _ = create_surrogate_model("random_forest")
+
+    metrics_df = calculate_cross_validation_metrics(
+        model=model,
+        training_df=training_df,
+        feature_columns=["process_temp_c", "pressure_mpa"],
+        target_column="yield_percent",
+    )
+
+    assert len(metrics_df) == 5
+    assert metrics_df["validation_type"].unique().tolist() == ["random_kfold"]
+
+
+def test_group_split_keeps_battery_ids_out_of_both_train_and_test() -> None:
+    training_df = pd.DataFrame(
+        {
+            "model_row_id": range(1, 13),
+            "battery_id": [
+                "B1",
+                "B1",
+                "B2",
+                "B2",
+                "B3",
+                "B3",
+                "B4",
+                "B4",
+                "B5",
+                "B5",
+                "B6",
+                "B6",
+            ],
+            "cycle_index": list(range(1, 13)),
+            "capacity_retention_percent": [
+                100,
+                98,
+                96,
+                94,
+                92,
+                90,
+                88,
+                86,
+                84,
+                82,
+                80,
+                78,
+            ],
+        }
+    )
+
+    train_df, test_df, _, metric_dataset, validation_type = split_model_validation_data(
+        training_df=training_df,
+        group_column="battery_id",
+    )
+
+    train_groups = set(train_df["battery_id"])
+    test_groups = set(test_df["battery_id"])
+    assert metric_dataset == "test"
+    assert validation_type == "group_split_by_battery_id"
+    assert train_groups.isdisjoint(test_groups)
+
+
+def test_random_split_is_used_when_group_column_is_not_provided() -> None:
+    training_df = pd.DataFrame(
+        {
+            "model_row_id": range(1, 13),
+            "feature": [float(index) for index in range(12)],
+            "target": [float(index * 2) for index in range(12)],
+        }
+    )
+
+    _, _, split_note, metric_dataset, validation_type = split_model_validation_data(
+        training_df=training_df,
+        group_column=None,
+    )
+
+    assert metric_dataset == "test"
+    assert validation_type == "random_split"
+    assert "train/test split used" in split_note
+
+
+def test_group_cross_validation_skips_when_group_count_is_too_small() -> None:
+    training_df = pd.DataFrame(
+        {
+            "battery_id": ["B1", "B1", "B1", "B1", "B1"],
+            "cycle_index": [1, 2, 3, 4, 5],
+            "capacity_retention_percent": [100, 98, 96, 94, 92],
+        }
+    )
+    model, _ = create_surrogate_model("random_forest")
+
+    metrics_df = calculate_cross_validation_metrics(
+        model=model,
+        training_df=training_df,
+        feature_columns=["cycle_index"],
+        target_column="capacity_retention_percent",
+        group_column="battery_id",
+    )
+
+    assert metrics_df.loc[0, "fold"] == "skipped"
+    assert metrics_df.loc[0, "validation_type"] == "group_kfold_by_battery_id"
+    assert "skipped" in metrics_df.loc[0, "note"]
+
+
+def test_residuals_match_actual_minus_predicted() -> None:
+    df = pd.DataFrame(
+        {
+            "model_row_id": [1, 2],
+            "process_temp_c": [700.0, 800.0],
+            "pressure_mpa": [1.0, 2.0],
+            "yield_percent": [715.0, 825.0],
+        }
+    )
+
+    predictions_df = build_prediction_rows(
+        dataset_name="train",
+        model=DummyRegressionModel(),
+        dataset_df=df,
+        feature_columns=["process_temp_c", "pressure_mpa"],
+        target_column="yield_percent",
+    )
+
+    expected_residuals = predictions_df["actual"] - predictions_df["predicted"]
+    pd.testing.assert_series_equal(
+        predictions_df["residual"],
+        expected_residuals,
+        check_names=False,
+    )
+
+
 def test_run_simulation_analysis_without_scenario_creates_virtual_outputs() -> None:
     output_root = (
         Path(__file__).resolve().parents[1]
@@ -271,5 +463,8 @@ def test_run_simulation_analysis_without_scenario_creates_virtual_outputs() -> N
         assert (output_paths.processed / "scenario_ranking.csv").exists()
         assert (output_paths.processed / "feature_summary.csv").exists()
         assert (output_paths.processed / "sensitivity_summary.csv").exists()
+        assert (output_paths.processed / "train_test_metrics.csv").exists()
+        assert (output_paths.processed / "overfitting_diagnostics.csv").exists()
+        assert (output_paths.processed / "cross_validation_metrics.csv").exists()
     finally:
         shutil.rmtree(output_root, ignore_errors=True)

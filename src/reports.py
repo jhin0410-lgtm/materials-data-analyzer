@@ -544,8 +544,17 @@ def build_simulation_report(
     sensitivity_summary_path: Path | None = None,
     feature_ranges_df: pd.DataFrame | None = None,
     sensitivity_summary_df: pd.DataFrame | None = None,
+    train_test_metrics_path: Path | None = None,
+    overfitting_diagnostics_path: Path | None = None,
+    cross_validation_metrics_path: Path | None = None,
+    train_test_metrics_df: pd.DataFrame | None = None,
+    overfitting_diagnostics_df: pd.DataFrame | None = None,
+    cross_validation_metrics_df: pd.DataFrame | None = None,
     virtual_experiment_result: dict[str, object] | None = None,
     scenario_result: dict[str, object] | None = None,
+    group_column: str | None = None,
+    validation_type: str | None = None,
+    train_test_group_overlap_count: int | None = None,
 ) -> str:
     """Build the Markdown report for virtual experiment screening."""
     report = [
@@ -589,6 +598,44 @@ def build_simulation_report(
         report.append(
             f"- Sensitivity summary: `{display_path(sensitivity_summary_path)}`"
         )
+    if train_test_metrics_path:
+        report.append(
+            f"- Train/test metrics: `{display_path(train_test_metrics_path)}`"
+        )
+    if overfitting_diagnostics_path:
+        report.append(
+            "- Overfitting diagnostics: "
+            f"`{display_path(overfitting_diagnostics_path)}`"
+        )
+    if cross_validation_metrics_path:
+        report.append(
+            "- Cross-validation metrics: "
+            f"`{display_path(cross_validation_metrics_path)}`"
+        )
+
+    validation_context_lines = []
+    if group_column:
+        validation_context_lines.append(
+            f"- Group-aware split was used with group_column=`{group_column}`."
+        )
+        if train_test_group_overlap_count == 0:
+            validation_context_lines.append("- Train/test groups do not overlap.")
+        elif train_test_group_overlap_count is not None:
+            validation_context_lines.append(
+                "- Train/test group overlap count: "
+                f"{train_test_group_overlap_count}."
+            )
+        else:
+            validation_context_lines.append(
+                "- Train/test group overlap was not assessed because no test "
+                "split was available."
+            )
+    else:
+        validation_context_lines.append(
+            "- Random split was used; no group column was provided."
+        )
+    if validation_type:
+        validation_context_lines.append(f"- Validation type: `{validation_type}`.")
 
     report.extend(
         [
@@ -611,6 +658,44 @@ def build_simulation_report(
             "",
             "## Model Figures",
             *figure_results_to_markdown(figure_results),
+            "",
+            "## Model Validation",
+            "- These diagnostics indicate possible overfitting signals only; they do not prove model failure.",
+            *validation_context_lines,
+            f"- Train/test metrics CSV: `{display_path(train_test_metrics_path)}`"
+            if train_test_metrics_path
+            else "- Train/test metrics CSV: not saved.",
+            "- Overfitting diagnostics CSV: "
+            f"`{display_path(overfitting_diagnostics_path)}`"
+            if overfitting_diagnostics_path
+            else "- Overfitting diagnostics CSV: not saved.",
+            "- Cross-validation metrics CSV: "
+            f"`{display_path(cross_validation_metrics_path)}`"
+            if cross_validation_metrics_path
+            else "- Cross-validation metrics CSV: not saved.",
+            "",
+            "### Train/Test Metrics",
+            dataframe_to_markdown(train_test_metrics_df)
+            if train_test_metrics_df is not None
+            else "No train/test metrics were provided.",
+            "",
+            "### Overfitting Diagnostics",
+            dataframe_to_markdown(overfitting_diagnostics_df)
+            if overfitting_diagnostics_df is not None
+            else "No overfitting diagnostics were provided.",
+            "",
+            "### Cross-Validation Metrics",
+            dataframe_to_markdown(cross_validation_metrics_df)
+            if cross_validation_metrics_df is not None
+            and not cross_validation_metrics_df.empty
+            else "Cross-validation was skipped because there were too few rows.",
+            "",
+            "### Residual Figures",
+            *[
+                line
+                for line in figure_results_to_markdown(figure_results)
+                if "Residual" in line
+            ],
             "",
         ]
     )
