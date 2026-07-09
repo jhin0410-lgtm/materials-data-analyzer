@@ -716,6 +716,7 @@ def build_simulation_report(
             "candidate_validation_summary"
         )
         top_candidate_predictions = screening_result.get("top5_candidate_predictions")
+        top_candidate_ranking = screening_result.get("top5_candidate_ranking")
         top_warning_features = screening_result.get("top_warning_features")
         report.extend(
             [
@@ -757,7 +758,23 @@ def build_simulation_report(
                 "",
                 "Domain warnings are based on training feature min/max ranges and should be interpreted as screening flags, not hard physical limits.",
                 "",
-                "- Detailed maximize/minimize ranking report polish is planned for v0.9.3.",
+                "## Candidate Ranking Summary",
+                "",
+                f"- Goal: `{screening_result['goal']}`",
+                f"- Ranked candidate count: {screening_result.get('ranked_candidate_count', screening_result['valid_prediction_row_count'])}",
+                f"- Invalid candidate count: {screening_result.get('invalid_candidate_count', screening_result['excluded_row_count'])}",
+                f"- Candidates with domain warning: {screening_result.get('candidates_with_domain_warning', 0)}",
+                f"- Candidate ranking CSV: `{display_path(screening_result.get('candidate_ranking_path'))}`"
+                if screening_result.get("candidate_ranking_path")
+                else "- Candidate ranking CSV: not saved.",
+                "",
+                "### Top 5 Ranked Candidates",
+                dataframe_to_markdown(top_candidate_ranking)
+                if isinstance(top_candidate_ranking, pd.DataFrame)
+                and not top_candidate_ranking.empty
+                else "No ranked candidates were available.",
+                "",
+                "Ranking is based on model predictions and simple domain warnings. It should be used for screening, not automatic process decisions.",
                 "",
                 "## Virtual Experiment Screening",
                 "",
@@ -781,6 +798,9 @@ def build_simulation_report(
                 f"- Candidate domain warnings CSV: `{display_path(screening_result.get('candidate_domain_warnings_path'))}`"
                 if screening_result.get("candidate_domain_warnings_path")
                 else "- Candidate domain warnings CSV: not saved.",
+                f"- Candidate ranking CSV: `{display_path(screening_result.get('candidate_ranking_path'))}`"
+                if screening_result.get("candidate_ranking_path")
+                else "- Candidate ranking CSV: not saved.",
                 f"- Virtual experiment design CSV: `{display_path(screening_result.get('design_path'))}`"
                 if screening_result.get("design_path")
                 else "- Virtual experiment design CSV: not saved.",

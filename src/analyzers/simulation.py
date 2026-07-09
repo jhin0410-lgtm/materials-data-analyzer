@@ -992,6 +992,68 @@ def build_candidate_predictions_table(
     return candidate_predictions[preferred_columns + remaining_columns]
 
 
+def build_candidate_ranking_table(
+    candidate_predictions_df: pd.DataFrame,
+    feature_columns: list[str],
+    goal: str,
+) -> pd.DataFrame:
+    """Rank valid candidate predictions while keeping invalid rows visible."""
+    candidate_ranking = candidate_predictions_df.copy()
+    valid_mask = (
+        (candidate_ranking["validation_status"] == "valid")
+        & candidate_ranking["predicted_target"].notna()
+    )
+    ascending = goal == "minimize"
+
+    ranked_candidates = candidate_ranking.loc[valid_mask].sort_values(
+        ["predicted_target", "candidate_id"],
+        ascending=[ascending, True],
+        kind="mergesort",
+    )
+    invalid_candidates = candidate_ranking.loc[~valid_mask]
+
+    ordered_ranking = pd.concat(
+        [ranked_candidates, invalid_candidates],
+        ignore_index=False,
+    ).copy()
+    ordered_ranking.insert(0, "rank", pd.NA)
+    ordered_ranking.insert(4, "goal", goal)
+    ordered_ranking.insert(5, "ranking_status", "invalid_candidate")
+    ordered_ranking.insert(10, "ranking_note", "invalid_candidate")
+
+    rank_values = list(range(1, len(ranked_candidates) + 1))
+    ordered_ranking.loc[ranked_candidates.index, "rank"] = rank_values
+    ordered_ranking.loc[ranked_candidates.index, "ranking_status"] = "ranked"
+    ordered_ranking.loc[ranked_candidates.index, "ranking_note"] = "ranked"
+
+    warning_ranked_mask = (
+        ordered_ranking["ranking_status"].eq("ranked")
+        & ordered_ranking["has_domain_warning"].astype(bool)
+    )
+    ordered_ranking.loc[
+        warning_ranked_mask, "ranking_note"
+    ] = "ranked_with_domain_warning"
+
+    preferred_columns = [
+        "rank",
+        "candidate_id",
+        "predicted_target",
+        "target_name",
+        "goal",
+        "ranking_status",
+        "validation_status",
+        "validation_message",
+        "has_domain_warning",
+        "domain_warning_count",
+        "ranking_note",
+        *feature_columns,
+    ]
+    remaining_columns = [
+        column for column in ordered_ranking.columns if column not in preferred_columns
+    ]
+    return ordered_ranking[preferred_columns + remaining_columns].reset_index(drop=True)
+
+
 def build_candidate_domain_warnings(
     candidate_df: pd.DataFrame,
     feature_ranges_df: pd.DataFrame,
@@ -1338,6 +1400,15 @@ def run_virtual_experiment_screening(
         candidate_predictions_df,
         output_paths.processed / "candidate_predictions.csv",
     )
+    candidate_ranking_df = build_candidate_ranking_table(
+        candidate_predictions_df=candidate_predictions_df,
+        feature_columns=feature_columns,
+        goal=goal,
+    )
+    candidate_ranking_path = save_dataframe(
+        candidate_ranking_df,
+        output_paths.processed / "candidate_ranking.csv",
+    )
     candidate_validation_summary_df = summarize_candidate_validation(
         candidate_predictions_df
     )
@@ -1387,13 +1458,23 @@ def run_virtual_experiment_screening(
         "candidate_conditions_path": candidate_conditions_path,
         "design_path": design_path,
         "candidate_predictions_path": candidate_predictions_path,
+        "candidate_ranking_path": candidate_ranking_path,
         "candidate_domain_warnings_path": domain_warnings_path,
         "virtual_predictions_path": virtual_predictions_path,
         "scenario_predictions_path": scenario_predictions_path,
         "ranking_path": ranking_path,
+        "ranked_candidate_count": int(
+            (candidate_ranking_df["ranking_status"] == "ranked").sum()
+        ),
+        "invalid_candidate_count": int(
+            (candidate_ranking_df["ranking_status"] == "invalid_candidate").sum()
+        ),
         "candidates_with_domain_warning": candidates_with_domain_warning,
         "domain_warning_count": domain_warning_count,
         "top_warning_features": top_warning_features_df,
+        "top5_candidate_ranking": candidate_ranking_df[
+            candidate_ranking_df["ranking_status"] == "ranked"
+        ].head(5),
         "top5_ranking": ranking_df.head(5),
         "top5_candidate_predictions": candidate_predictions_df[
             candidate_predictions_df["validation_status"] == "valid"
