@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd
 
 from config import OutputPaths
+from data_io import load_engineering_csv
 from io_utils import load_data, resolve_project_path, save_dataframe, save_text_report
-from preprocessing import clean_column_name, clean_data, standardize_column_names
+from preprocessing import clean_column_name, standardize_column_names
 from reports import build_simulation_report
 from visualization import (
     create_feature_response_figures,
@@ -738,10 +739,23 @@ def generate_virtual_experiment_design(
     raise ValueError("Unsupported design method. Use random or grid.")
 
 
+def _clean_candidate_text_values(df: pd.DataFrame) -> pd.DataFrame:
+    """Strip text cells and normalize empty candidate values to missing."""
+    cleaned_df = df.copy()
+    for column in cleaned_df.columns:
+        if (
+            pd.api.types.is_object_dtype(cleaned_df[column])
+            or pd.api.types.is_string_dtype(cleaned_df[column])
+        ):
+            cleaned_df[column] = cleaned_df[column].astype("string").str.strip()
+            cleaned_df[column] = cleaned_df[column].replace("", pd.NA)
+    return cleaned_df
+
+
 def load_and_prepare_scenario_data(
     scenario_input: str | Path,
 ) -> tuple[Path, pd.DataFrame]:
-    """Load a scenario CSV and apply the same light cleanup as input data."""
+    """Load a scenario/candidate CSV and apply scenario-specific cleanup."""
     scenario_path = resolve_project_path(scenario_input)
     if not scenario_path.exists():
         raise FileNotFoundError(
@@ -749,16 +763,33 @@ def load_and_prepare_scenario_data(
             "Please check --scenario-input and try again."
         )
 
-    raw_scenario_df = load_data(scenario_path)
+    try:
+        raw_scenario_df = load_engineering_csv(scenario_path, min_rows=1)
+    except ValueError as exc:
+        raise ValueError(
+            f"Scenario input CSV is empty or invalid: {scenario_path}\n"
+            "Please provide at least one candidate row with the required "
+            "feature columns."
+        ) from exc
+
     scenario_df = standardize_column_names(raw_scenario_df)
-    scenario_df = clean_data(scenario_df)
+    scenario_df = _clean_candidate_text_values(scenario_df)
+    if scenario_df.empty:
+        raise ValueError(
+            f"Scenario input CSV has no candidate rows after cleanup: {scenario_path}"
+        )
     return scenario_path, scenario_df
 
 
 def validate_scenario_input(
     scenario_df: pd.DataFrame, feature_columns: list[str]
 ) -> None:
-    """Check that scenario data has all numeric feature columns."""
+    """Check that scenario data has all required numeric feature columns."""
+    if scenario_df.empty:
+        raise ValueError(
+            "Scenario CSV has no candidate rows. Please provide at least one row."
+        )
+
     missing_features = [
         feature for feature in feature_columns if feature not in scenario_df.columns
     ]
@@ -771,15 +802,28 @@ def validate_scenario_input(
             f"Available scenario columns are: {available_columns}"
         )
 
-    non_numeric_features = [
-        feature
-        for feature in feature_columns
-        if not pd.api.types.is_numeric_dtype(scenario_df[feature])
-    ]
-    if non_numeric_features:
+    invalid_numeric_values: list[str] = []
+    for feature in feature_columns:
+        converted = pd.to_numeric(scenario_df[feature], errors="coerce")
+        invalid_mask = scenario_df[feature].notna() & converted.isna()
+        if invalid_mask.any():
+            examples = (
+                scenario_df.loc[invalid_mask, feature]
+                .astype("string")
+                .dropna()
+                .head(3)
+                .tolist()
+            )
+            example_text = ", ".join(str(value) for value in examples)
+            invalid_numeric_values.append(f"{feature} (examples: {example_text})")
+        else:
+            scenario_df[feature] = converted
+
+    if invalid_numeric_values:
         raise ValueError(
-            "Scenario CSV feature columns must be numeric.\n"
-            f"Non-numeric scenario features: {non_numeric_features}"
+            "Scenario CSV feature columns must contain numeric values or blanks.\n"
+            "Values that cannot be converted to numeric were found in: "
+            f"{invalid_numeric_values}"
         )
 
 
@@ -791,16 +835,33 @@ def validate_scenario_dataframe(
 
 
 def add_or_clean_scenario_id(scenario_df: pd.DataFrame) -> pd.DataFrame:
-    """Keep scenario_id when present or create one from row order."""
+    """Keep scenario_id and create a standardized candidate_id."""
     prepared_df = scenario_df.copy()
+
+    if "candidate_id" in prepared_df.columns:
+        prepared_df["candidate_id"] = prepared_df["candidate_id"].astype("string")
+    elif "scenario_id" in prepared_df.columns:
+        candidate_ids = prepared_df["scenario_id"].astype("string")
+        prepared_df.insert(0, "candidate_id", candidate_ids)
+    else:
+        prepared_df.insert(
+            0,
+            "candidate_id",
+            [f"candidate_{index + 1:03d}" for index in range(len(prepared_df))],
+        )
 
     if "scenario_id" in prepared_df.columns:
         prepared_df["scenario_id"] = prepared_df["scenario_id"].astype("string")
     else:
+        scenario_position = (
+            prepared_df.columns.get_loc("candidate_id") + 1
+            if "candidate_id" in prepared_df.columns
+            else 0
+        )
         prepared_df.insert(
-            0,
+            scenario_position,
             "scenario_id",
-            [f"scenario_{index}" for index in range(len(prepared_df))],
+            prepared_df["candidate_id"].astype("string"),
         )
 
     return prepared_df
@@ -845,6 +906,102 @@ def build_virtual_experiment_ranking(
     ).reset_index(drop=True)
     ranking_df.insert(0, "screening_rank", np.arange(1, len(ranking_df) + 1))
     return ranking_df
+
+
+def _missing_feature_message(row: pd.Series, feature_columns: list[str]) -> str:
+    missing_features = [
+        feature for feature in feature_columns if pd.isna(row.get(feature))
+    ]
+    if not missing_features:
+        return "Predicted successfully."
+    return "Excluded from prediction because required feature value(s) are missing: " + ", ".join(
+        missing_features
+    )
+
+
+def build_candidate_predictions_table(
+    candidate_df: pd.DataFrame,
+    predictions_df: pd.DataFrame,
+    feature_columns: list[str],
+    target_column: str,
+    model_type: str,
+) -> pd.DataFrame:
+    """Build a standard candidate prediction table including invalid rows."""
+    candidate_predictions = add_or_clean_scenario_id(candidate_df)
+    predicted_column = f"predicted_{target_column}"
+
+    candidate_predictions.insert(
+        1,
+        "row_index",
+        np.arange(1, len(candidate_predictions) + 1),
+    )
+    candidate_predictions.insert(2, "predicted_target", np.nan)
+    candidate_predictions.insert(3, "target_name", target_column)
+    candidate_predictions.insert(4, "model_type", model_type)
+    candidate_predictions.insert(5, "validation_status", "valid")
+    candidate_predictions.insert(6, "validation_message", "Predicted successfully.")
+
+    valid_prediction_index = predictions_df.index
+    if predicted_column in predictions_df.columns:
+        candidate_predictions.loc[
+            valid_prediction_index, "predicted_target"
+        ] = predictions_df[predicted_column]
+
+    missing_feature_mask = candidate_predictions[feature_columns].isna().any(axis=1)
+    if missing_feature_mask.any():
+        candidate_predictions.loc[
+            missing_feature_mask, "validation_status"
+        ] = "excluded_missing_feature"
+        candidate_predictions.loc[
+            missing_feature_mask, "validation_message"
+        ] = candidate_predictions.loc[missing_feature_mask].apply(
+            lambda row: _missing_feature_message(row, feature_columns),
+            axis=1,
+        )
+
+    preferred_columns = [
+        "candidate_id",
+        "row_index",
+        "predicted_target",
+        "target_name",
+        "model_type",
+        "validation_status",
+        "validation_message",
+        *feature_columns,
+    ]
+    remaining_columns = [
+        column for column in candidate_predictions.columns if column not in preferred_columns
+    ]
+    return candidate_predictions[preferred_columns + remaining_columns]
+
+
+def summarize_candidate_validation(candidate_predictions_df: pd.DataFrame) -> pd.DataFrame:
+    """Summarize candidate validation statuses for report output."""
+    if candidate_predictions_df.empty:
+        return pd.DataFrame(
+            columns=["validation_status", "candidate_count", "validation_message"]
+        )
+
+    rows: list[dict[str, object]] = []
+    for status, status_df in candidate_predictions_df.groupby(
+        "validation_status", dropna=False
+    ):
+        messages = (
+            status_df["validation_message"]
+            .dropna()
+            .astype(str)
+            .drop_duplicates()
+            .head(3)
+            .tolist()
+        )
+        rows.append(
+            {
+                "validation_status": status,
+                "candidate_count": len(status_df),
+                "validation_message": "; ".join(messages),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def build_scenario_predictions(
@@ -1035,18 +1192,37 @@ def run_virtual_experiment_screening(
     target_column: str,
     goal: str,
     output_paths: OutputPaths,
+    model_type: str,
 ) -> tuple[dict[str, object], pd.DataFrame]:
     """Predict, rank, and save virtual experiment candidate outputs."""
     predicted_column = f"predicted_{target_column}"
+    prepared_design_df = add_or_clean_scenario_id(design_df)
+    candidate_conditions_path = save_dataframe(
+        prepared_design_df, output_paths.processed / "candidate_conditions.csv"
+    )
     design_path = save_dataframe(
-        design_df, output_paths.processed / "virtual_experiment_design.csv"
+        prepared_design_df, output_paths.processed / "virtual_experiment_design.csv"
     )
 
     predictions_df, excluded_row_count = predict_virtual_experiments(
         model=model,
-        design_df=design_df,
+        design_df=prepared_design_df,
         feature_columns=feature_columns,
         target_column=target_column,
+    )
+    candidate_predictions_df = build_candidate_predictions_table(
+        candidate_df=prepared_design_df,
+        predictions_df=predictions_df,
+        feature_columns=feature_columns,
+        target_column=target_column,
+        model_type=model_type,
+    )
+    candidate_predictions_path = save_dataframe(
+        candidate_predictions_df,
+        output_paths.processed / "candidate_predictions.csv",
+    )
+    candidate_validation_summary_df = summarize_candidate_validation(
+        candidate_predictions_df
     )
     ranking_df = build_virtual_experiment_ranking(
         predictions_df=predictions_df,
@@ -1080,16 +1256,25 @@ def run_virtual_experiment_screening(
 
     result = {
         **candidate_metadata,
-        "candidate_row_count": len(design_df),
+        "candidate_row_count": len(prepared_design_df),
         "valid_prediction_row_count": len(predictions_df),
         "excluded_row_count": excluded_row_count,
         "predicted_column": predicted_column,
         "goal": goal,
+        "target_name": target_column,
+        "candidate_conditions_path": candidate_conditions_path,
         "design_path": design_path,
+        "candidate_predictions_path": candidate_predictions_path,
         "virtual_predictions_path": virtual_predictions_path,
         "scenario_predictions_path": scenario_predictions_path,
         "ranking_path": ranking_path,
         "top5_ranking": ranking_df.head(5),
+        "top5_candidate_predictions": candidate_predictions_df[
+            candidate_predictions_df["validation_status"] == "valid"
+        ]
+        .sort_values("predicted_target", ascending=(goal == "minimize"))
+        .head(5),
+        "candidate_validation_summary": candidate_validation_summary_df,
         "figure_results": ranking_figures + response_figures,
     }
     return result, predictions_df
@@ -1210,6 +1395,7 @@ def run_simulation_analysis(
             target_column=target_column,
             goal=goal,
             output_paths=output_paths,
+            model_type=model_type,
         )
     )
     sensitivity_summary_df = build_sensitivity_summary(

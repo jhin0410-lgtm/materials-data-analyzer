@@ -159,6 +159,12 @@ Run simulation mode with a scenario CSV:
 python src/process_data.py --mode simulation --input data/sample/experiment_process.csv --target yield_percent --features process_temp_c process_time_min pressure_mpa thickness_um --scenario-input data/sample/simulation_scenarios.csv --run-name demo_simulation
 ```
 
+Run candidate condition screening with the sample candidate table:
+
+```powershell
+python src/process_data.py --mode simulation --input data/sample/experiment_process.csv --target yield_percent --features process_temp_C process_time_min pressure_mpa thickness_um --scenario-input data/sample/candidate_conditions.csv --run-name sample_virtual_experiment
+```
+
 Run virtual experiment screening without a scenario CSV:
 
 ```powershell

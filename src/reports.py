@@ -709,8 +709,40 @@ def build_simulation_report(
             if scenario_input_path
             else "- Scenario input path: not provided; generated virtual design was used."
         )
+        candidate_count = screening_result.get(
+            "candidate_row_count", screening_result.get("scenario_row_count")
+        )
+        candidate_validation_summary = screening_result.get(
+            "candidate_validation_summary"
+        )
+        top_candidate_predictions = screening_result.get("top5_candidate_predictions")
         report.extend(
             [
+                "## Candidate Prediction Summary",
+                "",
+                scenario_input_line,
+                f"- Candidate count: {candidate_count}",
+                f"- Valid candidate count: {screening_result['valid_prediction_row_count']}",
+                f"- Invalid candidate count: {screening_result['excluded_row_count']}",
+                f"- Target name: `{screening_result.get('target_name', target_column)}`",
+                f"- Candidate predictions CSV: `{display_path(screening_result.get('candidate_predictions_path'))}`"
+                if screening_result.get("candidate_predictions_path")
+                else "- Candidate predictions CSV: not saved.",
+                "",
+                "### Top Predicted Candidates",
+                dataframe_to_markdown(top_candidate_predictions)
+                if isinstance(top_candidate_predictions, pd.DataFrame)
+                and not top_candidate_predictions.empty
+                else "No valid candidate predictions were available.",
+                "",
+                "### Validation Issue Summary",
+                dataframe_to_markdown(candidate_validation_summary)
+                if isinstance(candidate_validation_summary, pd.DataFrame)
+                and not candidate_validation_summary.empty
+                else "No candidate validation summary was available.",
+                "",
+                "- Detailed maximize/minimize ranking report polish is planned for v0.9.3.",
+                "",
                 "## Virtual Experiment Screening",
                 "",
                 "- Candidate rows are predicted with the baseline surrogate model and ranked as screening aids.",
@@ -719,11 +751,17 @@ def build_simulation_report(
                 f"- Candidate source: `{screening_result.get('candidate_source', 'scenario_input')}`",
                 scenario_input_line,
                 f"- Design method: `{screening_result.get('design_method', 'scenario_input')}`",
-                f"- Candidate row count: {screening_result.get('candidate_row_count', screening_result.get('scenario_row_count'))}",
+                f"- Candidate row count: {candidate_count}",
                 f"- Valid prediction row count: {screening_result['valid_prediction_row_count']}",
                 f"- Excluded row count: {screening_result['excluded_row_count']}",
                 f"- Predicted target column: `{screening_result['predicted_column']}`",
                 f"- Goal: `{screening_result['goal']}`",
+                f"- Candidate conditions CSV: `{display_path(screening_result.get('candidate_conditions_path'))}`"
+                if screening_result.get("candidate_conditions_path")
+                else "- Candidate conditions CSV: not saved.",
+                f"- Candidate predictions CSV: `{display_path(screening_result.get('candidate_predictions_path'))}`"
+                if screening_result.get("candidate_predictions_path")
+                else "- Candidate predictions CSV: not saved.",
                 f"- Virtual experiment design CSV: `{display_path(screening_result.get('design_path'))}`"
                 if screening_result.get("design_path")
                 else "- Virtual experiment design CSV: not saved.",

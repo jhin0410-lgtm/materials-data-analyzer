@@ -11,6 +11,7 @@ import pytest
 
 from config import OutputPaths
 from analyzers.simulation import (
+    add_or_clean_scenario_id,
     build_overfitting_diagnostics,
     build_feature_summary_table,
     build_sensitivity_summary,
@@ -86,6 +87,41 @@ def test_validate_scenario_input_missing_feature_raises_value_error() -> None:
             scenario_df=scenario_df,
             feature_columns=["process_temp_c", "pressure_mpa"],
         )
+
+
+def test_validate_scenario_input_non_numeric_feature_raises_value_error() -> None:
+    scenario_df = pd.DataFrame(
+        {
+            "process_temp_c": [700.0, "not_numeric"],
+            "pressure_mpa": [1.0, 1.2],
+        }
+    )
+
+    with pytest.raises(ValueError, match="cannot be converted to numeric"):
+        validate_scenario_input(
+            scenario_df=scenario_df,
+            feature_columns=["process_temp_c", "pressure_mpa"],
+        )
+
+
+def test_scenario_input_without_candidate_id_creates_candidate_ids() -> None:
+    scenario_df = pd.DataFrame(
+        {
+            "process_temp_c": [700.0, 750.0],
+            "pressure_mpa": [1.0, 1.2],
+        }
+    )
+
+    prepared_df = add_or_clean_scenario_id(scenario_df)
+
+    assert prepared_df["candidate_id"].tolist() == [
+        "candidate_001",
+        "candidate_002",
+    ]
+    assert prepared_df["scenario_id"].tolist() == [
+        "candidate_001",
+        "candidate_002",
+    ]
 
 
 def test_generate_random_virtual_experiment_design_uses_observed_ranges() -> None:
@@ -466,5 +502,91 @@ def test_run_simulation_analysis_without_scenario_creates_virtual_outputs() -> N
         assert (output_paths.processed / "train_test_metrics.csv").exists()
         assert (output_paths.processed / "overfitting_diagnostics.csv").exists()
         assert (output_paths.processed / "cross_validation_metrics.csv").exists()
+    finally:
+        shutil.rmtree(output_root, ignore_errors=True)
+
+
+def test_run_simulation_analysis_with_scenario_creates_candidate_predictions() -> None:
+    output_root = (
+        Path(__file__).resolve().parents[1]
+        / "outputs"
+        / f"pytest_candidate_predictions_{uuid.uuid4().hex}"
+    )
+    scenario_path = output_root / "candidate_conditions.csv"
+    output_paths = OutputPaths(
+        root=output_root,
+        processed=output_root / "processed",
+        figures=output_root / "figures",
+        reports=output_root / "reports",
+    )
+    output_paths.root.mkdir(parents=True)
+    output_paths.processed.mkdir()
+    output_paths.figures.mkdir()
+    output_paths.reports.mkdir()
+    pd.DataFrame(
+        {
+            "process_temp_c": [700.0, 760.0, 820.0],
+            "process_time_min": [30.0, 40.0, pd.NA],
+            "pressure_mpa": [1.0, 1.2, 1.4],
+            "thickness_um": [1.2, 1.5, 1.8],
+            "note": ["baseline", "mid", "missing time"],
+        }
+    ).to_csv(scenario_path, index=False)
+    df = pd.DataFrame(
+        {
+            "process_temp_c": [650, 700, 750, 800, 850, 720, 780, 830],
+            "process_time_min": [30, 35, 40, 45, 50, 32, 42, 48],
+            "pressure_mpa": [0.8, 1.0, 1.1, 1.3, 1.5, 0.9, 1.2, 1.4],
+            "thickness_um": [1.0, 1.2, 1.4, 1.7, 2.0, 1.1, 1.5, 1.8],
+            "yield_percent": [80, 88, 92, 95, 98, 84, 93, 96],
+        }
+    )
+
+    try:
+        result = run_simulation_analysis(
+            df=df,
+            input_path=Path("demo.csv"),
+            target="yield_percent",
+            output_paths=output_paths,
+            features=[
+                "process_temp_c",
+                "process_time_min",
+                "pressure_mpa",
+                "thickness_um",
+            ],
+            scenario_input=str(scenario_path),
+        )
+
+        candidate_predictions_path = (
+            output_paths.processed / "candidate_predictions.csv"
+        )
+        candidate_predictions = pd.read_csv(candidate_predictions_path)
+
+        assert result["report"].exists()
+        assert candidate_predictions_path.exists()
+        assert (output_paths.processed / "scenario_predictions.csv").exists()
+        assert (output_paths.processed / "scenario_ranking.csv").exists()
+        assert candidate_predictions["candidate_id"].tolist() == [
+            "candidate_001",
+            "candidate_002",
+            "candidate_003",
+        ]
+        assert "note" in candidate_predictions.columns
+        assert {
+            "candidate_id",
+            "row_index",
+            "predicted_target",
+            "target_name",
+            "model_type",
+            "validation_status",
+            "validation_message",
+        }.issubset(candidate_predictions.columns)
+        assert (
+            candidate_predictions["validation_status"]
+            == "excluded_missing_feature"
+        ).sum() == 1
+        assert "Candidate Prediction Summary" in result["report"].read_text(
+            encoding="utf-8"
+        )
     finally:
         shutil.rmtree(output_root, ignore_errors=True)
