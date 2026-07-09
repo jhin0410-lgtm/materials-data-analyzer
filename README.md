@@ -159,6 +159,26 @@ Run simulation mode with a scenario CSV:
 python src/process_data.py --mode simulation --input data/sample/experiment_process.csv --target yield_percent --features process_temp_c process_time_min pressure_mpa thickness_um --scenario-input data/sample/simulation_scenarios.csv --run-name demo_simulation
 ```
 
+Run candidate condition screening with the sample candidate table:
+
+```powershell
+python src/process_data.py --mode simulation --input data/sample/experiment_process.csv --target yield_percent --features process_temp_C process_time_min pressure_mpa thickness_um --scenario-input data/sample/candidate_conditions.csv --goal maximize --run-name sample_virtual_experiment
+```
+
+### Virtual Experiment Screening Quickstart
+
+Use `data/sample/experiment_process.csv` as the training dataset and
+`data/sample/candidate_conditions.csv` as the candidate condition table.
+The sample candidate table includes `candidate_id`, the required feature
+columns, and an extra `note` column that is preserved in the outputs.
+
+The main v0.9 screening outputs are:
+
+- `candidate_predictions.csv`: candidate-level predictions, validation status, and warning counts.
+- `candidate_domain_warnings.csv`: feature min/max range warnings based on the training data.
+- `candidate_ranking.csv`: goal-based candidate ranking for screening review.
+- `simulation_report.md`: Markdown summary of validation, predictions, warnings, ranking, limitations, and suggested next checks.
+
 Run virtual experiment screening without a scenario CSV:
 
 ```powershell

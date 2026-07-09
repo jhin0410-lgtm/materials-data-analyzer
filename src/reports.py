@@ -560,9 +560,15 @@ def build_simulation_report(
     report = [
         "# Simulation Report",
         "",
-        "## Run",
+        "## Run Summary",
         "- Mode: `simulation`",
         "- Analysis type: `data-driven virtual experiment screening`",
+        f"- Input dataset: `{display_path(input_path)}`",
+        f"- Target: `{target_column}`",
+        "- Features: " + ", ".join(f"`{column}`" for column in feature_columns),
+        f"- Row count used for modeling: {row_count}",
+        f"- Model type: {model_type}",
+        f"- Train/test split: {split_note}",
         f"- Output folder: `{display_path(output_paths.root)}`",
         "",
         "## Important Notes",
@@ -573,17 +579,7 @@ def build_simulation_report(
         "- Model metrics and predictions may not transfer outside the data quality, range, and assumptions of the input dataset.",
         "- Domain knowledge and validation experiments are still required before using any condition in practice.",
         "",
-        "## Input",
-        f"- Source file: `{display_path(input_path)}`",
-        f"- Target column: `{target_column}`",
-        "- Feature columns: " + ", ".join(f"`{column}`" for column in feature_columns),
-        f"- Row count used for modeling: {row_count}",
-        "",
-        "## Model",
-        f"- Model type: {model_type}",
-        f"- Train/test split: {split_note}",
-        "",
-        "## Saved Files",
+        "## Core Output Files",
         f"- Training data: `{display_path(training_data_path)}`",
         f"- Predictions: `{display_path(predictions_path)}`",
         f"- Model metrics: `{display_path(metrics_path)}`",
@@ -659,8 +655,9 @@ def build_simulation_report(
             "## Model Figures",
             *figure_results_to_markdown(figure_results),
             "",
-            "## Model Validation",
+            "## Model Validation Summary",
             "- These diagnostics indicate possible overfitting signals only; they do not prove model failure.",
+            "- Review train/test metrics, cross-validation, and residual diagnostics together; they describe screening reliability, not experimental truth.",
             *validation_context_lines,
             f"- Train/test metrics CSV: `{display_path(train_test_metrics_path)}`"
             if train_test_metrics_path
@@ -709,21 +706,113 @@ def build_simulation_report(
             if scenario_input_path
             else "- Scenario input path: not provided; generated virtual design was used."
         )
+        candidate_count = screening_result.get(
+            "candidate_row_count", screening_result.get("scenario_row_count")
+        )
+        candidate_validation_summary = screening_result.get(
+            "candidate_validation_summary"
+        )
+        top_candidate_predictions = screening_result.get("top5_candidate_predictions")
+        top_candidate_ranking = screening_result.get("top5_candidate_ranking")
+        top_warning_features = screening_result.get("top_warning_features")
+        extra_candidate_columns = screening_result.get("extra_candidate_columns") or []
+        extra_columns_text = (
+            "yes (" + ", ".join(f"`{column}`" for column in extra_candidate_columns) + ")"
+            if extra_candidate_columns
+            else "no extra candidate columns detected"
+        )
         report.extend(
             [
-                "## Virtual Experiment Screening",
-                "",
-                "- Candidate rows are predicted with the baseline surrogate model and ranked as screening aids.",
-                "- The ranking should not be read as a confirmed best condition or validated process recipe.",
+                "## Candidate Input Summary",
                 "",
                 f"- Candidate source: `{screening_result.get('candidate_source', 'scenario_input')}`",
                 scenario_input_line,
                 f"- Design method: `{screening_result.get('design_method', 'scenario_input')}`",
-                f"- Candidate row count: {screening_result.get('candidate_row_count', screening_result.get('scenario_row_count'))}",
-                f"- Valid prediction row count: {screening_result['valid_prediction_row_count']}",
-                f"- Excluded row count: {screening_result['excluded_row_count']}",
-                f"- Predicted target column: `{screening_result['predicted_column']}`",
+                f"- Total candidates: {candidate_count}",
+                f"- Valid candidate count: {screening_result['valid_prediction_row_count']}",
+                f"- Invalid candidate count: {screening_result['excluded_row_count']}",
+                f"- Preserved extra columns: {extra_columns_text}",
+                "",
+                "### Validation Issue Summary",
+                dataframe_to_markdown(candidate_validation_summary)
+                if isinstance(candidate_validation_summary, pd.DataFrame)
+                and not candidate_validation_summary.empty
+                else "No candidate validation summary was available.",
+                "",
+                "## Candidate Prediction Summary",
+                "",
+                "- `candidate_predictions.csv` preserves candidate rows, prediction values, validation status, warning counts, feature columns, and extra scenario columns.",
+                f"- Target name: `{screening_result.get('target_name', target_column)}`",
+                f"- Candidate predictions CSV: `{display_path(screening_result.get('candidate_predictions_path'))}`"
+                if screening_result.get("candidate_predictions_path")
+                else "- Candidate predictions CSV: not saved.",
+                "- Invalid candidates are kept with `validation_status`; rows with missing required feature values are not silently predicted.",
+                "",
+                "### Top Predicted Candidates",
+                dataframe_to_markdown(top_candidate_predictions)
+                if isinstance(top_candidate_predictions, pd.DataFrame)
+                and not top_candidate_predictions.empty
+                else "No valid candidate predictions were available.",
+                "",
+                "## Domain Warning Summary",
+                "",
+                "- `candidate_domain_warnings.csv` lists candidate feature values that are outside the training feature min/max range.",
+                f"- Candidates with domain warning: {screening_result.get('candidates_with_domain_warning', 0)}",
+                f"- Total domain warning count: {screening_result.get('domain_warning_count', 0)}",
+                f"- Candidate domain warnings CSV: `{display_path(screening_result.get('candidate_domain_warnings_path'))}`"
+                if screening_result.get("candidate_domain_warnings_path")
+                else "- Candidate domain warnings CSV: not saved.",
+                "",
+                "### Top Warning Features",
+                dataframe_to_markdown(top_warning_features)
+                if isinstance(top_warning_features, pd.DataFrame)
+                and not top_warning_features.empty
+                else "No domain warnings were generated.",
+                "",
+                "Domain warnings are based on training feature min/max ranges and should be interpreted as screening flags, not hard physical limits.",
+                "",
+                "## Candidate Ranking Summary",
+                "",
+                "- `candidate_ranking.csv` ranks valid candidates by `predicted_target` according to the selected goal while keeping invalid candidates visible.",
                 f"- Goal: `{screening_result['goal']}`",
+                f"- Ranked candidate count: {screening_result.get('ranked_candidate_count', screening_result['valid_prediction_row_count'])}",
+                f"- Invalid candidate count: {screening_result.get('invalid_candidate_count', screening_result['excluded_row_count'])}",
+                f"- Candidates with domain warning: {screening_result.get('candidates_with_domain_warning', 0)}",
+                f"- Candidate ranking CSV: `{display_path(screening_result.get('candidate_ranking_path'))}`"
+                if screening_result.get("candidate_ranking_path")
+                else "- Candidate ranking CSV: not saved.",
+                "- Candidates with domain warnings remain rankable if their required feature values are valid; warning status is shown by `has_domain_warning`, `domain_warning_count`, and `ranking_note`.",
+                "",
+                "### Top 5 Ranked Candidates",
+                dataframe_to_markdown(top_candidate_ranking)
+                if isinstance(top_candidate_ranking, pd.DataFrame)
+                and not top_candidate_ranking.empty
+                else "No ranked candidates were available.",
+                "",
+                "Ranking is based on model predictions and simple domain warnings. It should be used for screening, not automatic process decisions.",
+                "",
+                "## Recommended Next Experiments",
+                "",
+                "- First review top ranked candidates where `has_domain_warning` is false.",
+                "- High-rank candidates with domain warnings should be treated as range-expansion ideas; collect supporting data before experimental use.",
+                "- Invalid candidates should be corrected by fixing required feature values or the candidate CSV schema.",
+                "",
+                "## Output Files",
+                "",
+                f"- `candidate_conditions.csv`: normalized candidate/design table saved at `{display_path(screening_result.get('candidate_conditions_path'))}`."
+                if screening_result.get("candidate_conditions_path")
+                else "- `candidate_conditions.csv`: not saved.",
+                f"- `candidate_predictions.csv`: prediction and validation table saved at `{display_path(screening_result.get('candidate_predictions_path'))}`."
+                if screening_result.get("candidate_predictions_path")
+                else "- `candidate_predictions.csv`: not saved.",
+                f"- `candidate_domain_warnings.csv`: training-range warning table saved at `{display_path(screening_result.get('candidate_domain_warnings_path'))}`."
+                if screening_result.get("candidate_domain_warnings_path")
+                else "- `candidate_domain_warnings.csv`: not saved.",
+                f"- `candidate_ranking.csv`: goal-based screening ranking saved at `{display_path(screening_result.get('candidate_ranking_path'))}`."
+                if screening_result.get("candidate_ranking_path")
+                else "- `candidate_ranking.csv`: not saved.",
+                f"- `simulation_report.md`: this Markdown report saved under `{display_path(output_paths.reports)}`.",
+                f"- Legacy scenario ranking CSV: `{display_path(screening_result['ranking_path'])}`",
                 f"- Virtual experiment design CSV: `{display_path(screening_result.get('design_path'))}`"
                 if screening_result.get("design_path")
                 else "- Virtual experiment design CSV: not saved.",
@@ -733,12 +822,15 @@ def build_simulation_report(
                 f"- Scenario-compatible predictions CSV: `{display_path(screening_result.get('scenario_predictions_path'))}`"
                 if screening_result.get("scenario_predictions_path")
                 else "",
-                f"- Scenario ranking CSV: `{display_path(screening_result['ranking_path'])}`",
                 "",
-                "### Top 5 Candidate Screening Ranking",
-                dataframe_to_markdown(screening_result["top5_ranking"]),
+                "## Limitations",
                 "",
-                "### Virtual Experiment Figures",
+                "- This is an empirical model based on observed tabular data, not physics simulation.",
+                "- Prediction quality depends on training data coverage, measurement quality, and feature selection.",
+                "- OOD/domain warnings are simple min/max screening flags, not hard physical limits or uncertainty estimates.",
+                "- Candidate ranking is a screening aid and should not be treated as automatic process decision-making.",
+                "",
+                "## Virtual Experiment Figures",
                 *figure_results_to_markdown(scenario_figure_results),
                 "",
             ]

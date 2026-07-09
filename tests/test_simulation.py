@@ -11,6 +11,9 @@ import pytest
 
 from config import OutputPaths
 from analyzers.simulation import (
+    add_or_clean_scenario_id,
+    build_candidate_domain_warnings,
+    build_candidate_ranking_table,
     build_overfitting_diagnostics,
     build_feature_summary_table,
     build_sensitivity_summary,
@@ -86,6 +89,124 @@ def test_validate_scenario_input_missing_feature_raises_value_error() -> None:
             scenario_df=scenario_df,
             feature_columns=["process_temp_c", "pressure_mpa"],
         )
+
+
+def test_validate_scenario_input_non_numeric_feature_raises_value_error() -> None:
+    scenario_df = pd.DataFrame(
+        {
+            "process_temp_c": [700.0, "not_numeric"],
+            "pressure_mpa": [1.0, 1.2],
+        }
+    )
+
+    with pytest.raises(ValueError, match="cannot be converted to numeric"):
+        validate_scenario_input(
+            scenario_df=scenario_df,
+            feature_columns=["process_temp_c", "pressure_mpa"],
+        )
+
+
+def test_scenario_input_without_candidate_id_creates_candidate_ids() -> None:
+    scenario_df = pd.DataFrame(
+        {
+            "process_temp_c": [700.0, 750.0],
+            "pressure_mpa": [1.0, 1.2],
+        }
+    )
+
+    prepared_df = add_or_clean_scenario_id(scenario_df)
+
+    assert prepared_df["candidate_id"].tolist() == [
+        "candidate_001",
+        "candidate_002",
+    ]
+    assert prepared_df["scenario_id"].tolist() == [
+        "candidate_001",
+        "candidate_002",
+    ]
+
+
+def test_candidate_above_train_max_produces_domain_warning() -> None:
+    candidate_df = pd.DataFrame(
+        {
+            "candidate_id": ["candidate_high"],
+            "process_temp_c": [900.0],
+        }
+    )
+    feature_ranges = pd.DataFrame(
+        {
+            "feature": ["process_temp_c"],
+            "min": [650.0],
+            "max": [850.0],
+            "mean": [750.0],
+            "std": [75.0],
+        }
+    )
+
+    warnings_df = build_candidate_domain_warnings(
+        candidate_df=candidate_df,
+        feature_ranges_df=feature_ranges,
+        feature_columns=["process_temp_c"],
+    )
+
+    assert len(warnings_df) == 1
+    assert warnings_df.loc[0, "warning_type"] == "above_training_range"
+    assert warnings_df.loc[0, "severity"] == "outside_range"
+
+
+def test_candidate_below_train_min_produces_domain_warning() -> None:
+    candidate_df = pd.DataFrame(
+        {
+            "candidate_id": ["candidate_low"],
+            "pressure_mpa": [0.5],
+        }
+    )
+    feature_ranges = pd.DataFrame(
+        {
+            "feature": ["pressure_mpa"],
+            "min": [0.8],
+            "max": [1.5],
+            "mean": [1.15],
+            "std": [0.25],
+        }
+    )
+
+    warnings_df = build_candidate_domain_warnings(
+        candidate_df=candidate_df,
+        feature_ranges_df=feature_ranges,
+        feature_columns=["pressure_mpa"],
+    )
+
+    assert len(warnings_df) == 1
+    assert warnings_df.loc[0, "warning_type"] == "below_training_range"
+    assert warnings_df.loc[0, "candidate_value"] == 0.5
+
+
+def test_candidate_inside_train_range_produces_no_domain_warning() -> None:
+    candidate_df = pd.DataFrame(
+        {
+            "candidate_id": ["candidate_ok"],
+            "process_temp_c": [750.0],
+            "pressure_mpa": [1.1],
+        }
+    )
+    feature_ranges = pd.DataFrame(
+        {
+            "feature": ["process_temp_c", "pressure_mpa"],
+            "min": [650.0, 0.8],
+            "max": [850.0, 1.5],
+            "mean": [750.0, 1.15],
+            "std": [75.0, 0.25],
+        }
+    )
+
+    warnings_df = build_candidate_domain_warnings(
+        candidate_df=candidate_df,
+        feature_ranges_df=feature_ranges,
+        feature_columns=["process_temp_c", "pressure_mpa"],
+    )
+
+    assert warnings_df.empty
 
 
 def test_generate_random_virtual_experiment_design_uses_observed_ranges() -> None:
@@ -186,6 +307,114 @@ def test_build_scenario_predictions_goal_changes_ranking_direction() -> None:
 
     assert maximize_ranking.loc[0, "scenario_id"] == "high"
     assert minimize_ranking.loc[0, "scenario_id"] == "low"
+
+
+def test_candidate_ranking_maximize_ranks_highest_prediction_first() -> None:
+    candidate_predictions = pd.DataFrame(
+        {
+            "candidate_id": ["low", "high", "mid"],
+            "predicted_target": [80.0, 95.0, 88.0],
+            "target_name": ["yield_percent"] * 3,
+            "validation_status": ["valid"] * 3,
+            "validation_message": ["Predicted successfully."] * 3,
+            "has_domain_warning": [False, False, False],
+            "domain_warning_count": [0, 0, 0],
+            "process_temp_c": [700.0, 820.0, 760.0],
+            "note": ["low candidate", "high candidate", "mid candidate"],
+        }
+    )
+
+    ranking_df = build_candidate_ranking_table(
+        candidate_predictions_df=candidate_predictions,
+        feature_columns=["process_temp_c"],
+        goal="maximize",
+    )
+
+    assert ranking_df["candidate_id"].tolist() == ["high", "mid", "low"]
+    assert ranking_df["rank"].tolist() == [1, 2, 3]
+
+
+def test_candidate_ranking_minimize_ranks_lowest_prediction_first() -> None:
+    candidate_predictions = pd.DataFrame(
+        {
+            "candidate_id": ["low", "high", "mid"],
+            "predicted_target": [80.0, 95.0, 88.0],
+            "target_name": ["resistivity_ohm_cm"] * 3,
+            "validation_status": ["valid"] * 3,
+            "validation_message": ["Predicted successfully."] * 3,
+            "has_domain_warning": [False, False, False],
+            "domain_warning_count": [0, 0, 0],
+            "process_temp_c": [700.0, 820.0, 760.0],
+        }
+    )
+
+    ranking_df = build_candidate_ranking_table(
+        candidate_predictions_df=candidate_predictions,
+        feature_columns=["process_temp_c"],
+        goal="minimize",
+    )
+
+    assert ranking_df["candidate_id"].tolist() == ["low", "mid", "high"]
+    assert ranking_df["rank"].tolist() == [1, 2, 3]
+
+
+def test_candidate_ranking_marks_invalid_candidate_without_valid_rank() -> None:
+    candidate_predictions = pd.DataFrame(
+        {
+            "candidate_id": ["valid_candidate", "invalid_candidate"],
+            "predicted_target": [90.0, pd.NA],
+            "target_name": ["yield_percent", "yield_percent"],
+            "validation_status": ["valid", "excluded_missing_feature"],
+            "validation_message": [
+                "Predicted successfully.",
+                "Excluded from prediction because required feature value(s) are missing: process_temp_c",
+            ],
+            "has_domain_warning": [False, False],
+            "domain_warning_count": [0, 0],
+            "process_temp_c": [750.0, pd.NA],
+        }
+    )
+
+    ranking_df = build_candidate_ranking_table(
+        candidate_predictions_df=candidate_predictions,
+        feature_columns=["process_temp_c"],
+        goal="maximize",
+    )
+    invalid_row = ranking_df[
+        ranking_df["candidate_id"] == "invalid_candidate"
+    ].iloc[0]
+
+    assert invalid_row["ranking_status"] == "invalid_candidate"
+    assert pd.isna(invalid_row["rank"])
+
+
+def test_candidate_with_domain_warning_remains_ranked_with_warning_note() -> None:
+    candidate_predictions = pd.DataFrame(
+        {
+            "candidate_id": ["inside_range", "outside_range"],
+            "predicted_target": [88.0, 96.0],
+            "target_name": ["yield_percent", "yield_percent"],
+            "validation_status": ["valid", "valid"],
+            "validation_message": ["Predicted successfully."] * 2,
+            "has_domain_warning": [False, True],
+            "domain_warning_count": [0, 2],
+            "process_temp_c": [760.0, 900.0],
+        }
+    )
+
+    ranking_df = build_candidate_ranking_table(
+        candidate_predictions_df=candidate_predictions,
+        feature_columns=["process_temp_c"],
+        goal="maximize",
+    )
+    warning_row = ranking_df[
+        ranking_df["candidate_id"] == "outside_range"
+    ].iloc[0]
+
+    assert warning_row["rank"] == 1
+    assert warning_row["ranking_status"] == "ranked"
+    assert warning_row["ranking_note"] == "ranked_with_domain_warning"
+    assert warning_row["domain_warning_count"] == 2
 
 
 def test_build_sensitivity_summary_has_expected_columns() -> None:
@@ -466,5 +695,165 @@ def test_run_simulation_analysis_without_scenario_creates_virtual_outputs() -> N
         assert (output_paths.processed / "train_test_metrics.csv").exists()
         assert (output_paths.processed / "overfitting_diagnostics.csv").exists()
         assert (output_paths.processed / "cross_validation_metrics.csv").exists()
+        report_text = result["report"].read_text(encoding="utf-8")
+        assert "# Simulation Report" in report_text
+        assert "## Run Summary" in report_text
+        assert "## Model Validation Summary" in report_text
+        assert "generated virtual design was used" in report_text
+    finally:
+        shutil.rmtree(output_root, ignore_errors=True)
+
+
+def test_run_simulation_analysis_with_scenario_creates_candidate_predictions() -> None:
+    output_root = (
+        Path(__file__).resolve().parents[1]
+        / "outputs"
+        / f"pytest_candidate_predictions_{uuid.uuid4().hex}"
+    )
+    scenario_path = output_root / "candidate_conditions.csv"
+    output_paths = OutputPaths(
+        root=output_root,
+        processed=output_root / "processed",
+        figures=output_root / "figures",
+        reports=output_root / "reports",
+    )
+    output_paths.root.mkdir(parents=True)
+    output_paths.processed.mkdir()
+    output_paths.figures.mkdir()
+    output_paths.reports.mkdir()
+    pd.DataFrame(
+        {
+            "process_temp_c": [700.0, 760.0, 820.0, 900.0],
+            "process_time_min": [30.0, 40.0, pd.NA, 55.0],
+            "pressure_mpa": [1.0, 1.2, 1.4, 1.8],
+            "thickness_um": [1.2, 1.5, 1.8, 2.2],
+            "note": [
+                "baseline",
+                "mid",
+                "missing time",
+                "outside training range example",
+            ],
+        }
+    ).to_csv(scenario_path, index=False)
+    df = pd.DataFrame(
+        {
+            "process_temp_c": [650, 700, 750, 800, 850, 720, 780, 830],
+            "process_time_min": [30, 35, 40, 45, 50, 32, 42, 48],
+            "pressure_mpa": [0.8, 1.0, 1.1, 1.3, 1.5, 0.9, 1.2, 1.4],
+            "thickness_um": [1.0, 1.2, 1.4, 1.7, 2.0, 1.1, 1.5, 1.8],
+            "yield_percent": [80, 88, 92, 95, 98, 84, 93, 96],
+        }
+    )
+
+    try:
+        result = run_simulation_analysis(
+            df=df,
+            input_path=Path("demo.csv"),
+            target="yield_percent",
+            output_paths=output_paths,
+            features=[
+                "process_temp_c",
+                "process_time_min",
+                "pressure_mpa",
+                "thickness_um",
+            ],
+            scenario_input=str(scenario_path),
+        )
+
+        candidate_predictions_path = (
+            output_paths.processed / "candidate_predictions.csv"
+        )
+        candidate_domain_warnings_path = (
+            output_paths.processed / "candidate_domain_warnings.csv"
+        )
+        candidate_ranking_path = output_paths.processed / "candidate_ranking.csv"
+        candidate_predictions = pd.read_csv(candidate_predictions_path)
+        candidate_domain_warnings = pd.read_csv(candidate_domain_warnings_path)
+        candidate_ranking = pd.read_csv(candidate_ranking_path)
+
+        assert result["report"].exists()
+        assert candidate_predictions_path.exists()
+        assert candidate_domain_warnings_path.exists()
+        assert candidate_ranking_path.exists()
+        assert (output_paths.processed / "scenario_predictions.csv").exists()
+        assert (output_paths.processed / "scenario_ranking.csv").exists()
+        assert candidate_predictions["candidate_id"].tolist() == [
+            "candidate_001",
+            "candidate_002",
+            "candidate_003",
+            "candidate_004",
+        ]
+        assert "note" in candidate_predictions.columns
+        assert {
+            "candidate_id",
+            "row_index",
+            "predicted_target",
+            "target_name",
+            "model_type",
+            "validation_status",
+            "validation_message",
+            "domain_warning_count",
+            "has_domain_warning",
+        }.issubset(candidate_predictions.columns)
+        assert not candidate_domain_warnings.empty
+        assert "above_training_range" in candidate_domain_warnings[
+            "warning_type"
+        ].tolist()
+        assert (
+            candidate_predictions.loc[
+                candidate_predictions["candidate_id"] == "candidate_004",
+                "domain_warning_count",
+            ].iloc[0]
+            > 0
+        )
+        assert (
+            candidate_predictions.loc[
+                candidate_predictions["candidate_id"] == "candidate_004",
+                "has_domain_warning",
+            ].iloc[0]
+            in [True, "True", "true"]
+        )
+        assert (
+            candidate_predictions["validation_status"]
+            == "excluded_missing_feature"
+        ).sum() == 1
+        assert "note" in candidate_ranking.columns
+        assert {
+            "rank",
+            "candidate_id",
+            "predicted_target",
+            "target_name",
+            "goal",
+            "ranking_status",
+            "validation_status",
+            "validation_message",
+            "has_domain_warning",
+            "domain_warning_count",
+            "ranking_note",
+        }.issubset(candidate_ranking.columns)
+        invalid_ranking_row = candidate_ranking[
+            candidate_ranking["candidate_id"] == "candidate_003"
+        ].iloc[0]
+        warning_ranking_row = candidate_ranking[
+            candidate_ranking["candidate_id"] == "candidate_004"
+        ].iloc[0]
+        assert invalid_ranking_row["ranking_status"] == "invalid_candidate"
+        assert pd.isna(invalid_ranking_row["rank"])
+        assert warning_ranking_row["ranking_status"] == "ranked"
+        assert warning_ranking_row["ranking_note"] == "ranked_with_domain_warning"
+        assert warning_ranking_row["domain_warning_count"] > 0
+        report_text = result["report"].read_text(encoding="utf-8")
+        assert "## Run Summary" in report_text
+        assert "## Model Validation Summary" in report_text
+        assert "## Candidate Input Summary" in report_text
+        assert "Candidate Prediction Summary" in report_text
+        assert "Domain Warning Summary" in report_text
+        assert "Candidate Ranking Summary" in report_text
+        assert "## Recommended Next Experiments" in report_text
+        assert "## Output Files" in report_text
+        assert "## Limitations" in report_text
+        assert "screening, not automatic process decisions" in report_text
+        assert "screening flags, not hard physical limits" in report_text
+        assert "Preserved extra columns: yes (`note`)" in report_text
     finally:
         shutil.rmtree(output_root, ignore_errors=True)
