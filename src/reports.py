@@ -716,6 +716,7 @@ def build_simulation_report(
             "candidate_validation_summary"
         )
         top_candidate_predictions = screening_result.get("top5_candidate_predictions")
+        top_warning_features = screening_result.get("top_warning_features")
         report.extend(
             [
                 "## Candidate Prediction Summary",
@@ -741,6 +742,21 @@ def build_simulation_report(
                 and not candidate_validation_summary.empty
                 else "No candidate validation summary was available.",
                 "",
+                "### Domain Warning Summary",
+                f"- Candidates with domain warning: {screening_result.get('candidates_with_domain_warning', 0)}",
+                f"- Total domain warning count: {screening_result.get('domain_warning_count', 0)}",
+                f"- Candidate domain warnings CSV: `{display_path(screening_result.get('candidate_domain_warnings_path'))}`"
+                if screening_result.get("candidate_domain_warnings_path")
+                else "- Candidate domain warnings CSV: not saved.",
+                "",
+                "#### Top Warning Features",
+                dataframe_to_markdown(top_warning_features)
+                if isinstance(top_warning_features, pd.DataFrame)
+                and not top_warning_features.empty
+                else "No domain warnings were generated.",
+                "",
+                "Domain warnings are based on training feature min/max ranges and should be interpreted as screening flags, not hard physical limits.",
+                "",
                 "- Detailed maximize/minimize ranking report polish is planned for v0.9.3.",
                 "",
                 "## Virtual Experiment Screening",
@@ -762,6 +778,9 @@ def build_simulation_report(
                 f"- Candidate predictions CSV: `{display_path(screening_result.get('candidate_predictions_path'))}`"
                 if screening_result.get("candidate_predictions_path")
                 else "- Candidate predictions CSV: not saved.",
+                f"- Candidate domain warnings CSV: `{display_path(screening_result.get('candidate_domain_warnings_path'))}`"
+                if screening_result.get("candidate_domain_warnings_path")
+                else "- Candidate domain warnings CSV: not saved.",
                 f"- Virtual experiment design CSV: `{display_path(screening_result.get('design_path'))}`"
                 if screening_result.get("design_path")
                 else "- Virtual experiment design CSV: not saved.",

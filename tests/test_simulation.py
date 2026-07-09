@@ -12,6 +12,7 @@ import pytest
 from config import OutputPaths
 from analyzers.simulation import (
     add_or_clean_scenario_id,
+    build_candidate_domain_warnings,
     build_overfitting_diagnostics,
     build_feature_summary_table,
     build_sensitivity_summary,
@@ -122,6 +123,89 @@ def test_scenario_input_without_candidate_id_creates_candidate_ids() -> None:
         "candidate_001",
         "candidate_002",
     ]
+
+
+def test_candidate_above_train_max_produces_domain_warning() -> None:
+    candidate_df = pd.DataFrame(
+        {
+            "candidate_id": ["candidate_high"],
+            "process_temp_c": [900.0],
+        }
+    )
+    feature_ranges = pd.DataFrame(
+        {
+            "feature": ["process_temp_c"],
+            "min": [650.0],
+            "max": [850.0],
+            "mean": [750.0],
+            "std": [75.0],
+        }
+    )
+
+    warnings_df = build_candidate_domain_warnings(
+        candidate_df=candidate_df,
+        feature_ranges_df=feature_ranges,
+        feature_columns=["process_temp_c"],
+    )
+
+    assert len(warnings_df) == 1
+    assert warnings_df.loc[0, "warning_type"] == "above_training_range"
+    assert warnings_df.loc[0, "severity"] == "outside_range"
+
+
+def test_candidate_below_train_min_produces_domain_warning() -> None:
+    candidate_df = pd.DataFrame(
+        {
+            "candidate_id": ["candidate_low"],
+            "pressure_mpa": [0.5],
+        }
+    )
+    feature_ranges = pd.DataFrame(
+        {
+            "feature": ["pressure_mpa"],
+            "min": [0.8],
+            "max": [1.5],
+            "mean": [1.15],
+            "std": [0.25],
+        }
+    )
+
+    warnings_df = build_candidate_domain_warnings(
+        candidate_df=candidate_df,
+        feature_ranges_df=feature_ranges,
+        feature_columns=["pressure_mpa"],
+    )
+
+    assert len(warnings_df) == 1
+    assert warnings_df.loc[0, "warning_type"] == "below_training_range"
+    assert warnings_df.loc[0, "candidate_value"] == 0.5
+
+
+def test_candidate_inside_train_range_produces_no_domain_warning() -> None:
+    candidate_df = pd.DataFrame(
+        {
+            "candidate_id": ["candidate_ok"],
+            "process_temp_c": [750.0],
+            "pressure_mpa": [1.1],
+        }
+    )
+    feature_ranges = pd.DataFrame(
+        {
+            "feature": ["process_temp_c", "pressure_mpa"],
+            "min": [650.0, 0.8],
+            "max": [850.0, 1.5],
+            "mean": [750.0, 1.15],
+            "std": [75.0, 0.25],
+        }
+    )
+
+    warnings_df = build_candidate_domain_warnings(
+        candidate_df=candidate_df,
+        feature_ranges_df=feature_ranges,
+        feature_columns=["process_temp_c", "pressure_mpa"],
+    )
+
+    assert warnings_df.empty
 
 
 def test_generate_random_virtual_experiment_design_uses_observed_ranges() -> None:
@@ -525,11 +609,16 @@ def test_run_simulation_analysis_with_scenario_creates_candidate_predictions() -
     output_paths.reports.mkdir()
     pd.DataFrame(
         {
-            "process_temp_c": [700.0, 760.0, 820.0],
-            "process_time_min": [30.0, 40.0, pd.NA],
-            "pressure_mpa": [1.0, 1.2, 1.4],
-            "thickness_um": [1.2, 1.5, 1.8],
-            "note": ["baseline", "mid", "missing time"],
+            "process_temp_c": [700.0, 760.0, 820.0, 900.0],
+            "process_time_min": [30.0, 40.0, pd.NA, 55.0],
+            "pressure_mpa": [1.0, 1.2, 1.4, 1.8],
+            "thickness_um": [1.2, 1.5, 1.8, 2.2],
+            "note": [
+                "baseline",
+                "mid",
+                "missing time",
+                "outside training range example",
+            ],
         }
     ).to_csv(scenario_path, index=False)
     df = pd.DataFrame(
@@ -560,16 +649,22 @@ def test_run_simulation_analysis_with_scenario_creates_candidate_predictions() -
         candidate_predictions_path = (
             output_paths.processed / "candidate_predictions.csv"
         )
+        candidate_domain_warnings_path = (
+            output_paths.processed / "candidate_domain_warnings.csv"
+        )
         candidate_predictions = pd.read_csv(candidate_predictions_path)
+        candidate_domain_warnings = pd.read_csv(candidate_domain_warnings_path)
 
         assert result["report"].exists()
         assert candidate_predictions_path.exists()
+        assert candidate_domain_warnings_path.exists()
         assert (output_paths.processed / "scenario_predictions.csv").exists()
         assert (output_paths.processed / "scenario_ranking.csv").exists()
         assert candidate_predictions["candidate_id"].tolist() == [
             "candidate_001",
             "candidate_002",
             "candidate_003",
+            "candidate_004",
         ]
         assert "note" in candidate_predictions.columns
         assert {
@@ -580,13 +675,34 @@ def test_run_simulation_analysis_with_scenario_creates_candidate_predictions() -
             "model_type",
             "validation_status",
             "validation_message",
+            "domain_warning_count",
+            "has_domain_warning",
         }.issubset(candidate_predictions.columns)
+        assert not candidate_domain_warnings.empty
+        assert "above_training_range" in candidate_domain_warnings[
+            "warning_type"
+        ].tolist()
+        assert (
+            candidate_predictions.loc[
+                candidate_predictions["candidate_id"] == "candidate_004",
+                "domain_warning_count",
+            ].iloc[0]
+            > 0
+        )
+        assert (
+            candidate_predictions.loc[
+                candidate_predictions["candidate_id"] == "candidate_004",
+                "has_domain_warning",
+            ].iloc[0]
+            in [True, "True", "true"]
+        )
         assert (
             candidate_predictions["validation_status"]
             == "excluded_missing_feature"
         ).sum() == 1
-        assert "Candidate Prediction Summary" in result["report"].read_text(
-            encoding="utf-8"
-        )
+        report_text = result["report"].read_text(encoding="utf-8")
+        assert "Candidate Prediction Summary" in report_text
+        assert "Domain Warning Summary" in report_text
+        assert "screening flags, not hard physical limits" in report_text
     finally:
         shutil.rmtree(output_root, ignore_errors=True)

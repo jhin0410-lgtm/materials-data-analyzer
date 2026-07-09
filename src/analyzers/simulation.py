@@ -925,6 +925,7 @@ def build_candidate_predictions_table(
     feature_columns: list[str],
     target_column: str,
     model_type: str,
+    domain_warnings_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Build a standard candidate prediction table including invalid rows."""
     candidate_predictions = add_or_clean_scenario_id(candidate_df)
@@ -940,12 +941,26 @@ def build_candidate_predictions_table(
     candidate_predictions.insert(4, "model_type", model_type)
     candidate_predictions.insert(5, "validation_status", "valid")
     candidate_predictions.insert(6, "validation_message", "Predicted successfully.")
+    candidate_predictions.insert(7, "domain_warning_count", 0)
+    candidate_predictions.insert(8, "has_domain_warning", False)
 
     valid_prediction_index = predictions_df.index
     if predicted_column in predictions_df.columns:
         candidate_predictions.loc[
             valid_prediction_index, "predicted_target"
         ] = predictions_df[predicted_column]
+
+    if domain_warnings_df is not None and not domain_warnings_df.empty:
+        warning_counts = domain_warnings_df.groupby("candidate_id").size()
+        candidate_predictions["domain_warning_count"] = (
+            candidate_predictions["candidate_id"]
+            .map(warning_counts)
+            .fillna(0)
+            .astype(int)
+        )
+        candidate_predictions["has_domain_warning"] = (
+            candidate_predictions["domain_warning_count"] > 0
+        )
 
     missing_feature_mask = candidate_predictions[feature_columns].isna().any(axis=1)
     if missing_feature_mask.any():
@@ -967,12 +982,103 @@ def build_candidate_predictions_table(
         "model_type",
         "validation_status",
         "validation_message",
+        "domain_warning_count",
+        "has_domain_warning",
         *feature_columns,
     ]
     remaining_columns = [
         column for column in candidate_predictions.columns if column not in preferred_columns
     ]
     return candidate_predictions[preferred_columns + remaining_columns]
+
+
+def build_candidate_domain_warnings(
+    candidate_df: pd.DataFrame,
+    feature_ranges_df: pd.DataFrame,
+    feature_columns: list[str],
+) -> pd.DataFrame:
+    """Flag candidate feature values outside observed training min/max ranges."""
+    columns = [
+        "candidate_id",
+        "feature",
+        "candidate_value",
+        "train_min",
+        "train_max",
+        "train_mean",
+        "train_std",
+        "warning_type",
+        "severity",
+        "message",
+    ]
+    candidate_with_id = add_or_clean_scenario_id(candidate_df)
+    range_lookup = feature_ranges_df.set_index("feature")
+    rows: list[dict[str, object]] = []
+
+    for _, candidate_row in candidate_with_id.iterrows():
+        candidate_id = str(candidate_row["candidate_id"])
+        for feature in feature_columns:
+            if feature not in range_lookup.index:
+                continue
+
+            candidate_value = candidate_row.get(feature)
+            if pd.isna(candidate_value):
+                continue
+
+            range_row = range_lookup.loc[feature]
+            train_min = range_row["min"]
+            train_max = range_row["max"]
+            train_mean = range_row["mean"]
+            train_std = range_row["std"]
+
+            warning_type: str | None = None
+            if candidate_value < train_min:
+                warning_type = "below_training_range"
+            elif candidate_value > train_max:
+                warning_type = "above_training_range"
+
+            if warning_type is None:
+                continue
+
+            direction = "below" if warning_type == "below_training_range" else "above"
+            rows.append(
+                {
+                    "candidate_id": candidate_id,
+                    "feature": feature,
+                    "candidate_value": candidate_value,
+                    "train_min": train_min,
+                    "train_max": train_max,
+                    "train_mean": train_mean,
+                    "train_std": train_std,
+                    "warning_type": warning_type,
+                    "severity": "outside_range",
+                    "message": (
+                        f"Candidate value for {feature} is {direction} the "
+                        "training feature range."
+                    ),
+                }
+            )
+
+    return pd.DataFrame(rows, columns=columns)
+
+
+def summarize_candidate_domain_warnings(
+    domain_warnings_df: pd.DataFrame,
+) -> tuple[int, int, pd.DataFrame]:
+    """Summarize candidate domain warnings for reports."""
+    if domain_warnings_df.empty:
+        return 0, 0, pd.DataFrame(columns=["feature", "warning_count"])
+
+    total_warning_count = len(domain_warnings_df)
+    candidates_with_warning = int(domain_warnings_df["candidate_id"].nunique())
+    top_warning_features = (
+        domain_warnings_df.groupby("feature")
+        .size()
+        .rename("warning_count")
+        .reset_index()
+        .sort_values("warning_count", ascending=False)
+        .reset_index(drop=True)
+    )
+    return candidates_with_warning, total_warning_count, top_warning_features
 
 
 def summarize_candidate_validation(candidate_predictions_df: pd.DataFrame) -> pd.DataFrame:
@@ -1188,6 +1294,7 @@ def run_virtual_experiment_screening(
     model: Any,
     design_df: pd.DataFrame,
     candidate_metadata: dict[str, object],
+    feature_ranges_df: pd.DataFrame,
     feature_columns: list[str],
     target_column: str,
     goal: str,
@@ -1210,12 +1317,22 @@ def run_virtual_experiment_screening(
         feature_columns=feature_columns,
         target_column=target_column,
     )
+    domain_warnings_df = build_candidate_domain_warnings(
+        candidate_df=prepared_design_df,
+        feature_ranges_df=feature_ranges_df,
+        feature_columns=feature_columns,
+    )
+    domain_warnings_path = save_dataframe(
+        domain_warnings_df,
+        output_paths.processed / "candidate_domain_warnings.csv",
+    )
     candidate_predictions_df = build_candidate_predictions_table(
         candidate_df=prepared_design_df,
         predictions_df=predictions_df,
         feature_columns=feature_columns,
         target_column=target_column,
         model_type=model_type,
+        domain_warnings_df=domain_warnings_df,
     )
     candidate_predictions_path = save_dataframe(
         candidate_predictions_df,
@@ -1224,6 +1341,11 @@ def run_virtual_experiment_screening(
     candidate_validation_summary_df = summarize_candidate_validation(
         candidate_predictions_df
     )
+    (
+        candidates_with_domain_warning,
+        domain_warning_count,
+        top_warning_features_df,
+    ) = summarize_candidate_domain_warnings(domain_warnings_df)
     ranking_df = build_virtual_experiment_ranking(
         predictions_df=predictions_df,
         target_column=target_column,
@@ -1265,9 +1387,13 @@ def run_virtual_experiment_screening(
         "candidate_conditions_path": candidate_conditions_path,
         "design_path": design_path,
         "candidate_predictions_path": candidate_predictions_path,
+        "candidate_domain_warnings_path": domain_warnings_path,
         "virtual_predictions_path": virtual_predictions_path,
         "scenario_predictions_path": scenario_predictions_path,
         "ranking_path": ranking_path,
+        "candidates_with_domain_warning": candidates_with_domain_warning,
+        "domain_warning_count": domain_warning_count,
+        "top_warning_features": top_warning_features_df,
         "top5_ranking": ranking_df.head(5),
         "top5_candidate_predictions": candidate_predictions_df[
             candidate_predictions_df["validation_status"] == "valid"
@@ -1391,6 +1517,7 @@ def run_simulation_analysis(
             model=model,
             design_df=design_df,
             candidate_metadata=candidate_metadata,
+            feature_ranges_df=feature_ranges_df,
             feature_columns=feature_columns,
             target_column=target_column,
             goal=goal,
