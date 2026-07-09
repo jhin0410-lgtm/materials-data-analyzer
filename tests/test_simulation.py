@@ -695,6 +695,11 @@ def test_run_simulation_analysis_without_scenario_creates_virtual_outputs() -> N
         assert (output_paths.processed / "train_test_metrics.csv").exists()
         assert (output_paths.processed / "overfitting_diagnostics.csv").exists()
         assert (output_paths.processed / "cross_validation_metrics.csv").exists()
+        report_text = result["report"].read_text(encoding="utf-8")
+        assert "# Simulation Report" in report_text
+        assert "## Run Summary" in report_text
+        assert "## Model Validation Summary" in report_text
+        assert "generated virtual design was used" in report_text
     finally:
         shutil.rmtree(output_root, ignore_errors=True)
 
@@ -838,10 +843,17 @@ def test_run_simulation_analysis_with_scenario_creates_candidate_predictions() -
         assert warning_ranking_row["ranking_note"] == "ranked_with_domain_warning"
         assert warning_ranking_row["domain_warning_count"] > 0
         report_text = result["report"].read_text(encoding="utf-8")
+        assert "## Run Summary" in report_text
+        assert "## Model Validation Summary" in report_text
+        assert "## Candidate Input Summary" in report_text
         assert "Candidate Prediction Summary" in report_text
         assert "Domain Warning Summary" in report_text
         assert "Candidate Ranking Summary" in report_text
+        assert "## Recommended Next Experiments" in report_text
+        assert "## Output Files" in report_text
+        assert "## Limitations" in report_text
         assert "screening, not automatic process decisions" in report_text
         assert "screening flags, not hard physical limits" in report_text
+        assert "Preserved extra columns: yes (`note`)" in report_text
     finally:
         shutil.rmtree(output_root, ignore_errors=True)

@@ -1366,6 +1366,17 @@ def run_virtual_experiment_screening(
     """Predict, rank, and save virtual experiment candidate outputs."""
     predicted_column = f"predicted_{target_column}"
     prepared_design_df = add_or_clean_scenario_id(design_df)
+    extra_candidate_columns = [
+        column
+        for column in prepared_design_df.columns
+        if column
+        not in {
+            "candidate_id",
+            "scenario_id",
+            "design_source",
+            *feature_columns,
+        }
+    ]
     candidate_conditions_path = save_dataframe(
         prepared_design_df, output_paths.processed / "candidate_conditions.csv"
     )
@@ -1450,6 +1461,7 @@ def run_virtual_experiment_screening(
     result = {
         **candidate_metadata,
         "candidate_row_count": len(prepared_design_df),
+        "extra_candidate_columns": extra_candidate_columns,
         "valid_prediction_row_count": len(predictions_df),
         "excluded_row_count": excluded_row_count,
         "predicted_column": predicted_column,

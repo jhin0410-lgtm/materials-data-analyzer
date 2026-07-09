@@ -78,6 +78,25 @@ outputs/
 
 `data/processed/` may contain curated case-study summary tables. `outputs/` contains regenerable analyzer run outputs and should generally stay local. See [`OUTPUTS_POLICY.md`](OUTPUTS_POLICY.md) for the repository-level outputs policy.
 
+### v0.9 Virtual Experiment Outputs
+
+Simulation mode writes virtual experiment screening artifacts under:
+
+```text
+outputs/{run_name}/processed/
+outputs/{run_name}/reports/
+```
+
+Key v0.9 candidate-screening outputs include:
+
+- `candidate_conditions.csv`: normalized candidate or generated design table.
+- `candidate_predictions.csv`: prediction table with candidate validation status and warning counts.
+- `candidate_domain_warnings.csv`: training feature min/max range warning table.
+- `candidate_ranking.csv`: goal-based candidate ranking table for screening review.
+- `simulation_report.md`: Markdown report explaining validation, candidate predictions, warnings, ranking, limitations, and next experiment checks.
+
+These outputs are regenerable run artifacts. Keep the output policy in docs, and do not commit actual `outputs/` run folders by default.
+
 ## Sample Data
 
 Synthetic demo data lives under:
