@@ -1,0 +1,23 @@
+schema_fingerprint,raw_column_name,normalized_column_name,canonical_column_name,unit,required,mapping_confidence,mapping_note
+schema_63d0cb98b657,Charge_Capacity (Ah),charge_capacity_ah,charge_capacity,Ah,True,high,observed in both audited schemas
+schema_63d0cb98b657,Charge_Energy (Wh),charge_energy_wh,charge_energy,Wh,True,high,observed in both audited schemas
+schema_63d0cb98b657,Cycle_Index,cycle_index,cycle_index,unknown,True,high,observed in both audited schemas
+schema_63d0cb98b657,Discharge_Capacity (Ah),discharge_capacity_ah,discharge_capacity,Ah,True,high,observed in both audited schemas
+schema_63d0cb98b657,Discharge_Energy (Wh),discharge_energy_wh,discharge_energy,Wh,True,high,observed in both audited schemas
+schema_63d0cb98b657,Max_Current (A),max_current_a,max_current,A,True,high,observed in both audited schemas
+schema_63d0cb98b657,Max_Voltage (V),max_voltage_v,max_voltage,V,True,high,observed in both audited schemas
+schema_63d0cb98b657,Min_Current (A),min_current_a,min_current,A,True,high,observed in both audited schemas
+schema_63d0cb98b657,Min_Voltage (V),min_voltage_v,min_voltage,V,True,high,observed in both audited schemas
+schema_63d0cb98b657,Test_Time (s),test_time_s,elapsed_time,s,True,high,observed in both audited schemas
+schema_d2669a99bc63,Charge_Capacity (Ah),charge_capacity_ah,charge_capacity,Ah,True,high,observed in both audited schemas
+schema_d2669a99bc63,Charge_Energy (Wh),charge_energy_wh,charge_energy,Wh,True,high,observed in both audited schemas
+schema_d2669a99bc63,Cycle_Index,cycle_index,cycle_index,unknown,True,high,observed in both audited schemas
+schema_d2669a99bc63,Discharge_Capacity (Ah),discharge_capacity_ah,discharge_capacity,Ah,True,high,observed in both audited schemas
+schema_d2669a99bc63,Discharge_Energy (Wh),discharge_energy_wh,discharge_energy,Wh,True,high,observed in both audited schemas
+schema_d2669a99bc63,End_Time,end_time,end_time,unknown,False,high,optional timestamp column
+schema_d2669a99bc63,Max_Current (A),max_current_a,max_current,A,True,high,observed in both audited schemas
+schema_d2669a99bc63,Max_Voltage (V),max_voltage_v,max_voltage,V,True,high,observed in both audited schemas
+schema_d2669a99bc63,Min_Current (A),min_current_a,min_current,A,True,high,observed in both audited schemas
+schema_d2669a99bc63,Min_Voltage (V),min_voltage_v,min_voltage,V,True,high,observed in both audited schemas
+schema_d2669a99bc63,Start_Time,start_time,start_time,unknown,False,high,optional timestamp column
+schema_d2669a99bc63,Test_Time (s),test_time_s,elapsed_time,s,True,high,observed in both audited schemas

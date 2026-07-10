@@ -160,3 +160,95 @@ This audit reads zip members directly and does not write extracted raw CSV files
 - `data/processed/battery_archive_cycle_schema_inventory.csv`
 - `data/processed/battery_archive_cycle_column_inventory.csv`
 - `docs/BATTERY_ARCHIVE_CYCLE_SCHEMA_AUDIT.md`
+
+## Implementation Follow-up: v1.1.3b Cycle Normalization
+
+The v1.1.3b loader reads the 196 audited `*_cycle_data.csv` members directly
+from the raw zip files and writes a source-traceable normalized cycle table.
+No raw zip archive is extracted, and no raw file content is modified.
+
+Generated v1.1.3b outputs:
+
+- `data/processed/battery_archive_cycle_normalized.csv`
+- `data/processed/battery_archive_cycle_load_summary.csv`
+- `data/processed/battery_archive_cycle_column_mapping.csv`
+
+### Mapping Result
+
+The normalized mapping contract is based only on the two schemas observed in
+this audit.
+
+| Raw column | Canonical column | Unit | Required | Notes |
+| --- | --- | --- | --- | --- |
+| `Cycle_Index` | `cycle_index` | unknown | yes | Present in both schemas. |
+| `Test_Time (s)` | `elapsed_time` | `s` | yes | Values are preserved without conversion. |
+| `Min_Current (A)` | `min_current` | `A` | yes | Common observed electrical summary column. |
+| `Max_Current (A)` | `max_current` | `A` | yes | Common observed electrical summary column. |
+| `Min_Voltage (V)` | `min_voltage` | `V` | yes | Common observed electrical summary column. |
+| `Max_Voltage (V)` | `max_voltage` | `V` | yes | Common observed electrical summary column. |
+| `Charge_Capacity (Ah)` | `charge_capacity` | `Ah` | yes | Values are preserved without conversion. |
+| `Discharge_Capacity (Ah)` | `discharge_capacity` | `Ah` | yes | Values are preserved without conversion. |
+| `Charge_Energy (Wh)` | `charge_energy` | `Wh` | yes | Values are preserved without conversion. |
+| `Discharge_Energy (Wh)` | `discharge_energy` | `Wh` | yes | Values are preserved without conversion. |
+| `Start_Time` | `start_time` | unknown | no | Present only in `schema_d2669a99bc63`; also copied to `date_or_timestamp`. |
+| `End_Time` | `end_time` | unknown | no | Present only in `schema_d2669a99bc63`. |
+
+### Actual Raw Smoke Result
+
+| Metric | Value |
+| --- | ---: |
+| Cycle files processed | 196 |
+| Total raw rows | 343,503 |
+| Total normalized rows | 343,503 |
+| Load status `success` | 196 |
+| Load status `success_with_warnings` | 0 |
+| Load status `load_error` | 0 |
+| Dropped blank rows | 0 |
+| Invalid numeric values in tracked critical fields | 0 |
+| Duplicate `(zip_file, internal_csv_path, source_row_number)` keys | 0 |
+| Absolute local path cells in normalized output | 0 |
+| Timeseries paths in normalized output | 0 |
+
+Schema-level normalized row counts:
+
+| Schema fingerprint | Normalized rows |
+| --- | ---: |
+| `schema_d2669a99bc63` | 306,248 |
+| `schema_63d0cb98b657` | 37,255 |
+
+Source-level normalized row counts:
+
+| Source | Normalized rows |
+| --- | ---: |
+| SNL LFP | 168,678 |
+| SNL NMC | 76,738 |
+| SNL NCA | 31,305 |
+| Michigan Formation | 21,239 |
+| HNEI | 16,528 |
+| CALCE | 12,480 |
+| UL-Purdue | 9,471 |
+| Michigan Expansion | 6,545 |
+| Oxford | 519 |
+
+### Not Yet Computed
+
+The v1.1.3b normalized table intentionally does not compute derived battery
+metrics. The following remain out of scope for this step:
+
+- capacity retention
+- SOH
+- cycle-life proxy
+- quality filtering
+- reliability analysis
+- simulation or virtual experiment screening
+- timeseries feature extraction
+
+### Carryover To v1.1.4
+
+- Define explicit quality rules for missing or invalid critical cycle fields.
+- Decide how to compute capacity retention without hiding source-level
+  assumptions.
+- Create an analysis-ready table separately from the full normalized table.
+- Keep full provenance columns available for traceability.
+- Treat the large normalized CSV as a generated artifact whose tracking policy
+  should be reviewed before commit.
