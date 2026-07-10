@@ -11,7 +11,7 @@ This directory collects project references, specifications, audits, policies, ca
 ## Active Specifications
 
 - [v0.9 Virtual Experiment Screening Spec](V0_9_VIRTUAL_EXPERIMENT_SCREENING_SPEC.md): simulation-mode screening design and output contract.
-- [v1.1 Battery Archive Case Study Spec](V1_1_BATTERY_ARCHIVE_CASE_STUDY_SPEC.md): Battery Archive case-study ingestion plan.
+- [v1.1 Battery Archive Case Study Spec](V1_1_BATTERY_ARCHIVE_CASE_STUDY_SPEC.md): Battery Archive case-study ingestion plan and historical implementation guide.
 
 ## Audit And Reference
 
@@ -31,6 +31,8 @@ This directory collects project references, specifications, audits, policies, ca
 
 - Repository-level templates and guidance live in [docs/case_studies](case_studies/).
 - Data-backed case-study reports and source notes live in [data/case_studies](../data/case_studies/).
+- [Kaggle NASA battery case study](../data/case_studies/kaggle_battery/): metadata and raw-discharge feature workflow with simulation comparison.
+- [Battery Archive case study](../data/case_studies/battery_archive/): raw zip inventory, cycle-data normalization, quality metrics, threshold proxies, and reliability group summary.
 
 ## Images
 

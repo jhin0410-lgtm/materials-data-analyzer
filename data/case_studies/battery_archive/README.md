@@ -15,6 +15,15 @@ reliability summaries.
 - `methodology.md`: reproducible processing steps and commands.
 - `case_study.md`: narrative case-study report generated from compact summaries.
 
+Use `methodology.md` for the ordered v1.1 reproduction commands:
+
+1. `build_battery_archive_cycle_inventory.py`
+2. `enrich_battery_archive_cycle_inventory.py`
+3. `audit_battery_archive_cycle_schemas.py`
+4. `build_battery_archive_cycle_normalized.py`
+5. `build_battery_archive_analysis_ready.py`
+6. `build_battery_archive_case_study.py`
+
 ## Key Processed Outputs
 
 - `data/processed/battery_archive_cycle_series_summary.csv`
@@ -23,3 +32,10 @@ reliability summaries.
 
 The large `data/processed/battery_archive_cycle_analysis_ready.csv` file is a
 generated local artifact and is not recommended for Git tracking.
+
+## v1.1 Closeout
+
+The cycle-data case study is complete through quality flags, derived capacity
+metrics, threshold proxies, series summaries, reliability group summaries, and
+documentation. Timeseries processing, forecasting, and group-aware simulation
+remain future work.

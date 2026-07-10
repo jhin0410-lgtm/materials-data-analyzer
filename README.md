@@ -191,7 +191,18 @@ Run tests:
 python -m pytest
 ```
 
-## Real-Data Case Study: Kaggle NASA Battery
+## Real-Data Case Studies
+
+The repository currently includes two representative real-data case studies:
+
+- Kaggle NASA Li-ion Battery
+- Battery Archive
+
+These case studies demonstrate source-specific preparation and validation
+workflows. They are not the core product identity; the core project remains a
+Tabular Engineering Data Analysis & Virtual Experiment Screening Platform.
+
+### Kaggle NASA Li-ion Battery
 
 The Kaggle NASA battery work is a representative real-data case study, not the core product identity.
 
@@ -213,6 +224,27 @@ Case-study documents:
 Key conclusion:
 
 Raw discharge-derived features produced high random-split performance, but `battery_id` group split validation showed limited generalization to unseen batteries. This means the current battery case-study model is better viewed as within-battery diagnostic interpolation than production battery-level forecasting.
+
+### Battery Archive
+
+The Battery Archive work is a second representative real-data case study based
+on locally staged raw zip files. It demonstrates:
+
+- Raw zip inventory without extraction: 9 zip files
+- 196 cycle-data CSV files and 343,503 normalized cycle rows
+- Filename metadata enrichment
+- Cycle CSV schema audit and normalization
+- Quality flags, capacity-retention metrics, and capacity-based SOH proxy
+- 80% / 70% threshold crossing proxies with observed-censoring notes
+- Compact reliability group summary and Markdown case-study reporting
+
+Raw Battery Archive zip files and large generated cycle-level CSVs are not
+included in the repository. Reproduction commands and source notes live in:
+
+- [`data/case_studies/battery_archive/README.md`](data/case_studies/battery_archive/README.md)
+- [`data/case_studies/battery_archive/source.md`](data/case_studies/battery_archive/source.md)
+- [`data/case_studies/battery_archive/methodology.md`](data/case_studies/battery_archive/methodology.md)
+- [`data/case_studies/battery_archive/case_study.md`](data/case_studies/battery_archive/case_study.md)
 
 ## Optional Connectors
 
@@ -272,6 +304,11 @@ outputs/{run_name}/reports/
 - Add clearer constraints and out-of-distribution warning summaries
 - Improve simulation report readability
 - Make virtual experiment outputs easier to compare across runs
+
+### v1.1 Complete: Battery Archive Cycle-Data Case Study
+
+- Raw zip inventory, filename metadata, schema audit, normalization, quality flags, derived capacity metrics, and reliability group summary are complete.
+- Timeseries processing, forecasting, and group-aware simulation remain future work.
 
 ### Later
 
