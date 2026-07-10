@@ -18,6 +18,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Repository Root and Architecture Audit](REPOSITORY_ROOT_AND_ARCHITECTURE_AUDIT.md): cleanup recommendations that guided the root documentation cleanup.
 - [v1.0 Release Readiness Audit](V1_0_RELEASE_READINESS_AUDIT.md): release-readiness review.
 - [Battery Archive Data Audit](BATTERY_ARCHIVE_DATA_AUDIT.md): raw zip inventory and case-study feasibility review.
+- [Materials Project Data Audit](MATERIALS_PROJECT_DATA_AUDIT.md): local 50-row pilot audit, schema/quality follow-up, and descriptive screening notes.
 - [Project Audit](audits/PROJECT_AUDIT.md): earlier project inventory.
 - [Commit Boundary Review](audits/COMMIT_BOUNDARY_REVIEW.md): guidance on what should and should not be committed.
 

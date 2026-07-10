@@ -92,3 +92,9 @@ Local-only artifacts:
 - No ML model, train/test validation, or virtual experiment prediction.
 - Energy-above-hull ranking is descriptive and does not guarantee
   synthesizability, process feasibility, or experimental performance.
+
+## v1.2 Closeout
+
+v1.2 is complete as a descriptive screening pilot. Broader exact-provenance
+querying is required before prediction, group-aware validation, composition
+descriptors, or ML property modeling claims.

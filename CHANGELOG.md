@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.2
+
+- Added the Materials Project pilot case study as a compact calculated-property screening demonstration.
+- Added a Materials Project data audit for the local 50-row Fe/Si-containing multinary pilot artifact.
+- Added a reconstructed query specification and provenance manifest without storing API credentials.
+- Added a seven-column schema contract, conservative normalization workflow, and compact data-quality summary.
+- Added a generic deterministic property-screening analyzer for transparent filtering and ranking of existing tabular properties.
+- Added a Materials Project screening specification using energy-above-hull minimization as a descriptive ranking objective.
+- Added Materials Project screening methodology, compact screening summary, pilot case-study documentation, and decision gate.
+- Documented local/generated artifact policy for source, normalized, and full screening result CSVs.
+
+This release does not add ML property prediction, novel materials discovery,
+direct DFT calculation execution, synthesis feasibility validation,
+experimentally verified recommendations, or generalizable model-performance
+claims.
+
 ## v1.1
 
 - Added the Battery Archive real-data case study as the second representative demonstration of the platform.
