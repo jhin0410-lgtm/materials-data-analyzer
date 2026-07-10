@@ -1,0 +1,36 @@
+metric,count,percentage,severity,description
+total_rows,50,100.0,info,Total normalized rows.
+valid_rows,50,100.0,info,Rows with valid quality_status.
+warning_rows,0,0.0,warning,Rows with warning quality_status.
+invalid_rows,0,0.0,error,Rows with invalid quality_status.
+unique_identifiers,50,100.0,info,Unique non-null material identifiers.
+duplicate_identifiers,0,0.0,warning,Rows with duplicate material identifiers.
+identifier_coverage,50,100.0,info,Rows with a non-null identifier.
+rows_containing_fe,50,100.0,info,Rows whose formula string contains Fe.
+rows_containing_si,50,100.0,info,Rows whose formula string contains Si.
+rows_containing_both_fe_si,50,100.0,info,Rows whose formula string contains both Fe and Si.
+binary_fe_si_rows,0,0.0,warning,Rows whose parsed formula tokens are only Fe and Si.
+multinary_fe_si_containing_rows,50,100.0,info,Rows containing Fe and Si plus at least one additional element.
+missing_count:material_id,0,0.0,warning,Missing values in material_id.
+missing_count:formula,0,0.0,warning,Missing values in formula.
+missing_count:band_gap_ev,0,0.0,warning,Missing values in band_gap_ev.
+missing_count:formation_energy_ev_atom,0,0.0,warning,Missing values in formation_energy_ev_atom.
+missing_count:energy_above_hull_ev_atom,0,0.0,warning,Missing values in energy_above_hull_ev_atom.
+missing_count:density_g_cm3,0,0.0,warning,Missing values in density_g_cm3.
+missing_count:volume_a3,0,0.0,warning,Missing values in volume_a3.
+numeric_conversion_failure_count:band_gap_ev,0,0.0,warning,Non-numeric values coerced to missing in band_gap_ev.
+numeric_conversion_failure_count:formation_energy_ev_atom,0,0.0,warning,Non-numeric values coerced to missing in formation_energy_ev_atom.
+numeric_conversion_failure_count:energy_above_hull_ev_atom,0,0.0,warning,Non-numeric values coerced to missing in energy_above_hull_ev_atom.
+numeric_conversion_failure_count:density_g_cm3,0,0.0,warning,Non-numeric values coerced to missing in density_g_cm3.
+numeric_conversion_failure_count:volume_a3,0,0.0,warning,Non-numeric values coerced to missing in volume_a3.
+nonfinite_numeric_count:band_gap_ev,0,0.0,warning,Non-finite numeric values in band_gap_ev.
+nonfinite_numeric_count:formation_energy_ev_atom,0,0.0,warning,Non-finite numeric values in formation_energy_ev_atom.
+nonfinite_numeric_count:energy_above_hull_ev_atom,0,0.0,warning,Non-finite numeric values in energy_above_hull_ev_atom.
+nonfinite_numeric_count:density_g_cm3,0,0.0,warning,Non-finite numeric values in density_g_cm3.
+nonfinite_numeric_count:volume_a3,0,0.0,warning,Non-finite numeric values in volume_a3.
+constant_column_count,0,0.0,warning,Number of constant canonical columns.
+target_candidate_coverage:band_gap_ev,50,100.0,info,Non-null coverage for target candidate band_gap_ev.
+target_candidate_coverage:formation_energy_ev_atom,50,100.0,info,Non-null coverage for target candidate formation_energy_ev_atom.
+target_candidate_coverage:energy_above_hull_ev_atom,50,100.0,info,Non-null coverage for target candidate energy_above_hull_ev_atom.
+target_candidate_coverage:density_g_cm3,50,100.0,info,Non-null coverage for target candidate density_g_cm3.
+target_candidate_coverage:volume_a3,50,100.0,info,Non-null coverage for target candidate volume_a3.

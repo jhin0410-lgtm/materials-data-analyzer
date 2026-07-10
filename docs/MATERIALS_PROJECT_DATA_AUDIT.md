@@ -702,3 +702,107 @@ documentation file:
 ```text
 ?? docs/MATERIALS_PROJECT_DATA_AUDIT.md
 ```
+
+## v1.2.2 Schema and Quality Follow-up
+
+This follow-up adds a conservative schema contract and local data-quality audit
+for the existing 50-row Materials Project pilot artifact. No Materials Project
+API call was made, the source CSV was not modified, and no composition feature
+engineering, model training, simulation, or ranking was performed.
+
+New schema contract:
+
+```text
+data/case_studies/materials_project/schema_contract.json
+```
+
+Generated local artifacts:
+
+```text
+data/processed/materials_project_normalized.csv
+data/processed/materials_project_quality_summary.csv
+```
+
+### Actual Seven-column Schema
+
+| Column | Canonical column | Dtype | Semantic role | Unit | Non-null | Unique | Numeric min | Numeric median | Numeric max | Identifier | Target candidate | Feature candidate | Leakage risk | Normalization |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- | --- |
+| `material_id` | `material_id` | `str` | identifier | unknown | 50 | 50 | n/a | n/a | n/a | yes | no | no | identifier only | trim string only |
+| `formula` | `formula` | `str` | composition | unknown | 50 | 35 | n/a | n/a | n/a | no | no | no | conditional | trim string; no composition featurization |
+| `band_gap_ev` | `band_gap_ev` | `float64` | electronic_property | eV | 50 | 27 | 0.0 | 0.23195 | 3.4775 | no | yes | yes | conditional | numeric coercion with quality audit |
+| `formation_energy_ev_atom` | `formation_energy_ev_atom` | `float64` | thermodynamic_property | eV/atom | 50 | 50 | -3.22721 | -2.46284 | 2.67125 | no | yes | yes | leakage candidate | numeric coercion with quality audit |
+| `energy_above_hull_ev_atom` | `energy_above_hull_ev_atom` | `float64` | thermodynamic_property | eV/atom | 50 | 44 | 0.0 | 0.05704 | 5.53862 | no | yes | yes | leakage candidate | numeric coercion with quality audit |
+| `density_g_cm3` | `density_g_cm3` | `float64` | structure | g/cm3 | 50 | 50 | 2.14571 | 2.92928 | 10.42051 | no | yes | yes | conditional | numeric coercion with quality audit |
+| `volume_a3` | `volume_a3` | `float64` | structure | A^3 | 50 | 50 | 42.67003 | 316.96137 | 2110.21932 | no | yes | yes | conditional | numeric coercion with quality audit |
+
+Example values from the current artifact include `mp-aaagbkqt`, `TiFeSi`,
+`FeSiO3`, and `Li3FeSiCO7`. The formula column is preserved as a text
+composition label only; it is not converted into elemental fractions or a
+numeric feature vector in v1.2.2.
+
+### Quality Rules
+
+Implemented row-level checks are intentionally conservative:
+
+- Missing identifier is invalid.
+- Duplicate identifier is a warning and does not remove rows.
+- Missing formula/composition is a warning.
+- Required Fe/Si containment is checked with simple formula-token matching.
+- Binary Fe-Si rows are marked as a scope warning, not deleted.
+- Required numeric property missing, nonnumeric conversion, non-finite numeric
+  values, basic impossible numeric ranges, constant numeric properties, and
+  unknown numeric-property units are flagged when present.
+- Original rows and values are preserved; no duplicate row, outlier, or
+  identifier row is silently removed.
+
+### Actual Local Smoke Results
+
+Command:
+
+```text
+python scripts/build_materials_project_normalized.py --input data/processed/materials_project_fe_si.csv --schema-contract data/case_studies/materials_project/schema_contract.json --normalized-output data/processed/materials_project_normalized.csv --quality-summary-output data/processed/materials_project_quality_summary.csv
+```
+
+Observed results:
+
+- Input rows: 50
+- Output rows: 50
+- Valid / warning / invalid rows: 50 / 0 / 0
+- Identifier coverage: 50
+- Duplicate identifiers: 0
+- Rows containing Fe: 50
+- Rows containing Si: 50
+- Rows containing both Fe and Si: 50
+- Binary Fe-Si rows: 0
+- Multinary Fe/Si-containing rows: 50
+- Numeric conversion failures: 0
+- Non-finite numeric values: 0
+- Missing numeric property values: 0
+- Constant columns: 0
+- Target candidate coverage: 50 rows for each numeric property candidate
+- Credential-like values in normalized output: false
+- Absolute path-like values in normalized output: false
+- Normalized output size: 5,787 bytes
+- Quality summary size: 3,277 bytes
+
+### Pilot Suitability Assessment
+
+| Use case | Suitability | Rationale |
+| --- | --- | --- |
+| EDA | suitable | The seven current columns have complete coverage and clear row identifiers. |
+| Descriptive property comparison | suitable | Computed property columns can support descriptive comparisons with provenance caveats. |
+| Ranking/filtering | limited pilot only | Ranking can be descriptive, but should not be framed as discovery or validation. |
+| Regression model training | unsuitable for general claims | The artifact has only 50 rows and no composition feature table or group-validation design. |
+| Random train/test validation | unsuitable for generalization claims | Related formulas can leak across random splits and inflate apparent performance. |
+| Grouped validation | limited pilot only | Formula grouping is possible later, but the current sample is too small for strong claims. |
+| Virtual experiment screening | unsuitable at v1.2.2 | A feature/target contract and composition feature design are still missing. |
+
+### Tracking Recommendation
+
+- Track: `schema_contract.json`, `materials_project_quality_summary.csv`,
+  loader/script/tests, and this audit follow-up.
+- Keep local-only: `materials_project_fe_si.csv` and
+  `materials_project_normalized.csv`.
+- Continue treating the current query provenance as `reconstructed`; do not
+  upgrade it to `exact` unless the original retrieval query, timestamp, and API
+  version are confirmed.
