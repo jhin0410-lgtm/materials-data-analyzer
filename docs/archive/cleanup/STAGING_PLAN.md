@@ -1,5 +1,7 @@
 # Staging Plan
 
+> Historical planning record. Retained for project history; not the current implementation specification.
+
 Plan date: 2026-07-06
 
 Scope: staging plan only. No `git add`, `git commit`, file deletion, file move, code edit, README edit, documentation edit outside this file, or `.gitignore` edit was performed in this phase.

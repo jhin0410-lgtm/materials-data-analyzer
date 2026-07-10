@@ -6,6 +6,15 @@ Run the test suite from the project root:
 python -m pytest -q
 ```
 
+On Windows, if the default user temp directory causes `tmp_path` or permission errors, use the repository-local test runner:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
+powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1 tests/test_battery_archive_connector.py -q
+```
+
+The runner creates a unique pytest temp directory under `outputs/pytest-temp`, sets `TEMP` and `TMP` only for that PowerShell process, forwards any extra arguments to `python -m pytest`, and removes its own temp directory after the run. `outputs/` is ignored by Git, so these temporary test artifacts are not committed.
+
 GitHub Actions also runs `pytest -q` on push and pull request events using the workflow in `.github/workflows/ci.yml`.
 
 The tests use small in-memory pandas DataFrames and demo/synthetic CSV files from `data/sample/`. They do not use real experimental, factory, customer, or production data.

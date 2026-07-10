@@ -29,16 +29,37 @@ data/case_studies/kaggle_battery/case_study.md
 data/case_studies/kaggle_battery/simulation_comparison.md
 ```
 
+### `battery_archive/`
+
+Representative real-data case study using Battery Archive cycle-level data.
+
+This folder documents:
+
+- Raw zip inventory without extracting raw archives
+- Filename metadata enrichment
+- Cycle CSV schema audit and normalization
+- Quality flags and conservative capacity-derived metrics
+- 80% / 70% threshold crossing proxies and observed-censoring interpretation
+- Compact reliability group summary
+- Source notes, methodology, and narrative case-study report
+
+Key files:
+
+```text
+data/case_studies/battery_archive/README.md
+data/case_studies/battery_archive/source.md
+data/case_studies/battery_archive/methodology.md
+data/case_studies/battery_archive/case_study.md
+```
+
 ## Other Source Notes
 
 Other folders may contain source notes or early dataset exploration notes:
 
 ```text
 data/case_studies/battery/
-data/case_studies/battery_archive/
 data/case_studies/htem/
 data/case_studies/materials_project/
 ```
 
 Treat these as documentation or optional ingestion references unless they are promoted to full case studies.
-

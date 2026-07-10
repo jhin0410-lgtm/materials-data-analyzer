@@ -1,12 +1,14 @@
 # Cleanup Execution Log
 
+> Historical planning record. Retained for project history; not the current implementation specification.
+
 Execution date: 2026-07-06
 
 Scope: Cleanup Phase 1 only. This phase focused on Git hygiene and safe artifact cleanup. No analyzer feature work, core source restructuring, case-study code deletion, connector deletion, test deletion, sample-data deletion, or processed CSV deletion was performed.
 
 ## Plan Followed
 
-This cleanup followed `CLEANUP_PLAN.md`.
+This cleanup followed [`CLEANUP_PLAN.md`](../../plans/CLEANUP_PLAN.md).
 
 Phase 1 allowed actions:
 

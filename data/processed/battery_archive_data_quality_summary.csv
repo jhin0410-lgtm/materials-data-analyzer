@@ -1,0 +1,34 @@
+metric,count,percentage,description
+total_cycle_rows,343503,100.0,Total cycle rows.
+valid_rows,341523,99.4236,Rows with no row-level quality issues.
+warning_rows,1980,0.5764,Rows with warning-level quality issues.
+invalid_rows,0,0.0,Rows with invalid-level quality issues.
+series_count,196,100.0,Total cycle series.
+series_with_valid_baseline,196,100.0,Series with a valid initial discharge capacity baseline.
+series_with_mixed_units,0,0.0,Series containing more than one discharge capacity unit.
+series_with_duplicate_cycle_index,25,12.7551,Series with duplicated cycle_index values.
+series_with_nonmonotonic_cycle_index,1,0.5102,Series where cycle_index decreases in source row order.
+series_reaching_80pct,191,97.449,Series with at least one observed retention value below 80%.
+series_not_reaching_80pct,5,2.551,Series not observed below 80%; treated as observed-censored.
+series_reaching_70pct,187,95.4082,Series with at least one observed retention value below 70%.
+series_not_reaching_70pct,9,4.5918,Series not observed below 70%; treated as observed-censored.
+derived_metric_coverage_rows,343503,100.0,Rows with computable capacity retention and SOH proxy.
+high_retention_warning_rows,519,0.1511,Rows with capacity_retention_pct > 120.0.
+source:CALCE:series_count,7,3.5714,Cycle series count for source CALCE.
+source:CALCE:non_candidate_series,7,100.0,"Series from CALCE with warnings, invalid rows, or baseline issues."
+source:HNEI:series_count,15,7.6531,Cycle series count for source HNEI.
+source:HNEI:non_candidate_series,15,100.0,"Series from HNEI with warnings, invalid rows, or baseline issues."
+source:Michigan Expansion:series_count,18,9.1837,Cycle series count for source Michigan Expansion.
+source:Michigan Expansion:non_candidate_series,10,55.5556,"Series from Michigan Expansion with warnings, invalid rows, or baseline issues."
+source:Michigan Formation:series_count,40,20.4082,Cycle series count for source Michigan Formation.
+source:Michigan Formation:non_candidate_series,22,55.0,"Series from Michigan Formation with warnings, invalid rows, or baseline issues."
+source:Oxford:series_count,8,4.0816,Cycle series count for source Oxford.
+source:Oxford:non_candidate_series,0,0.0,"Series from Oxford with warnings, invalid rows, or baseline issues."
+source:SNL LFP:series_count,30,15.3061,Cycle series count for source SNL LFP.
+source:SNL LFP:non_candidate_series,30,100.0,"Series from SNL LFP with warnings, invalid rows, or baseline issues."
+source:SNL NCA:series_count,24,12.2449,Cycle series count for source SNL NCA.
+source:SNL NCA:non_candidate_series,24,100.0,"Series from SNL NCA with warnings, invalid rows, or baseline issues."
+source:SNL NMC:series_count,32,16.3265,Cycle series count for source SNL NMC.
+source:SNL NMC:non_candidate_series,32,100.0,"Series from SNL NMC with warnings, invalid rows, or baseline issues."
+source:UL-Purdue:series_count,22,11.2245,Cycle series count for source UL-Purdue.
+source:UL-Purdue:non_candidate_series,13,59.0909,"Series from UL-Purdue with warnings, invalid rows, or baseline issues."

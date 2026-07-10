@@ -1,0 +1,197 @@
+zip_file,internal_csv_path,file_name,file_type,uncompressed_size_bytes,compressed_size_bytes,crc32
+CALCE.zip,CALCE/CALCE_CX2-16_prism_LCO_25C_0-100_0.5-0.5C_a_cycle_data.csv,CALCE_CX2-16_prism_LCO_25C_0-100_0.5-0.5C_a_cycle_data.csv,cycle_data,135604,40779,9cd4aab0
+CALCE.zip,CALCE/CALCE_CX2-25_prism_LCO_25C_0-100_0.5-0.5C_b_cycle_data.csv,CALCE_CX2-25_prism_LCO_25C_0-100_0.5-0.5C_b_cycle_data.csv,cycle_data,123095,36822,2dca039c
+CALCE.zip,CALCE/CALCE_CX2-33_prism_LCO_25C_0-100_0.5-0.5C_d_cycle_data.csv,CALCE_CX2-33_prism_LCO_25C_0-100_0.5-0.5C_d_cycle_data.csv,cycle_data,114611,34200,5208a6ba
+CALCE.zip,CALCE/CALCE_CX2-34_prism_LCO_25C_0-100_0.5-0.5C_e_cycle_data.csv,CALCE_CX2-34_prism_LCO_25C_0-100_0.5-0.5C_e_cycle_data.csv,cycle_data,118229,34840,786450aa
+CALCE.zip,CALCE/CALCE_CX2-36_prism_LCO_25C_0-100_0.5-0.5C_f_cycle_data.csv,CALCE_CX2-36_prism_LCO_25C_0-100_0.5-0.5C_f_cycle_data.csv,cycle_data,134763,40313,7afb06a7
+CALCE.zip,CALCE/CALCE_CX2-37_prism_LCO_25C_0-100_0.5-0.5C_g_cycle_data.csv,CALCE_CX2-37_prism_LCO_25C_0-100_0.5-0.5C_g_cycle_data.csv,cycle_data,86446,25589,fd26a418
+CALCE.zip,CALCE/CALCE_CX2-38_prism_LCO_25C_0-100_0.5-0.5C_h_cycle_data.csv,CALCE_CX2-38_prism_LCO_25C_0-100_0.5-0.5C_h_cycle_data.csv,cycle_data,132266,39409,6f6ef929
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_a_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_a_cycle_data.csv,cycle_data,75539,21330,d114d78b
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_b_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_b_cycle_data.csv,cycle_data,74664,21529,d2c20722
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_c_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_c_cycle_data.csv,cycle_data,73919,21564,e97a5f5d
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_d_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_d_cycle_data.csv,cycle_data,75776,21412,4aca667d
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_e_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_e_cycle_data.csv,cycle_data,75559,22772,b4fbc4b4
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_f_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_f_cycle_data.csv,cycle_data,75432,21795,e43b55e5
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_g_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_g_cycle_data.csv,cycle_data,75895,21387,dd9e304b
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_j_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_j_cycle_data.csv,cycle_data,75175,22627,768196c2
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_l_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_l_cycle_data.csv,cycle_data,75738,21422,a0884a3f
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_m_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_m_cycle_data.csv,cycle_data,75392,22316,dbf36228
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_n_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_n_cycle_data.csv,cycle_data,115221,33212,c4663c0c
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_o_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_o_cycle_data.csv,cycle_data,116573,32335,de388f3c
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_p_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_p_cycle_data.csv,cycle_data,116039,32221,7e76a543
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_s_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_s_cycle_data.csv,cycle_data,117275,31988,3647b476
+HNEI.zip,HNEI/HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_t_cycle_data.csv,HNEI_18650_NMC_LCO_25C_0-100_0.5-1.5C_t_cycle_data.csv,cycle_data,114943,31620,509d3ad4
+Michigan Expansion.zip,Michigan Expansion/MICH_01R_pouch_NMC_25C_0-100_0.2-0.2C_cycle_data.csv,MICH_01R_pouch_NMC_25C_0-100_0.2-0.2C_cycle_data.csv,cycle_data,23765,7938,07c8204a
+Michigan Expansion.zip,Michigan Expansion/MICH_02C_pouch_NMC_-5C_0-100_0.2-0.2C_cycle_data.csv,MICH_02C_pouch_NMC_-5C_0-100_0.2-0.2C_cycle_data.csv,cycle_data,18174,5891,5880cde1
+Michigan Expansion.zip,Michigan Expansion/MICH_03H_pouch_NMC_45C_0-100_0.2-0.2C_cycle_data.csv,MICH_03H_pouch_NMC_45C_0-100_0.2-0.2C_cycle_data.csv,cycle_data,6458,2234,08ea1be2
+Michigan Expansion.zip,Michigan Expansion/MICH_04R_pouch_NMC_25C_0-100_1.5-1.5C_cycle_data.csv,MICH_04R_pouch_NMC_25C_0-100_1.5-1.5C_cycle_data.csv,cycle_data,20885,6784,a1e1f36c
+Michigan Expansion.zip,Michigan Expansion/MICH_05C_pouch_NMC_-5C_0-100_1.5-1.5C_cycle_data.csv,MICH_05C_pouch_NMC_-5C_0-100_1.5-1.5C_cycle_data.csv,cycle_data,36246,11647,e3a060e2
+Michigan Expansion.zip,Michigan Expansion/MICH_06H_pouch_NMC_45C_0-100_1.5-1.5C_cycle_data.csv,MICH_06H_pouch_NMC_45C_0-100_1.5-1.5C_cycle_data.csv,cycle_data,11229,3621,39f4f13c
+Michigan Expansion.zip,Michigan Expansion/MICH_07R_pouch_NMC_25C_0-100_2-2C_cycle_data.csv,MICH_07R_pouch_NMC_25C_0-100_2-2C_cycle_data.csv,cycle_data,15821,5219,4e9a97d1
+Michigan Expansion.zip,Michigan Expansion/MICH_08C_pouch_NMC_-5C_0-100_2-2C_cycle_data.csv,MICH_08C_pouch_NMC_-5C_0-100_2-2C_cycle_data.csv,cycle_data,36744,11524,b13f336b
+Michigan Expansion.zip,Michigan Expansion/MICH_09H_pouch_NMC_45C_0-100_2-2C_cycle_data.csv,MICH_09H_pouch_NMC_45C_0-100_2-2C_cycle_data.csv,cycle_data,11330,3791,0b046b81
+Michigan Expansion.zip,Michigan Expansion/MICH_10R_pouch_NMC_25C_0-100_0.2-1.5C_cycle_data.csv,MICH_10R_pouch_NMC_25C_0-100_0.2-1.5C_cycle_data.csv,cycle_data,27716,9227,2dac4de3
+Michigan Expansion.zip,Michigan Expansion/MICH_11C_pouch_NMC_-5C_0-100_0.2-1.5C_cycle_data.csv,MICH_11C_pouch_NMC_-5C_0-100_0.2-1.5C_cycle_data.csv,cycle_data,33707,10942,f1540244
+Michigan Expansion.zip,Michigan Expansion/MICH_12H_pouch_NMC_45C_0-100_0.2-1.5C_cycle_data.csv,MICH_12H_pouch_NMC_45C_0-100_0.2-1.5C_cycle_data.csv,cycle_data,11636,4041,47d5e1e2
+Michigan Expansion.zip,Michigan Expansion/MICH_13R_pouch_NMC_25C_50-100_0.2-0.2C_cycle_data.csv,MICH_13R_pouch_NMC_25C_50-100_0.2-0.2C_cycle_data.csv,cycle_data,32303,8155,40836c4f
+Michigan Expansion.zip,Michigan Expansion/MICH_14C_pouch_NMC_-5C_50-100_0.2-0.2C_cycle_data.csv,MICH_14C_pouch_NMC_-5C_50-100_0.2-0.2C_cycle_data.csv,cycle_data,27130,6925,eb7f0eb3
+Michigan Expansion.zip,Michigan Expansion/MICH_15H_pouch_NMC_45C_50-100_0.2-0.2C_cycle_data.csv,MICH_15H_pouch_NMC_45C_50-100_0.2-0.2C_cycle_data.csv,cycle_data,10365,2635,842aec72
+Michigan Expansion.zip,Michigan Expansion/MICH_16R_pouch_NMC_25C_50-100_0.2-1.5C_cycle_data.csv,MICH_16R_pouch_NMC_25C_50-100_0.2-1.5C_cycle_data.csv,cycle_data,34390,8783,f59559f6
+Michigan Expansion.zip,Michigan Expansion/MICH_17C_pouch_NMC_-5C_50-100_0.2-1.5C_cycle_data.csv,MICH_17C_pouch_NMC_-5C_50-100_0.2-1.5C_cycle_data.csv,cycle_data,36819,9574,52ddd0d3
+Michigan Expansion.zip,Michigan Expansion/MICH_18H_pouch_NMC_45C_50-100_0.2-1.5C_cycle_data.csv,MICH_18H_pouch_NMC_45C_50-100_0.2-1.5C_cycle_data.csv,cycle_data,18926,4745,17fb1400
+Michigan Formation.zip,Michigan Formation/MICH_BLForm10_pouch_NMC_25C_0-100_1-1C_j_cycle_data.csv,MICH_BLForm10_pouch_NMC_25C_0-100_1-1C_j_cycle_data.csv,cycle_data,32775,10202,8a044fa3
+Michigan Formation.zip,Michigan Formation/MICH_BLForm11_pouch_NMC_25C_0-100_1-1C_a_cycle_data.csv,MICH_BLForm11_pouch_NMC_25C_0-100_1-1C_a_cycle_data.csv,cycle_data,28477,8911,7bea84d4
+Michigan Formation.zip,Michigan Formation/MICH_BLForm12_pouch_NMC_25C_0-100_1-1C_b_cycle_data.csv,MICH_BLForm12_pouch_NMC_25C_0-100_1-1C_b_cycle_data.csv,cycle_data,29026,9047,78ad34ca
+Michigan Formation.zip,Michigan Formation/MICH_BLForm13_pouch_NMC_25C_0-100_1-1C_c_cycle_data.csv,MICH_BLForm13_pouch_NMC_25C_0-100_1-1C_c_cycle_data.csv,cycle_data,29344,9164,519d8e9a
+Michigan Formation.zip,Michigan Formation/MICH_BLForm14_pouch_NMC_25C_0-100_1-1C_d_cycle_data.csv,MICH_BLForm14_pouch_NMC_25C_0-100_1-1C_d_cycle_data.csv,cycle_data,32039,9992,e16b2809
+Michigan Formation.zip,Michigan Formation/MICH_BLForm15_pouch_NMC_25C_0-100_1-1C_e_cycle_data.csv,MICH_BLForm15_pouch_NMC_25C_0-100_1-1C_e_cycle_data.csv,cycle_data,29707,9260,0df3172a
+Michigan Formation.zip,Michigan Formation/MICH_BLForm16_pouch_NMC_25C_0-100_1-1C_f_cycle_data.csv,MICH_BLForm16_pouch_NMC_25C_0-100_1-1C_f_cycle_data.csv,cycle_data,29678,9221,677c04b5
+Michigan Formation.zip,Michigan Formation/MICH_BLForm17_pouch_NMC_25C_0-100_1-1C_g_cycle_data.csv,MICH_BLForm17_pouch_NMC_25C_0-100_1-1C_g_cycle_data.csv,cycle_data,29768,9354,fdc90e49
+Michigan Formation.zip,Michigan Formation/MICH_BLForm18_pouch_NMC_25C_0-100_1-1C_h_cycle_data.csv,MICH_BLForm18_pouch_NMC_25C_0-100_1-1C_h_cycle_data.csv,cycle_data,29399,9200,020d2a09
+Michigan Formation.zip,Michigan Formation/MICH_BLForm19_pouch_NMC_25C_0-100_1-1C_i_cycle_data.csv,MICH_BLForm19_pouch_NMC_25C_0-100_1-1C_i_cycle_data.csv,cycle_data,29734,9400,af9829e3
+Michigan Formation.zip,Michigan Formation/MICH_BLForm1_pouch_NMC_45C_0-100_1-1C_a_cycle_data.csv,MICH_BLForm1_pouch_NMC_45C_0-100_1-1C_a_cycle_data.csv,cycle_data,32984,10319,0a120761
+Michigan Formation.zip,Michigan Formation/MICH_BLForm20_pouch_NMC_25C_0-100_1-1C_j_cycle_data.csv,MICH_BLForm20_pouch_NMC_25C_0-100_1-1C_j_cycle_data.csv,cycle_data,29680,9273,7a8e4917
+Michigan Formation.zip,Michigan Formation/MICH_BLForm2_pouch_NMC_45C_0-100_1-1C_b_cycle_data.csv,MICH_BLForm2_pouch_NMC_45C_0-100_1-1C_b_cycle_data.csv,cycle_data,33021,10324,1b25eed0
+Michigan Formation.zip,Michigan Formation/MICH_BLForm3_pouch_NMC_45C_0-100_1-1C_c_cycle_data.csv,MICH_BLForm3_pouch_NMC_45C_0-100_1-1C_c_cycle_data.csv,cycle_data,34336,10787,b633ffb9
+Michigan Formation.zip,Michigan Formation/MICH_BLForm4_pouch_NMC_45C_0-100_1-1C_d_cycle_data.csv,MICH_BLForm4_pouch_NMC_45C_0-100_1-1C_d_cycle_data.csv,cycle_data,32962,10293,3ca22e72
+Michigan Formation.zip,Michigan Formation/MICH_BLForm5_pouch_NMC_45C_0-100_1-1C_e_cycle_data.csv,MICH_BLForm5_pouch_NMC_45C_0-100_1-1C_e_cycle_data.csv,cycle_data,32869,10240,8d77135b
+Michigan Formation.zip,Michigan Formation/MICH_BLForm6_pouch_NMC_45C_0-100_1-1C_f_cycle_data.csv,MICH_BLForm6_pouch_NMC_45C_0-100_1-1C_f_cycle_data.csv,cycle_data,32495,10040,353cd006
+Michigan Formation.zip,Michigan Formation/MICH_BLForm7_pouch_NMC_45C_0-100_1-1C_g_cycle_data.csv,MICH_BLForm7_pouch_NMC_45C_0-100_1-1C_g_cycle_data.csv,cycle_data,32089,10024,41ecf9a0
+Michigan Formation.zip,Michigan Formation/MICH_BLForm8_pouch_NMC_45C_0-100_1-1C_h_cycle_data.csv,MICH_BLForm8_pouch_NMC_45C_0-100_1-1C_h_cycle_data.csv,cycle_data,32933,10198,325ee31a
+Michigan Formation.zip,Michigan Formation/MICH_BLForm9_pouch_NMC_45C_0-100_1-1C_i_cycle_data.csv,MICH_BLForm9_pouch_NMC_45C_0-100_1-1C_i_cycle_data.csv,cycle_data,40530,12646,801c8443
+Michigan Formation.zip,Michigan Formation/MICH_MCForm21_pouch_NMC_25C_0-100_1-1C_a_cycle_data.csv,MICH_MCForm21_pouch_NMC_25C_0-100_1-1C_a_cycle_data.csv,cycle_data,32064,9867,95fda965
+Michigan Formation.zip,Michigan Formation/MICH_MCForm22_pouch_NMC_25C_0-100_1-1C_b_cycle_data.csv,MICH_MCForm22_pouch_NMC_25C_0-100_1-1C_b_cycle_data.csv,cycle_data,33059,10424,88106a72
+Michigan Formation.zip,Michigan Formation/MICH_MCForm23_pouch_NMC_25C_0-100_1-1C_c_cycle_data.csv,MICH_MCForm23_pouch_NMC_25C_0-100_1-1C_c_cycle_data.csv,cycle_data,36479,11194,776f804d
+Michigan Formation.zip,Michigan Formation/MICH_MCForm24_pouch_NMC_25C_0-100_1-1C_d_cycle_data.csv,MICH_MCForm24_pouch_NMC_25C_0-100_1-1C_d_cycle_data.csv,cycle_data,32016,9957,a4ac3662
+Michigan Formation.zip,Michigan Formation/MICH_MCForm25_pouch_NMC_25C_0-100_1-1C_e_cycle_data.csv,MICH_MCForm25_pouch_NMC_25C_0-100_1-1C_e_cycle_data.csv,cycle_data,39782,12281,2a3a648e
+Michigan Formation.zip,Michigan Formation/MICH_MCForm26_pouch_NMC_25C_0-100_1-1C_f_cycle_data.csv,MICH_MCForm26_pouch_NMC_25C_0-100_1-1C_f_cycle_data.csv,cycle_data,39715,12323,1b39a97a
+Michigan Formation.zip,Michigan Formation/MICH_MCForm27_pouch_NMC_25C_0-100_1-1C_g_cycle_data.csv,MICH_MCForm27_pouch_NMC_25C_0-100_1-1C_g_cycle_data.csv,cycle_data,36487,11355,1e280ee7
+Michigan Formation.zip,Michigan Formation/MICH_MCForm28_pouch_NMC_25C_0-100_1-1C_h_cycle_data.csv,MICH_MCForm28_pouch_NMC_25C_0-100_1-1C_h_cycle_data.csv,cycle_data,39845,12311,b57ace95
+Michigan Formation.zip,Michigan Formation/MICH_MCForm29_pouch_NMC_25C_0-100_1-1C_i_cycle_data.csv,MICH_MCForm29_pouch_NMC_25C_0-100_1-1C_i_cycle_data.csv,cycle_data,37386,11654,d8b77be3
+Michigan Formation.zip,Michigan Formation/MICH_MCForm30_pouch_NMC_25C_0-100_1-1C_j_cycle_data.csv,MICH_MCForm30_pouch_NMC_25C_0-100_1-1C_j_cycle_data.csv,cycle_data,36469,11236,be0df685
+Michigan Formation.zip,Michigan Formation/MICH_MCForm31_pouch_NMC_45C_0-100_1-1C_a_cycle_data.csv,MICH_MCForm31_pouch_NMC_45C_0-100_1-1C_a_cycle_data.csv,cycle_data,34220,10665,ddb9e687
+Michigan Formation.zip,Michigan Formation/MICH_MCForm32_pouch_NMC_45C_0-100_1-1C_b_cycle_data.csv,MICH_MCForm32_pouch_NMC_45C_0-100_1-1C_b_cycle_data.csv,cycle_data,33033,10444,251b2f75
+Michigan Formation.zip,Michigan Formation/MICH_MCForm33_pouch_NMC_45C_0-100_1-1C_c_cycle_data.csv,MICH_MCForm33_pouch_NMC_45C_0-100_1-1C_c_cycle_data.csv,cycle_data,33665,10516,9445fe44
+Michigan Formation.zip,Michigan Formation/MICH_MCForm34_pouch_NMC_45C_0-100_1-1C_d_cycle_data.csv,MICH_MCForm34_pouch_NMC_45C_0-100_1-1C_d_cycle_data.csv,cycle_data,38886,11867,2f0cf3d0
+Michigan Formation.zip,Michigan Formation/MICH_MCForm35_pouch_NMC_45C_0-100_1-1C_e_cycle_data.csv,MICH_MCForm35_pouch_NMC_45C_0-100_1-1C_e_cycle_data.csv,cycle_data,29854,9263,a40fe6c4
+Michigan Formation.zip,Michigan Formation/MICH_MCForm36_pouch_NMC_45C_0-100_1-1C_f_cycle_data.csv,MICH_MCForm36_pouch_NMC_45C_0-100_1-1C_f_cycle_data.csv,cycle_data,36311,11271,ed267f3a
+Michigan Formation.zip,Michigan Formation/MICH_MCForm37_pouch_NMC_45C_0-100_1-1C_g_cycle_data.csv,MICH_MCForm37_pouch_NMC_45C_0-100_1-1C_g_cycle_data.csv,cycle_data,36314,11109,e6a8c663
+Michigan Formation.zip,Michigan Formation/MICH_MCForm38_pouch_NMC_45C_0-100_1-1C_h_cycle_data.csv,MICH_MCForm38_pouch_NMC_45C_0-100_1-1C_h_cycle_data.csv,cycle_data,33622,10503,78eb6e86
+Michigan Formation.zip,Michigan Formation/MICH_MCForm39_pouch_NMC_45C_0-100_1-1C_i_cycle_data.csv,MICH_MCForm39_pouch_NMC_45C_0-100_1-1C_i_cycle_data.csv,cycle_data,36274,11273,fd8a4de4
+Michigan Formation.zip,Michigan Formation/MICH_MCForm40_pouch_NMC_45C_0-100_1-1C_j_cycle_data.csv,MICH_MCForm40_pouch_NMC_45C_0-100_1-1C_j_cycle_data.csv,cycle_data,36043,11281,76b559c7
+Oxford.zip,Oxford/OX_1-1_pouch_LCO_40C_0-100_2-1.84C_a_cycle_data.csv,OX_1-1_pouch_LCO_40C_0-100_2-1.84C_a_cycle_data.csv,cycle_data,5459,1771,ef216656
+Oxford.zip,Oxford/OX_1-2_pouch_LCO_40C_0-100_2-1.84C_b_cycle_data.csv,OX_1-2_pouch_LCO_40C_0-100_2-1.84C_b_cycle_data.csv,cycle_data,5141,1680,38b49679
+Oxford.zip,Oxford/OX_1-3_pouch_LCO_40C_0-100_2-1.84C_c_cycle_data.csv,OX_1-3_pouch_LCO_40C_0-100_2-1.84C_c_cycle_data.csv,cycle_data,5341,1753,7fb8b2cc
+Oxford.zip,Oxford/OX_1-4_pouch_LCO_40C_0-100_2-1.84C_d_cycle_data.csv,OX_1-4_pouch_LCO_40C_0-100_2-1.84C_d_cycle_data.csv,cycle_data,3349,1149,245c632b
+Oxford.zip,Oxford/OX_1-5_pouch_LCO_40C_0-100_2-1.84C_e_cycle_data.csv,OX_1-5_pouch_LCO_40C_0-100_2-1.84C_e_cycle_data.csv,cycle_data,3279,1126,822f57b7
+Oxford.zip,Oxford/OX_1-6_pouch_LCO_40C_0-100_2-1.84C_f_cycle_data.csv,OX_1-6_pouch_LCO_40C_0-100_2-1.84C_f_cycle_data.csv,cycle_data,3287,1114,d2312af3
+Oxford.zip,Oxford/OX_1-7_pouch_LCO_40C_0-100_2-1.84C_g_cycle_data.csv,OX_1-7_pouch_LCO_40C_0-100_2-1.84C_g_cycle_data.csv,cycle_data,5390,1751,ec84ff28
+Oxford.zip,Oxford/OX_1-8_pouch_LCO_40C_0-100_2-1.84C_h_cycle_data.csv,OX_1-8_pouch_LCO_40C_0-100_2-1.84C_h_cycle_data.csv,cycle_data,5316,1736,670a28af
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_15C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_LFP_15C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,534667,143504,3a34472d
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_15C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_LFP_15C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,422357,112438,baa3c59c
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_15C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_LFP_15C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,445538,119253,e79b07b8
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_15C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_LFP_15C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,441873,119816,d5f7d79f
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-0.5C_a_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-0.5C_a_cycle_data.csv,cycle_data,365064,97712,a59b8e83
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,422541,113756,7d8c8c22
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,418632,113652,ce01b9fe
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_c_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-1C_c_cycle_data.csv,cycle_data,359351,96828,3b858103
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_d_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-1C_d_cycle_data.csv,cycle_data,361248,97278,8a11f284
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,422168,114123,603f8f6f
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,480042,129982,10043706
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-3C_a_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-3C_a_cycle_data.csv,cycle_data,538619,148421,5e75336a
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-3C_b_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-3C_b_cycle_data.csv,cycle_data,475778,132976,036f088b
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-3C_c_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-3C_c_cycle_data.csv,cycle_data,415313,117062,7f81f1ab
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_0-100_0.5-3C_d_cycle_data.csv,SNL_18650_LFP_25C_0-100_0.5-3C_d_cycle_data.csv,cycle_data,479122,132215,cf2cb09f
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv,SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv,cycle_data,890741,237604,2210c263
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_b_cycle_data.csv,SNL_18650_LFP_25C_20-80_0.5-0.5C_b_cycle_data.csv,cycle_data,901315,238609,df1e06a3
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_c_cycle_data.csv,SNL_18650_LFP_25C_20-80_0.5-0.5C_c_cycle_data.csv,cycle_data,720033,188687,a163bcb9
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_d_cycle_data.csv,SNL_18650_LFP_25C_20-80_0.5-0.5C_d_cycle_data.csv,cycle_data,798226,210089,843bb580
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_20-80_0.5-3C_a_cycle_data.csv,SNL_18650_LFP_25C_20-80_0.5-3C_a_cycle_data.csv,cycle_data,351452,93233,d3455e1c
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv,SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv,cycle_data,2347062,592091,f1d5830c
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_b_cycle_data.csv,SNL_18650_LFP_25C_40-60_0.5-0.5C_b_cycle_data.csv,cycle_data,2225866,562141,5a9b5409
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_40-60_0.5-3C_a_cycle_data.csv,SNL_18650_LFP_25C_40-60_0.5-3C_a_cycle_data.csv,cycle_data,1504531,369051,b0dc2fac
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_25C_40-60_0.5-3C_b_cycle_data.csv,SNL_18650_LFP_25C_40-60_0.5-3C_b_cycle_data.csv,cycle_data,1382736,345171,3722ba21
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_35C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_LFP_35C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,373571,93845,a3be9f12
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_35C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_LFP_35C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,395725,99491,f6ed499f
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_35C_0-100_0.5-1C_c_cycle_data.csv,SNL_18650_LFP_35C_0-100_0.5-1C_c_cycle_data.csv,cycle_data,391946,98652,2eefc0af
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_35C_0-100_0.5-1C_d_cycle_data.csv,SNL_18650_LFP_35C_0-100_0.5-1C_d_cycle_data.csv,cycle_data,444425,111838,a3b0cada
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_35C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_LFP_35C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,453148,113951,fd3a1eb7
+SNL LFP.zip,SNL LFP/SNL_18650_LFP_35C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_LFP_35C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,423201,107453,332a4f35
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_15C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_NCA_15C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,61333,19617,a2c5d879
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_15C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_NCA_15C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,107970,34367,11e78e06
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_15C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_NCA_15C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,109738,34977,01437001
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_15C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_NCA_15C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,92835,29723,b3ee96ff
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-0.5C_a_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-0.5C_a_cycle_data.csv,cycle_data,61508,19833,2dfe668d
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-0.5C_b_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-0.5C_b_cycle_data.csv,cycle_data,109015,35108,7c869459
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,77356,25055,e0f61a92
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,61970,20210,5378b0e6
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-1C_c_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-1C_c_cycle_data.csv,cycle_data,61651,20233,ec2e62fc
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-1C_d_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-1C_d_cycle_data.csv,cycle_data,77248,24822,7466827f
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,92806,30293,8931020f
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_NCA_25C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,92607,29309,231fc403
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_20-80_0.5-0.5C_a_cycle_data.csv,SNL_18650_NCA_25C_20-80_0.5-0.5C_a_cycle_data.csv,cycle_data,136675,42625,2b469b44
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_20-80_0.5-0.5C_b_cycle_data.csv,SNL_18650_NCA_25C_20-80_0.5-0.5C_b_cycle_data.csv,cycle_data,155012,46807,5ae8be18
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_20-80_0.5-0.5C_c_cycle_data.csv,SNL_18650_NCA_25C_20-80_0.5-0.5C_c_cycle_data.csv,cycle_data,154780,46835,67ab1e4c
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_20-80_0.5-0.5C_d_cycle_data.csv,SNL_18650_NCA_25C_20-80_0.5-0.5C_d_cycle_data.csv,cycle_data,183564,54066,424e380b
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_40-60_0.5-0.5C_a_cycle_data.csv,SNL_18650_NCA_25C_40-60_0.5-0.5C_a_cycle_data.csv,cycle_data,944817,235892,9aac3178
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_25C_40-60_0.5-0.5C_b_cycle_data.csv,SNL_18650_NCA_25C_40-60_0.5-0.5C_b_cycle_data.csv,cycle_data,728325,182903,fc9d9b58
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_35C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_NCA_35C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,61050,18681,dcbe0a42
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_35C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_NCA_35C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,54857,16721,ce9da034
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_35C_0-100_0.5-1C_c_cycle_data.csv,SNL_18650_NCA_35C_0-100_0.5-1C_c_cycle_data.csv,cycle_data,60904,18800,39bf46eb
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_35C_0-100_0.5-1C_d_cycle_data.csv,SNL_18650_NCA_35C_0-100_0.5-1C_d_cycle_data.csv,cycle_data,77416,23973,24b62412
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_35C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_NCA_35C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,76464,23636,ec3bf58e
+SNL NCA.zip,SNL NCA/SNL_18650_NCA_35C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_NCA_35C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,91900,28003,bc37c8f9
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_15C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_NMC_15C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,60652,19819,3362d82e
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_15C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_NMC_15C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,58895,20112,eaf73d37
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_15C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_NMC_15C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,45714,15180,8011d34b
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_15C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_NMC_15C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,45965,15208,07070bc7
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-0.5C_a_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-0.5C_a_cycle_data.csv,cycle_data,64348,21328,43fe97d7
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-0.5C_b_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-0.5C_b_cycle_data.csv,cycle_data,77851,25518,dbdd5a93
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,61699,19222,6da15cde
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,93863,28906,5a28122e
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-1C_c_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-1C_c_cycle_data.csv,cycle_data,47039,15573,e1eea02b
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-1C_d_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-1C_d_cycle_data.csv,cycle_data,62307,20530,24e1083a
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,77903,25106,920248ab
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,156022,47525,c5050a65
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-3C_a_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-3C_a_cycle_data.csv,cycle_data,84134,27171,a5fc8a46
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-3C_b_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-3C_b_cycle_data.csv,cycle_data,63975,20686,4ab1e392
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-3C_c_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-3C_c_cycle_data.csv,cycle_data,81695,26168,081b5db4
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_0-100_0.5-3C_d_cycle_data.csv,SNL_18650_NMC_25C_0-100_0.5-3C_d_cycle_data.csv,cycle_data,106249,33290,4b704755
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_20-80_0.5-0.5C_a_cycle_data.csv,SNL_18650_NMC_25C_20-80_0.5-0.5C_a_cycle_data.csv,cycle_data,514194,146716,66c26980
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_20-80_0.5-0.5C_b_cycle_data.csv,SNL_18650_NMC_25C_20-80_0.5-0.5C_b_cycle_data.csv,cycle_data,434251,122717,4cc2922b
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_20-80_0.5-0.5C_c_cycle_data.csv,SNL_18650_NMC_25C_20-80_0.5-0.5C_c_cycle_data.csv,cycle_data,168041,48418,52692108
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_20-80_0.5-0.5C_d_cycle_data.csv,SNL_18650_NMC_25C_20-80_0.5-0.5C_d_cycle_data.csv,cycle_data,398548,116176,74ea7599
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_20-80_0.5-3C_a_cycle_data.csv,SNL_18650_NMC_25C_20-80_0.5-3C_a_cycle_data.csv,cycle_data,430047,127128,5bfdfef1
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_20-80_0.5-3C_b_cycle_data.csv,SNL_18650_NMC_25C_20-80_0.5-3C_b_cycle_data.csv,cycle_data,134154,39190,189a5b9f
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_40-60_0.5-0.5C_a_cycle_data.csv,SNL_18650_NMC_25C_40-60_0.5-0.5C_a_cycle_data.csv,cycle_data,1275599,330474,508ece86
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_40-60_0.5-0.5C_b_cycle_data.csv,SNL_18650_NMC_25C_40-60_0.5-0.5C_b_cycle_data.csv,cycle_data,1055448,270268,51f1659f
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_40-60_0.5-3C_a_cycle_data.csv,SNL_18650_NMC_25C_40-60_0.5-3C_a_cycle_data.csv,cycle_data,1513509,393482,d1b9099a
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_25C_40-60_0.5-3C_b_cycle_data.csv,SNL_18650_NMC_25C_40-60_0.5-3C_b_cycle_data.csv,cycle_data,1298081,346065,5cad7bca
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_35C_0-100_0.5-1C_a_cycle_data.csv,SNL_18650_NMC_35C_0-100_0.5-1C_a_cycle_data.csv,cycle_data,90170,26574,bcc0b4ea
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_35C_0-100_0.5-1C_b_cycle_data.csv,SNL_18650_NMC_35C_0-100_0.5-1C_b_cycle_data.csv,cycle_data,90247,26589,66b8ad17
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_35C_0-100_0.5-1C_c_cycle_data.csv,SNL_18650_NMC_35C_0-100_0.5-1C_c_cycle_data.csv,cycle_data,89993,26613,d53fd38a
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_35C_0-100_0.5-1C_d_cycle_data.csv,SNL_18650_NMC_35C_0-100_0.5-1C_d_cycle_data.csv,cycle_data,90620,26302,97e98d73
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_35C_0-100_0.5-2C_a_cycle_data.csv,SNL_18650_NMC_35C_0-100_0.5-2C_a_cycle_data.csv,cycle_data,90553,27081,69e8c50c
+SNL NMC.zip,SNL NMC/SNL_18650_NMC_35C_0-100_0.5-2C_b_cycle_data.csv,SNL_18650_NMC_35C_0-100_0.5-2C_b_cycle_data.csv,cycle_data,88566,26270,23cda4bd
+UL-Purdue.zip,UL-Purdue/UL-PUR_CF10DPA_pouch_NCA_25C_0-100_1-1C_n_cycle_data.csv,UL-PUR_CF10DPA_pouch_NCA_25C_0-100_1-1C_n_cycle_data.csv,cycle_data,30812,9397,56916c8e
+UL-Purdue.zip,UL-Purdue/UL-PUR_N10-EX9_18650_NCA_23C_0-100_0.5-0.5C_i_cycle_data.csv,UL-PUR_N10-EX9_18650_NCA_23C_0-100_0.5-0.5C_i_cycle_data.csv,cycle_data,12691,4080,7e22d4e2
+UL-Purdue.zip,UL-Purdue/UL-PUR_N10-NA7_18650_NCA_23C_0-100_0.5-0.5C_g_cycle_data.csv,UL-PUR_N10-NA7_18650_NCA_23C_0-100_0.5-0.5C_g_cycle_data.csv,cycle_data,10473,3419,733f0e1c
+UL-Purdue.zip,UL-Purdue/UL-PUR_N10-OV8_18650_NCA_23C_0-100_0.5-0.5C_h_cycle_data.csv,UL-PUR_N10-OV8_18650_NCA_23C_0-100_0.5-0.5C_h_cycle_data.csv,cycle_data,12624,3922,291365af
+UL-Purdue.zip,UL-Purdue/UL-PUR_N15-EX4_18650_NCA_23C_0-100_0.5-0.5C_d_cycle_data.csv,UL-PUR_N15-EX4_18650_NCA_23C_0-100_0.5-0.5C_d_cycle_data.csv,cycle_data,14733,4544,29fc2f1b
+UL-Purdue.zip,UL-Purdue/UL-PUR_N15-NA10_18650_NCA_23C_0-100_0.5-0.5C_j_cycle_data.csv,UL-PUR_N15-NA10_18650_NCA_23C_0-100_0.5-0.5C_j_cycle_data.csv,cycle_data,16347,5438,887235b3
+UL-Purdue.zip,UL-Purdue/UL-PUR_N15-OV3_18650_NCA_23C_0-100_0.5-0.5C_c_cycle_data.csv,UL-PUR_N15-OV3_18650_NCA_23C_0-100_0.5-0.5C_c_cycle_data.csv,cycle_data,12527,3987,24aac229
+UL-Purdue.zip,UL-Purdue/UL-PUR_N20-EX2_18650_NCA_23C_0-100_0.5-0.5C_b_cycle_data.csv,UL-PUR_N20-EX2_18650_NCA_23C_0-100_0.5-0.5C_b_cycle_data.csv,cycle_data,21139,6366,9c58c472
+UL-Purdue.zip,UL-Purdue/UL-PUR_N20-NA5_18650_NCA_23C_0-100_0.5-0.5C_e_cycle_data.csv,UL-PUR_N20-NA5_18650_NCA_23C_0-100_0.5-0.5C_e_cycle_data.csv,cycle_data,13512,4440,6c674b78
+UL-Purdue.zip,UL-Purdue/UL-PUR_N20-NA6_18650_NCA_23C_0-100_0.5-0.5C_f_cycle_data.csv,UL-PUR_N20-NA6_18650_NCA_23C_0-100_0.5-0.5C_f_cycle_data.csv,cycle_data,13832,4435,c3244129
+UL-Purdue.zip,UL-Purdue/UL-PUR_N20-OV1_18650_NCA_23C_0-100_0.5-0.5C_a_cycle_data.csv,UL-PUR_N20-OV1_18650_NCA_23C_0-100_0.5-0.5C_a_cycle_data.csv,cycle_data,19879,5920,640d2440
+UL-Purdue.zip,UL-Purdue/UL-PUR_R10-EX6_18650_NCA_23C_2.5-96.5_0.5-0.5C_f_cycle_data.csv,UL-PUR_R10-EX6_18650_NCA_23C_2.5-96.5_0.5-0.5C_f_cycle_data.csv,cycle_data,19824,6033,9c563c4a
+UL-Purdue.zip,UL-Purdue/UL-PUR_R10-NA11_18650_NCA_23C_2.5-96.5_0.5-0.5C_k_cycle_data.csv,UL-PUR_R10-NA11_18650_NCA_23C_2.5-96.5_0.5-0.5C_k_cycle_data.csv,cycle_data,27667,8731,7d06dc3b
+UL-Purdue.zip,UL-Purdue/UL-PUR_R10-OV5_18650_NCA_23C_2.5-96.5_0.5-0.5C_e_cycle_data.csv,UL-PUR_R10-OV5_18650_NCA_23C_2.5-96.5_0.5-0.5C_e_cycle_data.csv,cycle_data,15964,5109,17d9a69f
+UL-Purdue.zip,UL-Purdue/UL-PUR_R15-EX4_18650_NCA_23C_2.5-96.5_0.5-0.5C_d_cycle_data.csv,UL-PUR_R15-EX4_18650_NCA_23C_2.5-96.5_0.5-0.5C_d_cycle_data.csv,cycle_data,38469,12290,23e4b25e
+UL-Purdue.zip,UL-Purdue/UL-PUR_R15-NA10_18650_NCA_23C_2.5-96.5_0.5-0.5C_j_cycle_data.csv,UL-PUR_R15-NA10_18650_NCA_23C_2.5-96.5_0.5-0.5C_j_cycle_data.csv,cycle_data,37267,11664,65d23d04
+UL-Purdue.zip,UL-Purdue/UL-PUR_R15-OV3_18650_NCA_23C_2.5-96.5_0.5-0.5C_c_cycle_data.csv,UL-PUR_R15-OV3_18650_NCA_23C_2.5-96.5_0.5-0.5C_c_cycle_data.csv,cycle_data,38428,12023,b3af77e0
+UL-Purdue.zip,UL-Purdue/UL-PUR_R20-EX2_18650_NCA_23C_2.5-96.5_0.5-0.5C_b_cycle_data.csv,UL-PUR_R20-EX2_18650_NCA_23C_2.5-96.5_0.5-0.5C_b_cycle_data.csv,cycle_data,48142,14561,cc7c4d05
+UL-Purdue.zip,UL-Purdue/UL-PUR_R20-NA7_18650_NCA_23C_2.5-96.5_0.5-0.5C_g_cycle_data.csv,UL-PUR_R20-NA7_18650_NCA_23C_2.5-96.5_0.5-0.5C_g_cycle_data.csv,cycle_data,47360,14875,5e20c618
+UL-Purdue.zip,UL-Purdue/UL-PUR_R20-NA8_18650_NCA_23C_2.5-96.5_0.5-0.5C_h_cycle_data.csv,UL-PUR_R20-NA8_18650_NCA_23C_2.5-96.5_0.5-0.5C_h_cycle_data.csv,cycle_data,38646,12213,9c5b4108
+UL-Purdue.zip,UL-Purdue/UL-PUR_R20-NA9_18650_NCA_23C_2.5-96.5_0.5-0.5C_i_cycle_data.csv,UL-PUR_R20-NA9_18650_NCA_23C_2.5-96.5_0.5-0.5C_i_cycle_data.csv,cycle_data,37985,12217,8fa6a975
+UL-Purdue.zip,UL-Purdue/UL-PUR_R20-OV1_18650_NCA_23C_2.5-96.5_0.5-0.5C_a_cycle_data.csv,UL-PUR_R20-OV1_18650_NCA_23C_2.5-96.5_0.5-0.5C_a_cycle_data.csv,cycle_data,48081,14481,d83b2eb8

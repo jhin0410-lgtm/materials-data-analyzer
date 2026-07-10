@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1
+
+- Added the Battery Archive real-data case study as the second representative demonstration of the platform.
+- Added Battery Archive zip inventory without extracting raw archives.
+- Added filename metadata enrichment for source, chemistry, form factor, temperature, SOC window, and C-rate fields.
+- Added cycle CSV schema audit and normalization for the two observed Battery Archive cycle-data schemas.
+- Added row-level quality flags and conservative derived capacity metrics, including capacity retention and capacity-based SOH proxy.
+- Added 80% and 70% threshold crossing proxy summaries with observed-censoring interpretation.
+- Added compact series summary, data-quality summary, reliability group summary, and Battery Archive case-study documentation.
+- Added a Windows pytest runner that uses a repository-local temporary directory.
+- Stabilized repository documentation and navigation around core platform, case-study utilities, generated artifacts, and local raw-data policy.
+
+This release does not add RUL prediction, degradation forecasting, physical degradation modeling, or production decision automation.
+
 ## v0.8
 
 - Added the Kaggle NASA battery real-data case study as a representative demonstration of the platform.
@@ -24,4 +38,3 @@
 - Add clearer constraints and out-of-distribution warning summaries.
 - Improve comparison-friendly report generation.
 - Prepare for a later Streamlit demo after the CLI workflow remains stable.
-
