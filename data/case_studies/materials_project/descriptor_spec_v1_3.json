@@ -1,0 +1,166 @@
+{
+  "categorical_composition_features": [
+    "s_block_fraction",
+    "p_block_fraction",
+    "d_block_fraction",
+    "f_block_fraction",
+    "transition_metal_fraction",
+    "metalloid_fraction"
+  ],
+  "composition_source_priority": [
+    "composition_reduced",
+    "composition",
+    "formula_pretty"
+  ],
+  "descriptor_version": "v1.3.3",
+  "deterministic_ordering": "Sort output rows by material_id and descriptor columns by deterministic specification order.",
+  "elemental_aggregations": [
+    "weighted_mean",
+    "minimum",
+    "maximum",
+    "range",
+    "weighted_std"
+  ],
+  "elemental_properties": [
+    {
+      "name": "atomic_number",
+      "property_definition": "Atomic number from pymatgen.core.Element.Z.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "Z",
+      "unit": "atomic number"
+    },
+    {
+      "name": "atomic_mass",
+      "property_definition": "Standard atomic mass from pymatgen.core.Element.atomic_mass.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "atomic_mass",
+      "unit": "amu"
+    },
+    {
+      "name": "periodic_row",
+      "property_definition": "Periodic table row from pymatgen.core.Element.row.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "row",
+      "unit": "period"
+    },
+    {
+      "name": "periodic_group",
+      "property_definition": "Periodic table group from pymatgen.core.Element.group.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "group",
+      "unit": "group"
+    },
+    {
+      "name": "electronegativity",
+      "property_definition": "Pauling electronegativity from pymatgen.core.Element.X.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "X",
+      "unit": "Pauling"
+    },
+    {
+      "name": "mendeleev_number",
+      "property_definition": "Mendeleev number from pymatgen.core.Element.mendeleev_no.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "mendeleev_no",
+      "unit": "ordinal"
+    },
+    {
+      "name": "atomic_radius",
+      "property_definition": "Element.atomic_radius as provided by pymatgen; not an inferred ionic radius.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "atomic_radius",
+      "unit": "angstrom"
+    },
+    {
+      "name": "first_ionization_energy",
+      "property_definition": "First ionization energy from pymatgen.core.Element.ionization_energy.",
+      "property_source": "pymatgen.core.Element",
+      "pymatgen_attribute": "ionization_energy",
+      "unit": "eV"
+    }
+  ],
+  "evaluation_only_columns": [
+    "theoretical"
+  ],
+  "execution_status": "specified",
+  "forbidden_features": [
+    "material_id",
+    "formula_pretty",
+    "elements",
+    "chemsys",
+    "energy_above_hull",
+    "is_stable",
+    "formation_energy_per_atom",
+    "density",
+    "volume",
+    "nsites",
+    "band_gap",
+    "is_metal",
+    "theoretical",
+    "symmetry",
+    "last_updated",
+    "origins",
+    "database_IDs"
+  ],
+  "grouping_columns": [
+    "reduced_formula_group",
+    "chemical_system_group"
+  ],
+  "identifier_column": "material_id",
+  "limitations": [
+    "Composition-only descriptors cannot distinguish all polymorph-specific Materials Project targets.",
+    "Descriptor values are not causal evidence.",
+    "No model training, SHAP/LIME, split execution, or candidate screening is performed in v1.3.3."
+  ],
+  "local_output_path": "data/processed/materials_project_v1_3_analysis_ready.csv",
+  "metadata_columns": [
+    "material_id",
+    "formula_pretty"
+  ],
+  "mismatch_features": {
+    "candidate_properties": [
+      "atomic_number",
+      "atomic_mass",
+      "electronegativity",
+      "atomic_radius",
+      "first_ionization_energy"
+    ],
+    "formula": "sum_{i<j} x_i * x_j * abs(p_i - p_j)"
+  },
+  "missing_property_policy": "Do not zero-fill missing elemental properties; exclude property families with incomplete observed-element coverage.",
+  "nonfinite_policy": "Nonfinite descriptor values are flagged and preserved as missing values.",
+  "schema_version": "1.0",
+  "stoichiometric_features": {
+    "columns": [
+      "composition_element_count",
+      "composition_fraction_min",
+      "composition_fraction_max",
+      "composition_fraction_range",
+      "composition_fraction_mean",
+      "composition_fraction_std",
+      "composition_fraction_entropy",
+      "composition_fraction_l2_norm",
+      "composition_dominant_fraction"
+    ],
+    "entropy_log_base": "natural_log",
+    "zero_fraction_policy": "ignore zero fractions in entropy sum"
+  },
+  "stop_conditions": [
+    "source acquired CSV row count does not match acquisition manifest",
+    "meaningful composition parse failure",
+    "forbidden/leakage feature included as a primary descriptor",
+    "primary descriptor generation fails",
+    "target distribution is effectively constant",
+    "reduced-formula or chemical-system groups are insufficient",
+    "credential-like value or absolute path appears in outputs"
+  ],
+  "target_column": "energy_above_hull",
+  "tracked_output_paths": [
+    "data/processed/materials_project_v1_3_descriptor_inventory.csv",
+    "data/processed/materials_project_v1_3_descriptor_redundancy_summary.csv",
+    "data/processed/materials_project_v1_3_composition_ambiguity_summary.csv",
+    "data/processed/materials_project_v1_3_target_suitability_summary.csv",
+    "data/processed/materials_project_v1_3_split_readiness_summary.csv",
+    "data/processed/materials_project_v1_3_group_inventory.csv"
+  ]
+}

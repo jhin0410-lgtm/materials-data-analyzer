@@ -338,3 +338,110 @@ Compact tracked-candidate artifacts:
 
 No composition descriptors, model training, train/test split, group split, or
 screening was executed in v1.3.2.
+
+## v1.3.3 Composition Representation and Identifiability Follow-up
+
+Composition-only descriptor generation and readiness auditing were implemented
+without API/network calls and without modifying the acquired v1.3 CSV or raw
+JSONL artifacts.
+
+Actual composition source:
+
+- primary source used: `composition_reduced`
+- parsed rows: `838 / 838`
+- descriptor quality: `valid=838`
+- source acquired CSV SHA-256 remained unchanged:
+  `7a47cc968d667dcc0c56712842ea764386b10dcd2a7e61ff89771c6e09ba3941`
+
+Descriptor families generated:
+
+- stoichiometric composition descriptors: `9`
+- elemental property aggregations: `40`
+- pairwise mismatch descriptors: `5`
+- composition category fractions: `6`
+- primary composition-only feature count: `60`
+
+Elemental property coverage from `pymatgen.core.Element` was complete for all
+observed elements for:
+
+- atomic number
+- atomic mass
+- periodic row
+- periodic group
+- electronegativity
+- Mendeleev number
+- atomic radius
+- first ionization energy
+
+No missing elemental property was zero-filled. No elemental property was
+excluded for coverage in this acquired dataset.
+
+Descriptor redundancy and identifiability diagnostics:
+
+- high Spearman-correlation pairs with absolute correlation >= `0.95`: `39`
+- rows sharing a duplicate composition-only descriptor vector: `400`
+- unique descriptor vectors: `548`
+- multi-row reduced-formula groups: `110`
+- ambiguous same-formula groups: `109`
+- mixed zero/positive same-formula groups: `16`
+- maximum target range within the same reduced formula: `5.4784680825`
+- composition-only diagnostic MAE to formula median: `0.04956294336856753`
+- composition-only diagnostic RMSE to formula mean: `0.3157428762147056`
+
+These ambiguity diagnostics are empirical composition-identifiability checks,
+not model performance and not a theoretical lower bound. They show that
+composition-only descriptors cannot uniquely identify all polymorph-specific
+Materials Project `energy_above_hull` values.
+
+Target suitability diagnostics:
+
+- target count: `838`
+- zero rate: `0.16825775656324582`
+- variance: `0.15836790966256073`
+- skewness: `10.243286412540181`
+- median: `0.048901150624092546`
+- p95: `0.2802287996303803`
+- p99: `1.4547765986777292`
+- max: `5.538618802559524`
+
+No target transformation, classification label, two-stage target, screening
+score, or rank target was created in v1.3.3.
+
+Split-readiness diagnostics:
+
+- reduced-formula groups: `548`
+- chemical-system groups: `167`
+- optional crystal-system groups: `7`
+- random split readiness: `ready`
+- reduced-formula group split readiness: `ready`
+- chemical-system group split readiness: `ready`
+- overall modeling readiness: `conditional`
+
+The overall readiness is conditional because same-composition polymorph
+ambiguity and duplicate descriptor vectors are material for a composition-only
+validation task. This does not block v1.3.4, but it must be reflected in
+validation interpretation.
+
+Generated local-only artifact:
+
+- `data/processed/materials_project_v1_3_analysis_ready.csv`
+
+Compact tracked-candidate artifacts:
+
+- `data/case_studies/materials_project/descriptor_spec_v1_3.json`
+- `data/processed/materials_project_v1_3_descriptor_inventory.csv`
+- `data/processed/materials_project_v1_3_descriptor_redundancy_summary.csv`
+- `data/processed/materials_project_v1_3_composition_ambiguity_summary.csv`
+- `data/processed/materials_project_v1_3_target_suitability_summary.csv`
+- `data/processed/materials_project_v1_3_split_readiness_summary.csv`
+- `data/processed/materials_project_v1_3_group_inventory.csv`
+
+Descriptor importance is not causal evidence. Same composition may have
+multiple polymorph targets. SHAP and other local explanation methods are
+deferred until validated models exist. Physical mechanisms require structure,
+process, and confounder review beyond this composition-only descriptor audit.
+
+Next step: v1.3.4 may run baseline validation comparisons across deterministic
+random, reduced-formula group, and chemical-system group splits using the
+analysis-ready descriptor table. It should not treat random split performance as
+generalization evidence.
