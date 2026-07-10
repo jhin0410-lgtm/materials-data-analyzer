@@ -26,6 +26,29 @@ Roles:
 - `kaggle_nasa_battery_analysis_ready_with_features.csv`: analysis-ready metadata summary joined with discharge-derived scalar features.
 - `kaggle_battery_simulation_comparison.csv`: summary table comparing selected simulation runs.
 
+## Battery Archive Case Study Summaries
+
+Compact reproducibility artifacts for the Battery Archive case study include:
+
+```text
+battery_archive_cycle_file_inventory.csv
+battery_archive_cycle_file_inventory_enriched.csv
+battery_archive_cycle_schema_inventory.csv
+battery_archive_cycle_column_inventory.csv
+battery_archive_cycle_column_mapping.csv
+battery_archive_cycle_load_summary.csv
+battery_archive_cycle_series_summary.csv
+battery_archive_data_quality_summary.csv
+battery_archive_reliability_group_summary.csv
+```
+
+The large generated cycle-level tables are local artifacts by default:
+
+```text
+battery_archive_cycle_normalized.csv
+battery_archive_cycle_analysis_ready.csv
+```
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.
