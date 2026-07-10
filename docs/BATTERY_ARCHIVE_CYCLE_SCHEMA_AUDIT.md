@@ -252,3 +252,155 @@ metrics. The following remain out of scope for this step:
 - Keep full provenance columns available for traceability.
 - Treat the large normalized CSV as a generated artifact whose tracking policy
   should be reviewed before commit.
+
+## Implementation Follow-up: v1.1.4 Quality And Derived Metrics
+
+The v1.1.4 step uses `data/processed/battery_archive_cycle_normalized.csv` as
+the input table and creates derived, analysis-ready outputs. It does not read
+raw zip files, modify the normalized source CSV, run reliability analysis, or
+run simulation.
+
+Generated v1.1.4 outputs:
+
+- `data/processed/battery_archive_cycle_analysis_ready.csv`
+- `data/processed/battery_archive_cycle_series_summary.csv`
+- `data/processed/battery_archive_data_quality_summary.csv`
+
+### Grouping Key
+
+Because `cell_id` is filename-derived metadata and should not be the only
+grouping key, v1.1.4 uses one cycle series per source file:
+
+- stable source key: `(zip_file, internal_csv_path)`
+- generated id: `cycle_series_id`
+- provenance columns are retained separately
+- no absolute local filesystem paths are stored
+
+### Quality Flag Policy
+
+Rows are not filtered automatically. The analysis-ready table adds:
+
+- `quality_status`: `valid`, `warning`, or `invalid`
+- `quality_issue_count`
+- `quality_issues`
+
+Invalid-level row issues:
+
+- `missing_cycle_index`
+- `nonpositive_cycle_index`
+- `missing_discharge_capacity`
+- `negative_discharge_capacity`
+- `negative_charge_capacity`
+- `negative_discharge_energy`
+- `unsupported_capacity_unit`
+- `unsupported_energy_unit`
+
+Warning-level row issues:
+
+- `duplicate_cycle_index`
+- `nonmonotonic_cycle_index`
+- `zero_discharge_capacity`
+- `missing_charge_capacity`
+- `missing_discharge_energy`
+- `high_capacity_retention_warning`
+
+The high-retention warning is a screening flag for
+`capacity_retention_pct > 120`. Values are not clipped.
+
+### Initial Capacity Baseline
+
+The initial discharge capacity baseline is computed per `cycle_series_id`.
+The method is:
+
+`first_5_valid_discharge_capacity_median_by_cycle_index`
+
+Rules:
+
+- use only rows with positive `cycle_index`
+- use only positive `discharge_capacity`
+- compute only within a single supported discharge capacity unit
+- supported observed capacity unit for this dataset: `Ah`
+- if units are mixed or no valid positive capacity exists, derived metrics are
+  left missing for that series
+
+### Retention And SOH Proxy
+
+Definitions:
+
+```text
+capacity_retention = discharge_capacity / initial_discharge_capacity
+capacity_retention_pct = capacity_retention * 100
+soh_capacity_proxy = capacity_retention
+soh_capacity_proxy_pct = capacity_retention_pct
+```
+
+`soh_capacity_proxy` is a capacity-based proxy only. It is not a directly
+measured SOH label and should not be interpreted as a battery-specific
+forecasting target.
+
+### Threshold Proxy
+
+The series summary records observed threshold crossing proxies:
+
+- `first_cycle_below_80pct`
+- `persistent_cycle_below_80pct`
+- `first_cycle_below_70pct`
+- `persistent_cycle_below_70pct`
+
+Persistent crossing uses the first point where three consecutive observed
+retention rows are below the threshold. If a series never reaches a threshold,
+it is marked as observed-censored rather than assigned a cycle-life estimate.
+
+### Actual v1.1.4 Smoke Result
+
+| Metric | Value |
+| --- | ---: |
+| Input normalized rows | 343,503 |
+| Analysis-ready rows | 343,503 |
+| Cycle series | 196 |
+| Valid rows | 341,523 |
+| Warning rows | 1,980 |
+| Invalid rows | 0 |
+| Series with valid baseline | 196 |
+| Rows with retention/SOH proxy coverage | 343,503 |
+| Mixed-unit series | 0 |
+| Series with duplicate cycle index | 25 |
+| Series with nonmonotonic cycle index | 1 |
+| Series reaching 80% threshold | 191 |
+| Series reaching 70% threshold | 187 |
+| Observed-censored series at 80% | 5 |
+| Observed-censored series at 70% | 9 |
+
+Quality issue counts:
+
+| Issue | Row count |
+| --- | ---: |
+| `zero_discharge_capacity` | 1,249 |
+| `high_capacity_retention_warning` | 519 |
+| `duplicate_cycle_index` | 255 |
+| `nonmonotonic_cycle_index` | 1 |
+
+Series quality status:
+
+| Status | Series count |
+| --- | ---: |
+| `analysis_candidate` | 43 |
+| `has_warnings` | 153 |
+
+Output sizes:
+
+| Output | Size bytes |
+| --- | ---: |
+| `battery_archive_cycle_analysis_ready.csv` | 191,396,238 |
+| `battery_archive_cycle_series_summary.csv` | 86,571 |
+| `battery_archive_data_quality_summary.csv` | 3,090 |
+
+### Derived Metric Limitations
+
+- Capacity retention is derived from normalized cycle summaries, not from a
+  raw electrochemical model.
+- The SOH column is explicitly a capacity-based proxy.
+- Threshold crossing values are observed proxies and should not be treated as
+  remaining useful life predictions.
+- Large cycle-level generated tables should remain local-only by default unless
+  the tracking policy is explicitly reviewed.
