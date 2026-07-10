@@ -806,3 +806,108 @@ Observed results:
 - Continue treating the current query provenance as `reconstructed`; do not
   upgrade it to `exact` unless the original retrieval query, timestamp, and API
   version are confirmed.
+
+## v1.2.3 Descriptive Screening Follow-up
+
+This follow-up adds a deterministic descriptive property screening pilot for
+the existing 50-row Materials Project normalized table. No API call was made, no
+source or normalized CSV was modified, and no regression, train/test split,
+cross-validation, composition feature engineering, virtual experiment
+prediction, or property prediction was performed.
+
+New screening artifacts:
+
+```text
+data/case_studies/materials_project/screening_spec.json
+data/case_studies/materials_project/screening_methodology.md
+data/processed/materials_project_screening_results.csv
+data/processed/materials_project_screening_summary.csv
+```
+
+### Property Screening Feasibility
+
+| Column | Classification | Direction note | Screening caveat |
+| --- | --- | --- | --- |
+| `material_id` | identifier | no minimize/maximize direction | Identifier only; not a screening property or model feature. |
+| `formula` | display metadata | no numeric direction | Preserved for display/grouping only; no composition feature engineering in v1.2.3. |
+| `band_gap_ev` | screening property | direction depends on use case | Can be descriptively ranked for electronic-property screens, but zero/nonzero interpretation is use-case-specific. |
+| `formation_energy_ev_atom` | conditional screening property | lower is often used descriptively for thermodynamic comparison | Closely related to stability; can create leakage if paired with stability-derived labels. |
+| `energy_above_hull_ev_atom` | conditional screening property | lower is a clear descriptive stability-proxy direction | Used for the default v1.2.3 pilot, but not proof of synthesizability or experimental stability. |
+| `density_g_cm3` | screening property | direction depends on use case | Useful for descriptive comparison; not inherently better when high or low. |
+| `volume_a3` | conditional screening property | direction depends on use case | Ambiguous without site count or normalization. |
+
+Simple property ranking is scientifically risky if presented as discovery,
+prediction, or validation. In this follow-up it is framed only as a transparent
+ranking of already available Materials Project calculated values.
+
+### Screening Specification
+
+Default v1.2.3 pilot:
+
+- Filter: `quality_status in ["valid"]`
+- Objective: minimize `energy_above_hull_ev_atom`
+- Objective weight: 1.0
+- Tie policy: `min_rank`
+- Missing value policy: `exclude_from_ranking`
+- Top-N summary size: 10
+- Provenance status: `reconstructed`
+
+The objective direction is configured in `screening_spec.json`, not hard-coded
+as a universal property rule. The default objective is intentionally narrow
+because the current dataset has only 50 rows and no composition descriptors.
+
+### Actual Local Screening Smoke
+
+Command:
+
+```text
+python scripts/run_materials_project_screening.py --input data/processed/materials_project_normalized.csv --screening-spec data/case_studies/materials_project/screening_spec.json --results-output data/processed/materials_project_screening_results.csv --summary-output data/processed/materials_project_screening_summary.csv
+```
+
+Observed results:
+
+- Total rows: 50
+- Filter pass/fail: 50 / 0
+- Objective count: 1
+- Ranked candidate count: 50
+- Missing objective rows: 0
+- Tie count: 7
+- Results output size: 11,850 bytes
+- Summary output size: 1,878 bytes
+- Credential-like values in output: false
+- Absolute path-like values in output: false
+
+Top-N descriptive screening summary:
+
+| Rank | material_id | formula | energy_above_hull_ev_atom | composite_score |
+| ---: | --- | --- | ---: | ---: |
+| 1 | `mp-aaabrwvs` | `Na3FeSiCO7` | 0.0 | 1.0 |
+| 1 | `mp-aaabxcig` | `FeSiTc2` | 0.0 | 1.0 |
+| 1 | `mp-aaacfyzt` | `HoFeSi` | 0.0 | 1.0 |
+| 1 | `mp-aaacfzgh` | `PrFeSi` | 0.0 | 1.0 |
+| 1 | `mp-aaacfzoe` | `SmFeSi` | 0.0 | 1.0 |
+| 1 | `mp-aaacgiyk` | `CeFeSi2` | 0.0 | 1.0 |
+| 1 | `mp-aaagbkqt` | `TiFeSi` | 0.0 | 1.0 |
+| 8 | `mp-aaabrxua` | `Li2ScFe(SiO3)4` | 0.00877 | 0.99842 |
+| 9 | `mp-aaaccsor` | `FeSiW` | 0.01286 | 0.99768 |
+| 10 | `mp-aaabwuhd` | `LiFe(Si2O5)2` | 0.01579 | 0.99715 |
+
+### Pilot Suitability Conclusion
+
+The 50-row pilot can support deterministic descriptive property ranking and
+filtering. It is still not suitable for ML generalization claims, property
+prediction claims, or virtual experiment prediction. The current table lacks
+composition descriptors, exact retrieval provenance, and a broader query
+contract that would support stronger modeling claims.
+
+The v1.2.3 output compares already available computed properties. It is not a
+new materials discovery result, not a synthesizability claim, and not an
+experimental-performance guarantee.
+
+### Tracking Recommendation
+
+- Track: `screening_spec.json`, `screening_methodology.md`, generic
+  property-screening code, Materials Project screening tests, and compact
+  `materials_project_screening_summary.csv` if desired.
+- Keep local-only: `materials_project_screening_results.csv`,
+  `materials_project_normalized.csv`, and `materials_project_fe_si.csv`.

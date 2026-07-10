@@ -1,0 +1,11 @@
+material_id,formula,energy_above_hull_ev_atom,energy_above_hull_ev_atom_objective_rank,energy_above_hull_ev_atom_objective_score,composite_score,overall_rank,screening_status,screening_notes,provenance_status,limitation_flag
+mp-aaabrwvs,Na3FeSiCO7,0.0,1.0,1.0,1.0,1.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaabxcig,FeSiTc2,0.0,1.0,1.0,1.0,1.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaacfyzt,HoFeSi,0.0,1.0,1.0,1.0,1.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaacfzgh,PrFeSi,0.0,1.0,1.0,1.0,1.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaacfzoe,SmFeSi,0.0,1.0,1.0,1.0,1.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaacgiyk,CeFeSi2,0.0,1.0,1.0,1.0,1.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaagbkqt,TiFeSi,0.0,1.0,1.0,1.0,1.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaabrxua,Li2ScFe(SiO3)4,0.0087676152916618,8.0,0.99841700329916,0.99841700329916,8.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaaccsor,FeSiW,0.0128575608333356,9.0,0.9976785618776663,0.9976785618776663,9.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
+mp-aaabwuhd,LiFe(Si2O5)2,0.0157921242187519,10.0,0.9971487251999624,0.9971487251999624,10.0,ranked,ranked using observed/computed property values only,reconstructed,descriptive_screening_not_prediction
