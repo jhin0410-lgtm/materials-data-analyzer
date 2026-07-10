@@ -33,6 +33,7 @@ This directory collects project references, specifications, audits, policies, ca
 - Data-backed case-study reports and source notes live in [data/case_studies](../data/case_studies/).
 - [Kaggle NASA battery case study](../data/case_studies/kaggle_battery/): metadata and raw-discharge feature workflow with simulation comparison.
 - [Battery Archive case study](../data/case_studies/battery_archive/): raw zip inventory, cycle-data normalization, quality metrics, threshold proxies, and reliability group summary.
+- [Materials Project pilot case study](../data/case_studies/materials_project/): query contract, schema quality audit, and descriptive computed-property screening.
 
 ## Images
 
