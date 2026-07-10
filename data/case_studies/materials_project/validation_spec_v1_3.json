@@ -1,0 +1,217 @@
+{
+  "schema_version": "1.0",
+  "dataset_version": "v1.3",
+  "validation_version": "v1.3.4",
+  "execution_status": "specified",
+  "identifier_column": "material_id",
+  "target_column": "energy_above_hull",
+  "primary_feature_source": "data/processed/materials_project_v1_3_descriptor_inventory.csv primary_feature=true",
+  "feature_columns_sha256": "0b8532de74aed4a814480c544d1cd6184b8f30ff4cdd1d7804ce521d267b0ec4",
+  "feature_columns": [
+    "composition_element_count",
+    "composition_fraction_min",
+    "composition_fraction_max",
+    "composition_fraction_range",
+    "composition_fraction_mean",
+    "composition_fraction_std",
+    "composition_fraction_entropy",
+    "composition_fraction_l2_norm",
+    "composition_dominant_fraction",
+    "atomic_number_weighted_mean",
+    "atomic_number_minimum",
+    "atomic_number_maximum",
+    "atomic_number_range",
+    "atomic_number_weighted_std",
+    "pairwise_mismatch_atomic_number",
+    "atomic_mass_weighted_mean",
+    "atomic_mass_minimum",
+    "atomic_mass_maximum",
+    "atomic_mass_range",
+    "atomic_mass_weighted_std",
+    "pairwise_mismatch_atomic_mass",
+    "periodic_row_weighted_mean",
+    "periodic_row_minimum",
+    "periodic_row_maximum",
+    "periodic_row_range",
+    "periodic_row_weighted_std",
+    "periodic_group_weighted_mean",
+    "periodic_group_minimum",
+    "periodic_group_maximum",
+    "periodic_group_range",
+    "periodic_group_weighted_std",
+    "electronegativity_weighted_mean",
+    "electronegativity_minimum",
+    "electronegativity_maximum",
+    "electronegativity_range",
+    "electronegativity_weighted_std",
+    "pairwise_mismatch_electronegativity",
+    "mendeleev_number_weighted_mean",
+    "mendeleev_number_minimum",
+    "mendeleev_number_maximum",
+    "mendeleev_number_range",
+    "mendeleev_number_weighted_std",
+    "atomic_radius_weighted_mean",
+    "atomic_radius_minimum",
+    "atomic_radius_maximum",
+    "atomic_radius_range",
+    "atomic_radius_weighted_std",
+    "pairwise_mismatch_atomic_radius",
+    "first_ionization_energy_weighted_mean",
+    "first_ionization_energy_minimum",
+    "first_ionization_energy_maximum",
+    "first_ionization_energy_range",
+    "first_ionization_energy_weighted_std",
+    "pairwise_mismatch_first_ionization_energy",
+    "s_block_fraction",
+    "p_block_fraction",
+    "d_block_fraction",
+    "f_block_fraction",
+    "transition_metal_fraction",
+    "metalloid_fraction"
+  ],
+  "forbidden_features": [
+    "material_id",
+    "formula_pretty",
+    "reduced_formula_group",
+    "chemical_system_group",
+    "elements",
+    "chemsys",
+    "energy_above_hull",
+    "is_stable",
+    "formation_energy_per_atom",
+    "density",
+    "volume",
+    "nsites",
+    "band_gap",
+    "is_metal",
+    "symmetry",
+    "crystal_system_group",
+    "space_group_number_group",
+    "last_updated",
+    "origins",
+    "database_IDs",
+    "target_derived_screening_score",
+    "energy_above_hull_rank",
+    "energy_above_hull_label"
+  ],
+  "evaluation_only_columns": [
+    "theoretical"
+  ],
+  "split_strategies": [
+    {
+      "name": "random",
+      "splitter": "ShuffleSplit",
+      "question": "Interpolation-like performance when same formula or descriptor vectors may overlap."
+    },
+    {
+      "name": "reduced_formula_group",
+      "splitter": "GroupShuffleSplit",
+      "group_column": "reduced_formula_group",
+      "question": "Generalization to unseen reduced formulas."
+    },
+    {
+      "name": "chemical_system_group",
+      "splitter": "GroupShuffleSplit",
+      "group_column": "chemical_system_group",
+      "question": "Generalization to unseen Fe/Si-containing additional-element families."
+    }
+  ],
+  "n_splits": 10,
+  "test_size": 0.2,
+  "random_state": 42,
+  "model_variants": [
+    {
+      "name": "dummy_median",
+      "estimator": "DummyRegressor(strategy='median')",
+      "target_treatment": "raw"
+    },
+    {
+      "name": "ridge_raw",
+      "estimator": "Pipeline(SimpleImputer(strategy='median'), StandardScaler, Ridge(alpha=1.0))",
+      "target_treatment": "raw"
+    },
+    {
+      "name": "ridge_log1p",
+      "estimator": "Pipeline(SimpleImputer(strategy='median'), StandardScaler, Ridge(alpha=1.0))",
+      "target_treatment": "log1p_then_expm1"
+    },
+    {
+      "name": "histogram_gradient_boosting_raw",
+      "estimator": "Pipeline(SimpleImputer(strategy='median'), HistGradientBoostingRegressor(random_state=42, max_iter=60, learning_rate=0.1, max_leaf_nodes=31))",
+      "target_treatment": "raw"
+    },
+    {
+      "name": "histogram_gradient_boosting_log1p",
+      "estimator": "Pipeline(SimpleImputer(strategy='median'), HistGradientBoostingRegressor(random_state=42, max_iter=60, learning_rate=0.1, max_leaf_nodes=31))",
+      "target_treatment": "log1p_then_expm1"
+    }
+  ],
+  "target_treatments": [
+    "raw",
+    "log1p_then_expm1"
+  ],
+  "nonnegative_prediction_policy": {
+    "raw_prediction_preserved": true,
+    "negative_prediction_flag_recorded": true,
+    "constrained_prediction": "max(raw_prediction, 0)",
+    "primary_metric_prediction": "constrained_prediction"
+  },
+  "regression_metrics": [
+    "MAE",
+    "median_absolute_error",
+    "RMSE",
+    "R2",
+    "Spearman_rank_correlation",
+    "prediction_bias_mean",
+    "negative_prediction_count",
+    "negative_prediction_rate"
+  ],
+  "ranking_metrics": [
+    "precision_at_10pct",
+    "recall_at_10pct",
+    "enrichment_factor_at_10pct",
+    "precision_at_20pct",
+    "recall_at_20pct",
+    "enrichment_factor_at_20pct",
+    "exact_zero_target_recall_at_10pct",
+    "exact_zero_target_recall_at_20pct"
+  ],
+  "subgroup_metrics": [
+    "theoretical=False",
+    "theoretical=True",
+    "ambiguous_formula_group",
+    "non_ambiguous_formula_group",
+    "singleton_formula_group"
+  ],
+  "overlap_diagnostics": [
+    "material_id_overlap",
+    "reduced_formula_overlap",
+    "chemical_system_overlap",
+    "descriptor_vector_overlap",
+    "descriptor_overlap_mae",
+    "descriptor_novel_mae"
+  ],
+  "output_paths": {
+    "validation_predictions": "data/processed/materials_project_v1_3_validation_predictions.csv",
+    "validation_metrics": "data/processed/materials_project_v1_3_validation_metrics.csv",
+    "model_comparison_summary": "data/processed/materials_project_v1_3_model_comparison_summary.csv",
+    "split_diagnostics": "data/processed/materials_project_v1_3_split_diagnostics.csv",
+    "screening_metrics_summary": "data/processed/materials_project_v1_3_screening_metrics_summary.csv"
+  },
+  "stop_conditions": [
+    "forbidden feature appears in feature matrix",
+    "target leakage is detected",
+    "group split overlap occurs",
+    "preprocessing is fit outside the sklearn Pipeline",
+    "valid split count is too low",
+    "credential-like value or absolute path appears in outputs",
+    "source row or target mismatch occurs"
+  ],
+  "interpretation_limits": [
+    "Random split is an optimistic interpolation baseline.",
+    "Reduced-formula split evaluates unseen compositions.",
+    "Chemical-system split evaluates unseen additional-element families.",
+    "Model score is not causal evidence.",
+    "SHAP remains deferred until a defensible model is selected."
+  ]
+}

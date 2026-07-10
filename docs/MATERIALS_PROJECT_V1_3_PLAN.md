@@ -445,3 +445,124 @@ Next step: v1.3.4 may run baseline validation comparisons across deterministic
 random, reduced-formula group, and chemical-system group splits using the
 analysis-ready descriptor table. It should not treat random split performance as
 generalization evidence.
+
+## v1.3.4 Group-Aware Baseline Validation Follow-up
+
+Group-aware baseline validation was implemented and executed using the
+v1.3.3 analysis-ready descriptor table. No API/network call, descriptor
+regeneration, feature selection, hyperparameter search, SHAP/LIME, deep
+learning, candidate recommendation, or screening workflow was performed.
+
+Fixed validation policy:
+
+- feature count: `60` primary composition-only descriptors from
+  `materials_project_v1_3_descriptor_inventory.csv`
+- target: `energy_above_hull`
+- splits: `10` fixed splits each for random, reduced-formula group, and
+  chemical-system group validation
+- test size: `0.20`
+- random state: `42`
+- models: `dummy_median`, `ridge_raw`, `ridge_log1p`,
+  `histogram_gradient_boosting_raw`, and
+  `histogram_gradient_boosting_log1p`
+- nonnegative prediction policy: raw predictions preserved, negative
+  predictions flagged, metrics calculated with `max(raw_prediction, 0)`
+
+Validation execution:
+
+- row-level prediction rows: `24795`
+- fold/model metric rows: `150`
+- valid split diagnostics: `30 / 30`
+- source analysis-ready SHA-256 remained unchanged:
+  `d06c78f3580b6380d5a1307d76e35310dd51b85fdbaaa1e3d28a8b7b50112320`
+
+Overlap diagnostics:
+
+- random split median descriptor/formula overlap rate: `0.4464`
+- random split median chemical-system overlap rate: `0.9048`
+- reduced-formula group split formula overlap: `0`
+- reduced-formula group split descriptor-vector overlap: `0`
+- chemical-system group split chemical-system overlap: `0`
+- chemical-system group split descriptor-vector overlap: `0`
+
+These overlap diagnostics should be interpreted as interpolation advantage and
+overlap-driven optimism, not as proof of data leakage.
+
+Median regression metrics by split, best model for each metric:
+
+- random split best median R2: `0.0533`
+  (`histogram_gradient_boosting_log1p`)
+- reduced-formula group split best median R2: `0.0220`
+  (`ridge_log1p`)
+- chemical-system group split best median R2: `0.0405`
+  (`ridge_log1p`)
+- random split best median MAE: `0.0994` (`dummy_median`)
+- reduced-formula group split best median MAE: `0.0856`
+  (`histogram_gradient_boosting_log1p`)
+- chemical-system group split best median MAE: `0.0728`
+  (`histogram_gradient_boosting_log1p`)
+
+Negative R2 values and dummy-baseline-like results were preserved in the
+metrics. The group-aware scores indicate only limited generalization evidence
+for composition-only descriptors.
+
+Target treatment comparison:
+
+- log1p treatment generally reduced RMSE for Ridge and histogram gradient
+  boosting compared with their raw-target counterparts.
+- log1p treatment generally reduced negative prediction rates.
+- No single target treatment was selected automatically; trade-offs are
+  recorded by metric and split strategy.
+
+Screening-aligned metrics:
+
+- best median precision at lowest 10 percent by deterministic fold metric:
+  - random: `0.5882` (`dummy_median`)
+  - reduced-formula group: `0.5625` (`dummy_median`)
+  - chemical-system group: `0.6923` (`dummy_median`)
+
+Because the dummy model produces tied predictions, deterministic `material_id`
+tie-break ordering can strongly affect top-percent screening metrics. These
+values are retained for audit but should not be interpreted as a physically
+meaningful ranking model.
+
+Ambiguity and subgroup findings:
+
+- ambiguous formula groups had higher median MAE than singleton formula groups
+  across all split/model families.
+- composition-only diagnostic MAE from v1.3.3 was `0.04956`; model subgroup
+  errors should be read relative to this empirical ambiguity diagnostic, not as
+  a theoretical lower bound.
+- theoretical=False rows generally had lower MAE than theoretical=True rows in
+  the evaluated folds.
+
+Validation conclusion by domain:
+
+- interpolation/random: `validated_for_interpolation_only`
+- unseen formula generalization: `limited`
+- unseen chemical-system generalization: `limited`
+- descriptive screening utility: `limited`
+
+These conclusions are methodological validation summaries for Materials
+Project computed properties. They are not causal evidence, not DFT, not
+experimental stability validation, and not synthesizability claims. Random
+split remains an optimistic interpolation baseline; formula split evaluates
+unseen compositions; chemical-system split evaluates unseen additional-element
+families. SHAP remains deferred until a defensible model and interpretation
+scope are selected.
+
+Generated local-only artifact:
+
+- `data/processed/materials_project_v1_3_validation_predictions.csv`
+
+Compact tracked-candidate artifacts:
+
+- `data/case_studies/materials_project/validation_spec_v1_3.json`
+- `data/processed/materials_project_v1_3_validation_metrics.csv`
+- `data/processed/materials_project_v1_3_model_comparison_summary.csv`
+- `data/processed/materials_project_v1_3_split_diagnostics.csv`
+- `data/processed/materials_project_v1_3_screening_metrics_summary.csv`
+
+Next step: v1.3.5 should turn the acquisition, descriptor, identifiability, and
+validation artifacts into a final Materials Project validation report and
+closeout without adding new models or tuning.
