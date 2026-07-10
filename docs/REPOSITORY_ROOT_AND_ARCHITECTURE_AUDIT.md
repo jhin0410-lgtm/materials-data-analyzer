@@ -4,6 +4,13 @@ Generated on: 2026-07-10
 Branch inspected: `feature/v1.1-battery-archive`  
 Scope: audit only. No code, data, README, `.gitignore`, file move, file delete, commit, or push was performed.
 
+Phase A/B cleanup implementation note:
+
+- Root audit records were moved to [docs/audits](audits/): `PROJECT_AUDIT.md`, `COMMIT_BOUNDARY_REVIEW.md`.
+- Cleanup planning remains in [docs/plans](plans/): `CLEANUP_PLAN.md`.
+- Historical cleanup/staging records were moved to [docs/archive/cleanup](archive/cleanup/): `CLEANUP_EXECUTION_LOG.md`, `STAGING_PLAN.md`.
+- The original snapshot below is retained as the pre-cleanup audit record.
+
 ## 1. Current Repository Snapshot
 
 The project is currently a CLI-first tabular engineering data analysis platform with case-study and connector work layered around it. The root is usable, but it now mixes stable public documentation with historical planning logs. That is the main cleanup pressure point.

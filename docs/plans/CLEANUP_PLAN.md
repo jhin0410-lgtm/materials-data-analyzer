@@ -1,8 +1,12 @@
 # Cleanup Plan
 
+> Historical planning record. Retained for project history; not the current implementation specification.
+
 Plan date: 2026-07-06
 
 Scope: planning only. No cleanup, deletion, move, code change, README change, analyzer feature change, or `.gitignore` change was performed in this step.
+
+This historical plan was based on [PROJECT_AUDIT.md](../audits/PROJECT_AUDIT.md).
 
 ## Cleanup Goal
 
@@ -19,7 +23,7 @@ The cleanup goal is to clearly separate:
 - Raw/local data
 - Cleanup candidates that need review before any deletion or restore action
 
-This step does not execute cleanup. It only creates a safe plan based on `PROJECT_AUDIT.md`, current directory state, `python -m pytest`, and `git status --short`.
+This step does not execute cleanup. It only creates a safe plan based on [PROJECT_AUDIT.md](../audits/PROJECT_AUDIT.md), current directory state, `python -m pytest`, and `git status --short`.
 
 ## Current State Summary
 
