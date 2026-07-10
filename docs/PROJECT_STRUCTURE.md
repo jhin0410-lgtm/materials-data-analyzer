@@ -97,6 +97,12 @@ calculated-property screening case study. Broader exact-provenance querying,
 composition descriptors, ML property prediction, and group-aware validation
 remain future work; the repository structure remains frozen.
 
+The v1.3 Materials Project scope is limited to broader acquisition contracts,
+exact provenance, composition-derived feature planning, and group-aware
+validation design. It does not include dashboards, MES workflows, survival
+analysis, or reliability expansion. v1.4 is reserved for a Smart Factory Process
+Quality Case Study, and v1.5 is reserved for Generic Reliability Engineering.
+
 ## Generated Artifacts
 
 Generated artifacts include:
