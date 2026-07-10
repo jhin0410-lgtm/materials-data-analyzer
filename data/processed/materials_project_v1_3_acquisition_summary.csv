@@ -1,0 +1,24 @@
+metric,value,severity,description
+acquisition_status,success,info,Overall v1.3 acquisition status.
+database_version_captured,True,info,Whether a Materials Project database version was captured.
+total_rows,838,info,Returned Materials Project summary rows.
+columns,21,info,Acquired table column count.
+unique_material_ids,838,info,Unique material_id values.
+duplicate_material_ids,0,info,Duplicate material_id rows retained for audit.
+fe_si_containing_rows,838,info,Rows containing both Fe and Si after post-query validation.
+missing_required_element_rows,0,info,Rows missing Fe or Si.
+element_count_out_of_range_rows,0,info,Rows outside the 2-5 element scope.
+theoretical_distribution,"{""False"":204,""True"":634}",info,Distribution of returned theoretical values.
+deprecated_count,0,info,Deprecated rows returned despite deprecated=False.
+missing_target_count,0,info,Rows with missing energy_above_hull.
+target_zero_count,141,info,Rows with target exactly zero.
+target_zero_rate,0.16825775656324582,info,Share of finite target rows equal to zero.
+target_min,0.0,info,Minimum finite energy_above_hull.
+target_median,0.048901150624092615,info,Median finite energy_above_hull.
+target_max,5.538618802559524,info,Maximum finite energy_above_hull.
+reduced_formula_groups,548,info,Distinct reduced formula groups.
+chemical_system_groups,167,info,Distinct chemical-system groups.
+max_reduced_formula_group_size,68,info,Largest reduced formula group size.
+max_chemical_system_group_size,241,info,Largest chemical-system group size.
+data_sufficiency_gate,ready_for_descriptor_stage,info,Descriptor-stage readiness gate; no modeling is run in v1.3.2.
+provenance_complete,True,info,Whether manifest validation has no stop reasons.

@@ -285,3 +285,56 @@ If v1.3 proceeds, the next step is v1.3.2: run an authenticated live acquisition
 using the acquisition contract, record exact provenance, save local-only raw and
 processed artifacts, and stop before modeling until the data sufficiency gates
 are checked.
+
+## v1.3.2 Acquisition Follow-up
+
+Controlled live acquisition was implemented and executed from
+`acquisition_spec_v1_3.json` without modifying the v1.2 Materials Project
+dataset or screening artifacts.
+
+Preflight used one Materials Project API request with `chunk_size=5` and
+`num_chunks=1`. Full acquisition then used the exact query contract:
+`elements=["Fe", "Si"]`, `num_elements=(2, 5)`, `deprecated=False`,
+`include_gnome=False`, `all_fields=False`, the requested field list from the
+spec, and no `theoretical`, `energy_above_hull`, or `is_stable` filter.
+
+Recorded acquisition result:
+
+- acquisition UTC timestamp: `2026-07-10T15:47:31+00:00`
+- Materials Project database version: `2026.04.13`
+- Python: `3.13.14`
+- `mp-api`: `0.46.4`
+- `pymatgen`: `2026.5.4`
+- `emmet-core`: `0.87.1`
+- returned rows: `838`
+- columns: `21`
+- unique material IDs: `838`
+- duplicate material IDs: `0`
+- Fe/Si-containing rows: `838`
+- element-count out-of-range rows: `0`
+- deprecated rows: `0`
+- missing target rows: `0`
+- target min/median/max: `0.0` / `0.048901150624092615` / `5.538618802559524`
+- target zero count/rate: `141` / `0.16825775656324582`
+- theoretical distribution: `False=204`, `True=634`
+- reduced-formula groups: `548`
+- chemical-system groups: `167`
+- acquisition status: `success`
+- data sufficiency gate: `ready_for_descriptor_stage`
+- raw JSONL SHA-256:
+  `1ba5a877b5aeb678fca914b2451b477aaf15844d635130e0843b6f7b596e3e0f`
+- sorted table SHA-256:
+  `7a47cc968d667dcc0c56712842ea764386b10dcd2a7e61ff89771c6e09ba3941`
+
+Generated local-only artifacts:
+
+- `data/processed/materials_project_v1_3_raw.jsonl`
+- `data/processed/materials_project_v1_3_acquired.csv`
+
+Compact tracked-candidate artifacts:
+
+- `data/processed/materials_project_v1_3_acquisition_manifest.json`
+- `data/processed/materials_project_v1_3_acquisition_summary.csv`
+
+No composition descriptors, model training, train/test split, group split, or
+screening was executed in v1.3.2.
