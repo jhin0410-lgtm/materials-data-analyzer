@@ -1,0 +1,69 @@
+{
+  "absolute_path_included": false,
+  "api_version": null,
+  "artifact_file_name": "materials_project_fe_si.csv",
+  "artifact_sha256": "95d1c54b7332b235e483fb612827e87b88b63916124125ba14c58dea22dd1d86",
+  "column_count": 7,
+  "columns": [
+    "material_id",
+    "formula",
+    "band_gap_ev",
+    "formation_energy_ev_atom",
+    "energy_above_hull_ev_atom",
+    "density_g_cm3",
+    "volume_a3"
+  ],
+  "consistency_checks": {
+    "extra_columns": [],
+    "formula_binary_only_count": 0,
+    "formula_contains_required_elements_count": 50,
+    "identifier_column_present": true,
+    "missing_requested_columns": [],
+    "requested_columns_match": true,
+    "row_count": 50
+  },
+  "credential_included": false,
+  "dataset_name": "materials_project_fe_si_containing_local_pilot",
+  "duplicate_identifier_count": 0,
+  "extra_columns": [],
+  "file_size_bytes": 5414,
+  "generated_manifest_timestamp": "2026-07-10T12:25:14+00:00",
+  "identifier_column": "material_id",
+  "local_artifact_path": "data/processed/materials_project_fe_si.csv",
+  "manifest_schema_version": "1.0",
+  "mapped_requested_columns": [
+    "material_id",
+    "formula",
+    "band_gap_ev",
+    "formation_energy_ev_atom",
+    "energy_above_hull_ev_atom",
+    "density_g_cm3",
+    "volume_a3"
+  ],
+  "missing_requested_columns": [],
+  "notes": [
+    "Local artifact provenance is incomplete; retrieval timestamp and API version are unknown.",
+    "This is an Fe/Si-containing multi-component sample, not a binary Fe-Si dataset.",
+    "No API key or credential is included in this manifest."
+  ],
+  "query_provenance_status": "reconstructed",
+  "query_spec_path": "data/case_studies/materials_project/query_spec.json",
+  "requested_fields": [
+    "material_id",
+    "formula_pretty",
+    "band_gap",
+    "formation_energy_per_atom",
+    "energy_above_hull",
+    "density",
+    "volume"
+  ],
+  "required_elements": [
+    "Fe",
+    "Si"
+  ],
+  "retrieval_timestamp": null,
+  "row_count": 50,
+  "scope_description": "Local 50-row pilot artifact containing materials whose formulas include Fe and Si; not a binary-only Fe-Si dataset.",
+  "source_system": "Materials Project",
+  "unique_identifier_count": 50
+}
