@@ -33,6 +33,10 @@ The preferred policy is:
 - Commit source code, scripts, tests, and documentation.
 - Commit small curated summary files only when they are intentionally part of a documented case study.
 - Store durable case-study summaries in `data/processed/` and narrative reports in `data/case_studies/` or `docs/`.
+- Do not commit raw datasets, raw archives, full API responses, credentials, temporary outputs, or caches.
+- Treat compact inventories and summaries as optional tracked artifacts only when they are reproducible and documented.
+- Treat large generated tables as local-only by default unless they are explicitly needed for case-study reproducibility.
+- When a tracked processed CSV is refreshed, record the generation command or script and basic row/count validation in the related case-study notes or change summary.
 
 ## Kaggle Battery Representative Runs
 
@@ -75,4 +79,3 @@ python scripts/compare_simulation_runs.py --output data/processed/kaggle_battery
 ## Local README Note
 
 `outputs/README.md` may exist locally as an in-folder reminder. Because `outputs/` is ignored by Git, that file may not be tracked. This `docs/OUTPUTS_POLICY.md` file is the durable repository-level policy document.
-

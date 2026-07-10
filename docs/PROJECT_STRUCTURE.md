@@ -4,6 +4,10 @@
 
 This document separates core platform code, case-study utilities, optional connectors, generated artifacts, and local raw data.
 
+## v1.1 Structure Freeze
+
+During the v1.1 Battery Archive work, this repository keeps the current Minimal Cleanup Tree rather than continuing structural reshuffles. Connectors own raw discovery and access boundaries, loaders own file-content parsing and schema normalization, and scripts own workflow orchestration. Battery Archive v1.1.3 and later should focus on schema audit and ingestion behavior within these boundaries.
+
 ## Core Platform
 
 Core platform files are required for the CLI analyzer workflow:
@@ -50,6 +54,10 @@ configs/data_sources.example.yaml
 ```
 
 Connectors may help ingest from external data sources, but the core analyzer remains a local CSV-first CLI platform.
+
+## Local Configs And Notebooks
+
+`configs/` and `notebooks/` are currently local-only in this workspace through `.git/info/exclude`. That local exclude file is not shared across clones, so this policy should be revisited before asking others to contribute. Do not commit credentials, private paths, executed scratch notebooks, or local API settings; if a public example config is needed, create a sanitized template intentionally.
 
 ## Case Study Documentation
 
