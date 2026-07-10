@@ -1,12 +1,52 @@
-# Materials Project Source Template
+# Materials Project Source Notes
 
-## Source
+## Source Scope
 
-- Source: Materials Project API
-- API key: read only from `MP_API_KEY`
-- Query: element probe, default `Fe` and `Si`
-- License or terms:
-- Access date:
+This case study uses a local Materials Project API-derived pilot artifact:
+
+```text
+data/processed/materials_project_fe_si.csv
+```
+
+The current artifact has 50 rows and 7 columns. It contains materials whose
+formulas include Fe and Si, but it is not a binary-only Fe-Si dataset.
+
+## Provenance Status
+
+The v1.2.1 query specification is reconstructed from the existing connector and
+local processed CSV. Exact historical retrieval timestamp, Materials Project
+API version, and database version are currently incomplete or unknown.
+
+Current credential-free query contract:
+
+```text
+data/case_studies/materials_project/query_spec.json
+```
+
+Current compact provenance artifacts:
+
+```text
+data/processed/materials_project_query_manifest.json
+data/processed/materials_project_property_inventory.csv
+```
+
+Future regeneration should update the query specification and manifest
+together.
+
+## Credential Policy
+
+- API credentials are not included in this repository.
+- The connector reads the API key only from `MP_API_KEY`.
+- Do not store API keys, tokens, local private paths, or raw API credentials in
+  source notes, configs, manifests, tests, or README files.
+
+## Raw And Processed Artifact Policy
+
+- `data/processed/materials_project_fe_si.csv` is currently a local-only
+  generated artifact and is not Git-tracked.
+- Raw Materials Project API responses belong under local ignored raw-data paths.
+- Compact query manifests, field inventories, and source notes may be tracked
+  when they contain no credentials and no absolute local paths.
 
 ## Limitations
 
@@ -14,22 +54,10 @@ Materials Project values are computed materials properties from a database/API.
 They are not direct experimental measurements and should not be presented as lab
 or manufacturing results.
 
-## Ingestion
+The current local pilot artifact should not be used to claim new material
+discovery, DFT execution by this repository, or experimentally validated
+performance.
 
-```bash
-python scripts/ingest_data.py --source materials_project --limit 50
-```
-
-## Analyzer Commands
-
-```bash
-python src/process_data.py --mode eda --input data/processed/materials_project_fe_si.csv --run-name mp_fe_si_eda
-```
-
-```bash
-python src/process_data.py --mode process --input data/processed/materials_project_fe_si.csv --target band_gap_ev --goal maximize --run-name mp_fe_si_bandgap_process
-```
-
-```bash
-python src/process_data.py --mode simulation --input data/processed/materials_project_fe_si.csv --target band_gap_ev --features formation_energy_ev_atom energy_above_hull_ev_atom density_g_cm3 volume_a3 --run-name mp_fe_si_bandgap_simulation
-```
+Materials Project access terms, license, citation requirements, and any
+publication constraints must be confirmed by the user before publishing a case
+study.

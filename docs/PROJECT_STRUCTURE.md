@@ -35,6 +35,10 @@ src/results.py
 
 These files support CSV loading, validation, EDA, process analysis, reliability analysis, SPC, smart-factory log analysis, simulation screening, reporting, plotting, and future API/Streamlit result schemas.
 
+`src/analyzers/property_screening.py` provides generic deterministic property
+filtering and ranking for descriptive tabular screening workflows. It is not an
+ML model or virtual experiment predictor.
+
 ## Case Study Utilities
 
 Case-study utilities prepare public or external datasets for the core analyzer:
@@ -44,9 +48,14 @@ src/loaders/
 scripts/build_kaggle_battery_summary.py
 scripts/build_kaggle_battery_discharge_features.py
 scripts/compare_simulation_runs.py
+scripts/build_materials_project_query_contract.py
+scripts/build_materials_project_normalized.py
+scripts/run_materials_project_screening.py
 ```
 
 These are not analyzer modes. They convert source-specific data into analyzer-ready tabular CSV files.
+
+Materials Project schema normalization lives in `src/loaders/materials_project_loader.py`.
 
 ## Optional Connectors
 
@@ -77,10 +86,16 @@ The current representative real-data demonstrations are:
 ```text
 data/case_studies/kaggle_battery/
 data/case_studies/battery_archive/
+data/case_studies/materials_project/
 ```
 
 They document source data, processing steps, quality review, analysis-ready or
 series-level summaries, limitations, and next steps.
+
+The v1.2 Materials Project pilot is complete as a 50-row descriptive
+calculated-property screening case study. Broader exact-provenance querying,
+composition descriptors, ML property prediction, and group-aware validation
+remain future work; the repository structure remains frozen.
 
 ## Generated Artifacts
 
@@ -92,6 +107,11 @@ outputs/
 ```
 
 `data/processed/` may contain curated case-study summary tables. `outputs/` contains regenerable analyzer run outputs and should generally stay local. See [`OUTPUTS_POLICY.md`](OUTPUTS_POLICY.md) for the repository-level outputs policy.
+
+For Materials Project v1.2, compact tracked candidates include query manifests,
+property inventories, quality summaries, and screening summaries. Local-only
+artifacts include the source CSV, normalized CSV, and full row-level screening
+results.
 
 ### v0.9 Virtual Experiment Outputs
 

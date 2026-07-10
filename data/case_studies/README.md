@@ -52,6 +52,30 @@ data/case_studies/battery_archive/methodology.md
 data/case_studies/battery_archive/case_study.md
 ```
 
+### `materials_project/`
+
+Representative pilot case study using a local Materials Project-derived
+computed-property table.
+
+This folder documents:
+
+- Reconstructed query/provenance contract
+- Seven-column schema contract and quality audit
+- Deterministic descriptive property screening
+- Energy-above-hull minimization as a stability-proxy ranking example
+- Tied top candidates without arbitrary tie-breaking
+- Decision gate for closing the 50-row pilot versus running a broader
+  exact-provenance query later
+
+Key files:
+
+```text
+data/case_studies/materials_project/README.md
+data/case_studies/materials_project/source.md
+data/case_studies/materials_project/screening_methodology.md
+data/case_studies/materials_project/case_study.md
+```
+
 ## Other Source Notes
 
 Other folders may contain source notes or early dataset exploration notes:
@@ -59,7 +83,6 @@ Other folders may contain source notes or early dataset exploration notes:
 ```text
 data/case_studies/battery/
 data/case_studies/htem/
-data/case_studies/materials_project/
 ```
 
 Treat these as documentation or optional ingestion references unless they are promoted to full case studies.

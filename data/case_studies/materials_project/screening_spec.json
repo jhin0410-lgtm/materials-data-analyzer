@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "dataset_name": "materials_project_fe_si_containing_local_pilot",
+  "screening_mode": "descriptive_observed_property_screening",
+  "identifier_column": "material_id",
+  "display_columns": [
+    "formula"
+  ],
+  "filters": [
+    {
+      "column": "quality_status",
+      "operator": "in",
+      "values": [
+        "valid"
+      ],
+      "rationale": "Only rows that passed the v1.2.2 conservative quality audit are ranked in the pilot summary."
+    }
+  ],
+  "objectives": [
+    {
+      "property": "energy_above_hull_ev_atom",
+      "mode": "minimize",
+      "weight": 1.0,
+      "target": null,
+      "lower_bound": null,
+      "upper_bound": null,
+      "unit": "eV/atom",
+      "rationale": "Lower Materials Project energy-above-hull values are used here only as a descriptive stability-proxy screening objective."
+    }
+  ],
+  "missing_value_policy": "exclude_from_ranking",
+  "tie_policy": "min_rank",
+  "top_n": 10,
+  "provenance_status": "reconstructed",
+  "limitations": [
+    "This is a 50-row local pilot with reconstructed query provenance.",
+    "The dataset contains multinary Fe/Si-containing Materials Project records, not binary-only Fe-Si data.",
+    "Scores rank already available computed properties; they are not predictions and do not prove synthesizability or experimental performance.",
+    "No composition descriptors, model training, train/test validation, or virtual experiment prediction are included in v1.2.3."
+  ],
+  "notes": [
+    "The default pilot uses one objective to keep the screening interpretation transparent.",
+    "Identifier and formula columns are display/provenance fields only, not numeric screening objectives.",
+    "Thresholds and objective directions should be changed only through this spec, not by hard-coding them in scripts."
+  ]
+}

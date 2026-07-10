@@ -193,10 +193,11 @@ python -m pytest
 
 ## Real-Data Case Studies
 
-The repository currently includes two representative real-data case studies:
+The repository currently includes three representative real-data case studies:
 
 - Kaggle NASA Li-ion Battery
 - Battery Archive
+- Materials Project
 
 These case studies demonstrate source-specific preparation and validation
 workflows. They are not the core product identity; the core project remains a
@@ -245,6 +246,27 @@ included in the repository. Reproduction commands and source notes live in:
 - [`data/case_studies/battery_archive/source.md`](data/case_studies/battery_archive/source.md)
 - [`data/case_studies/battery_archive/methodology.md`](data/case_studies/battery_archive/methodology.md)
 - [`data/case_studies/battery_archive/case_study.md`](data/case_studies/battery_archive/case_study.md)
+
+### Materials Project
+
+The Materials Project work is a compact pilot case study using a local 50-row
+Fe/Si-containing multinary calculated-property table. It demonstrates:
+
+- Reconstructed query, provenance, schema, and data-quality contracts
+- Conservative normalization and compact quality summaries
+- Deterministic calculated-property screening
+- Descriptive energy-above-hull ranking without ML prediction
+- A decision gate for closing the pilot versus running a broader
+  exact-provenance query later
+
+This case study does not claim novel materials discovery, direct DFT execution,
+synthesis feasibility, experimental validation, or generalizable model
+performance. Reproduction commands and interpretation notes live in:
+
+- [`data/case_studies/materials_project/README.md`](data/case_studies/materials_project/README.md)
+- [`data/case_studies/materials_project/source.md`](data/case_studies/materials_project/source.md)
+- [`data/case_studies/materials_project/screening_methodology.md`](data/case_studies/materials_project/screening_methodology.md)
+- [`data/case_studies/materials_project/case_study.md`](data/case_studies/materials_project/case_study.md)
 
 ## Optional Connectors
 
@@ -309,6 +331,11 @@ outputs/{run_name}/reports/
 
 - Raw zip inventory, filename metadata, schema audit, normalization, quality flags, derived capacity metrics, and reliability group summary are complete.
 - Timeseries processing, forecasting, and group-aware simulation remain future work.
+
+### v1.2 Complete: Materials Project Descriptive Screening Pilot
+
+- Query/provenance contract, schema normalization, quality audit, deterministic property screening, and pilot documentation are complete.
+- Broader exact-provenance querying, composition descriptors, ML property prediction, and group-aware validation remain future work.
 
 ### Later
 

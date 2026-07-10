@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "dataset_name": "materials_project_fe_si_containing_local_pilot",
+  "source_system": "Materials Project",
+  "case_study_scope": "Local 50-row pilot artifact containing materials whose formulas include Fe and Si; not a binary-only Fe-Si dataset.",
+  "query_mode": "summary_search_element_containment_probe",
+  "required_elements": [
+    "Fe",
+    "Si"
+  ],
+  "excluded_elements": [],
+  "chemical_system_policy": "element_containment_not_binary_only",
+  "requested_fields": [
+    "material_id",
+    "formula_pretty",
+    "band_gap",
+    "formation_energy_per_atom",
+    "energy_above_hull",
+    "density",
+    "volume"
+  ],
+  "optional_filters": {},
+  "result_limit": 50,
+  "expected_identifier_column": "material_id",
+  "provenance_status": "reconstructed",
+  "notes": [
+    "This query specification is reconstructed from the existing connector and local processed CSV.",
+    "Historical retrieval timestamp and Materials Project API/database version are unknown.",
+    "No credential, API key, token, or local absolute path is included."
+  ]
+}

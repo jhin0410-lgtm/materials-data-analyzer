@@ -49,6 +49,26 @@ battery_archive_cycle_normalized.csv
 battery_archive_cycle_analysis_ready.csv
 ```
 
+## Materials Project Case Study Summaries
+
+Compact reproducibility artifacts for the Materials Project v1.2 pilot include:
+
+```text
+materials_project_query_manifest.json
+materials_project_property_inventory.csv
+materials_project_quality_summary.csv
+materials_project_screening_summary.csv
+```
+
+The local source, normalized table, and full row-level screening results are
+local artifacts by default:
+
+```text
+materials_project_fe_si.csv
+materials_project_normalized.csv
+materials_project_screening_results.csv
+```
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.

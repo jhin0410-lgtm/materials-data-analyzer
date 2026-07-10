@@ -1,0 +1,168 @@
+{
+  "schema_version": "1.0",
+  "dataset_name": "materials_project_fe_si_containing_local_pilot",
+  "provenance_status": "reconstructed",
+  "identifier_column": "material_id",
+  "required_columns": [
+    "material_id",
+    "formula",
+    "band_gap_ev",
+    "formation_energy_ev_atom",
+    "energy_above_hull_ev_atom",
+    "density_g_cm3",
+    "volume_a3"
+  ],
+  "optional_columns": [],
+  "column_mappings": [
+    {
+      "source_column": "material_id",
+      "canonical_column": "material_id",
+      "semantic_role": "identifier",
+      "expected_dtype": "string",
+      "unit": "unknown",
+      "required": true,
+      "nullable": false,
+      "identifier": true,
+      "target_candidate": false,
+      "feature_candidate": false,
+      "leakage_risk": "identifier only",
+      "interpretation_note": "Use for uniqueness and provenance checks only; do not use as a predictive feature."
+    },
+    {
+      "source_column": "formula",
+      "canonical_column": "formula",
+      "semantic_role": "composition",
+      "expected_dtype": "string",
+      "unit": "unknown",
+      "required": true,
+      "nullable": false,
+      "identifier": false,
+      "target_candidate": false,
+      "feature_candidate": false,
+      "leakage_risk": "conditional",
+      "interpretation_note": "Composition label for audit and grouping. Do not treat as a numeric composition feature in v1.2.2."
+    },
+    {
+      "source_column": "band_gap_ev",
+      "canonical_column": "band_gap_ev",
+      "semantic_role": "electronic_property",
+      "expected_dtype": "float",
+      "unit": "eV",
+      "required": true,
+      "nullable": false,
+      "identifier": false,
+      "target_candidate": true,
+      "feature_candidate": true,
+      "leakage_risk": "conditional",
+      "interpretation_note": "Potential electronic-property target candidate for a small pilot only."
+    },
+    {
+      "source_column": "formation_energy_ev_atom",
+      "canonical_column": "formation_energy_ev_atom",
+      "semantic_role": "thermodynamic_property",
+      "expected_dtype": "float",
+      "unit": "eV/atom",
+      "required": true,
+      "nullable": false,
+      "identifier": false,
+      "target_candidate": true,
+      "feature_candidate": true,
+      "leakage_risk": "leakage candidate",
+      "interpretation_note": "Closely related to thermodynamic stability tasks; avoid circular stability labels."
+    },
+    {
+      "source_column": "energy_above_hull_ev_atom",
+      "canonical_column": "energy_above_hull_ev_atom",
+      "semantic_role": "thermodynamic_property",
+      "expected_dtype": "float",
+      "unit": "eV/atom",
+      "required": true,
+      "nullable": false,
+      "identifier": false,
+      "target_candidate": true,
+      "feature_candidate": true,
+      "leakage_risk": "leakage candidate",
+      "interpretation_note": "Direct stability proxy from Materials Project; do not use to predict a derived stability label."
+    },
+    {
+      "source_column": "density_g_cm3",
+      "canonical_column": "density_g_cm3",
+      "semantic_role": "structure",
+      "expected_dtype": "float",
+      "unit": "g/cm3",
+      "required": true,
+      "nullable": false,
+      "identifier": false,
+      "target_candidate": true,
+      "feature_candidate": true,
+      "leakage_risk": "conditional",
+      "interpretation_note": "Structure-dependent descriptor for descriptive screening."
+    },
+    {
+      "source_column": "volume_a3",
+      "canonical_column": "volume_a3",
+      "semantic_role": "structure",
+      "expected_dtype": "float",
+      "unit": "A^3",
+      "required": true,
+      "nullable": false,
+      "identifier": false,
+      "target_candidate": true,
+      "feature_candidate": true,
+      "leakage_risk": "conditional",
+      "interpretation_note": "Ambiguous without sites or normalization; not a primary target for v1.2."
+    }
+  ],
+  "data_types": {
+    "material_id": "string",
+    "formula": "string",
+    "band_gap_ev": "float",
+    "formation_energy_ev_atom": "float",
+    "energy_above_hull_ev_atom": "float",
+    "density_g_cm3": "float",
+    "volume_a3": "float"
+  },
+  "units": {
+    "material_id": "unknown",
+    "formula": "unknown",
+    "band_gap_ev": "eV",
+    "formation_energy_ev_atom": "eV/atom",
+    "energy_above_hull_ev_atom": "eV/atom",
+    "density_g_cm3": "g/cm3",
+    "volume_a3": "A^3"
+  },
+  "nullable_policy": {
+    "material_id": false,
+    "formula": false,
+    "band_gap_ev": false,
+    "formation_energy_ev_atom": false,
+    "energy_above_hull_ev_atom": false,
+    "density_g_cm3": false,
+    "volume_a3": false
+  },
+  "uniqueness_policy": {
+    "material_id": "unique_required",
+    "formula": "duplicates_allowed"
+  },
+  "quality_rules": {
+    "required_elements": [
+      "Fe",
+      "Si"
+    ],
+    "formula_scope_policy": "element_containment_not_binary_only",
+    "numeric_nonnegative_columns": [
+      "band_gap_ev",
+      "energy_above_hull_ev_atom"
+    ],
+    "numeric_positive_columns": [
+      "density_g_cm3",
+      "volume_a3"
+    ]
+  },
+  "notes": [
+    "This contract covers only the current seven-column local pilot artifact.",
+    "The provenance status remains reconstructed; retrieval timestamp and API version are not inferred.",
+    "The local pilot contains Fe/Si-containing multi-component Materials Project records, not binary-only Fe-Si data.",
+    "Formula is preserved as a composition label only; no composition feature engineering is performed in v1.2.2."
+  ]
+}
