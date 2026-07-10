@@ -4,4 +4,3 @@ matplotlib>=3.8,<4
 scikit-learn>=1.4,<2
 pymatgen>=2024.5,<2027
 pytest>=8,<10
-pymatgen>=2024.5,<2027
