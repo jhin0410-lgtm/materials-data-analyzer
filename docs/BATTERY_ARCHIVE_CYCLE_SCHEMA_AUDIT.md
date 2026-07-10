@@ -404,3 +404,28 @@ Output sizes:
   remaining useful life predictions.
 - Large cycle-level generated tables should remain local-only by default unless
   the tracking policy is explicitly reviewed.
+
+## v1.1.4 Data Quality and Derived Metrics Follow-up
+
+v1.1.4 adds conservative derived metrics from the normalized cycle table without
+filtering original rows. `cycle_series_id` is a deterministic identifier based
+on `zip_file + internal_csv_path`. The baseline is the median of up to the first
+five valid discharge-capacity values from the earliest cycles in each series.
+`capacity_retention` is computed as `discharge_capacity / baseline`, and
+`soh_capacity_proxy` is a capacity-based proxy, not a directly measured SOH
+label.
+
+The cycle threshold outputs use 80% and 70% first-crossing and persistent
+three-cycle crossing proxies. Series that do not reach a threshold are marked as
+observed-censored rather than assigned an inferred cycle life. Duplicate cycle
+index and nonmonotonic cycle index cases are retained as quality warnings; no
+source rows are deleted.
+
+Actual result: 343,503 analysis-ready rows across 196 series, with
+341,523 valid rows, 1,980 warning rows, 0 invalid rows, 196 valid baseline
+series, and 343,503 rows with retention coverage. Threshold proxies show 191
+series reaching 80% retention and 187 series reaching 70% retention. The
+analysis-ready CSV is about 191 MB and should remain a generated local artifact,
+not a Git-tracked file. The compact series summary and data quality summary are
+small reproducibility artifacts. Reliability analysis and simulation are
+deferred to v1.1.5.
