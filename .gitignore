@@ -31,3 +31,14 @@ api_credentials.*
 
 # --- 기타 ---
 outputs/.pytest_tmp/
+
+# --- Generated/local-only analyzer artifacts ---
+# Keep compact case-study summaries trackable; ignore only large row-level
+# local artifacts that are regenerated from documented scripts.
+outputs/**
+.pytest_tmp/
+data/processed/materials_project_v1_3_raw.jsonl
+data/processed/materials_project_v1_3_acquired.csv
+data/processed/materials_project_v1_3_analysis_ready.csv
+data/processed/materials_project_v1_3_validation_predictions.csv
+data/processed/materials_project_v1_3_trust_diagnostics.csv
