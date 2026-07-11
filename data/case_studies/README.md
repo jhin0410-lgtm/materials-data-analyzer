@@ -55,7 +55,7 @@ data/case_studies/battery_archive/case_study.md
 ### `materials_project/`
 
 Representative pilot case study using a local Materials Project-derived
-computed-property table.
+computed-property table and a v1.3 exact-provenance validation dataset.
 
 This folder documents:
 
@@ -64,8 +64,11 @@ This folder documents:
 - Deterministic descriptive property screening
 - Energy-above-hull minimization as a stability-proxy ranking example
 - Tied top candidates without arbitrary tie-breaking
-- Decision gate for closing the 50-row pilot versus running a broader
-  exact-provenance query later
+- Exact-provenance 838-row validation workflow
+- Composition-only descriptors, identifiability audit, and group-aware
+  validation
+- Applicability-domain diagnostics, error-structure summaries, and
+  conservative claim-boundary closeout
 
 Key files:
 
@@ -74,6 +77,7 @@ data/case_studies/materials_project/README.md
 data/case_studies/materials_project/source.md
 data/case_studies/materials_project/screening_methodology.md
 data/case_studies/materials_project/case_study.md
+docs/MATERIALS_PROJECT_V1_3_PLAN.md
 ```
 
 ## Other Source Notes

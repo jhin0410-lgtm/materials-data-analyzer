@@ -1,0 +1,200 @@
+{
+  "schema_version": "1.0",
+  "dataset_version": "v1.3-planned",
+  "dataset_name": "materials_project_fe_si_containing_exact_provenance_candidate",
+  "source_system": "Materials Project",
+  "endpoint_family": "materials.summary",
+  "query_method": "MPRester.materials.summary.search",
+  "execution_status": "validated_not_executed",
+  "query_scope": {
+    "description": "Fe/Si-containing Materials Project summary records for a broader tabular generalization case study.",
+    "required_element_semantics": "Use elements=[\"Fe\", \"Si\"] and verify after acquisition that every returned formula/composition contains both Fe and Si.",
+    "binary_only": false,
+    "maximum_chemistry_scope": "binary through quinary Fe/Si-containing systems",
+    "target_value_filters": "none"
+  },
+  "required_elements": [
+    "Fe",
+    "Si"
+  ],
+  "element_count_range": [
+    2,
+    5
+  ],
+  "exclude_elements": [],
+  "deprecated_policy": {
+    "query_parameter": "deprecated",
+    "value": false,
+    "rationale": "Exclude records that Materials Project marks as deprecated."
+  },
+  "theoretical_policy": {
+    "query_parameter": "theoretical",
+    "value": null,
+    "rationale": "Do not filter theoretical/non-theoretical status in the acquisition query; capture the field and audit the distribution after acquisition."
+  },
+  "include_gnome_policy": {
+    "query_parameter": "include_gnome",
+    "value": false,
+    "rationale": "Do not rely on the installed client default. Exclude GNoMe records for the first broader validation dataset unless a later study explicitly scopes them in."
+  },
+  "target_filter_policy": {
+    "energy_above_hull": "do_not_filter",
+    "is_stable": "do_not_filter",
+    "rationale": "Filtering by the target or a target-derived stability label would bias the target distribution."
+  },
+  "requested_fields": [
+    "material_id",
+    "formula_pretty",
+    "chemsys",
+    "elements",
+    "nelements",
+    "theoretical",
+    "deprecated",
+    "energy_above_hull",
+    "composition",
+    "composition_reduced",
+    "formation_energy_per_atom",
+    "density",
+    "volume",
+    "nsites",
+    "band_gap",
+    "is_metal",
+    "symmetry",
+    "is_stable",
+    "origins",
+    "last_updated",
+    "database_IDs"
+  ],
+  "mandatory_fields": [
+    "material_id",
+    "formula_pretty",
+    "chemsys",
+    "elements",
+    "nelements",
+    "theoretical",
+    "deprecated",
+    "energy_above_hull",
+    "composition",
+    "composition_reduced"
+  ],
+  "optional_fields": [
+    "formation_energy_per_atom",
+    "density",
+    "volume",
+    "nsites",
+    "band_gap",
+    "is_metal",
+    "symmetry",
+    "is_stable",
+    "origins",
+    "last_updated",
+    "database_IDs"
+  ],
+  "field_tiers": {
+    "mandatory_identity_provenance": [
+      "material_id",
+      "formula_pretty",
+      "chemsys",
+      "elements",
+      "nelements",
+      "theoretical",
+      "deprecated"
+    ],
+    "target": [
+      "energy_above_hull"
+    ],
+    "composition_source": [
+      "composition",
+      "composition_reduced",
+      "formula_pretty"
+    ],
+    "analysis_only": [
+      "formation_energy_per_atom",
+      "density",
+      "volume",
+      "nsites",
+      "band_gap",
+      "is_metal",
+      "symmetry"
+    ],
+    "leakage_candidates": [
+      "is_stable",
+      "formation_energy_per_atom",
+      "energy_above_hull"
+    ],
+    "provenance_candidates": [
+      "origins",
+      "last_updated",
+      "database_IDs"
+    ],
+    "excluded_initial_fields": [
+      "structure"
+    ]
+  },
+  "target_column": "energy_above_hull",
+  "identifier_column": "material_id",
+  "composition_source_column": "composition_reduced",
+  "query_parameters": {
+    "elements": [
+      "Fe",
+      "Si"
+    ],
+    "num_elements": [
+      2,
+      5
+    ],
+    "deprecated": false,
+    "theoretical": null,
+    "include_gnome": false,
+    "all_fields": false,
+    "fields": "requested_fields",
+    "num_chunks": null,
+    "chunk_size": 1000,
+    "_sort_fields": null
+  },
+  "chunk_size": 1000,
+  "result_limit": null,
+  "ordering_policy": "API order is not assumed deterministic; sort the saved tabular output by material_id after acquisition.",
+  "duplicate_policy": {
+    "material_id": "must_be_unique_after_acquisition",
+    "duplicate_action": "stop_and_audit"
+  },
+  "polymorph_policy": {
+    "same_formula_multiple_material_ids": "retain",
+    "validation_grouping": "group by reduced formula and chemical system for leakage checks"
+  },
+  "local_output_path": "data/processed/materials_project_v1_3_summary.csv",
+  "provenance_output_path": "data/processed/materials_project_v1_3_provenance.json",
+  "credential_policy": {
+    "environment_variable": "MP_API_KEY",
+    "store_in_repository": false,
+    "store_in_outputs": false,
+    "log_value": false
+  },
+  "tracking_policy": {
+    "raw_api_response": "local_only",
+    "full_processed_table": "local_only_until_size_and_license_review",
+    "compact_provenance_manifest": "tracked_candidate",
+    "compact_quality_summary": "tracked_candidate"
+  },
+  "scientific_scope": [
+    "Computed Materials Project tabular-property dataset.",
+    "Designed for model validation workflow planning, not for direct experimental claims.",
+    "Energy above hull is a computed stability proxy and should not be filtered during acquisition."
+  ],
+  "limitations": [
+    "API call has not been executed in v1.3.1.",
+    "Returned row count and target distribution are unknown until v1.3.2 acquisition.",
+    "The elements parameter semantics must be verified by post-acquisition Fe/Si containment checks.",
+    "GNoMe exclusion is an explicit initial policy choice and can be revisited in a separate scoped study."
+  ],
+  "stop_conditions": [
+    "Mandatory field missing from installed SummaryDoc or returned table.",
+    "Acquisition is partial or fails.",
+    "Credentials, absolute local paths, or raw API responses appear in tracked artifacts.",
+    "Returned rows do not all contain both Fe and Si.",
+    "Valid target rows or grouping counts are too small for validation.",
+    "Duplicate material_id values remain unresolved.",
+    "Database/package version cannot be recorded during live acquisition."
+  ]
+}

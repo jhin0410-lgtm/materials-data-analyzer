@@ -1,0 +1,15 @@
+field,value,evidence
+model_eligibility,no_model_eligible_for_interpretation,Non-dummy models failed the full conservative eligibility gate.
+representative_model_decision,none_selected,No representative model is selected when validation remains weak.
+applicability_diagnostic_utility,weak_or_inconsistent_proxy,Median nearest-distance/absolute-error Spearman: 0.0905.
+interpolation_conclusion,weak_interpolation_evidence,Best random median R2: 0.0533; median descriptor overlap count: 46.0000.
+formula_generalization_conclusion,limited,Best reduced-formula-group median R2: 0.0220.
+chemical_system_generalization_conclusion,limited,Best chemical-system-group median R2: 0.0405.
+predictive_screening_conclusion,not_defensible_for_novel_material_recommendation,Screening metrics are affected by tied dummy predictions and weak group validation.
+descriptive_screening_conclusion,reproducible_for_observed_properties,Observed Materials Project property ranking remains a deterministic descriptive analysis.
+shap_decision,deferred,Model validity precedes XAI; no eligible predictive model was selected.
+next_project_phase,v1.4_smart_factory_process_quality_case_study,Move to manufacturing process quality data with equipment/lot/time structure.
+model_eligibility_histogram_gradient_boosting_log1p,diagnostic_only,"some metric signal exists, but group-aware validation is insufficient"
+model_eligibility_histogram_gradient_boosting_raw,diagnostic_only,"some metric signal exists, but group-aware validation is insufficient"
+model_eligibility_ridge_log1p,diagnostic_only,"some metric signal exists, but group-aware validation is insufficient"
+model_eligibility_ridge_raw,diagnostic_only,"some metric signal exists, but group-aware validation is insufficient"

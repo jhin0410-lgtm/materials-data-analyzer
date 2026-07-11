@@ -1,0 +1,119 @@
+{
+  "schema_version": "1.0",
+  "dataset_version": "v1.3",
+  "trust_analysis_version": "v1.3.5",
+  "execution_status": "specified",
+  "input_artifacts": {
+    "analysis_ready": "data/processed/materials_project_v1_3_analysis_ready.csv",
+    "validation_predictions": "data/processed/materials_project_v1_3_validation_predictions.csv",
+    "validation_metrics": "data/processed/materials_project_v1_3_validation_metrics.csv",
+    "model_comparison_summary": "data/processed/materials_project_v1_3_model_comparison_summary.csv",
+    "screening_metrics_summary": "data/processed/materials_project_v1_3_screening_metrics_summary.csv",
+    "split_diagnostics": "data/processed/materials_project_v1_3_split_diagnostics.csv",
+    "composition_ambiguity_summary": "data/processed/materials_project_v1_3_composition_ambiguity_summary.csv",
+    "descriptor_inventory": "data/processed/materials_project_v1_3_descriptor_inventory.csv",
+    "validation_spec": "data/case_studies/materials_project/validation_spec_v1_3.json"
+  },
+  "model_eligibility_policy": {
+    "eligible_for_interpretation": [
+      "non-dummy model repeatedly improves MAE or median absolute error over dummy median",
+      "Spearman is consistently positive across repeated splits",
+      "formula-group and chemical-system results do not collapse",
+      "screening metrics improve over tie-sensitive dummy baseline",
+      "catastrophic negative R2 folds are not dominant"
+    ],
+    "diagnostic_only": "Model may be useful for audit diagnostics but is not defensible for predictive interpretation.",
+    "not_eligible": "Model is not a defensible predictive model for interpretation or recommendation."
+  },
+  "representative_model_policy": {
+    "select_representative_model": false,
+    "reason": "A representative model is selected only if the eligibility gate supports predictive interpretation across group-aware validation."
+  },
+  "applicability_domain_method": {
+    "feature_space": "60 primary composition-only descriptors",
+    "train_only_preprocessing": true,
+    "imputation": "median fitted on each train fold only",
+    "scaling": "StandardScaler-equivalent mean/std fitted on each train fold only",
+    "nearest_neighbor_reference": "train-to-train nearest-neighbor distance excluding self",
+    "test_distance": "nearest train descriptor distance plus fixed k-nearest mean distance",
+    "k_neighbors": 5,
+    "descriptor_seen_status": "exact descriptor vector match against train fold"
+  },
+  "preprocessing_policy": {
+    "target_used_for_domain_classification": false,
+    "test_fold_used_to_fit_preprocessing": false,
+    "source_rows_modified": false
+  },
+  "distance_metric": {
+    "name": "Euclidean distance after train-fold median imputation and scaling",
+    "calibrated_uncertainty": false,
+    "physical_similarity_claim": false
+  },
+  "threshold_policy": {
+    "in_domain": "train NN-distance percentile <= 90",
+    "boundary": "90 < train NN-distance percentile <= 95",
+    "out_of_domain": "train NN-distance percentile > 95",
+    "threshold_source": "train fold descriptor distances only",
+    "target_or_error_used_to_select_threshold": false
+  },
+  "error_strata": [
+    "applicability_status",
+    "descriptor_seen_status",
+    "formula_seen_status",
+    "chemical_system_seen_status",
+    "formula_ambiguity_status",
+    "target_stratum",
+    "theoretical"
+  ],
+  "subgroup_policy": {
+    "minimum_rows_for_correlation": 2,
+    "small_group_handling": "record row count and emit NaN where metric is not meaningful"
+  },
+  "explanation_policy": {
+    "shap_default": false,
+    "feature_importance_default": false,
+    "diagnostic_only_or_not_eligible": "Do not run SHAP; do not present importance as physical explanation.",
+    "eligible_for_interpretation": "If ever supported, prefer held-out permutation importance stability across formula-group folds before SHAP."
+  },
+  "allowed_claims": [
+    "exact provenance dataset was acquired and validated",
+    "composition-only descriptors were generated reproducibly",
+    "random split contains substantial descriptor/formula overlap",
+    "group-aware generalization is limited",
+    "structure-free composition representation has identifiable limitations",
+    "deterministic descriptive screening of observed MP properties remains valid"
+  ],
+  "prohibited_claims": [
+    "accurate prediction of energy above hull",
+    "reliable discovery of novel stable materials",
+    "DFT replacement",
+    "experimental synthesizability prediction",
+    "causal physical mechanism",
+    "robust unseen-chemical-system recommendation",
+    "calibrated uncertainty",
+    "production-ready screening model"
+  ],
+  "closeout_decision_rules": {
+    "negative_result_allowed": true,
+    "weak_distance_error_relationship_allowed": true,
+    "no_model_eligible_for_interpretation_allowed": true,
+    "shap_deferred_when_model_not_eligible": true,
+    "next_phase": "v1.4 Smart Factory Process Quality Case Study"
+  },
+  "local_output_paths": {
+    "trust_diagnostics": "data/processed/materials_project_v1_3_trust_diagnostics.csv"
+  },
+  "tracked_output_paths": {
+    "applicability_summary": "data/processed/materials_project_v1_3_applicability_summary.csv",
+    "error_structure_summary": "data/processed/materials_project_v1_3_error_structure_summary.csv",
+    "claim_boundary": "data/processed/materials_project_v1_3_claim_boundary.csv",
+    "trust_conclusion": "data/processed/materials_project_v1_3_trust_conclusion.csv"
+  },
+  "limitations": [
+    "Descriptor distance is a diagnostic proxy, not calibrated uncertainty.",
+    "Composition-only descriptors do not encode crystal structure, synthesis route, or calculation settings.",
+    "Energy above hull values are computed Materials Project properties, not experimental outcomes.",
+    "Target strata are descriptive error-analysis strata and are not used for applicability-domain classification.",
+    "No candidate recommendation, active learning, phase diagram feature, or structure model is introduced."
+  ]
+}

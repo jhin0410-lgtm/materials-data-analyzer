@@ -30,4 +30,4 @@ api_credentials.*
 *credentials*.yml
 
 # --- 기타 ---
-outputs/
+outputs/.pytest_tmp/

@@ -1,0 +1,176 @@
+{
+  "schema_version": "1.0",
+  "dataset_version": "v1.3-planned",
+  "dataset_name": "materials_project_fe_si_containing_exact_provenance_candidate",
+  "modeling_goal": "Composition-derived tabular descriptors predicting Materials Project energy_above_hull for validation-method demonstration.",
+  "target": {
+    "column": "energy_above_hull",
+    "unit": "eV/atom",
+    "type": "continuous_regression",
+    "source": "Materials Project calculated property",
+    "not_a_claim": [
+      "not new DFT calculation by this repository",
+      "not experimental stability validation",
+      "not synthesizability proof"
+    ]
+  },
+  "prediction_context": {
+    "intended_use": "Compare baseline tabular validation strategies for computed Materials Project properties.",
+    "not_intended_use": [
+      "production materials recommendation",
+      "experimental performance guarantee",
+      "process condition decision",
+      "replacement for DFT or laboratory validation"
+    ]
+  },
+  "primary_feature_tier": {
+    "name": "composition_only_descriptors",
+    "source_fields": [
+      "composition",
+      "composition_reduced",
+      "formula_pretty",
+      "elements",
+      "nelements",
+      "chemsys"
+    ],
+    "allowed_processing": [
+      "parse composition into numeric composition descriptors",
+      "derive reduced formula and chemical-system grouping columns",
+      "derive element-count and composition-statistic descriptors"
+    ],
+    "not_in_v1_3_1": "No descriptors are generated in this contract phase."
+  },
+  "optional_comparison_feature_tiers": [
+    {
+      "name": "property_assisted_computed_features",
+      "columns": [
+        "formation_energy_per_atom",
+        "density",
+        "volume",
+        "nsites",
+        "band_gap",
+        "is_metal",
+        "symmetry"
+      ],
+      "policy": "Use only in a separately labeled comparison experiment because these are Materials Project computed outputs, not early composition-only descriptors."
+    }
+  ],
+  "forbidden_features": [
+    "material_id",
+    "formula_pretty_raw_one_hot",
+    "formula_pretty_raw_hash",
+    "energy_above_hull",
+    "is_stable",
+    "energy_above_hull_rank",
+    "energy_above_hull_label",
+    "target_derived_screening_score",
+    "post_split_global_target_statistics"
+  ],
+  "leakage_candidates": [
+    {
+      "column": "is_stable",
+      "reason": "Derived from convex hull stability and directly tied to energy_above_hull."
+    },
+    {
+      "column": "formation_energy_per_atom",
+      "reason": "Thermodynamic computed property closely related to stability calculations."
+    },
+    {
+      "column": "formula_pretty",
+      "reason": "Raw categorical formula can leak formula-family identity when randomly split."
+    },
+    {
+      "column": "material_id",
+      "reason": "Identifier only; never a predictive feature."
+    }
+  ],
+  "grouping_columns": [
+    {
+      "name": "reduced_formula",
+      "source": "derived from composition_reduced or formula_pretty",
+      "purpose": "Prevent same-composition/polymorph leakage across train/test."
+    },
+    {
+      "name": "chemical_system",
+      "source": "chemsys",
+      "purpose": "Assess unseen element-family generalization."
+    }
+  ],
+  "split_strategies": [
+    {
+      "name": "deterministic_random_split",
+      "purpose": "Naive baseline only.",
+      "required": true,
+      "execution_in_v1_3_1": false
+    },
+    {
+      "name": "reduced_formula_group_split",
+      "purpose": "Control same-composition and polymorph leakage.",
+      "required": true,
+      "execution_in_v1_3_1": false
+    },
+    {
+      "name": "chemical_system_group_split",
+      "purpose": "Estimate unseen chemical-system generalization.",
+      "required": true,
+      "execution_in_v1_3_1": false
+    }
+  ],
+  "metrics": [
+    "MAE",
+    "RMSE",
+    "R2",
+    "Spearman rank correlation"
+  ],
+  "baseline_models": [
+    {
+      "name": "naive_median_baseline",
+      "dependency_status": "available_with_current_stack"
+    },
+    {
+      "name": "linear_or_ridge_baseline",
+      "dependency_status": "available_with_current_stack"
+    },
+    {
+      "name": "random_forest_or_histogram_gradient_boosting",
+      "dependency_status": "available_with_current_stack"
+    }
+  ],
+  "reproducibility_policy": {
+    "random_seed": 42,
+    "sort_before_split": "material_id",
+    "record_package_versions": true,
+    "record_split_membership": true
+  },
+  "uncertainty_policy": {
+    "v1_3_initial_policy": "Report validation metrics and residual/error summaries only.",
+    "not_in_scope": [
+      "Bayesian optimization",
+      "active learning",
+      "calibrated uncertainty model"
+    ]
+  },
+  "interpretation_limits": [
+    "Modeling would predict Materials Project calculated energy_above_hull, not experimental stability.",
+    "Composition-only baselines cannot prove synthesizability or process feasibility.",
+    "Random split performance should be treated as optimistic until group splits are checked."
+  ],
+  "minimum_data_requirements": {
+    "valid_target_rows": "must be sufficient for train/test and group splits after acquisition",
+    "distinct_reduced_formula_groups": "must support reduced-formula group validation",
+    "distinct_chemical_system_groups": "must support chemical-system group validation",
+    "target_distribution": "must not be effectively constant or dominated by a single mass at zero"
+  },
+  "stop_conditions": [
+    "Valid target rows are too few for model validation.",
+    "Distinct reduced-formula groups are too few for group split.",
+    "Distinct chemical-system groups are too few for group split.",
+    "Target null ratio is excessive.",
+    "Target is nearly constant or dominated by zero values.",
+    "Composition parsing failure rate is high.",
+    "Duplicate material_id values are unresolved.",
+    "Acquisition is partial or failed.",
+    "Database or package version is not recorded.",
+    "Requested mandatory fields are missing."
+  ]
+}

@@ -271,6 +271,34 @@ Recommended decision:
 > exact-provenance query only if the next goal is predictive modeling,
 > multi-objective screening, or stronger generalization claims.
 
+## v1.3 Validation and Trust Boundary Closeout
+
+v1.3 extended the Materials Project work from a 50-row descriptive pilot to an
+838-row exact-provenance validation case study with 60 composition-only
+descriptors.
+
+The validation deliberately preserved weak and negative results:
+
+- random split best median R2: `0.0533`
+- reduced-formula group split best median R2: `0.0220`
+- chemical-system group split best median R2: `0.0405`
+- all non-dummy model variants were classified as `diagnostic_only`
+- no representative predictive model was selected
+- SHAP and physical feature-importance interpretation were deferred
+
+Applicability-domain diagnostics used train-fold descriptor-space distances
+only. The distance/error relationship was weak or inconsistent, so the OOD
+diagnostic is retained as a screening flag, not calibrated uncertainty.
+
+Final v1.3 conclusion:
+
+- composition-only prediction remained weak
+- group-aware generalization was limited
+- no predictive novel-material recommendation is claimed
+- observed-property descriptive screening remains reproducible
+- stronger prediction would require broader data coverage, structure
+  information, calculation-context features, or a different modeling scope
+
 ## Conclusion
 
 The current Materials Project pilot successfully demonstrates a reproducible
