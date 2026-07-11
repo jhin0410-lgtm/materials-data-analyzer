@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.4
+
+- Added the Smart Factory process-quality contract and leakage map.
+- Recorded Bosch as a conditional primary candidate and activated UCI SECOM as
+  the operational fallback when Bosch access, terms, and file inventory could
+  not be verified locally.
+- Added SECOM acquisition provenance, raw SHA checks, schema inventory, and
+  readiness summaries while keeping raw data local-only.
+- Added row-position SECOM analysis-ready normalization with explicit
+  day-first timestamp parsing, source-order alignment, target mapping, temporal
+  integrity checks, feature-quality inventory, and SPC/split feasibility
+  summaries.
+- Added fixed classical time-aware classification baselines for SECOM with
+  train-only preprocessing, chronological primary validation, stratified random
+  optimistic reference, PR-AUC primary metrics, threshold diagnostics, Brier
+  score diagnostics, random-vs-temporal gap summaries, and conservative model
+  status boundaries.
+- Documented that v1.4.4 outputs are diagnostic-only: no representative
+  production model is selected, group-aware evidence is unavailable, and
+  capability analysis is not ready because specification limits are absent.
+
+This release does not add deep learning, SHAP, SMOTE, causal root-cause
+analysis, calibrated production probability claims, real-time control,
+equipment-specific generalization, or production decision automation.
+
 ## v1.3
 
 - Added exact-provenance Materials Project acquisition contracts and local artifact policy.

@@ -1,0 +1,168 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.4.4",
+  "dataset": "uci_secom",
+  "source_artifact": "data/processed/smart_factory_v1_4_secom_analysis_ready.csv",
+  "source_manifest": "data/case_studies/smart_factory/acquisition_manifest_v1_4.json",
+  "source_sha_policy": "Verify raw SECOM SHA256 values from the acquisition manifest and verify the analysis-ready CSV SHA before and after classification.",
+  "target_definition": {
+    "raw_target_column": "target_raw",
+    "target_column": "target_failure",
+    "mapping": {
+      "-1": "pass -> target_failure=0",
+      "1": "fail -> target_failure=1"
+    },
+    "allowed_values": [
+      0,
+      1
+    ],
+    "positive_class": "fail"
+  },
+  "identifier_column": "sample_index",
+  "timestamp_column": "observation_timestamp",
+  "chronological_rank_column": "chronological_rank",
+  "source_order_column": "source_order_index",
+  "feature_column_prefix": "process_feature_",
+  "expected_row_count": 1567,
+  "expected_failure_count": 104,
+  "validation_hierarchy": {
+    "primary": [
+      "chronological blocked splits",
+      "expanding-window future holdout",
+      "final chronological holdout"
+    ],
+    "secondary_reference": [
+      "stratified random split"
+    ],
+    "group_validation": "not_ready_no_explicit_equipment_lot_product_recipe_id"
+  },
+  "split_definitions_source": "data/processed/smart_factory_v1_4_split_feasibility.csv",
+  "preprocessing_policy": {
+    "fit_scope": "training_partition_only",
+    "all_missing_column_removal": true,
+    "constant_column_removal": true,
+    "missing_rate_removal_threshold": 0.95,
+    "near_constant_top_value_rate": 0.99,
+    "near_constant_policy": "retain_and_record_diagnostic_count",
+    "imputation": "median_fit_on_train_only",
+    "linear_model_scaling": "standard_scaler_fit_on_train_only",
+    "tree_model_scaling": "none",
+    "prohibited": [
+      "full_dataset_imputation",
+      "full_dataset_scaling",
+      "target_informed_feature_selection",
+      "test_set_threshold_tuning",
+      "SMOTE_or_synthetic_oversampling"
+    ]
+  },
+  "model_configurations": [
+    {
+      "name": "dummy_prior",
+      "estimator_type": "dummy_prior",
+      "strategy": "prior"
+    },
+    {
+      "name": "logistic_regression_balanced",
+      "estimator_type": "logistic_regression",
+      "class_weight": "balanced",
+      "solver": "liblinear",
+      "max_iter": 1000
+    },
+    {
+      "name": "random_forest_balanced",
+      "estimator_type": "random_forest",
+      "class_weight": "balanced_subsample",
+      "n_estimators": 60,
+      "min_samples_leaf": 2,
+      "max_features": "sqrt"
+    },
+    {
+      "name": "hist_gradient_boosting_balanced",
+      "estimator_type": "hist_gradient_boosting",
+      "max_iter": 10,
+      "learning_rate": 0.08,
+      "max_leaf_nodes": 15,
+      "max_bins": 32,
+      "sample_weight": "balanced"
+    }
+  ],
+  "imbalance_policy": {
+    "accuracy_primary_metric": false,
+    "class_weight_or_sample_weight": true,
+    "smote": false,
+    "report_fold_failure_support": true
+  },
+  "metrics": {
+    "primary": "average_precision",
+    "secondary": [
+      "roc_auc",
+      "balanced_accuracy",
+      "mcc",
+      "f1",
+      "precision",
+      "recall",
+      "specificity",
+      "negative_predictive_value",
+      "brier_score",
+      "log_loss"
+    ],
+    "threshold": 0.5,
+    "one_class_policy": "record_unavailable_not_error"
+  },
+  "threshold_policy": {
+    "default_threshold": 0.5,
+    "test_label_threshold_tuning": false,
+    "additional_threshold_selection": "not_performed_in_v1_4_4"
+  },
+  "calibration_policy": {
+    "brier_score": "diagnostic_only",
+    "calibrated_probability_claim": false,
+    "platt_or_isotonic": false,
+    "score_wording": "uncalibrated model score or estimated risk score"
+  },
+  "model_status_rules": [
+    "descriptive_only",
+    "diagnostic_only",
+    "limited_predictive_evidence",
+    "candidate_for_further_validation"
+  ],
+  "local_output_paths": {
+    "classification_predictions": "data/processed/smart_factory_v1_4_classification_predictions.csv"
+  },
+  "tracked_output_paths": {
+    "classification_metrics": "data/processed/smart_factory_v1_4_classification_metrics.csv",
+    "classification_split_diagnostics": "data/processed/smart_factory_v1_4_classification_split_diagnostics.csv",
+    "classification_model_summary": "data/processed/smart_factory_v1_4_classification_model_summary.csv",
+    "random_temporal_gap": "data/processed/smart_factory_v1_4_random_temporal_gap.csv",
+    "threshold_summary": "data/processed/smart_factory_v1_4_threshold_summary.csv",
+    "error_structure_summary": "data/processed/smart_factory_v1_4_error_structure_summary.csv",
+    "classification_conclusion": "data/processed/smart_factory_v1_4_classification_conclusion.csv"
+  },
+  "allowed_claims": [
+    "offline chronological defect-risk screening diagnostics",
+    "random-vs-temporal baseline comparison",
+    "classical baseline comparison under documented leakage controls"
+  ],
+  "prohibited_claims": [
+    "causal root cause",
+    "equipment-specific generalization",
+    "lot-specific generalization",
+    "production deployment readiness",
+    "real-time process control",
+    "failure prevention effect",
+    "calibrated production probability",
+    "SHAP-based physical interpretation"
+  ],
+  "stop_conditions": [
+    "analysis-ready file missing",
+    "source SHA mismatch",
+    "target values outside {0, 1}",
+    "chronological ordering invalid",
+    "no feasible time-aware split",
+    "train or test failure support insufficient",
+    "preprocessing leakage detected",
+    "raw source file overwritten",
+    "tracked output contains an absolute path or credential"
+  ],
+  "random_state": 42
+}

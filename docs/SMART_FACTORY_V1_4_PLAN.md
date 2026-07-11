@@ -1,13 +1,17 @@
 # Smart Factory v1.4 Plan
 
-Status: planned / contract stage.
+Status: active case-study track through v1.4.4.
 
 This document defines the v1.4 Smart Factory Process Quality Case Study
-contract for `materials_data_analyzer`. It does not mark the Smart Factory
-case study as implemented, does not download any dataset, and does not train a
-model.
+contract for `materials_data_analyzer`. v1.4.1 defined the contract, v1.4.2
+activated the UCI SECOM fallback after the Bosch access gate was blocked,
+v1.4.3 created the analysis-ready normalization and temporal/feature-quality
+audit, and v1.4.4 adds fixed classical time-aware classification baselines.
 
-In short: this contract stage does not download any dataset and does not train a model.
+The v1.4.4 modeling step is limited to offline diagnostic classification
+baselines. It does not add deep learning, SHAP, causal interpretation,
+calibrated production probability claims, dashboards, real-time control, or
+production decision automation.
 
 ## Motivation
 
@@ -328,10 +332,21 @@ Prohibited wording:
 - Implement a loader only after the dataset decision is made.
 - Preserve raw/local artifact policy.
 
-### v1.4.4 Data Readiness and Quality Audit
+### v1.4.4 Time-Aware Quality Classification Baseline
 
-- Produce row/column, missingness, target, group, time, leakage, and
-  readiness summaries.
+- Run fixed classical baseline classifiers only.
+- Treat chronological blocked, expanding-window, and final holdout splits as
+  primary evidence.
+- Treat stratified random split as an optimistic reference only.
+- Fit feature filtering, imputation, and scaling on each training partition
+  only.
+- Record PR-AUC as the primary metric, threshold diagnostics at 0.5, Brier
+  score as a calibration diagnostic, random-vs-temporal gaps, error-structure
+  summaries, and conservative model-status boundaries.
+- Preserve row-level predictions as local-only.
+
+v1.4.4 result: non-dummy models remain `diagnostic_only`; no representative
+production model is selected.
 
 ### v1.4.5 SPC, Capability, Drift, and Anomaly Readiness
 

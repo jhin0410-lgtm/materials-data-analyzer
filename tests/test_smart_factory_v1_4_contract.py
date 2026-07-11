@@ -134,12 +134,14 @@ def test_high_risk_leakage_rows_are_not_allowed_as_features() -> None:
     assert set(high_risk["allowed_as_feature"].astype(str).str.lower()) == {"false"}
 
 
-def test_plan_marks_v1_4_as_contract_stage_not_complete() -> None:
+def test_plan_marks_v1_4_as_active_case_study_with_claim_limits() -> None:
     text = PLAN_PATH.read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
 
-    assert "Status: planned / contract stage." in text
-    assert "does not train a model" in text
-    assert "does not download any dataset" in text
+    assert "Status: active case-study track through v1.4.4." in text
+    assert "fixed classical time-aware classification baselines" in text
+    assert "stratified random split as an optimistic reference only" in text
+    assert "no representative production model is selected" in normalized
 
 
 def test_readiness_module_does_not_import_network_clients() -> None:

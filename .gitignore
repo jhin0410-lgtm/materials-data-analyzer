@@ -43,3 +43,4 @@ data/processed/materials_project_v1_3_analysis_ready.csv
 data/processed/materials_project_v1_3_validation_predictions.csv
 data/processed/materials_project_v1_3_trust_diagnostics.csv
 data/processed/smart_factory_v1_4_secom_analysis_ready.csv
+data/processed/smart_factory_v1_4_classification_predictions.csv

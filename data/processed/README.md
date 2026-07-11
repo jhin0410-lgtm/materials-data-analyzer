@@ -91,6 +91,38 @@ materials_project_v1_3_validation_predictions.csv
 materials_project_v1_3_trust_diagnostics.csv
 ```
 
+## Smart Factory v1.4 Case Study Summaries
+
+Compact reproducibility artifacts for the Smart Factory v1.4 SECOM fallback
+case study include:
+
+```text
+smart_factory_v1_4_schema_inventory.csv
+smart_factory_v1_4_readiness_summary.csv
+smart_factory_v1_4_feature_quality_inventory.csv
+smart_factory_v1_4_integrity_summary.csv
+smart_factory_v1_4_missingness_summary.csv
+smart_factory_v1_4_temporal_summary.csv
+smart_factory_v1_4_split_feasibility.csv
+smart_factory_v1_4_spc_feasibility.csv
+smart_factory_v1_4_analysis_ready_summary.csv
+smart_factory_v1_4_classification_metrics.csv
+smart_factory_v1_4_classification_split_diagnostics.csv
+smart_factory_v1_4_classification_model_summary.csv
+smart_factory_v1_4_random_temporal_gap.csv
+smart_factory_v1_4_threshold_summary.csv
+smart_factory_v1_4_error_structure_summary.csv
+smart_factory_v1_4_classification_conclusion.csv
+```
+
+The local row-level analysis-ready and classification prediction tables are
+regenerated from documented scripts and remain local-only by default:
+
+```text
+smart_factory_v1_4_secom_analysis_ready.csv
+smart_factory_v1_4_classification_predictions.csv
+```
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.
