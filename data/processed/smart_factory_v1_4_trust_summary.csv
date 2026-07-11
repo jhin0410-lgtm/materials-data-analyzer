@@ -1,0 +1,17 @@
+field,value,evidence
+audit_verdict,passed,All required compact v1.4.4 artifacts were available.
+prevalence_baseline,0.0663689,104/1567 failures.
+primary_validation,chronological_time_aware,Primary temporal split count: 7.
+best_temporal_median_pr_auc,0.0724866,Best non-dummy median over primary temporal folds.
+best_final_holdout_pr_auc,0.156982,Best non-dummy final chronological holdout PR-AUC.
+best_random_reference_pr_auc,0.15991,Random split is optimistic reference only.
+representative_model_selected,false,Strict candidate and trust rules do not select a representative model.
+strongest_model_status,diagnostic_only,Status is based on predeclared eligibility rules.
+threshold_boundary,not_valid_for_binary_failure_decision,0.5 threshold results are diagnostic and not tuned with test labels.
+calibration_boundary,uncalibrated_score_only,Brier/log-loss are diagnostic; calibrated probability is not claimed.
+random_temporal_interpretation,random_optimistic,Random-reference performance does not establish robust temporal generalization.
+group_generalization,unavailable,"No explicit equipment, lot, product, or recipe identifiers exist."
+spc_capability,capability_not_ready,Specification limits and rational subgroups are absent.
+shap_decision,deferred_not_justified,No representative model exists and feature semantics are anonymized.
+drift_anomaly_decision,deferred,"Temporal variation exists, but a drift/anomaly model is not justified in v1.4."
+classification_conclusion_source,11,Rows from v1.4.4 classification conclusion were read without refitting.

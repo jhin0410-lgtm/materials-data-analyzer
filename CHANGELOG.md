@@ -17,6 +17,9 @@
   optimistic reference, PR-AUC primary metrics, threshold diagnostics, Brier
   score diagnostics, random-vs-temporal gap summaries, and conservative model
   status boundaries.
+- Added trust-boundary closeout artifacts for model eligibility, temporal
+  stability, operational boundary, claim boundary, release readiness, and
+  case-study documentation.
 - Documented that v1.4.4 outputs are diagnostic-only: no representative
   production model is selected, group-aware evidence is unavailable, and
   capability analysis is not ready because specification limits are absent.

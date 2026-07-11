@@ -193,11 +193,12 @@ python -m pytest
 
 ## Real-Data Case Studies
 
-The repository currently includes three representative real-data case studies:
+The repository currently includes four representative real-data case studies:
 
 - Kaggle NASA Li-ion Battery
 - Battery Archive
 - Materials Project
+- Smart Factory / UCI SECOM
 
 These case studies demonstrate source-specific preparation and validation
 workflows. They are not the core product identity; the core project remains a
@@ -274,6 +275,26 @@ live in:
 - [`data/case_studies/materials_project/screening_methodology.md`](data/case_studies/materials_project/screening_methodology.md)
 - [`data/case_studies/materials_project/case_study.md`](data/case_studies/materials_project/case_study.md)
 
+### Smart Factory / UCI SECOM
+
+The Smart Factory work uses UCI SECOM as an operational fallback after the
+Bosch access gate was not cleared. It demonstrates process-quality source
+provenance, row-order alignment, temporal integrity checks, feature-quality
+audit, time-aware validation, train-only preprocessing, fixed classical
+classification baselines, and trust-boundary closeout.
+
+The v1.4 conclusion is conservative: all non-dummy models remain
+`diagnostic_only`, no representative production model is selected, random split
+performance is an optimistic reference only, calibrated probability claims are
+prohibited, and group-aware generalization is unavailable because explicit
+equipment, lot, product, and recipe IDs are absent.
+
+Case-study documents:
+
+- [`data/case_studies/smart_factory/README.md`](data/case_studies/smart_factory/README.md)
+- [`data/case_studies/smart_factory/case_study.md`](data/case_studies/smart_factory/case_study.md)
+- [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md)
+
 ## Optional Connectors
 
 The connector layer is optional and experimental. It is not required to use the core CSV analyzer.
@@ -347,15 +368,19 @@ outputs/{run_name}/reports/
 
 - Exact provenance acquisition, 838-row dataset validation, 60 composition-only descriptors, identifiability and ambiguity audit, group-aware baseline validation, applicability-domain diagnostics, claim-boundary summary, and conservative closeout are complete.
 - Composition-only prediction remained weak; no predictive novel-material recommendation, DFT replacement, calibrated uncertainty, or production-ready screening claim is made.
-- v1.4 is reserved for a Smart Factory Process Quality Case Study.
+- v1.4 is complete as a Smart Factory Process Quality trust-boundary case
+  study.
 
-### v1.4 Planned: Smart Factory Process Quality Contract
+### v1.4 Complete: Smart Factory Process Quality Trust Boundary
 
-- v1.4.1 is a contract-stage plan for manufacturing process-quality datasets,
-  leakage boundaries, group/time validation, SPC/capability readiness, and
-  dataset candidate selection.
-- It does not download data, train models, add dashboards, or claim Smart
-  Factory completion.
+- UCI SECOM is used as a fallback process-quality case study after the Bosch
+  access gate remained blocked.
+- The workflow covers source provenance, analysis-ready normalization,
+  temporal integrity, feature-quality audit, time-aware classification
+  baselines, and trust-boundary closeout.
+- The final result is diagnostic-only: no representative production model,
+  calibrated probability claim, causal root-cause claim, or real-time control
+  claim is made.
 - See [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md) and
   [`data/case_studies/smart_factory/`](data/case_studies/smart_factory/).
 

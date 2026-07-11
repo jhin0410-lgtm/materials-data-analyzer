@@ -25,6 +25,10 @@ Factory analysis outputs.
   baseline models, train-only preprocessing, validation hierarchy, metric,
   threshold, calibration, local-output, tracked-output, and claim-boundary
   policy for v1.4.4.
+- [Trust spec](trust_spec_v1_4.json): v1.4.5 model eligibility, temporal
+  stability, random-temporal interpretation, operational boundary, SPC and
+  capability status, explainability decision, and claim-boundary policy.
+- [Case study report](case_study.md): portfolio-style closeout report.
 
 ## v1.4.2 Acquisition Gate Result
 
@@ -113,3 +117,32 @@ only an optimistic reference. Results support offline diagnostic screening
 discussion only; they do not support causal root-cause, calibrated production
 probability, real-time control, failure-prevention, or deployment-readiness
 claims.
+
+## v1.4.5 Trust Boundary Closeout
+
+v1.4.5 reads only existing compact v1.4.4 outputs. It does not refit models,
+tune thresholds, run SHAP, build drift/anomaly models, compute control charts,
+or calculate capability indices.
+
+Tracked closeout outputs:
+
+- `data/case_studies/smart_factory/trust_spec_v1_4.json`
+- `data/processed/smart_factory_v1_4_model_eligibility.csv`
+- `data/processed/smart_factory_v1_4_temporal_stability_summary.csv`
+- `data/processed/smart_factory_v1_4_operational_boundary.csv`
+- `data/processed/smart_factory_v1_4_claim_boundary.csv`
+- `data/processed/smart_factory_v1_4_trust_summary.csv`
+- `data/processed/smart_factory_v1_4_closeout_conclusion.csv`
+
+Closeout conclusion:
+
+- `v1_4_release_readiness = release_ready`
+- Representative model: `none`
+- SHAP: `deferred_not_justified`
+- Drift/anomaly models: `deferred`
+- Capability indices: `not_ready_no_specification_limits`
+- Allowed use: retrospective offline diagnostic framework
+
+Future improvement requires better data structure, especially equipment, lot,
+product, recipe, maintenance, quality-timestamp, specification-limit,
+rational-subgroup, and external-holdout information.

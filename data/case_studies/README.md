@@ -82,23 +82,29 @@ docs/MATERIALS_PROJECT_V1_3_PLAN.md
 
 ### `smart_factory/`
 
-Planned v1.4 contract-stage process-quality case study. This is not a
-completed Smart Factory implementation and does not include raw manufacturing
-data, model training, dashboards, or production-control claims.
+Representative process-quality case study using UCI SECOM as the operational
+fallback after the Bosch access gate was blocked. This is a trust-boundary
+case study, not a production Smart Factory model.
 
 This folder documents:
 
 - Process-quality field and policy contract
 - Leakage map for post-outcome, future-window, group/time split, and hidden
   proxy risks
-- Dataset candidate assessment links and readiness plan
+- Dataset candidate assessment and SECOM fallback provenance
+- Analysis-ready normalization, temporal integrity, and feature-quality audit
+- Time-aware classical classification baselines
+- Model eligibility, trust boundary, and closeout conclusion
 
 Key files:
 
 ```text
 data/case_studies/smart_factory/README.md
+data/case_studies/smart_factory/case_study.md
 data/case_studies/smart_factory/process_quality_contract_v1_4.json
 data/case_studies/smart_factory/leakage_map_v1_4.csv
+data/case_studies/smart_factory/classification_spec_v1_4.json
+data/case_studies/smart_factory/trust_spec_v1_4.json
 docs/SMART_FACTORY_V1_4_PLAN.md
 ```
 

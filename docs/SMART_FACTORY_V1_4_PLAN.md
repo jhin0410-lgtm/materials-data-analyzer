@@ -1,12 +1,14 @@
 # Smart Factory v1.4 Plan
 
-Status: active case-study track through v1.4.4.
+Status: complete through v1.4.5 trust-boundary closeout.
 
 This document defines the v1.4 Smart Factory Process Quality Case Study
 contract for `materials_data_analyzer`. v1.4.1 defined the contract, v1.4.2
 activated the UCI SECOM fallback after the Bosch access gate was blocked,
 v1.4.3 created the analysis-ready normalization and temporal/feature-quality
-audit, and v1.4.4 adds fixed classical time-aware classification baselines.
+audit, v1.4.4 added fixed classical time-aware classification baselines, and
+v1.4.5 closes the case study with model-eligibility, operational-boundary,
+claim-boundary, and release-readiness summaries.
 
 The v1.4.4 modeling step is limited to offline diagnostic classification
 baselines. It does not add deep learning, SHAP, causal interpretation,
@@ -347,6 +349,20 @@ Prohibited wording:
 
 v1.4.4 result: non-dummy models remain `diagnostic_only`; no representative
 production model is selected.
+
+### v1.4.5 Trust Boundary and Case-Study Closeout
+
+- Aggregate existing v1.4.4 compact outputs without fitting new models.
+- Record prevalence/dummy lift, temporal stability, random-temporal gap,
+  threshold viability, calibration boundary, SPC/capability status, and
+  allowed/prohibited claims.
+- Keep SHAP, drift modeling, anomaly modeling, control charts, and capability
+  indices deferred.
+- Document that the v1.4 case study is release-ready as a diagnostic
+  trust-boundary demonstration, not as a production model.
+
+v1.4.5 result: release readiness is `release_ready`; all non-dummy models
+remain `diagnostic_only`; representative model remains `none`.
 
 ### v1.4.5 SPC, Capability, Drift, and Anomaly Readiness
 

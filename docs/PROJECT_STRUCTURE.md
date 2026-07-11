@@ -47,8 +47,14 @@ calibrated uncertainty engines.
 
 `src/analyzers/process_quality_readiness.py` provides generic schema,
 timestamp, identifier, target, leakage, SPC, and group/time validation
-readiness checks for planned process-quality and Smart Factory case studies.
-It does not train models or call external systems.
+readiness checks for process-quality and Smart Factory case studies. It does
+not train models or call external systems.
+
+`src/analyzers/temporal_classification_validation.py` and
+`src/analyzers/classification_trust.py` provide fixed baseline time-aware
+classification validation and trust-boundary summaries. They are diagnostic
+utilities, not AutoML, SHAP, real-time monitoring, or production decision
+engines.
 
 ## Case Study Utilities
 
@@ -118,9 +124,13 @@ calibrated uncertainty, or production screening readiness. v1.4 is reserved for
 a Smart Factory Process Quality Case Study, and v1.5 is reserved for Generic
 Reliability Engineering.
 
-The v1.4 Smart Factory folder is currently a contract-stage planning artifact:
-dataset candidate assessment, process-quality contract, leakage map, and
-readiness framework. It is not a completed data loader or model workflow.
+The v1.4 Smart Factory case study is complete as a SECOM fallback
+process-quality trust-boundary demonstration: dataset candidate assessment,
+process-quality contract, leakage map, acquisition provenance, analysis-ready
+normalization, temporal integrity checks, feature-quality audit, fixed
+time-aware classification baselines, and conservative closeout. It does not
+claim production readiness, calibrated probability, causal root cause, or
+group-aware generalization.
 
 ## Generated Artifacts
 
@@ -140,6 +150,12 @@ error-structure summaries, claim-boundary summaries, and trust conclusions.
 Local-only artifacts include source/acquired CSVs, normalized CSVs,
 analysis-ready descriptor tables, full row-level screening results, row-level
 validation predictions, and row-level trust diagnostics.
+
+For Smart Factory v1.4, compact tracked artifacts include acquisition,
+readiness, feature-quality, temporal, classification-metric, eligibility,
+claim-boundary, and closeout summaries. Local-only artifacts include raw SECOM
+files, the SECOM analysis-ready CSV, row-level classification predictions, and
+`outputs/` diagnostics.
 
 ### v0.9 Virtual Experiment Outputs
 

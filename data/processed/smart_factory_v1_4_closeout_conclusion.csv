@@ -1,0 +1,7 @@
+field,value,evidence
+v1_4_release_readiness,release_ready,The case study is complete as a trust-boundary demonstration with weak/diagnostic modeling results preserved.
+representative_model,none,No model satisfies the predeclared trust gate.
+allowed_use,retrospective_offline_diagnostic_framework,Use results to demonstrate time-aware validation and trust-boundary reporting.
+not_allowed_use,production_decision_or_calibrated_failure_probability,"Evidence is insufficient for deployment, root-cause, or calibrated probability claims."
+future_data_requirements,equipment_lot_product_recipe_ids_spec_limits_more_failures_external_holdout,Additional data structure is more important than tuning current models.
+recommended_next_phase,v1_5_generic_reliability_or_v1_4_docs_closeout,"Avoid SHAP, drift models, or further tuning until stronger data support exists."

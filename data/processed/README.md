@@ -113,6 +113,12 @@ smart_factory_v1_4_random_temporal_gap.csv
 smart_factory_v1_4_threshold_summary.csv
 smart_factory_v1_4_error_structure_summary.csv
 smart_factory_v1_4_classification_conclusion.csv
+smart_factory_v1_4_model_eligibility.csv
+smart_factory_v1_4_temporal_stability_summary.csv
+smart_factory_v1_4_operational_boundary.csv
+smart_factory_v1_4_claim_boundary.csv
+smart_factory_v1_4_trust_summary.csv
+smart_factory_v1_4_closeout_conclusion.csv
 ```
 
 The local row-level analysis-ready and classification prediction tables are

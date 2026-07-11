@@ -138,10 +138,11 @@ def test_plan_marks_v1_4_as_active_case_study_with_claim_limits() -> None:
     text = PLAN_PATH.read_text(encoding="utf-8")
     normalized = " ".join(text.split())
 
-    assert "Status: active case-study track through v1.4.4." in text
+    assert "Status: complete through v1.4.5 trust-boundary closeout." in text
     assert "fixed classical time-aware classification baselines" in text
     assert "stratified random split as an optimistic reference only" in text
     assert "no representative production model is selected" in normalized
+    assert "representative model remains `none`" in text
 
 
 def test_readiness_module_does_not_import_network_clients() -> None:
