@@ -1,0 +1,23 @@
+check,value,status,note
+overall_readiness,conditioned_on_SECOM_fallback,conditionally_ready,"SECOM is usable for compact process-quality readiness and time-aware classification exploration, but lacks explicit equipment/lot/product groups and spec limits."
+row_count,1567,ready,UCI metadata states 1567 examples.
+feature_count,590,ready,Whitespace-separated SECOM process measurement matrix.
+target_availability,1567,ready,Pass/fail labels loaded from secom_labels.data.
+target_imbalance,pass=1463; fail=104,conditionally_ready,Failure class is small and must be reported in any future modeling.
+missingness,41951/924530,conditionally_ready,Missing feature values are expected in SECOM and must be handled train-only.
+timestamp_parseability,1567/1567,ready,Labels file provides date and time for the test point.
+timestamp_duplicate_count,65,conditionally_ready,Duplicate timestamps are counted in source order and retained for audit.
+source_order_timestamp_monotonicity,True,ready,Timestamp monotonicity is evaluated in original source row order without sorting before feature-label alignment.
+chronological_ordering,True,ready,Rows can be sorted by parsed timestamp before time-aware validation.
+explicit_group_ids,none,not_ready,"SECOM does not provide explicit equipment, lot, batch, product, or recipe IDs."
+derived_group_proxies,timestamp_blocks_only,conditionally_ready,"Time blocks may be used as drift proxies, not as equipment or lot IDs."
+delayed_quality_interpretation,same_test_point_timestamp,conditionally_ready,The timestamp belongs to the labeled test point; no separate quality measurement timestamp is available.
+duplicate_risk,0,ready,Synthetic sample_id is unique by row order.
+group_split_feasibility,no_explicit_groups,not_ready,Group-aware validation by lot/equipment/product is not supported by SECOM.
+time_split_feasibility,timestamp_available,conditionally_ready,Forward chronological split is possible after sorting by timestamp.
+combined_validation_feasibility,time_only_no_groups,not_ready,Combined future-group validation is not feasible without explicit groups.
+spc_readiness,numeric_features_and_timestamp,conditionally_ready,Individuals/moving-range style checks may be explored descriptively; rational subgroups are absent.
+capability_readiness,spec_limits_absent,not_ready,Cp/Cpk/Pp/Ppk must not be calculated without external specification limits.
+drift_readiness,timestamp_blocks_possible,conditionally_ready,Feature stability and drift proxies can be summarized by time block.
+anomaly_readiness,numeric_features_available,conditionally_ready,Transparent rule-based anomaly screening is possible; no anomaly model is trained here.
+generic_readiness_tables,"class_balance,delayed_target,duplicate_summary,forbidden_features,group_cardinality,identifier_coverage,missingness,required_columns,spc_readiness,specification_limits,target_availability,timestamp_parseability,validation_readiness",ready,Built with process_quality_readiness.py using dataset-specific config outside the generic module.

@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.4.2",
+  "retrieval_timestamp": "2026-07-11T03:37:44+00:00",
+  "bosch_gate": {
+    "candidate": "Bosch Production Line Performance",
+    "competition_slug": "bosch-production-line-performance",
+    "candidate_status": "conditional_primary_candidate",
+    "access_status": "blocked_pending_user_action",
+    "terms_status": "unresolved",
+    "redistribution_status": "unresolved",
+    "download_status": "not_attempted",
+    "file_inventory_status": "not_attempted",
+    "schema_status": "not_attempted",
+    "block_reason": "kaggle_credentials_missing",
+    "credential_values_logged": false
+  },
+  "fallback_activated": true,
+  "active_candidate": "uci_secom",
+  "source": {
+    "name": "SECOM",
+    "url": "https://archive.ics.uci.edu/dataset/179/secom",
+    "download_url": "https://archive.ics.uci.edu/static/public/179/secom.zip",
+    "doi": "10.24432/C54305",
+    "license": "CC BY 4.0",
+    "citation": "McCann, M. & Johnston, A. (2008). SECOM [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C54305."
+  },
+  "raw_files": [
+    {
+      "relative_path": "secom.data",
+      "file_name": "secom.data",
+      "size_bytes": 5389983,
+      "sha256": "20f0e7ee434f7dcbae0eea9ffff009a2b57f42d6b0dc9a5bd4f00782c0a3374c"
+    },
+    {
+      "relative_path": "secom_labels.data",
+      "file_name": "secom_labels.data",
+      "size_bytes": 40638,
+      "sha256": "126884cf453705c9e61a903fe906f0665a3b45ce3639e621edc5c93c89627e03"
+    },
+    {
+      "relative_path": "secom.names",
+      "file_name": "secom.names",
+      "size_bytes": 4223,
+      "sha256": "6d91b0b46cdee03064ee3e3112f937c1b3f7fcd9933575794ec07974e6f1ea59"
+    }
+  ],
+  "row_count": 1567,
+  "feature_count": 590,
+  "column_count": 595,
+  "target_column": "target_pass_fail",
+  "target_mapping": {
+    "-1": "pass -> target_pass_fail=0",
+    "1": "fail -> target_pass_fail=1"
+  },
+  "target_counts": {
+    "0": 1463,
+    "1": 104
+  },
+  "label_join_policy": "Join SECOM feature matrix and label/timestamp file by row order after verifying equal row counts.",
+  "timestamp_parse_policy": "Parse labels date and time columns with day-first format %d/%m/%Y %H:%M:%S.",
+  "timestamp_parseable_count": 1567,
+  "timestamp_duplicate_count": 65,
+  "source_order_timestamp_monotonic": true,
+  "schema_inventory_columns": [
+    "dataset",
+    "column_name",
+    "role",
+    "dtype",
+    "non_null_count",
+    "missing_count",
+    "missing_percent",
+    "unique_count",
+    "is_numeric"
+  ],
+  "readiness_result": "conditionally_ready",
+  "raw_data_policy": "Raw SECOM files remain local-only under data/raw/ and are not tracked.",
+  "secom_zip_downloaded_this_run": false,
+  "secom_zip_sha256": "eea568baf3c2229096d7d294cf0b096b5502bd96d92c0b80a65b84714059be8e"
+}

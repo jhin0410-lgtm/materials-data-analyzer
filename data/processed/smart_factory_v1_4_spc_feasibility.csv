@@ -1,0 +1,6 @@
+analysis,status,candidate_feature_count,note
+I-MR,conditional_stable_baseline_required,474,No chart is generated in v1.4.3; candidates are target-independent coverage/finite/non-constant features.
+X-bar/R,not_ready_no_rational_subgroup,0,SECOM has no explicit rational subgroup identifier.
+X-bar/S,not_ready_no_rational_subgroup,0,SECOM has no explicit rational subgroup identifier.
+p/np chart,conditional_chronological_aggregation_required,1,Only target counts by valid chronological intervals may be considered later.
+Cp/Cpk/Pp/Ppk,not_ready_no_specification_limits,0,No specification limits are available; capability indices must not be calculated.
