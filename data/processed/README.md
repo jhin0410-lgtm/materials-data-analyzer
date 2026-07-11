@@ -129,6 +129,30 @@ smart_factory_v1_4_secom_analysis_ready.csv
 smart_factory_v1_4_classification_predictions.csv
 ```
 
+## Reliability v1.5 Access-Gate Summaries
+
+Compact reproducibility artifacts for the Reliability v1.5 Backblaze bounded
+access gate include:
+
+```text
+reliability_v1_5_schema_inventory.csv
+reliability_v1_5_leakage_schema_audit.csv
+reliability_v1_5_readiness_summary.csv
+reliability_v1_5_task_feasibility.csv
+reliability_v1_5_asset_summary.csv
+reliability_v1_5_event_censoring_summary.csv
+reliability_v1_5_validation_feasibility.csv
+reliability_v1_5_acquisition_conclusion.csv
+```
+
+The raw Backblaze archive and any future row-level normalized trajectory table
+remain local-only by default:
+
+```text
+data/raw/reliability/backblaze_drive_stats/data_2013.zip
+reliability_v1_5_*_row_level.csv
+```
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.

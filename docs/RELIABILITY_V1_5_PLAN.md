@@ -1,6 +1,8 @@
 # Reliability v1.5 Plan
 
-Status: `contract_stage`.
+Status: `contract_stage`; v1.5.2 access gate is `access_gate_complete`
+and readiness is `conditionally_ready` for a future binary horizon failure-risk
+workflow.
 
 v1.5 starts a generic reliability/risk workflow for asset-level engineering
 data. It does not download data, train models, fit survival curves, or claim
@@ -98,6 +100,38 @@ Official or primary source pages used for candidate assessment include:
 Uncertain facts are explicitly retained: exact redistribution terms, current
 file inventory, and dataset-specific censoring definitions must be checked in
 an access gate before any primary dataset is promoted.
+
+## v1.5.2 Access Gate Result
+
+The v1.5.2 access gate used Backblaze Hard Drive Test Data as the active
+candidate and kept NASA C-MAPSS as the operational backup. The bounded source
+artifact is the official Backblaze `data_2013.zip` archive from the Backblaze
+Hard Drive Test Data page. The raw archive remains local-only under
+`data/raw/reliability/backblaze_drive_stats/` and is not tracked.
+
+Observed bounded audit results:
+
+- archive size: 80,983,520 bytes
+- ZIP member count: 535, including macOS metadata artifacts
+- selected CSV members for bounded readiness: 5
+- bounded sample rows: 96,838
+- bounded sample columns: 86
+- independent assets in bounded sample: 28,767
+- observed failure rows: 10
+- selected primary task for the next phase: `binary_horizon_failure`
+- overall readiness verdict: `conditionally_ready`
+
+Task boundaries:
+
+- `binary_horizon_failure`: `conditionally_ready`
+- `terminal_event_prediction`: `conditionally_ready`
+- `degradation_trajectory`: `conditionally_ready`
+- `survival_time_to_event`: `not_ready` until full follow-up and censoring are audited
+- `rul_regression`: `not_ready`
+- `recurrent_event_analysis`: `not_ready`
+
+This is still a readiness-stage result. It does not train a reliability model,
+fit survival curves, estimate RUL, or make production maintenance claims.
 
 ## Data Contract
 
@@ -233,10 +267,11 @@ structure, so it is not a reliability primary dataset.
 
 ## Non-Goals
 
-v1.5.1 does not do data download, API access, model training, survival model
-fitting, Weibull fitting, RUL regression, actual feature engineering,
-hyperparameter tuning, SHAP, causal maintenance analysis, dashboards, main
-merge, tag, or release.
+v1.5.1 did not do data download or API access. v1.5.2 performed only a bounded
+official-source access gate and schema/readiness audit. v1.5 still does not do
+model training, survival model fitting, Weibull fitting, RUL regression, actual
+prediction feature engineering, hyperparameter tuning, SHAP, causal
+maintenance analysis, dashboards, main merge, tag, or release.
 
 ## Stop Conditions
 
@@ -257,7 +292,8 @@ Future stages must stop or report `not_ready` when:
 ## Roadmap
 
 - v1.5.1: contract, candidate assessment, leakage map, and readiness scaffold.
-- v1.5.2: access gate for the selected primary candidate; no modeling.
+- v1.5.2: Backblaze access gate, bounded schema reconnaissance, and readiness
+  outputs; no modeling.
 - v1.5.3: normalization and event/censoring audit if the access gate passes.
 - v1.5.4: fixed baseline validation if readiness gates pass.
 - v1.5.5: model eligibility, trust-boundary report, and negative-result

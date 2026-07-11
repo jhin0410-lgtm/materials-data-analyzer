@@ -1,6 +1,7 @@
 # Reliability Case Study Planning
 
-Status: `contract_stage` for v1.5.1.
+Status: `contract_stage` for v1.5.1 and `access_gate_complete` /
+`readiness_stage` for v1.5.2.
 
 This folder defines the generic reliability/risk use-case boundary for future
 asset-level case studies. It does not contain downloaded reliability raw data,
@@ -36,7 +37,9 @@ trust-boundary reporting.
 - Degradation trajectory analysis: sensor, capacity, wear, or health-index
   trajectories using only past measurements.
 
-Only readiness and contract scaffolding are implemented in v1.5.1.
+Contract scaffolding was implemented in v1.5.1. v1.5.2 adds a bounded
+Backblaze access gate and compact readiness audit, but still does not train
+models or create a full normalized trajectory table.
 
 ## Dataset Candidate Decision
 
@@ -56,12 +59,33 @@ Current decision:
 
 The Backblaze drive data is the preferred next access-gate candidate because it
 has explicit asset identifiers, repeated observations, dates, condition
-variables, and observed failures. It is not downloaded in v1.5.1. Source terms,
-file inventory, redistribution scope, and censoring definitions must be
-verified in v1.5.2 before it can be promoted.
+variables, and observed failures. It was not downloaded in v1.5.1. v1.5.2
+verified bounded access and file structure for the 2013 archive, while full
+censoring and normalization remain future work.
 
 NASA C-MAPSS is retained as a benchmark backup for RUL methodology, but it is a
 simulation benchmark rather than real-world operational evidence.
+
+## v1.5.2 Access Gate and Readiness Result
+
+Backblaze remains the active candidate after the v1.5.2 bounded access gate.
+The script uses the official `data_2013.zip` archive, keeps the raw ZIP
+local-only under `data/raw/reliability/backblaze_drive_stats/`, lists archive
+members without full extraction, and reads five representative daily CSV
+members for schema/readiness reconnaissance.
+
+Compact observed results:
+
+- bounded sample rows: 96,838
+- bounded sample columns: 86
+- independent assets: 28,767
+- observed failure rows: 10
+- selected primary task: `binary_horizon_failure`
+- readiness verdict: `conditionally_ready`
+
+Survival, RUL regression, and recurrent event analysis remain `not_ready`.
+Censoring is interpreted conservatively as administrative last observation in
+the bounded sample, not as a completed operational survival audit.
 
 ## Contract and Leakage Map
 
@@ -73,6 +97,10 @@ simulation benchmark rather than real-world operational evidence.
   leakage patterns such as final cycle count, future degradation windows,
   full-lifetime normalization, random row splits mixing assets, and post-event
   maintenance actions.
+- [`acquisition_spec_v1_5.json`](acquisition_spec_v1_5.json) and
+  [`acquisition_manifest_v1_5.json`](acquisition_manifest_v1_5.json) record
+  the v1.5.2 Backblaze access gate, source metadata, SHA policy, local-only raw
+  archive policy, and compact readiness result.
 
 ## Relationship to Existing Case Studies
 
@@ -104,8 +132,8 @@ v1.5.1 does not perform:
 
 - v1.5.1: generic reliability contract, candidate assessment, leakage map, and
   readiness scaffold.
-- v1.5.2: dataset access gate for the selected primary candidate, with source
-  terms and file inventory only.
+- v1.5.2: dataset access gate for Backblaze, bounded schema reconnaissance,
+  leakage-schema audit, and compact readiness outputs.
 - v1.5.3: analysis-ready normalization and event/censoring audit.
 - v1.5.4: fixed baseline validation if the data passes readiness gates.
 - v1.5.5: trust-boundary closeout and conservative documentation.

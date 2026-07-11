@@ -58,8 +58,10 @@ engines.
 
 `src/analyzers/reliability_readiness.py` provides generic asset, event,
 censoring, temporal-order, validation-feasibility, and leakage-readiness checks
-for future reliability/risk case studies. It does not train models, fit
-survival curves, download data, or estimate RUL.
+for reliability/risk case studies. `src/connectors/reliability.py` and
+`src/loaders/reliability.py` support bounded source discovery and schema
+reconnaissance for v1.5 access gates. They do not train models, fit survival
+curves, or estimate RUL.
 
 ## Case Study Utilities
 
@@ -138,10 +140,10 @@ time-aware classification baselines, and conservative closeout. It does not
 claim production readiness, calibrated probability, causal root cause, or
 group-aware generalization.
 
-The v1.5 reliability/risk work is currently contract-stage planning. It defines
-asset-level reliability fields, event/censoring policy, leakage risks,
-validation hierarchy, metrics, candidate dataset assessment, and readiness
-scaffold boundaries for future case studies.
+The v1.5 reliability/risk work is currently at contract and access-gate
+readiness stage. It defines asset-level reliability fields, event/censoring
+policy, leakage risks, validation hierarchy, metrics, candidate dataset
+assessment, and bounded Backblaze schema/readiness outputs for future phases.
 
 ## Generated Artifacts
 

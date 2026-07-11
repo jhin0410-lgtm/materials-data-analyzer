@@ -200,8 +200,9 @@ The repository currently includes four representative real-data case studies:
 - Materials Project
 - Smart Factory / UCI SECOM
 
-It also includes a v1.5 contract-stage reliability/risk planning track for
-future asset-level datasets.
+It also includes a v1.5 reliability/risk planning track with a completed
+Backblaze bounded access gate and readiness audit for future asset-level
+datasets.
 
 These case studies demonstrate source-specific preparation and validation
 workflows. They are not the core product identity; the core project remains a
@@ -298,13 +299,14 @@ Case-study documents:
 - [`data/case_studies/smart_factory/case_study.md`](data/case_studies/smart_factory/case_study.md)
 - [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md)
 
-### Reliability / Risk Contract Stage
+### Reliability / Risk Access-Gate Stage
 
-The v1.5 reliability track is currently a contract-stage framework, not a
-completed case study. It defines asset-level event, censoring, leakage,
-validation, metric, and trust-boundary requirements for future public
-reliability datasets. It does not download data, train survival models, fit RUL
-regressors, or make production maintenance claims.
+The v1.5 reliability track is currently an access-gate and readiness-stage
+framework, not a completed modeling case study. It defines asset-level event,
+censoring, leakage, validation, metric, and trust-boundary requirements for
+future public reliability datasets. v1.5.2 uses a bounded Backblaze 2013 archive
+audit with compact tracked outputs and local-only raw data. It does not train
+survival models, fit RUL regressors, or make production maintenance claims.
 
 Planning documents:
 
@@ -402,8 +404,8 @@ outputs/{run_name}/reports/
 
 ### Later
 
-- v1.5 reliability/risk access gate and readiness audit after source terms and
-  file inventory are verified
+- v1.5 reliability/risk normalization and event/censoring audit after the
+  Backblaze access gate
 - Streamlit demo after CLI outputs and report structure are stable
 - More case studies using public engineering tabular datasets
 - Additional optional connectors where licensing and credentials are handled safely

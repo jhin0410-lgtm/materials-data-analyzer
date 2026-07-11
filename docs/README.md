@@ -21,7 +21,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Archive Data Audit](BATTERY_ARCHIVE_DATA_AUDIT.md): raw zip inventory and case-study feasibility review.
 - [Materials Project Data Audit](MATERIALS_PROJECT_DATA_AUDIT.md): local 50-row pilot audit, schema/quality follow-up, and descriptive screening notes.
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
-- [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, dataset candidate assessment, leakage map, validation hierarchy, and readiness scaffold.
+- [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, dataset candidate assessment, Backblaze access gate, leakage map, validation hierarchy, and readiness scaffold.
 - [Project Audit](audits/PROJECT_AUDIT.md): earlier project inventory.
 - [Commit Boundary Review](audits/COMMIT_BOUNDARY_REVIEW.md): guidance on what should and should not be committed.
 
@@ -39,7 +39,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Archive case study](../data/case_studies/battery_archive/): raw zip inventory, cycle-data normalization, quality metrics, threshold proxies, and reliability group summary.
 - [Materials Project case study](../data/case_studies/materials_project/): query contract, schema quality audit, descriptive computed-property screening, exact-provenance validation, and trust-boundary closeout.
 - [Smart Factory process-quality case study](../data/case_studies/smart_factory/): SECOM fallback provenance, readiness artifacts, time-aware classification baselines, and trust-boundary closeout.
-- [Reliability contract-stage planning](../data/case_studies/reliability/): asset-level reliability/risk contract, leakage map, and candidate dataset assessment for future work.
+- [Reliability access-gate planning](../data/case_studies/reliability/): asset-level reliability/risk contract, leakage map, candidate dataset assessment, and bounded Backblaze readiness audit for future work.
 
 ## Images
 

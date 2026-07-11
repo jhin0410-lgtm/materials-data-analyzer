@@ -1,0 +1,21 @@
+dataset_id,field_or_pattern,leakage_type,risk_level,observed_status,matched_columns,match_count,schema_leakage_status,allowed_as_feature,allowed_as_metadata,mitigation
+backblaze_drive_stats,post_failure_measurements,post-failure measurements,high,not_observed,,0,not_observed,False,True,Exclude from prediction-time features and retain only as outcome metadata
+backblaze_drive_stats,maintenance_action_after_diagnosis,maintenance action after diagnosis,high,not_observed,,0,not_observed,False,True,Use only maintenance actions known before prediction_origin
+backblaze_drive_stats,replacement_indicator,replacement indicator,high,not_observed,,0,not_observed,False,True,Treat as outcome or recurrent-event metadata unless known before origin
+backblaze_drive_stats,final_cycle_count,final cycle count,high,not_observed,,0,not_observed,False,True,Use only for target construction outside prediction-time feature table
+backblaze_drive_stats,future_degradation_windows,future degradation windows,high,not_observed,,0,not_observed,False,False,Build rolling windows with past-only observations
+backblaze_drive_stats,full_lifetime_normalization,full-lifetime normalization,high,not_observed,,0,not_observed,False,True,Fit normalization statistics on training history only
+backblaze_drive_stats,asset_maximum_cycle,asset maximum cycle,high,not_observed,,0,not_observed,False,True,Use as target construction metadata only
+backblaze_drive_stats,target_derived_health_index,target-derived health index,high,not_observed,,0,not_observed,False,True,Separate health index labels from prediction-time covariates
+backblaze_drive_stats,test_asset_statistics_in_preprocessing,test asset statistics in preprocessing,high,not_observed,,0,not_observed,False,False,Fit imputers scalers filters and smoothers on train assets only
+backblaze_drive_stats,random_row_split_mixing_same_asset,random row split mixing same asset,high,not_observed,,0,not_observed,False,True,Use grouped or asset-disjoint split for unseen-asset claims
+backblaze_drive_stats,future_observation_in_rolling_features,future observation in rolling features,high,not_observed,,0,not_observed,False,False,Use lagged/closed-left rolling windows only
+backblaze_drive_stats,failure_code_after_teardown,failure code assigned after teardown,high,not_observed,,0,not_observed,False,True,Use as target/failure_mode metadata only
+backblaze_drive_stats,censoring_timestamp_as_feature,censoring timestamp treated as known feature,medium,not_observed,,0,not_observed,False,True,Use for censoring definition and evaluation not model features
+backblaze_drive_stats,remaining_useful_life_label,remaining useful life derived using final event,high,not_observed,,0,not_observed,False,True,Construct target after split while excluding RUL from covariates
+backblaze_drive_stats,survivor_only_selection,survivor-only selection bias,medium,not_observed,,0,not_observed,False,True,Report inclusion rules and censoring distribution
+backblaze_drive_stats,repaired_asset_history_crossing_origin,repaired asset history crossing prediction origin,high,not_observed,,0,not_observed,False,True,Define clock reset or create new episode after replacement
+backblaze_drive_stats,duplicated_trajectories,duplicated trajectories,medium,not_observed,,0,not_observed,False,True,Detect duplicate asset/cycle trajectories before split
+backblaze_drive_stats,operating_regime_hidden_asset_identity,operating regime acting as hidden asset identity,medium,not_observed,,0,not_observed,True,True,Use regime holdout when claiming unseen regime generalization
+backblaze_drive_stats,globally_fitted_smoothing,globally fitted smoothing/filtering,high,not_observed,,0,not_observed,False,False,Fit filters on training partition and past windows only
+backblaze_drive_stats,future_sample_interpolation,interpolation using future samples,high,not_observed,,0,not_observed,False,False,Use forward-fill or past interpolation only
