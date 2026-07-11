@@ -566,3 +566,110 @@ Compact tracked-candidate artifacts:
 Next step: v1.3.5 should turn the acquisition, descriptor, identifiability, and
 validation artifacts into a final Materials Project validation report and
 closeout without adding new models or tuning.
+
+## v1.3.5 Trust Boundary and Closeout Follow-up
+
+Model trust-boundary diagnostics were implemented over the existing v1.3.4
+validation artifacts. No API/network call, data reacquisition, descriptor
+expansion, split regeneration, hyperparameter tuning, SHAP, feature-importance
+claim, deep learning, phase-diagram feature, active learning, or candidate
+recommendation was performed.
+
+Trust-boundary method:
+
+- source validation prediction rows: `24,795`
+- analysis-ready rows: `838`
+- primary composition-only descriptors: `60`
+- train/test membership reconstructed from existing prediction rows
+- preprocessing fit on each reconstructed train fold only
+- median imputation and StandardScaler-equivalent scaling used on train folds
+- descriptor-space metric: Euclidean distance after train-fold preprocessing
+- train reference: train-to-train nearest-neighbor distance with self-neighbor
+  excluded
+- fixed thresholds: in-domain at `<= p90`, boundary at `p90-p95`, and
+  out-of-domain at `> p95` of the train NN-distance distribution
+- target and prediction error were not used to set applicability thresholds
+
+Applicability-domain row counts across unique split/test rows:
+
+- in-domain: `3,868`
+- boundary: `555`
+- out-of-domain: `536`
+
+The distance diagnostic is a proxy only. It is not calibrated uncertainty and
+does not prove physical similarity. Across model variants, nearest-train
+distance and absolute error were weakly or inconsistently related. The median
+nearest-distance/absolute-error Spearman summary was `0.0905`, so the
+applicability diagnostic is retained as a screening flag rather than a reliable
+uncertainty measure.
+
+Model eligibility gate:
+
+- `ridge_raw`: `diagnostic_only`
+- `ridge_log1p`: `diagnostic_only`
+- `histogram_gradient_boosting_raw`: `diagnostic_only`
+- `histogram_gradient_boosting_log1p`: `diagnostic_only`
+
+No non-dummy model passed the conservative predictive interpretation gate. No
+representative model was selected. Model validity therefore precedes XAI:
+SHAP and physical feature-importance interpretation were deferred.
+
+Distance, novelty, and subgroup findings:
+
+- exact descriptor/formula novelty generally increased median error for the
+  tree baseline and dummy baseline, but not consistently for every model family
+- chemical-system-unseen rows generally had higher median error for tree
+  baselines, while Ridge behavior remained inconsistent
+- target extreme-tail rows had much larger median errors than near-zero or
+  middle target strata across all model variants
+- ambiguous formula behavior remained model-dependent and should be interpreted
+  alongside the v1.3.3 composition identifiability audit
+- theoretical=False and theoretical=True subgroup differences were not stable
+  enough to support a causal or physical claim
+
+Allowed claims:
+
+- exact provenance dataset was acquired and validated
+- composition-only descriptors were generated reproducibly
+- random split contains substantial descriptor/formula overlap
+- group-aware generalization is limited
+- structure-free composition representation has identifiable limitations
+- deterministic descriptive screening of observed Materials Project properties
+  remains valid
+
+Prohibited claims:
+
+- accurate prediction of `energy_above_hull`
+- reliable discovery of novel stable materials
+- DFT replacement
+- experimental synthesizability prediction
+- causal physical mechanism
+- robust unseen-chemical-system recommendation
+- calibrated uncertainty
+- production-ready screening model
+
+Generated local-only artifact:
+
+- `data/processed/materials_project_v1_3_trust_diagnostics.csv`
+
+Compact tracked-candidate artifacts:
+
+- `data/case_studies/materials_project/trust_spec_v1_3.json`
+- `data/processed/materials_project_v1_3_applicability_summary.csv`
+- `data/processed/materials_project_v1_3_error_structure_summary.csv`
+- `data/processed/materials_project_v1_3_claim_boundary.csv`
+- `data/processed/materials_project_v1_3_trust_conclusion.csv`
+
+Final v1.3 conclusion:
+
+v1.3 succeeded as a rigorous validation and trust-boundary case study.
+Composition-only prediction remained weak, group-aware generalization was
+limited, and no predictive novel-material recommendation is claimed. Observed
+property descriptive screening remains reproducible. Stronger prediction would
+require broader training coverage, structure information, calculation-context
+features, or a different modeling scope.
+
+Next phase: v1.4 should move to a Smart Factory Process Quality Case Study with
+manufacturing process data, equipment/lot/time structure, SPC/process
+capability, drift/anomaly diagnostics, defect/yield relationships, and offline
+smart-factory decision support.

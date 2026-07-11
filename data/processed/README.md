@@ -51,22 +51,44 @@ battery_archive_cycle_analysis_ready.csv
 
 ## Materials Project Case Study Summaries
 
-Compact reproducibility artifacts for the Materials Project v1.2 pilot include:
+Compact reproducibility artifacts for the Materials Project v1.2 pilot and
+v1.3 validation closeout include:
 
 ```text
 materials_project_query_manifest.json
 materials_project_property_inventory.csv
 materials_project_quality_summary.csv
 materials_project_screening_summary.csv
+materials_project_v1_3_acquisition_manifest.json
+materials_project_v1_3_acquisition_summary.csv
+materials_project_v1_3_descriptor_inventory.csv
+materials_project_v1_3_descriptor_redundancy_summary.csv
+materials_project_v1_3_composition_ambiguity_summary.csv
+materials_project_v1_3_target_suitability_summary.csv
+materials_project_v1_3_split_readiness_summary.csv
+materials_project_v1_3_group_inventory.csv
+materials_project_v1_3_validation_metrics.csv
+materials_project_v1_3_model_comparison_summary.csv
+materials_project_v1_3_split_diagnostics.csv
+materials_project_v1_3_screening_metrics_summary.csv
+materials_project_v1_3_applicability_summary.csv
+materials_project_v1_3_error_structure_summary.csv
+materials_project_v1_3_claim_boundary.csv
+materials_project_v1_3_trust_conclusion.csv
 ```
 
-The local source, normalized table, and full row-level screening results are
+The local source, normalized table, analysis-ready descriptor table, full
+row-level screening results, validation predictions, and trust diagnostics are
 local artifacts by default:
 
 ```text
 materials_project_fe_si.csv
 materials_project_normalized.csv
 materials_project_screening_results.csv
+materials_project_v1_3_acquired.csv
+materials_project_v1_3_analysis_ready.csv
+materials_project_v1_3_validation_predictions.csv
+materials_project_v1_3_trust_diagnostics.csv
 ```
 
 ## Policy

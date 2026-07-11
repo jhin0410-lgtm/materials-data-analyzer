@@ -249,19 +249,25 @@ included in the repository. Reproduction commands and source notes live in:
 
 ### Materials Project
 
-The Materials Project work is a compact pilot case study using a local 50-row
+The Materials Project work includes a compact 50-row descriptive screening
+pilot and a v1.3 exact-provenance validation case study over an 838-row
 Fe/Si-containing multinary calculated-property table. It demonstrates:
 
 - Reconstructed query, provenance, schema, and data-quality contracts
 - Conservative normalization and compact quality summaries
 - Deterministic calculated-property screening
 - Descriptive energy-above-hull ranking without ML prediction
-- A decision gate for closing the pilot versus running a broader
-  exact-provenance query later
+- 60 composition-only physical descriptors
+- Group-aware baseline validation by reduced formula and chemical system
+- Applicability-domain, error-structure, and claim-boundary diagnostics
+- Conservative release closeout with weak/limited predictive results preserved
 
 This case study does not claim novel materials discovery, direct DFT execution,
 synthesis feasibility, experimental validation, or generalizable model
-performance. Reproduction commands and interpretation notes live in:
+performance. The v1.3 conclusion is that composition-only prediction remained
+weak, group-aware generalization was limited, and observed-property descriptive
+screening remains reproducible. Reproduction commands and interpretation notes
+live in:
 
 - [`data/case_studies/materials_project/README.md`](data/case_studies/materials_project/README.md)
 - [`data/case_studies/materials_project/source.md`](data/case_studies/materials_project/source.md)
@@ -336,6 +342,12 @@ outputs/{run_name}/reports/
 
 - Query/provenance contract, schema normalization, quality audit, deterministic property screening, and pilot documentation are complete.
 - Broader exact-provenance querying, composition descriptors, ML property prediction, and group-aware validation remain future work.
+
+### v1.3 Complete: Materials Project Validation and Trust Boundary
+
+- Exact provenance acquisition, 838-row dataset validation, 60 composition-only descriptors, identifiability and ambiguity audit, group-aware baseline validation, applicability-domain diagnostics, claim-boundary summary, and conservative closeout are complete.
+- Composition-only prediction remained weak; no predictive novel-material recommendation, DFT replacement, calibrated uncertainty, or production-ready screening claim is made.
+- v1.4 is reserved for a Smart Factory Process Quality Case Study.
 
 ### Later
 

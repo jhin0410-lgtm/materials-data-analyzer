@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.3
+
+- Added exact-provenance Materials Project acquisition contracts and local artifact policy.
+- Added an 838-row Materials Project validation dataset workflow with source/provenance checks.
+- Added 60 composition-only descriptor generation, descriptor inventory, redundancy diagnostics, and composition ambiguity audit.
+- Added group-aware baseline validation across random, reduced-formula, and chemical-system split strategies.
+- Added local row-level validation predictions plus compact validation, split, model-comparison, and screening-metric summaries.
+- Added applicability-domain diagnostics based on train-fold descriptor-space nearest-neighbor distance.
+- Added error-structure summaries by domain distance, novelty, formula ambiguity, target stratum, and theoretical status.
+- Added claim-boundary and trust-conclusion summaries documenting that no model is eligible for predictive interpretation.
+- Deferred SHAP and physical feature-importance interpretation because model validity was not established.
+- Documented v1.3 as a rigorous validation case study with weak/limited predictive results preserved.
+
+This release does not claim accurate energy-above-hull prediction, novel stable
+material discovery, DFT replacement, experimental synthesizability prediction,
+calibrated uncertainty, production screening readiness, or robust unseen
+chemical-system recommendation.
+
 ## v1.2
 
 - Added the Materials Project pilot case study as a compact calculated-property screening demonstration.

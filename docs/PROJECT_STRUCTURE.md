@@ -39,6 +39,12 @@ These files support CSV loading, validation, EDA, process analysis, reliability 
 filtering and ranking for descriptive tabular screening workflows. It is not an
 ML model or virtual experiment predictor.
 
+`src/analyzers/grouped_regression_validation.py` and
+`src/analyzers/applicability_domain.py` provide generic validation and
+trust-boundary diagnostics used by the Materials Project case study. They are
+baseline diagnostic utilities, not AutoML, candidate recommendation, or
+calibrated uncertainty engines.
+
 ## Case Study Utilities
 
 Case-study utilities prepare public or external datasets for the core analyzer:
@@ -51,6 +57,8 @@ scripts/compare_simulation_runs.py
 scripts/build_materials_project_query_contract.py
 scripts/build_materials_project_normalized.py
 scripts/run_materials_project_screening.py
+scripts/run_materials_project_v1_3_validation.py
+scripts/run_materials_project_v1_3_trust_analysis.py
 ```
 
 These are not analyzer modes. They convert source-specific data into analyzer-ready tabular CSV files.
@@ -93,15 +101,16 @@ They document source data, processing steps, quality review, analysis-ready or
 series-level summaries, limitations, and next steps.
 
 The v1.2 Materials Project pilot is complete as a 50-row descriptive
-calculated-property screening case study. Broader exact-provenance querying,
-composition descriptors, ML property prediction, and group-aware validation
-remain future work; the repository structure remains frozen.
+calculated-property screening case study.
 
-The v1.3 Materials Project scope is limited to broader acquisition contracts,
-exact provenance, composition-derived feature planning, and group-aware
-validation design. It does not include dashboards, MES workflows, survival
-analysis, or reliability expansion. v1.4 is reserved for a Smart Factory Process
-Quality Case Study, and v1.5 is reserved for Generic Reliability Engineering.
+The v1.3 Materials Project validation case study is complete through exact
+provenance acquisition, 60 composition-only descriptors, identifiability and
+ambiguity audit, group-aware baseline validation, applicability-domain
+diagnostics, error-structure summaries, and conservative claim-boundary
+closeout. It does not claim novel-material recommendation, DFT replacement,
+calibrated uncertainty, or production screening readiness. v1.4 is reserved for
+a Smart Factory Process Quality Case Study, and v1.5 is reserved for Generic
+Reliability Engineering.
 
 ## Generated Artifacts
 
@@ -114,10 +123,13 @@ outputs/
 
 `data/processed/` may contain curated case-study summary tables. `outputs/` contains regenerable analyzer run outputs and should generally stay local. See [`OUTPUTS_POLICY.md`](OUTPUTS_POLICY.md) for the repository-level outputs policy.
 
-For Materials Project v1.2, compact tracked candidates include query manifests,
-property inventories, quality summaries, and screening summaries. Local-only
-artifacts include the source CSV, normalized CSV, and full row-level screening
-results.
+For Materials Project, compact tracked candidates include query manifests,
+property inventories, quality summaries, screening summaries, descriptor
+inventories, model-comparison summaries, applicability summaries,
+error-structure summaries, claim-boundary summaries, and trust conclusions.
+Local-only artifacts include source/acquired CSVs, normalized CSVs,
+analysis-ready descriptor tables, full row-level screening results, row-level
+validation predictions, and row-level trust diagnostics.
 
 ### v0.9 Virtual Experiment Outputs
 

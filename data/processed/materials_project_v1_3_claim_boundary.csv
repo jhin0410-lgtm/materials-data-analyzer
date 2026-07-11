@@ -1,0 +1,14 @@
+claim,status,evidence,limitation,allowed_wording
+exact provenance dataset was acquired and validated,allowed,v1.3 acquisition and provenance artifacts are present,Retrieval timestamp/API version limitations remain documented.,The exact-provenance dataset was acquired and validated for this case study.
+composition-only descriptors were generated reproducibly,allowed,60 primary descriptors are defined in the descriptor inventory,Descriptors omit crystal structure and calculation settings.,Composition-only descriptors were generated reproducibly.
+random split contains substantial descriptor/formula overlap,allowed,split diagnostics record overlap under random validation,"Overlap is interpolation context, not leakage proof by itself.",Random split results should be read as interpolation-like.
+group-aware generalization is limited,allowed,best group-aware median R2 observed: 0.0405,The conclusion is limited to this dataset and descriptor set.,Group-aware generalization was limited.
+deterministic descriptive screening of observed MP properties remains valid,allowed,v1.2 descriptive ranking uses observed calculated properties,This is not predictive screening of new materials.,Observed-property descriptive screening remains reproducible.
+accurate prediction of energy above hull,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
+reliable discovery of novel stable materials,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
+DFT replacement,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
+experimental synthesizability prediction,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
+causal physical mechanism,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
+robust unseen-chemical-system recommendation,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
+calibrated uncertainty,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
+production-ready screening model,prohibited,No eligible predictive model was found.,v1.3 is a validation and trust-boundary case study.,Do not claim this from v1.3 results.
