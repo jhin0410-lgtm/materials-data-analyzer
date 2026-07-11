@@ -349,6 +349,16 @@ outputs/{run_name}/reports/
 - Composition-only prediction remained weak; no predictive novel-material recommendation, DFT replacement, calibrated uncertainty, or production-ready screening claim is made.
 - v1.4 is reserved for a Smart Factory Process Quality Case Study.
 
+### v1.4 Planned: Smart Factory Process Quality Contract
+
+- v1.4.1 is a contract-stage plan for manufacturing process-quality datasets,
+  leakage boundaries, group/time validation, SPC/capability readiness, and
+  dataset candidate selection.
+- It does not download data, train models, add dashboards, or claim Smart
+  Factory completion.
+- See [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md) and
+  [`data/case_studies/smart_factory/`](data/case_studies/smart_factory/).
+
 ### Later
 
 - Streamlit demo after CLI outputs and report structure are stable

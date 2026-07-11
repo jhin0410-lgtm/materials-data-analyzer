@@ -1,0 +1,438 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.4.1-contract-stage",
+  "status": "planned_contract",
+  "business_question": "Can process anomalies, yield shifts, and defect risk be detected using process logs while preserving time, lot, equipment, and recipe structure for offline manufacturing decision support?",
+  "scope": {
+    "included": [
+      "process state monitoring",
+      "SPC and process capability readiness",
+      "equipment, line, lot, batch, product, recipe, and time-unit analysis",
+      "drift and anomaly screening",
+      "process-to-quality relationship analysis",
+      "offline defect or yield risk estimation",
+      "human review prioritization",
+      "limited what-if or virtual screening as a screening aid"
+    ],
+    "excluded": [
+      "real-time PLC control",
+      "automatic process control",
+      "causal root-cause proof",
+      "digital twin claims",
+      "physics simulation claims",
+      "production deployment claims",
+      "safety-critical control",
+      "automatic decisions without human review"
+    ]
+  },
+  "dataset_selection": {
+    "bosch_production_line_performance": {
+      "name": "Bosch Production Line Performance",
+      "selection_status": "conditional_primary_candidate",
+      "rationale": "Strong potential fit because public descriptions indicate production-line structure with numeric, categorical, and date-style manufacturing measurements plus a downstream failure target.",
+      "unverified_requirements": [
+        "actual access",
+        "competition terms",
+        "license and redistribution scope",
+        "file inventory",
+        "schema details"
+      ],
+      "not_confirmed": [
+        "active primary dataset",
+        "legally redistributable dataset",
+        "analysis-ready schema"
+      ]
+    },
+    "uci_secom": {
+      "name": "UCI SECOM",
+      "selection_status": "operational_backup_candidate",
+      "rationale": "Semiconductor manufacturing process measurements with timestamp and pass/fail label. It is smaller and has weaker equipment/lot structure than Bosch, but public license clarity is stronger."
+    },
+    "uci_ai4i_2020_predictive_maintenance": {
+      "name": "UCI AI4I 2020 Predictive Maintenance",
+      "selection_status": "synthetic_secondary_fixture",
+      "rationale": "Useful for readiness tests and synthetic process examples. It does not replace real-world validation evidence."
+    },
+    "tennessee_eastman_process_dataset": {
+      "name": "Tennessee Eastman process dataset",
+      "selection_status": "synthetic_secondary_fixture",
+      "rationale": "Useful for process-control, drift, anomaly, and SPC demonstrations. It does not replace real-world validation evidence."
+    },
+    "uci_steel_plates_faults": {
+      "name": "UCI Steel Plates Faults",
+      "selection_status": "rejected_for_primary",
+      "rationale": "Useful quality-classification data, but it lacks the time, equipment, lot, and process-log structure required for the v1.4 primary process-quality case."
+    },
+    "status_transition_policy": {
+      "promotion_path": [
+        "conditional_primary_candidate",
+        "access_verified",
+        "terms_verified",
+        "schema_verified",
+        "readiness_verified",
+        "active_primary"
+      ],
+      "promotion_rule": "Bosch can be promoted to active_primary only after v1.4.2 verifies access, competition terms, license/redistribution scope, file inventory, schema, and readiness gates.",
+      "failure_rule": "If access, terms, or schema verification fails, mark the candidate blocked or rejected and activate the SECOM fallback path.",
+      "fallback_candidate": "uci_secom"
+    }
+  },
+  "fields": {
+    "unit_of_analysis": {
+      "status": "required",
+      "definition": "One produced unit, inspected part, wafer, cycle, batch observation, or process observation that can be joined to process context and downstream quality.",
+      "candidate_columns": [
+        "unit_id",
+        "part_id",
+        "wafer_id",
+        "component_id",
+        "row_id"
+      ]
+    },
+    "prediction_horizon": {
+      "status": "required",
+      "definition": "The time or process step boundary between observable process data and downstream quality outcome.",
+      "allowed_values": [
+        "same_step_diagnostic",
+        "end_of_line_quality",
+        "next_inspection",
+        "future_batch_quality"
+      ]
+    },
+    "observation_timestamp": {
+      "status": "required",
+      "definition": "Timestamp or ordered run index available before the quality outcome.",
+      "candidate_columns": [
+        "timestamp",
+        "observation_time",
+        "process_time",
+        "date",
+        "run_order"
+      ]
+    },
+    "quality_measurement_timestamp": {
+      "status": "preferred",
+      "definition": "Timestamp when inspection, test, or quality measurement became available.",
+      "candidate_columns": [
+        "quality_timestamp",
+        "inspection_time",
+        "test_time",
+        "measurement_time"
+      ]
+    },
+    "equipment_id": {
+      "status": "preferred",
+      "definition": "Machine, station, chamber, tool, or equipment identifier.",
+      "candidate_columns": [
+        "equipment_id",
+        "machine_id",
+        "tool_id",
+        "station_id"
+      ]
+    },
+    "line_id": {
+      "status": "preferred",
+      "definition": "Production line or manufacturing route identifier.",
+      "candidate_columns": [
+        "line_id",
+        "production_line",
+        "route_id"
+      ]
+    },
+    "lot_id": {
+      "status": "preferred",
+      "definition": "Lot identifier for group-aware validation and leakage control.",
+      "candidate_columns": [
+        "lot_id",
+        "wafer_lot",
+        "batch_lot"
+      ]
+    },
+    "batch_id": {
+      "status": "preferred",
+      "definition": "Batch or campaign identifier.",
+      "candidate_columns": [
+        "batch_id",
+        "campaign_id"
+      ]
+    },
+    "product_id": {
+      "status": "preferred",
+      "definition": "Product, part number, material grade, or recipe family identifier.",
+      "candidate_columns": [
+        "product_id",
+        "part_number",
+        "material_grade",
+        "sku"
+      ]
+    },
+    "recipe_id": {
+      "status": "optional",
+      "definition": "Recipe, program, setpoint family, or process condition label.",
+      "candidate_columns": [
+        "recipe_id",
+        "program_id",
+        "setpoint_family"
+      ]
+    },
+    "operator_id": {
+      "status": "optional",
+      "definition": "Operator identifier. Use as metadata only unless privacy review and role policy allow analysis.",
+      "policy": "Do not use as a predictive feature by default. Avoid personal-data exposure in tracked artifacts."
+    }
+  },
+  "process_feature_families": [
+    {
+      "name": "numeric_sensor_measurements",
+      "status": "required",
+      "examples": [
+        "temperature",
+        "pressure",
+        "flow",
+        "vibration",
+        "voltage",
+        "current"
+      ]
+    },
+    {
+      "name": "process_settings",
+      "status": "preferred",
+      "examples": [
+        "setpoint",
+        "speed",
+        "dwell_time",
+        "recipe_parameter"
+      ]
+    },
+    {
+      "name": "environmental_context",
+      "status": "optional",
+      "examples": [
+        "ambient_temperature",
+        "humidity",
+        "cleanroom_zone"
+      ]
+    },
+    {
+      "name": "equipment_state",
+      "status": "preferred",
+      "examples": [
+        "station",
+        "machine_state",
+        "maintenance_period_flag"
+      ]
+    },
+    {
+      "name": "recipe_or_product_context",
+      "status": "preferred",
+      "examples": [
+        "recipe_id",
+        "product_id",
+        "material_grade"
+      ]
+    },
+    {
+      "name": "temporal_context",
+      "status": "preferred",
+      "examples": [
+        "timestamp",
+        "shift",
+        "run_order"
+      ]
+    }
+  ],
+  "quality_target_families": [
+    {
+      "name": "pass_fail",
+      "status": "required",
+      "definition": "Binary quality outcome such as pass, fail, defect, or machine failure."
+    },
+    {
+      "name": "defect_count_or_rate",
+      "status": "preferred",
+      "definition": "Count, rate, or proportion of nonconforming units."
+    },
+    {
+      "name": "yield",
+      "status": "preferred",
+      "definition": "Yield percentage or good-unit fraction."
+    },
+    {
+      "name": "continuous_quality_measurement",
+      "status": "preferred",
+      "definition": "Measured dimension, strength, purity, resistance, or other quality property."
+    },
+    {
+      "name": "rework_or_scrap",
+      "status": "optional",
+      "definition": "Post-inspection disposition; metadata only unless explicitly modeled as an outcome."
+    }
+  ],
+  "defect_yield_target_definitions": {
+    "defect_flag": {
+      "status": "required",
+      "definition": "1 when downstream inspection indicates defect or failure, 0 otherwise."
+    },
+    "yield_percent": {
+      "status": "preferred",
+      "definition": "Good units divided by total units times 100, using only observations whose denominator is known."
+    },
+    "defect_rate": {
+      "status": "preferred",
+      "definition": "Defect count divided by inspected count for a defined unit, lot, batch, or time window."
+    }
+  },
+  "policies": {
+    "censoring_delayed_quality": {
+      "status": "required",
+      "rule": "Rows without matured quality outcomes must be labeled as pending or censored rather than treated as pass."
+    },
+    "missingness": {
+      "status": "required",
+      "rule": "Report missingness by column and keep imputation train-only inside validation folds."
+    },
+    "duplicates": {
+      "status": "required",
+      "rule": "Report exact-row and key-based duplicates. Do not silently drop repeated measurements."
+    },
+    "outliers": {
+      "status": "preferred",
+      "rule": "Flag implausible values for review. Do not remove production excursions without documented criteria."
+    },
+    "temporal_ordering": {
+      "status": "required",
+      "rule": "Sort by observation time or stable run order before time-aware validation."
+    },
+    "group_split": {
+      "status": "required",
+      "rule": "Use lot, batch, equipment, product, or recipe groups when available. Random split is only an optimistic reference."
+    },
+    "time_split": {
+      "status": "required",
+      "rule": "Use forward chronological or blocked time splits for primary evidence when timestamps are present."
+    },
+    "leakage": {
+      "status": "required",
+      "rule": "Exclude post-outcome fields, future windows, target-derived aggregates, and identifiers that directly encode target timing."
+    },
+    "train_only_preprocessing": {
+      "status": "required",
+      "rule": "Fit scalers, imputers, encoders, target encoders, and thresholds on training folds only."
+    },
+    "privacy": {
+      "status": "required",
+      "rule": "Do not track credentials, operator personal data, private paths, or raw production exports."
+    }
+  },
+  "prohibited_features": {
+    "status": "required",
+    "columns_or_patterns": [
+      "final_disposition",
+      "inspection_result",
+      "rework_result",
+      "defect_code_after_inspection",
+      "future_*",
+      "*_post_quality",
+      "target_encoded_*",
+      "lot_quality_aggregate_using_all_rows"
+    ]
+  },
+  "spc_applicability_requirements": {
+    "individuals_moving_range": {
+      "status": "preferred",
+      "requirements": [
+        "ordered observations",
+        "numeric process or quality measurement",
+        "baseline period defined without future leakage"
+      ]
+    },
+    "xbar_r_or_xbar_s": {
+      "status": "optional",
+      "requirements": [
+        "rational subgroups",
+        "consistent subgroup size or documented handling"
+      ]
+    },
+    "p_np_c_u_charts": {
+      "status": "optional",
+      "requirements": [
+        "attribute defect count or defect rate",
+        "known inspected denominator where needed"
+      ]
+    },
+    "control_limit_policy": {
+      "status": "required",
+      "rule": "Control limits must be learned from baseline periods only and are distinct from engineering specification limits."
+    }
+  },
+  "process_capability_requirements": {
+    "cp_cpk_pp_ppk": {
+      "status": "optional",
+      "requirements": [
+        "externally provided lower or upper specification limits",
+        "stable-process assumption reviewed",
+        "non-normality limitation documented",
+        "subgroup definition documented when used"
+      ]
+    },
+    "specification_limit_policy": {
+      "status": "required",
+      "rule": "Do not invent specification limits for real datasets. Synthetic fixtures may define known limits explicitly."
+    }
+  },
+  "drift_requirements": {
+    "status": "preferred",
+    "requirements": [
+      "timestamp or run order",
+      "stable baseline window",
+      "process variable distributions by time block"
+    ]
+  },
+  "anomaly_requirements": {
+    "status": "preferred",
+    "requirements": [
+      "numeric process variables",
+      "baseline window",
+      "transparent threshold or rule-based flag"
+    ]
+  },
+  "data_provenance_requirements": {
+    "status": "required",
+    "requirements": [
+      "source name",
+      "source URL or citation",
+      "license or terms note",
+      "retrieval date when applicable",
+      "row count",
+      "column count",
+      "processing script or contract version"
+    ]
+  },
+  "allowed_claims": [
+    "offline process-quality readiness analysis",
+    "descriptive SPC and capability readiness review",
+    "candidate dataset assessment",
+    "screening aid for human review",
+    "validation protocol design"
+  ],
+  "prohibited_claims": [
+    "real-time control",
+    "automatic process adjustment",
+    "causal root-cause proof",
+    "digital twin",
+    "physics simulation",
+    "production deployment readiness",
+    "safety-critical decision automation"
+  ],
+  "stop_conditions": [
+    "No legally usable public source can be identified.",
+    "No process variables are available.",
+    "No downstream quality outcome is available.",
+    "No time or order field exists.",
+    "No meaningful group structure exists for validation.",
+    "Target is only available through leakage fields.",
+    "Dataset is too small for any group-aware or time-aware validation.",
+    "License or redistribution terms are ambiguous.",
+    "Process-quality unit of analysis cannot be identified."
+  ]
+}

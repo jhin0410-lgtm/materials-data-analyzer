@@ -12,6 +12,7 @@ This directory collects project references, specifications, audits, policies, ca
 
 - [v0.9 Virtual Experiment Screening Spec](V0_9_VIRTUAL_EXPERIMENT_SCREENING_SPEC.md): simulation-mode screening design and output contract.
 - [v1.1 Battery Archive Case Study Spec](V1_1_BATTERY_ARCHIVE_CASE_STUDY_SPEC.md): Battery Archive case-study ingestion plan and historical implementation guide.
+- [v1.4 Smart Factory Plan](SMART_FACTORY_V1_4_PLAN.md): contract-stage process-quality dataset assessment, leakage map, validation hierarchy, and readiness plan.
 
 ## Audit And Reference
 
@@ -36,6 +37,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Kaggle NASA battery case study](../data/case_studies/kaggle_battery/): metadata and raw-discharge feature workflow with simulation comparison.
 - [Battery Archive case study](../data/case_studies/battery_archive/): raw zip inventory, cycle-data normalization, quality metrics, threshold proxies, and reliability group summary.
 - [Materials Project case study](../data/case_studies/materials_project/): query contract, schema quality audit, descriptive computed-property screening, exact-provenance validation, and trust-boundary closeout.
+- [Smart Factory process-quality contract](../data/case_studies/smart_factory/): planned v1.4 contract-stage dataset selection, leakage boundaries, and readiness artifacts.
 
 ## Images
 

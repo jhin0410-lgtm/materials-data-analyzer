@@ -45,6 +45,11 @@ trust-boundary diagnostics used by the Materials Project case study. They are
 baseline diagnostic utilities, not AutoML, candidate recommendation, or
 calibrated uncertainty engines.
 
+`src/analyzers/process_quality_readiness.py` provides generic schema,
+timestamp, identifier, target, leakage, SPC, and group/time validation
+readiness checks for planned process-quality and Smart Factory case studies.
+It does not train models or call external systems.
+
 ## Case Study Utilities
 
 Case-study utilities prepare public or external datasets for the core analyzer:
@@ -95,6 +100,7 @@ The current representative real-data demonstrations are:
 data/case_studies/kaggle_battery/
 data/case_studies/battery_archive/
 data/case_studies/materials_project/
+data/case_studies/smart_factory/
 ```
 
 They document source data, processing steps, quality review, analysis-ready or
@@ -111,6 +117,10 @@ closeout. It does not claim novel-material recommendation, DFT replacement,
 calibrated uncertainty, or production screening readiness. v1.4 is reserved for
 a Smart Factory Process Quality Case Study, and v1.5 is reserved for Generic
 Reliability Engineering.
+
+The v1.4 Smart Factory folder is currently a contract-stage planning artifact:
+dataset candidate assessment, process-quality contract, leakage map, and
+readiness framework. It is not a completed data loader or model workflow.
 
 ## Generated Artifacts
 
