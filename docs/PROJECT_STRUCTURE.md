@@ -56,6 +56,11 @@ classification validation and trust-boundary summaries. They are diagnostic
 utilities, not AutoML, SHAP, real-time monitoring, or production decision
 engines.
 
+`src/analyzers/reliability_readiness.py` provides generic asset, event,
+censoring, temporal-order, validation-feasibility, and leakage-readiness checks
+for future reliability/risk case studies. It does not train models, fit
+survival curves, download data, or estimate RUL.
+
 ## Case Study Utilities
 
 Case-study utilities prepare public or external datasets for the core analyzer:
@@ -107,6 +112,7 @@ data/case_studies/kaggle_battery/
 data/case_studies/battery_archive/
 data/case_studies/materials_project/
 data/case_studies/smart_factory/
+data/case_studies/reliability/
 ```
 
 They document source data, processing steps, quality review, analysis-ready or
@@ -131,6 +137,11 @@ normalization, temporal integrity checks, feature-quality audit, fixed
 time-aware classification baselines, and conservative closeout. It does not
 claim production readiness, calibrated probability, causal root cause, or
 group-aware generalization.
+
+The v1.5 reliability/risk work is currently contract-stage planning. It defines
+asset-level reliability fields, event/censoring policy, leakage risks,
+validation hierarchy, metrics, candidate dataset assessment, and readiness
+scaffold boundaries for future case studies.
 
 ## Generated Artifacts
 

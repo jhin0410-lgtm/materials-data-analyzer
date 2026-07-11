@@ -1,0 +1,309 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.5.1-contract-stage",
+  "status": "contract_stage",
+  "business_question": "Can asset history and condition data available up to an observation cutoff be used to evaluate future failure risk or time-to-event while preserving censoring and temporal order?",
+  "primary_task": {
+    "name": "future_failure_risk_or_time_to_event_readiness",
+    "status": "planned",
+    "description": "Define whether a dataset can support horizon-risk, RUL, or survival-style reliability analysis without leaking future information."
+  },
+  "secondary_tasks": [
+    {
+      "name": "binary_failure_classification",
+      "status": "future_extension",
+      "description": "Failure within a fixed horizon."
+    },
+    {
+      "name": "remaining_useful_life_regression",
+      "status": "future_extension",
+      "description": "Remaining cycle or time target with strict separation of target construction and prediction-time features."
+    },
+    {
+      "name": "time_to_event_survival",
+      "status": "future_extension",
+      "description": "Event-time analysis with censoring-aware evaluation."
+    },
+    {
+      "name": "recurrent_event_analysis",
+      "status": "future_extension",
+      "description": "Repeated failures after maintenance or replacement, with explicit clock reset policy."
+    },
+    {
+      "name": "maintenance_decision_support",
+      "status": "future_extension",
+      "description": "Offline prioritization support only; no causal maintenance-effect claim."
+    },
+    {
+      "name": "degradation_trajectory_analysis",
+      "status": "future_extension",
+      "description": "Trajectory summaries that only use measurements available before the prediction origin."
+    }
+  ],
+  "unit_of_analysis": {
+    "name": "asset_observation",
+    "requirement": "required",
+    "description": "One row should represent an asset at an observation time or cycle."
+  },
+  "fields": {
+    "asset_id": {
+      "requirement": "required",
+      "description": "Stable identifier for an asset or unit under observation."
+    },
+    "component_id": {
+      "requirement": "preferred",
+      "description": "Component identifier when failures are component-specific."
+    },
+    "fleet_id": {
+      "requirement": "preferred",
+      "description": "Fleet, site, or operating population identifier for external or subgroup holdout."
+    },
+    "operating_regime": {
+      "requirement": "preferred",
+      "description": "Known operating condition or regime; may be metadata or validation group, not hidden asset identity."
+    },
+    "observation_timestamp": {
+      "requirement": "required",
+      "description": "Timestamp when covariates are observed, if the dataset is time-indexed."
+    },
+    "observation_cycle": {
+      "requirement": "preferred",
+      "description": "Cycle or usage counter when timestamp is absent or secondary."
+    },
+    "prediction_origin": {
+      "requirement": "required",
+      "description": "Cutoff time or cycle defining what is known to the model."
+    },
+    "prediction_horizon": {
+      "requirement": "preferred",
+      "description": "Future horizon for binary risk labels, such as 7 days, 30 days, or N cycles."
+    },
+    "event_timestamp": {
+      "requirement": "required",
+      "description": "Observed failure or terminal event time when available."
+    },
+    "event_indicator": {
+      "requirement": "required",
+      "description": "Binary event flag where 1 indicates observed event and 0 indicates no observed event at the relevant horizon or endpoint."
+    },
+    "censoring_type": {
+      "requirement": "preferred",
+      "description": "Right, interval, administrative, informative-risk, or other censoring category."
+    },
+    "censoring_timestamp": {
+      "requirement": "preferred",
+      "description": "Last observation or administrative end time for censored assets."
+    },
+    "failure_mode": {
+      "requirement": "preferred",
+      "description": "Failure mode or competing event class when known before analysis."
+    },
+    "maintenance_timestamp": {
+      "requirement": "preferred",
+      "description": "Inspection, repair, or replacement timestamp."
+    },
+    "maintenance_type": {
+      "requirement": "preferred",
+      "description": "Maintenance action type; post-diagnosis actions are not prediction-time features."
+    },
+    "repair_replacement_policy": {
+      "requirement": "preferred",
+      "description": "Defines whether repair resets the reliability clock, preserves age, or creates a new asset record."
+    }
+  },
+  "feature_families": {
+    "degradation_features": {
+      "requirement": "preferred",
+      "examples": [
+        "health index",
+        "wear signal",
+        "capacity",
+        "vibration summary",
+        "SMART attribute",
+        "temperature load"
+      ],
+      "policy": "Only values available at or before prediction_origin may be used."
+    },
+    "static_covariates": {
+      "requirement": "preferred",
+      "examples": [
+        "asset model",
+        "manufacture batch",
+        "site",
+        "installation condition"
+      ]
+    },
+    "dynamic_covariates": {
+      "requirement": "preferred",
+      "examples": [
+        "operating load",
+        "usage rate",
+        "environment",
+        "maintenance count to date"
+      ],
+      "policy": "Rolling features must be fit from past windows only."
+    }
+  },
+  "policies": {
+    "label_availability_time": {
+      "requirement": "required",
+      "policy": "Labels must be tied to an event or censoring time and not used as prediction-time features."
+    },
+    "delayed_outcome": {
+      "requirement": "required",
+      "policy": "Inspection or teardown labels assigned after diagnosis are outcomes or metadata, not features."
+    },
+    "duplicates": {
+      "requirement": "required",
+      "policy": "Exact duplicates and duplicated trajectories are reported; source rows are not silently dropped."
+    },
+    "missingness": {
+      "requirement": "required",
+      "policy": "Missingness is summarized by asset and time; preprocessing must be fit on training partitions only."
+    },
+    "outliers": {
+      "requirement": "preferred",
+      "policy": "Outliers are flagged, not deleted, unless a documented source-quality rule requires exclusion."
+    },
+    "temporal_ordering": {
+      "requirement": "required",
+      "policy": "Observation timestamps or cycles must be monotonic within asset for time-aware validation."
+    },
+    "asset_split": {
+      "requirement": "required",
+      "policy": "Asset-disjoint validation is primary evidence for unseen-asset generalization."
+    },
+    "time_split": {
+      "requirement": "required",
+      "policy": "Forward chronological validation is primary evidence for future prediction within known populations."
+    },
+    "combined_asset_time_validation": {
+      "requirement": "preferred",
+      "policy": "Combined future holdout on unseen assets is strongest evidence when feasible."
+    },
+    "train_only_preprocessing": {
+      "requirement": "required",
+      "policy": "Imputation, scaling, smoothing, filtering, feature selection, and normalization statistics must be fit on training data only."
+    },
+    "censoring_handling": {
+      "requirement": "required",
+      "policy": "Do not claim survival readiness unless event and censoring definitions are available and evaluation is censoring-aware."
+    },
+    "competing_risk": {
+      "requirement": "preferred",
+      "policy": "Distinct failure modes should not be collapsed without documenting claim scope."
+    },
+    "recurrent_event": {
+      "requirement": "preferred",
+      "policy": "Repeated events require explicit repair/replacement and clock reset semantics."
+    },
+    "privacy": {
+      "requirement": "required",
+      "policy": "Do not commit private maintenance logs, asset identifiers, or raw operational records unless explicitly public and redistributable."
+    }
+  },
+  "validation_hierarchy": {
+    "primary": [
+      "asset_disjoint_validation",
+      "chronological_validation",
+      "combined_asset_disjoint_future_validation"
+    ],
+    "secondary_reference": [
+      "random_row_split_as_prohibited_or_optimistic_illustration"
+    ],
+    "claim_scope": {
+      "within_known_asset_interpolation": "Only supported by within-asset temporal validation.",
+      "future_known_asset_prediction": "Requires forward validation with past-only features.",
+      "unseen_asset_generalization": "Requires asset-disjoint validation.",
+      "unseen_fleet_site_regime_generalization": "Requires explicit fleet, site, or regime holdout."
+    }
+  },
+  "metrics_contract": {
+    "binary_horizon_risk": [
+      "PR-AUC",
+      "ROC-AUC",
+      "Brier score",
+      "sensitivity",
+      "specificity",
+      "MCC",
+      "calibration diagnostics"
+    ],
+    "rul_regression": [
+      "MAE",
+      "RMSE",
+      "domain-justified asymmetric early/late penalty",
+      "error by life fraction",
+      "asset-level aggregation"
+    ],
+    "survival": [
+      "concordance index",
+      "integrated Brier score",
+      "time-dependent AUC",
+      "fixed-horizon calibration"
+    ],
+    "policy": "Metrics must match task and censoring structure; censored samples must not be ignored with ordinary regression metrics."
+  },
+  "model_status_vocabulary": [
+    "descriptive_only",
+    "diagnostic_only",
+    "limited_predictive_evidence",
+    "candidate_for_further_validation"
+  ],
+  "eligibility_dimensions": [
+    "baseline lift",
+    "temporal stability",
+    "asset-disjoint stability",
+    "final holdout behavior",
+    "censoring support",
+    "calibration weakness",
+    "subgroup support",
+    "external validation",
+    "threshold decision viability",
+    "data provenance",
+    "claim scope"
+  ],
+  "prohibited_features": [
+    "post-failure measurements",
+    "future degradation windows",
+    "full-lifetime normalization",
+    "asset maximum cycle",
+    "remaining useful life as prediction-time feature",
+    "failure code assigned after teardown",
+    "test asset statistics in preprocessing"
+  ],
+  "provenance_requirements": {
+    "source_url": "required",
+    "license_or_terms": "required",
+    "raw_file_inventory": "preferred",
+    "source_hashes": "preferred",
+    "download_timestamp": "preferred",
+    "redistribution_policy": "required"
+  },
+  "allowed_claims": [
+    "contract-stage reliability readiness assessment",
+    "dataset candidate comparison",
+    "leakage and censoring risk identification",
+    "offline reliability decision-support framing"
+  ],
+  "prohibited_claims": [
+    "production-ready maintenance schedule",
+    "guaranteed remaining useful life",
+    "calibrated operational probability without validation",
+    "causal maintenance effect",
+    "safety-critical control",
+    "digital twin",
+    "physical crack-growth simulation",
+    "regulatory certification"
+  ],
+  "stop_conditions": [
+    "no explicit asset identity",
+    "no repeated observations",
+    "no event or usable proxy",
+    "no timestamp or cycle order",
+    "label only constructible with unresolved leakage",
+    "too few independent assets",
+    "ambiguous license or redistribution terms",
+    "inaccessible source",
+    "primary task overlaps an existing battery case study without additional methodological value"
+  ]
+}
