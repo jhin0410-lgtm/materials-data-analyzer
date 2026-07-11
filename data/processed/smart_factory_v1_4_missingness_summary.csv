@@ -1,0 +1,15 @@
+section,metric,value,status,note
+dataset,dataset_wide_missing_rate,0.04537548808583821,descriptive,Feature-matrix missingness only.
+feature_missing_rate_distribution,complete,52.0,descriptive,Target-independent feature missingness bucket.
+feature_missing_rate_distribution,low_missing,486.0,descriptive,Target-independent feature missingness bucket.
+feature_missing_rate_distribution,moderate_missing,20.0,descriptive,Target-independent feature missingness bucket.
+feature_missing_rate_distribution,high_missing,4.0,descriptive,Target-independent feature missingness bucket.
+feature_missing_rate_distribution,very_high_missing,28.0,descriptive,Target-independent feature missingness bucket.
+row_missing_rate_threshold,rows_missing_rate_above_0.05,473.0,descriptive,Rows are retained in v1.4.3.
+row_missing_rate_threshold,rows_missing_rate_above_0.2,3.0,descriptive,Rows are retained in v1.4.3.
+row_missing_rate_threshold,rows_missing_rate_above_0.5,0.0,descriptive,Rows are retained in v1.4.3.
+row_missing_rate_threshold,rows_missing_rate_above_0.8,0.0,descriptive,Rows are retained in v1.4.3.
+temporal_missingness_change,monthly_missing_rate_min,0.037651668948585994,descriptive,Temporal missingness drift proxy.
+temporal_missingness_change,monthly_missing_rate_max,0.053260039700717667,descriptive,Temporal missingness drift proxy.
+failure_pass_subgroup_missingness,target_failure_0_mean_row_missing_rate,0.04553332483751753,descriptive_post_hoc,Do not use subgroup missingness as a feature-selection criterion.
+failure_pass_subgroup_missingness,target_failure_1_mean_row_missing_rate,0.043155149934810955,descriptive_post_hoc,Do not use subgroup missingness as a feature-selection criterion.

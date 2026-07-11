@@ -1,0 +1,10 @@
+metric,value,status
+row_count,1567,ready
+feature_count,590,ready
+target_failure_count,104,ready
+target_pass_count,1463,ready
+timestamp_parse_failure_count,0,ready
+source_sha_unchanged,True,ready
+analysis_ready_local_only,data/processed/smart_factory_v1_4_secom_analysis_ready.csv,local_only
+usable_feature_categories,436,descriptive
+conflicting_duplicate_feature_rows,0,ready

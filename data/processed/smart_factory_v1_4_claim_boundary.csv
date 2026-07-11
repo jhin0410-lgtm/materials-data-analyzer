@@ -1,0 +1,11 @@
+case_study_version,claim,status,evidence
+v1.4.5,offline retrospective diagnostic comparison,allowed,Chronological validation artifacts exist and use train-only preprocessing.
+v1.4.5,random split as optimistic reference,allowed,Random-reference rows are labeled secondary and not primary evidence.
+v1.4.5,no representative production model selected,allowed,No non-dummy model passes the predeclared candidate gate.
+v1.4.5,accurate failure prediction,prohibited,Temporal PR-AUC is close to prevalence and all non-dummy models remain diagnostic_only.
+v1.4.5,production-ready model,prohibited,The model-status vocabulary has no production_ready state.
+v1.4.5,calibrated probability,prohibited,No calibration model or independent calibration set is used.
+v1.4.5,causal root cause,prohibited,Features are anonymized and validation is predictive/diagnostic only.
+v1.4.5,equipment lot product generalization,prohibited,"SECOM lacks explicit equipment, lot, product, and recipe identifiers."
+v1.4.5,real-time monitoring solution,prohibited,The workflow is offline and retrospective.
+v1.4.5,process optimization achieved,prohibited,"No intervention, optimization, or causal evidence is present."

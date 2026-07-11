@@ -1,0 +1,12 @@
+field,value,evidence
+dataset,uci_secom,SECOM fallback is active; Bosch remains blocked pending user action.
+target_definition,target_failure_fail_1_pass_0,"Mapped from raw SECOM labels: -1 pass -> 0, 1 fail -> 1."
+primary_evidence,chronological_time_aware_validation,Primary temporal split count: 7.
+random_reference,optimistic_reference_only,Random split is secondary and must not be used as primary evidence.
+group_aware_evidence,not_available,"SECOM lacks explicit equipment, lot, product, or recipe identifiers."
+capability_analysis,not_ready,Specification limits are absent; Cp/Cpk/Pp/Ppk are not computed.
+representative_model_decision,none_selected,No model is promoted to production readiness; status is conservative.
+best_temporal_median_pr_auc,0.0724866,Primary metric is average precision / PR-AUC.
+allowed_claim,offline_time_aware_quality_risk_screening_diagnostic,Classical baselines can be compared under chronological holdout.
+prohibited_claim,production_ready_failure_prevention_or_root_cause,"No causal, equipment-specific, calibrated production, or real-time control claim is supported."
+calibration_claim,uncalibrated_score_only,Brier score is recorded as a diagnostic; calibrated probability claims are not made.

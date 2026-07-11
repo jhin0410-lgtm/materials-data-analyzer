@@ -1,0 +1,10 @@
+check,value,status,note
+exact_duplicate_full_feature_rows,0,ready,Compact integrity count; row-level diagnostics are local-only.
+duplicate_feature_rows_same_target,0,ready,Compact integrity count; row-level diagnostics are local-only.
+duplicate_feature_rows_conflicting_target,0,ready,Conflicting duplicate feature vectors should stop future modeling if nonzero.
+duplicate_timestamps,65,conditionally_ready,Equal timestamps are retained; source_order_index is the deterministic tie-breaker.
+duplicate_timestamp_feature_vector_rows,0,ready,Compact integrity count; row-level diagnostics are local-only.
+all_zero_rows,0,ready,Compact integrity count; row-level diagnostics are local-only.
+all_missing_rows,0,ready,Compact integrity count; row-level diagnostics are local-only.
+non_finite_values,0,ready,Compact integrity count; row-level diagnostics are local-only.
+source_order_chronological_inversions,0,ready,Computed in source row order before any chronological ranking.

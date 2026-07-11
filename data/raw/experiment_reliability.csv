@@ -1,9 +1,0 @@
-sample_id,chip_thickness_um,substrate_thickness_um,cte_substrate,thermal_cycle_count,resistance_change_percent,failed
-R1,180,550,12.1,1900,8.2,0
-R2,480,550,12.1,1200,25.4,1
-R3,180,980,16.5,1500,14.7,0
-R4,480,120,20.2,800,40.1,1
-R5,180,550,12.1,1948,6.8,0
-R6,480,980,16.5,950,35.2,1
-R7,180,120,20.2,1300,18.5,0
-R8,480,550,12.1,1100,28.7,1

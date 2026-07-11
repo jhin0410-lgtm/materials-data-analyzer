@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.4.5",
+  "input_artifacts": {
+    "classification_spec": "data/case_studies/smart_factory/classification_spec_v1_4.json",
+    "classification_metrics": "data/processed/smart_factory_v1_4_classification_metrics.csv",
+    "classification_split_diagnostics": "data/processed/smart_factory_v1_4_classification_split_diagnostics.csv",
+    "classification_model_summary": "data/processed/smart_factory_v1_4_classification_model_summary.csv",
+    "random_temporal_gap": "data/processed/smart_factory_v1_4_random_temporal_gap.csv",
+    "threshold_summary": "data/processed/smart_factory_v1_4_threshold_summary.csv",
+    "error_structure_summary": "data/processed/smart_factory_v1_4_error_structure_summary.csv",
+    "classification_conclusion": "data/processed/smart_factory_v1_4_classification_conclusion.csv",
+    "readiness_summary": "data/processed/smart_factory_v1_4_readiness_summary.csv",
+    "temporal_summary": "data/processed/smart_factory_v1_4_temporal_summary.csv",
+    "integrity_summary": "data/processed/smart_factory_v1_4_integrity_summary.csv"
+  },
+  "source_provenance_policy": "Read existing compact artifacts only, verify input SHA values before and after analysis, and do not rewrite source artifacts.",
+  "prevalence_baseline_policy": {
+    "row_count": 1567,
+    "failure_count": 104,
+    "baseline": "global failure prevalence from v1.4.3 analysis-ready summary"
+  },
+  "baseline_model_name": "dummy_prior",
+  "model_eligibility_rules": {
+    "allowed_statuses": [
+      "descriptive_only",
+      "diagnostic_only",
+      "limited_predictive_evidence",
+      "candidate_for_further_validation"
+    ],
+    "production_ready_status_exists": false,
+    "min_temporal_pr_auc_lift_over_prevalence": 0.05,
+    "min_final_pr_auc_lift_over_prevalence": 0.05,
+    "min_temporal_dummy_lift_fold_rate": 0.6,
+    "max_temporal_iqr_pr_auc": 0.08,
+    "max_random_temporal_pr_auc_gap": 0.05,
+    "min_threshold_recall": 0.2,
+    "min_threshold_precision": 0.05,
+    "min_supported_fold_count": 3,
+    "representative_model_policy": "Do not auto-select a representative model unless all predeclared candidate rules pass."
+  },
+  "temporal_stability_rules": {
+    "report_mean_median_min_max_std_iqr_cv": true,
+    "report_positive_lift_fold_count": true,
+    "final_holdout_not_sufficient_alone": true,
+    "small_prevalence_lift_caution": true
+  },
+  "random_temporal_interpretation_rules": {
+    "random_reference_is_primary": false,
+    "large_pr_auc_gap_threshold": 0.05,
+    "allowed_statuses": [
+      "random_consistent_with_temporal",
+      "random_optimistic",
+      "temporal_unstable",
+      "inconclusive"
+    ]
+  },
+  "threshold_rules": {
+    "default_threshold": 0.5,
+    "test_label_threshold_tuning": false,
+    "binary_failure_decision_allowed": false,
+    "production_alert_allowed": false
+  },
+  "calibration_boundary": {
+    "brier_score": "diagnostic_only",
+    "calibration_model": "not_used",
+    "calibrated_probability_claim": false,
+    "output_wording": "uncalibrated risk score"
+  },
+  "applicability_boundary": {
+    "allowed": [
+      "same SECOM dataset retrospective comparison",
+      "time-aware baseline evaluation",
+      "preprocessing and validation framework demonstration"
+    ],
+    "not_allowed": [
+      "unseen fab or line generalization",
+      "unseen lot or product generalization",
+      "real-time deployment",
+      "automated intervention",
+      "physical root cause identification",
+      "calibrated production probability"
+    ]
+  },
+  "data_boundary": {
+    "explicit_equipment_lot_product_recipe_ids": false,
+    "specification_limits": false,
+    "known_feature_semantics": false,
+    "independent_external_validation": false,
+    "failure_count": 104
+  },
+  "spc_capability_status": {
+    "i_mr": "conditional_exploratory_only",
+    "xbar_r": "not_ready_no_rational_subgroup",
+    "xbar_s": "not_ready_no_rational_subgroup",
+    "p_np": "conditional_chronological_aggregation_required",
+    "cp_cpk_pp_ppk": "not_ready_no_specification_limits"
+  },
+  "drift_anomaly_decision": {
+    "drift_model": "deferred",
+    "anomaly_model": "deferred"
+  },
+  "explainability_decision": {
+    "shap_status": "deferred_not_justified",
+    "coefficient_or_importance_causal_interpretation": "prohibited"
+  },
+  "allowed_claims": [
+    "offline retrospective diagnostic comparison",
+    "time-aware validation framework demonstration",
+    "random split is optimistic reference only",
+    "no representative production model selected"
+  ],
+  "prohibited_claims": [
+    "accurate failure prediction",
+    "production-ready model",
+    "real-time monitoring solution",
+    "causal root cause",
+    "fab-wide generalization",
+    "calibrated probability",
+    "process optimization achieved"
+  ],
+  "stop_conditions": [
+    "required input artifact missing",
+    "input artifact SHA changes during closeout",
+    "classification metrics fail to parse",
+    "representative model selected without satisfying rules",
+    "tracked output contains local absolute path or auth material"
+  ],
+  "local_output_paths": {},
+  "tracked_output_paths": {
+    "model_eligibility": "data/processed/smart_factory_v1_4_model_eligibility.csv",
+    "temporal_stability_summary": "data/processed/smart_factory_v1_4_temporal_stability_summary.csv",
+    "operational_boundary": "data/processed/smart_factory_v1_4_operational_boundary.csv",
+    "claim_boundary": "data/processed/smart_factory_v1_4_claim_boundary.csv",
+    "trust_summary": "data/processed/smart_factory_v1_4_trust_summary.csv",
+    "closeout_conclusion": "data/processed/smart_factory_v1_4_closeout_conclusion.csv"
+  }
+}

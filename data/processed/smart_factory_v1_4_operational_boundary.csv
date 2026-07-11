@@ -1,0 +1,15 @@
+case_study_version,boundary_type,model_name,predicted_positive_count_median,recall_median,precision_median,specificity_median,negative_predictive_value_median,f1_median,mcc_median,false_negative_count_median,false_positive_count_median,status,decision
+v1.4.5,fixed_threshold_0_5,dummy_prior,0.0,0.0,,1.0,0.945859872611465,,,17.0,0.0,risk_ranking_diagnostic_only,not_valid_for_binary_failure_decision_or_production_alert
+v1.4.5,fixed_threshold_0_5,hist_gradient_boosting_balanced,5.0,0.0,0.0,0.9770642201834864,0.9477124183006536,0.0799999999999999,-0.0242371075938353,16.0,5.0,risk_ranking_diagnostic_only,not_valid_for_binary_failure_decision_or_production_alert
+v1.4.5,fixed_threshold_0_5,logistic_regression_balanced,40.0,0.1764705882352941,0.0454545454545454,0.8675496688741722,0.952542372881356,0.1309523809523809,-0.028256629848308,14.0,40.0,risk_ranking_diagnostic_only,not_valid_for_binary_failure_decision_or_production_alert
+v1.4.5,fixed_threshold_0_5,random_forest_balanced,0.0,0.0,,1.0,0.945859872611465,,,17.0,0.0,risk_ranking_diagnostic_only,not_valid_for_binary_failure_decision_or_production_alert
+v1.4.5,calibration,all_models,,,,,,,,,,uncalibrated_score_only,No calibration model or independent calibration set is available; Brier/log-loss are diagnostic only.
+v1.4.5,applicability,all_models,,,,,,,,,,same_dataset_retrospective_only,"No equipment, lot, product, recipe, or external fab holdout supports broader generalization."
+v1.4.5,spc_i_mr,all_models,,,,,,,,,,conditional_exploratory_only,I-MR would require justified stable baseline selection; no chart is generated in v1.4.5.
+v1.4.5,xbar_r_or_xbar_s,all_models,,,,,,,,,,not_ready_no_rational_subgroup,SECOM lacks rational subgroup identifiers.
+v1.4.5,p_np,all_models,,,,,,,,,,conditional_chronological_aggregation_required,Aggregation would need a justified time unit and is not implemented here.
+v1.4.5,capability_indices,all_models,,,,,,,,,,not_ready_no_specification_limits,Cp/Cpk/Pp/Ppk are not computed because specification limits are absent.
+v1.4.5,drift_model,all_models,,,,,,,,,,deferred,"Temporal variation is observed, but predictive evidence and group semantics are insufficient for a drift model."
+v1.4.5,anomaly_model,all_models,,,,,,,,,,deferred,No anomaly model is added without stable baseline and operational context.
+v1.4.5,explainability,all_models,,,,,,,,,,shap_deferred_not_justified,No representative model exists and features are anonymized.
+v1.4.5,error_structure,all_models,,,,,,,,,,descriptive_summary_available,"Error structure can describe false positives/negatives by time and missingness, not root cause."

@@ -1,0 +1,14 @@
+metric,value,status,note
+timestamp_min,2008-07-19 11:55:00,ready,Minimum parsed timestamp.
+timestamp_max,2008-10-17 06:07:00,ready,Maximum parsed timestamp.
+timestamp_parse_failure_count,0,ready,Explicit day-first format parse failures.
+duplicate_timestamp_count,65,conditionally_ready,Equal timestamps use source order tie-break.
+source_order_monotonicity,True,ready,Evaluated before any chronological sorting.
+chronological_reorder_needed,False,ready,True means source order differs from chronological rank.
+min_time_gap_seconds,0.0,descriptive,Chronological adjacent gap.
+median_time_gap_seconds,2220.0,descriptive,Chronological adjacent gap.
+max_time_gap_seconds,175080.0,descriptive,Chronological adjacent gap.
+sample_density_by_day,periods=86; min=1; max=62,descriptive,Sample density by parsed timestamp period.
+sample_density_by_week,periods=14; min=13; max=208,descriptive,Sample density by parsed timestamp period.
+sample_density_by_month,periods=4; min=63; max=590,descriptive,Sample density by parsed timestamp period.
+target_prevalence_over_months,periods=4; fail_rate_min=0.028814; fail_rate_max=0.222222,descriptive_post_hoc,Target prevalence over time is descriptive and not a feature-selection rule.

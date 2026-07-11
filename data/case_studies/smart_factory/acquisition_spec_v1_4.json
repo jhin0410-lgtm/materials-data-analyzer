@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.4.2",
+  "candidate": "smart_factory_process_quality",
+  "source_type": "public_manufacturing_dataset",
+  "source_url": {
+    "bosch": "https://www.kaggle.com/competitions/bosch-production-line-performance",
+    "secom": "https://archive.ics.uci.edu/dataset/179/secom"
+  },
+  "access_method": {
+    "bosch": "kaggle_cli_metadata_only_if_authenticated",
+    "secom": "official_uci_static_zip_download"
+  },
+  "access_status": {
+    "bosch": "blocked_pending_user_action",
+    "secom": "downloaded"
+  },
+  "terms_status": {
+    "bosch": "unresolved",
+    "secom": "cc_by_4_0"
+  },
+  "redistribution_status": {
+    "bosch": "unresolved",
+    "secom": "tracked_artifacts_only_raw_local"
+  },
+  "retrieval_timestamp": "2026-07-11T03:37:44+00:00",
+  "expected_files": {
+    "bosch": [
+      "train_numeric.csv.zip",
+      "train_categorical.csv.zip",
+      "train_date.csv.zip",
+      "train_labels.csv.zip",
+      "test_numeric.csv.zip",
+      "test_categorical.csv.zip",
+      "test_date.csv.zip"
+    ],
+    "secom": [
+      "secom.data",
+      "secom_labels.data",
+      "secom.names"
+    ]
+  },
+  "observed_files": {
+    "bosch": [],
+    "secom": [
+      "secom.data",
+      "secom_labels.data",
+      "secom.names"
+    ]
+  },
+  "file_sizes": {
+    "bosch": "not_attempted",
+    "secom": "recorded_in_acquisition_manifest_v1_4_json"
+  },
+  "checksum_policy": "Compute SHA256 for local raw files and store only digests in tracked manifest.",
+  "raw_local_paths": [
+    "data/raw/smart_factory/secom/secom.data",
+    "data/raw/smart_factory/secom/secom_labels.data",
+    "data/raw/smart_factory/secom/secom.names"
+  ],
+  "tracked_manifest_paths": [
+    "data/case_studies/smart_factory/acquisition_manifest_v1_4.json",
+    "data/processed/smart_factory_v1_4_schema_inventory.csv",
+    "data/processed/smart_factory_v1_4_readiness_summary.csv"
+  ],
+  "fallback_policy": {
+    "fallback_activated": true,
+    "active_candidate": "uci_secom",
+    "rule": "If Bosch access, terms, or schema verification is blocked or unresolved, use UCI SECOM as the operational fallback."
+  },
+  "stop_conditions": [
+    "Kaggle authentication unavailable",
+    "competition rules not accepted",
+    "terms or redistribution unresolved",
+    "download volume exceeds practical local budget",
+    "target missing",
+    "ID and feature files cannot be aligned",
+    "timestamp cannot be interpreted",
+    "source checksum changes unexpectedly",
+    "SECOM feature and label row counts mismatch"
+  ],
+  "credential_policy": {
+    "store_credentials": false,
+    "log_credentials": false,
+    "tracked_artifacts_must_not_include": [
+      "KAGGLE_USERNAME",
+      "KAGGLE_KEY",
+      "kaggle.json",
+      "absolute local paths"
+    ]
+  }
+}

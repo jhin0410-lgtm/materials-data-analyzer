@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.4.3",
+  "dataset": "uci_secom",
+  "source_artifacts": {
+    "feature_matrix": "data/raw/smart_factory/secom/secom.data",
+    "label_timestamp_file": "data/raw/smart_factory/secom/secom_labels.data",
+    "source_notes": "data/raw/smart_factory/secom/secom.names",
+    "acquisition_manifest": "data/case_studies/smart_factory/acquisition_manifest_v1_4.json",
+    "acquisition_spec": "data/case_studies/smart_factory/acquisition_spec_v1_4.json"
+  },
+  "alignment_key": "row_position",
+  "row_order_preservation": {
+    "feature_sort_before_join": false,
+    "label_sort_before_join": false,
+    "sample_index_start": 0,
+    "source_order_column": "source_order_index",
+    "policy": "SECOM has no explicit sample ID. Feature rows and label rows are aligned only by original row order after verifying equal row counts."
+  },
+  "timestamp": {
+    "raw_column": "source_timestamp_raw",
+    "parsed_column": "observation_timestamp",
+    "raw_format_observed": "\"19/07/2008 11:55:00\"",
+    "parse_format": "%d/%m/%Y %H:%M:%S",
+    "dayfirst": true,
+    "equal_timestamp_ordering_policy": "Use source_order_index as deterministic tie-breaker.",
+    "chronological_rank_column": "chronological_rank"
+  },
+  "target_mapping": {
+    "-1": {
+      "label": "pass",
+      "target_failure": 0
+    },
+    "1": {
+      "label": "fail",
+      "target_failure": 1
+    }
+  },
+  "target_columns": {
+    "raw": "target_raw",
+    "mapped": "target_failure",
+    "compatibility_alias": "target_pass_fail"
+  },
+  "feature_naming": {
+    "prefix": "process_feature_",
+    "zero_padding": 3,
+    "source_column_index_policy": "Store the original zero-based source column index in feature-quality inventory."
+  },
+  "missing_value_interpretation": {
+    "raw_missing_token": "NaN",
+    "meaning": "Missing process measurement value from the source matrix.",
+    "imputation_policy": "No imputation in v1.4.3; any future imputation must be train-only within validation folds."
+  },
+  "duplicate_policy": {
+    "exact_feature_duplicates": "Report compact counts and keep source rows.",
+    "conflicting_target_duplicates": "Report count and stop before modeling if nonzero.",
+    "row_level_duplicate_diagnostics": "local_only"
+  },
+  "chronological_ordering_policy": {
+    "source_table_sorting": "do_not_sort_before_alignment",
+    "analysis_rank": "Compute chronological_rank after alignment using observation_timestamp then source_order_index.",
+    "primary_validation": "Only chronological or blocked time splits may be considered primary; random split is not primary evidence."
+  },
+  "feature_quality_thresholds": {
+    "complete_missing_rate_max": 0.0,
+    "low_missing_rate_max": 0.05,
+    "moderate_missing_rate_max": 0.2,
+    "high_missing_rate_max": 0.5,
+    "very_high_missing_rate_max": 1.0,
+    "near_constant_top_value_rate_min": 0.99,
+    "min_non_missing_for_spc_candidate": 30
+  },
+  "split_feasibility_thresholds": {
+    "min_train_rows": 100,
+    "min_test_rows": 50,
+    "min_train_failures": 5,
+    "min_test_failures": 5
+  },
+  "local_output_paths": {
+    "analysis_ready": "data/processed/smart_factory_v1_4_secom_analysis_ready.csv",
+    "row_level_duplicate_diagnostics": "outputs/smart_factory_v1_4_local/row_level_duplicate_diagnostics.csv"
+  },
+  "tracked_output_paths": {
+    "feature_quality_inventory": "data/processed/smart_factory_v1_4_feature_quality_inventory.csv",
+    "integrity_summary": "data/processed/smart_factory_v1_4_integrity_summary.csv",
+    "missingness_summary": "data/processed/smart_factory_v1_4_missingness_summary.csv",
+    "temporal_summary": "data/processed/smart_factory_v1_4_temporal_summary.csv",
+    "split_feasibility": "data/processed/smart_factory_v1_4_split_feasibility.csv",
+    "spc_feasibility": "data/processed/smart_factory_v1_4_spc_feasibility.csv",
+    "analysis_ready_summary": "data/processed/smart_factory_v1_4_analysis_ready_summary.csv"
+  },
+  "leakage_policy": {
+    "target_association_feature_selection": "not_allowed_in_v1_4_3",
+    "failure_pass_missingness": "descriptive_post_hoc_only",
+    "random_split": "optimistic_reference_only_not_primary_validation"
+  },
+  "stop_conditions": [
+    "Feature and label row counts mismatch.",
+    "Unexpected raw target value outside {-1, 1}.",
+    "Timestamp parse ambiguity or parse failure cannot be resolved with the explicit day-first format.",
+    "Source file SHA256 changes before/after processing.",
+    "Row alignment cannot be proven.",
+    "Raw source file is overwritten.",
+    "Tracked output includes credentials or absolute local paths."
+  ],
+  "limitations": [
+    "SECOM lacks explicit equipment, lot, product, and recipe identifiers.",
+    "SECOM has no specification limits, so Cp/Cpk/Pp/Ppk are not ready.",
+    "Timestamps are test-point timestamps and may not represent complete longitudinal equipment history.",
+    "Failure/pass subgroup missingness summaries are descriptive and must not be used as feature selection criteria."
+  ]
+}
