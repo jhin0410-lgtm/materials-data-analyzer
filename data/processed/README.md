@@ -178,6 +178,20 @@ reliability_v1_5_error_structure_summary.csv
 reliability_v1_5_classification_conclusion.csv
 ```
 
+Compact reproducibility artifacts for the v1.5.5 trust-boundary closeout
+include:
+
+```text
+reliability_v1_5_model_eligibility.csv
+reliability_v1_5_validation_stability_summary.csv
+reliability_v1_5_weighting_dependency_summary.csv
+reliability_v1_5_resource_boundary.csv
+reliability_v1_5_operational_boundary.csv
+reliability_v1_5_claim_boundary.csv
+reliability_v1_5_trust_summary.csv
+reliability_v1_5_closeout_conclusion.csv
+```
+
 The raw Backblaze archive, large row-level normalized trajectory tables, local
 7-day feature dataset, and row-level prediction diagnostics remain local-only
 by default:

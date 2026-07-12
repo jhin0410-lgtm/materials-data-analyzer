@@ -110,13 +110,13 @@ docs/SMART_FACTORY_V1_4_PLAN.md
 
 ### `reliability/`
 
-Contract-stage planning and readiness auditing for future asset-level
-reliability/risk case studies. This folder does not contain downloaded raw data
-or trained models. It defines the reliability problem taxonomy, dataset
-candidate assessment, data contract, leakage map, validation hierarchy,
+Representative asset-level reliability/risk case study using Backblaze Hard
+Drive Test Data 2013. This folder does not contain downloaded raw data or
+trained production models. It defines the reliability problem taxonomy,
+dataset candidate assessment, data contract, leakage map, validation hierarchy,
 censoring policy, Backblaze access gate, full-year normalization readiness
-audit, fixed 7-day diagnostic classification baselines, and scaffold for
-future work.
+audit, fixed 7-day diagnostic classification baselines, and trust-boundary
+closeout.
 
 Key files:
 
@@ -130,6 +130,8 @@ data/case_studies/reliability/acquisition_manifest_v1_5.json
 data/case_studies/reliability/normalization_spec_v1_5.json
 data/case_studies/reliability/full_year_manifest_v1_5.json
 data/case_studies/reliability/classification_spec_v1_5.json
+data/case_studies/reliability/trust_spec_v1_5.json
+data/case_studies/reliability/case_study.md
 docs/RELIABILITY_V1_5_PLAN.md
 ```
 

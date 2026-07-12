@@ -149,14 +149,15 @@ def test_candidate_assessment_keeps_uncertain_facts_explicit() -> None:
     assert "synthetic simulation benchmark" in set(candidates["real_vs_synthetic"])
 
 
-def test_docs_mark_v1_5_as_contract_stage_not_completed_case_study() -> None:
+def test_docs_mark_v1_5_as_trust_boundary_complete_case_study() -> None:
     plan = PLAN_PATH.read_text(encoding="utf-8")
     readme = README_PATH.read_text(encoding="utf-8")
 
-    assert "Status: `contract_stage`" in plan
-    assert "Status: `contract_stage`" in readme
+    assert "Status: `trust_boundary_complete`" in plan
+    assert "Status: `trust_boundary_complete`" in readme
     assert "tracked repository does not contain raw downloads" in plan.lower()
     assert "does not contain downloaded raw data" in readme
+    assert "representative model" in plan
     assert "Backblaze" in plan
     assert "NASA C-MAPSS" in plan
 

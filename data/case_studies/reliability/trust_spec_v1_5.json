@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.5.5",
+  "status": "trust_boundary_closeout",
+  "input_artifacts": {
+    "classification_spec": "data/case_studies/reliability/classification_spec_v1_5.json",
+    "classification_metrics": "data/processed/reliability_v1_5_classification_metrics.csv",
+    "classification_split_diagnostics": "data/processed/reliability_v1_5_classification_split_diagnostics.csv",
+    "classification_model_summary": "data/processed/reliability_v1_5_classification_model_summary.csv",
+    "asset_time_gap_summary": "data/processed/reliability_v1_5_asset_time_gap_summary.csv",
+    "top_risk_summary": "data/processed/reliability_v1_5_top_risk_summary.csv",
+    "threshold_summary": "data/processed/reliability_v1_5_threshold_summary.csv",
+    "error_structure_summary": "data/processed/reliability_v1_5_error_structure_summary.csv",
+    "classification_conclusion": "data/processed/reliability_v1_5_classification_conclusion.csv",
+    "full_readiness_summary": "data/processed/reliability_v1_5_full_readiness_summary.csv",
+    "event_integrity_summary": "data/processed/reliability_v1_5_event_integrity_summary.csv",
+    "censoring_summary": "data/processed/reliability_v1_5_censoring_summary.csv",
+    "split_feasibility": "data/processed/reliability_v1_5_split_feasibility.csv"
+  },
+  "source_provenance": {
+    "dataset": "Backblaze Hard Drive Test Data 2013",
+    "raw_archive": "data/raw/reliability/backblaze_drive_stats/data_2013.zip",
+    "raw_archive_sha256": "7f5a53e79b16e695b4b034955806bb3bb194534b169f6eca460dfd3dc48096fe",
+    "raw_archive_is_local_only": true,
+    "row_level_prediction_file_is_local_only": true
+  },
+  "task": {
+    "name": "binary_horizon_failure",
+    "target": "target_failure_within_7d",
+    "horizon_days": 7,
+    "lookback_days": 7,
+    "prediction_origin": "asset observation_date",
+    "scope": "retrospective offline failure-risk ranking diagnostic"
+  },
+  "baseline_model_name": "dummy_prior",
+  "prevalence_baseline_policy": {
+    "eligible_origins": 4892482,
+    "positive_rows": 4797,
+    "positive_assets": 706,
+    "total_assets": 29072,
+    "record_absolute_lift": true,
+    "record_ratio_lift": true,
+    "ratio_lift_warning": "Low prevalence can produce large lift ratios; absolute precision and false-positive burden must be reported."
+  },
+  "model_eligibility_rules": {
+    "allowed_statuses": [
+      "descriptive_only",
+      "diagnostic_only",
+      "limited_predictive_evidence",
+      "candidate_for_further_validation",
+      "resource_limited",
+      "not_run"
+    ],
+    "production_ready_status_exists": false,
+    "min_candidate_combined_lift_over_prevalence": 0.02,
+    "min_candidate_top_1_lift": 5.0,
+    "min_candidate_top_1_failed_asset_capture": 0.2,
+    "representative_model_minimum_rules": [
+      "combined validation lift is stable",
+      "asset-disjoint and time-aware evidence both improve over dummy",
+      "resource-limited training is not the only evidence",
+      "raw-row weighting is not the only strong result",
+      "fixed threshold does not collapse into excessive false-positive burden",
+      "calibration weakness is bounded",
+      "external validation need is explicit"
+    ],
+    "resource_limited_results_only_policy": "do_not_select_representative_model",
+    "random_row_policy": "optimistic_reference_only_not_primary_evidence"
+  },
+  "repeated_origin_boundary": {
+    "same_asset_daily_origins_are_independent_samples": false,
+    "compare_asset_balanced_and_raw_row_weighting": true,
+    "interpretation": "Raw-row gains may reflect long-lived asset dominance or adjacent-origin correlation."
+  },
+  "top_risk_interpretation": {
+    "reference_fraction": 0.01,
+    "allowed_language": [
+      "retrospective ranking concentration",
+      "offline inspection-priority diagnostic",
+      "candidate screening signal"
+    ],
+    "prohibited_language": [
+      "84.6 percent prediction success",
+      "7 percent failure probability",
+      "production alert threshold",
+      "maintenance recommendation"
+    ]
+  },
+  "threshold_boundary": {
+    "fixed_threshold": 0.5,
+    "test_label_threshold_tuning": "prohibited",
+    "status_options": [
+      "ranking_only",
+      "diagnostic_binary_only",
+      "operationally_unusable",
+      "insufficient_evidence"
+    ]
+  },
+  "calibration_boundary": {
+    "calibration_model_fit": false,
+    "independent_calibration_set": false,
+    "allowed_score_language": "uncalibrated relative risk score",
+    "prohibited_claim": "calibrated failure probability"
+  },
+  "applicability_boundary": {
+    "allowed_scope": [
+      "Backblaze 2013 archive",
+      "retrospective analysis with this schema",
+      "asset/time-aware validation framework demonstration"
+    ],
+    "not_supported": [
+      "2014+ generalization",
+      "other companies",
+      "other data centers",
+      "new drive populations",
+      "maintenance intervention effects",
+      "survival probability",
+      "RUL",
+      "replacement optimization"
+    ]
+  },
+  "event_censoring_boundary": {
+    "failure_indicator_interpretation": "observed terminal-event candidate",
+    "post_failure_anomaly_assets": 7,
+    "failure_assets_without_prior_history": 6,
+    "non_failure_exit_reason": "unknown",
+    "survival_model_status": "deferred_not_ready",
+    "rul_model_status": "deferred_not_ready",
+    "recurrent_event_model_status": "not_ready"
+  },
+  "explainability_decision": {
+    "shap_status": "deferred_not_justified",
+    "reasons": [
+      "representative model is not selected",
+      "model and weighting dependence remain",
+      "non-dummy configurations are resource-limited",
+      "SMART semantics are insufficient for causal interpretation"
+    ]
+  },
+  "tracked_outputs": {
+    "model_eligibility": "data/processed/reliability_v1_5_model_eligibility.csv",
+    "validation_stability_summary": "data/processed/reliability_v1_5_validation_stability_summary.csv",
+    "weighting_dependency_summary": "data/processed/reliability_v1_5_weighting_dependency_summary.csv",
+    "resource_boundary": "data/processed/reliability_v1_5_resource_boundary.csv",
+    "operational_boundary": "data/processed/reliability_v1_5_operational_boundary.csv",
+    "claim_boundary": "data/processed/reliability_v1_5_claim_boundary.csv",
+    "trust_summary": "data/processed/reliability_v1_5_trust_summary.csv",
+    "closeout_conclusion": "data/processed/reliability_v1_5_closeout_conclusion.csv"
+  },
+  "local_outputs": {
+    "classification_predictions": "data/processed/reliability_v1_5_classification_predictions.csv",
+    "feature_dataset": "data/processed/reliability_v1_5_horizon_7d_lookback_7d_dataset.csv",
+    "raw_archive": "data/raw/reliability/backblaze_drive_stats/data_2013.zip"
+  },
+  "allowed_claims": [
+    "retrospective offline failure-risk ranking",
+    "asset/time-aware validation framework demonstration",
+    "top-risk diagnostic concentration with false-positive burden disclosed",
+    "trust-boundary case study"
+  ],
+  "prohibited_claims": [
+    "production-ready failure prediction",
+    "calibrated 7-day failure probability",
+    "maintenance automation",
+    "root-cause discovery",
+    "survival probability",
+    "RUL estimate",
+    "SHAP-based cause explanation",
+    "generalization beyond Backblaze 2013"
+  ],
+  "stop_conditions": [
+    "missing v1.5.4 compact artifact",
+    "source SHA mismatch",
+    "representative model is not none_selected",
+    "tracked output contains raw serial number",
+    "tracked output contains credential or absolute path",
+    "model retraining attempted"
+  ]
+}

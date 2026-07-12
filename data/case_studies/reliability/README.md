@@ -1,12 +1,11 @@
 # Reliability Case Study Planning
 
-Status: `contract_stage` for v1.5.1, `access_gate_complete` for v1.5.2,
-and `full_year_readiness_stage` for v1.5.3.
+Status: `trust_boundary_complete` through v1.5.5.
 
-This folder defines the generic reliability/risk use-case boundary for future
-asset-level case studies. It does not contain downloaded reliability raw data,
-trained models, survival estimates, RUL predictions, or production maintenance
-recommendations.
+This folder defines the generic reliability/risk use-case boundary and the
+Backblaze 2013 trust-boundary case study. It does not contain downloaded
+reliability raw data, survival estimates, RUL predictions, calibrated
+operational probabilities, or production maintenance recommendations.
 
 In short, this folder does not contain downloaded raw data.
 
@@ -38,9 +37,10 @@ trust-boundary reporting.
   trajectories using only past measurements.
 
 Contract scaffolding was implemented in v1.5.1. v1.5.2 added a bounded
-Backblaze access gate and compact readiness audit. v1.5.3 adds full-year
-streaming normalization and event/censoring readiness reassessment, but still
-does not train models.
+Backblaze access gate and compact readiness audit. v1.5.3 added full-year
+streaming normalization and event/censoring readiness reassessment. v1.5.4
+added fixed 7-day diagnostic classification baselines. v1.5.5 closes the case
+study with model eligibility and trust-boundary reporting.
 
 ## Dataset Candidate Decision
 
@@ -150,12 +150,37 @@ Compact observed results:
 - valid metric rows: 64
 - best primary median PR-AUC: 0.0998
 - best combined asset/time PR-AUC: 0.1119
-- best combined 1% top-risk failed-asset capture: 84.6%
+- reference combined top 1% precision / lift / failed-asset capture:
+  0.0703 / 62.9x / 0.846
 - representative model: `none_selected`
 
 The result is a diagnostic screening signal only. It is not a calibrated
 failure probability, maintenance recommendation, root-cause explanation,
 survival model, RUL model, or production alert system.
+
+## v1.5.5 Trust-Boundary Closeout
+
+v1.5.5 reads existing compact v1.5.4 artifacts only. It does not retrain
+models, change thresholds, run SHAP, fit survival models, estimate RUL, or
+regenerate row-level predictions.
+
+Closeout result:
+
+- row prevalence baseline: 0.000980
+- positive asset prevalence: 0.0243
+- v1.5.4 input model statuses: `candidate_for_further_validation=12`,
+  `diagnostic_only=4`
+- v1.5.5 trust eligibility statuses: `descriptive_only=4`,
+  `diagnostic_only=12`
+- representative model: `none_selected`
+- release readiness: `release_ready` as a bounded offline trust-boundary
+  demonstration
+
+The top-risk result is interpreted as retrospective ranking concentration. It
+is not a 7% calibrated failure probability, not 84.6% prediction accuracy, and
+not a production alert threshold. Resource-limited training, repeated daily
+origins, uncertain censoring, and missing external validation prevent
+representative-model selection.
 
 ## Contract and Leakage Map
 
@@ -179,6 +204,11 @@ survival model, RUL model, or production alert system.
   v1.5.4 fixed 7-day horizon/lookback, feature sets, validation hierarchy,
   repeated-origin weighting, resource policy, metrics, thresholds, local
   outputs, allowed claims, and prohibited claims.
+- [`trust_spec_v1_5.json`](trust_spec_v1_5.json) records the v1.5.5 model
+  eligibility, representative-model, top-risk, threshold, calibration,
+  survival/RUL, explainability, and applicability boundaries.
+- [`case_study.md`](case_study.md) is the narrative Backblaze reliability
+  closeout report.
 
 ## Relationship to Existing Case Studies
 
@@ -206,10 +236,11 @@ v1.5.1 does not perform:
 - dashboarding
 - main merge, tag, or release
 
-v1.5.4 performs fixed classical binary classification baselines only. It still
-does not perform survival modeling, RUL regression, Weibull fitting,
-hyperparameter tuning, SHAP, causal maintenance analysis, calibrated production
-probability estimation, or production maintenance decision automation.
+v1.5.4 performs fixed classical binary classification baselines only. v1.5.5
+performs trust-boundary closeout only. v1.5 still does not perform survival
+modeling, RUL regression, Weibull fitting, hyperparameter tuning, SHAP, causal
+maintenance analysis, calibrated production probability estimation, or
+production maintenance decision automation.
 
 ## Roadmap
 

@@ -1,10 +1,10 @@
 # Reliability v1.5 Plan
 
-Status: `contract_stage`; v1.5.2 access gate is `access_gate_complete`
-and v1.5.3 full-year normalization/readiness reassessment is
-`conditionally_ready` for a future binary horizon failure-risk workflow.
+Status: `trust_boundary_complete` through v1.5.5. The Backblaze 2013 case
+study is complete as a bounded offline reliability validation and trust
+boundary demonstration.
 
-v1.5 starts a generic reliability/risk workflow for asset-level engineering
+v1.5 provides a generic reliability/risk workflow for asset-level engineering
 data. The tracked repository does not contain raw downloads, trained models,
 survival curves, RUL estimates, or production maintenance readiness claims.
 
@@ -230,8 +230,9 @@ Actual fixed-baseline results:
 - valid metric rows: 64
 - best primary median PR-AUC: 0.0998
 - best combined asset/time PR-AUC: 0.1119
-- best combined 1% top-risk failed-asset capture: 84.6% for the
-  resource-limited random forest with SMART plus safe metadata
+- reference combined 1% top-risk precision / lift / failed-asset capture:
+  0.0703 / 62.9x / 0.846 for the resource-limited random forest with SMART plus
+  safe metadata and asset-balanced weighting
 - random row reference is higher for some random-forest runs, consistent with
   possible same-asset dependence, adjacent-origin correlation, or temporal
   optimism
@@ -242,6 +243,47 @@ No representative model is selected automatically. These results support a
 retrospective offline diagnostic screening signal, not calibrated operational
 probabilities, survival probabilities, root-cause claims, or production
 maintenance decisions.
+
+## v1.5.5 Reliability Trust-Boundary Closeout
+
+v1.5.5 reads the v1.5.4 compact artifacts only. It does not retrain models,
+change thresholds, regenerate row-level predictions, fit survival curves,
+estimate RUL, run SHAP, or create maintenance recommendations.
+
+Closeout findings:
+
+- row prevalence baseline: 0.000980
+- positive asset prevalence: 0.0243
+- v1.5.4 input model-status rows: `candidate_for_further_validation=12`,
+  `diagnostic_only=4`
+- v1.5.5 trust eligibility rows: `descriptive_only=4`,
+  `diagnostic_only=12`
+- best primary median PR-AUC: 0.0998
+- best combined asset/time PR-AUC: 0.1119
+- reference combined top 1% precision / lift / failed-asset capture:
+  0.0703 / 62.9x / 0.846
+- representative model: `none_selected`
+- release readiness: `release_ready` as an offline trust-boundary case study
+
+The trust-boundary decision keeps the top-risk result as retrospective ranking
+concentration only. It is not a calibrated failure probability, not 84.6%
+prediction accuracy, and not an operational alert threshold. Representative
+model selection is blocked by resource-limited training, repeated-origin
+dependence, uncertain censoring, weak threshold viability, calibration limits,
+and lack of external validation.
+
+Tracked closeout artifacts:
+
+```text
+data/processed/reliability_v1_5_model_eligibility.csv
+data/processed/reliability_v1_5_validation_stability_summary.csv
+data/processed/reliability_v1_5_weighting_dependency_summary.csv
+data/processed/reliability_v1_5_resource_boundary.csv
+data/processed/reliability_v1_5_operational_boundary.csv
+data/processed/reliability_v1_5_claim_boundary.csv
+data/processed/reliability_v1_5_trust_summary.csv
+data/processed/reliability_v1_5_closeout_conclusion.csv
+```
 
 ## Data Contract
 
@@ -378,12 +420,13 @@ structure, so it is not a reliability primary dataset.
 ## Non-Goals
 
 v1.5.1 did not do data download or API access. v1.5.2 performed a bounded
-official-source access gate and schema/readiness audit. v1.5.3 performs
-full-year normalization and readiness reassessment only. v1.5.4 performs fixed
-classical binary classification baselines only. v1.5 still does not do survival
-model fitting, Weibull fitting, RUL regression, hyperparameter tuning, SHAP,
-causal maintenance analysis, calibrated production probability, automatic
-maintenance decisions, dashboards, main merge, tag, or release.
+official-source access gate and schema/readiness audit. v1.5.3 performed
+full-year normalization and readiness reassessment only. v1.5.4 performed fixed
+classical binary classification baselines only. v1.5.5 performs trust-boundary
+closeout only. v1.5 still does not do survival model fitting, Weibull fitting,
+RUL regression, hyperparameter tuning, SHAP, causal maintenance analysis,
+calibrated production probability, automatic maintenance decisions, dashboards,
+main merge, tag, or release.
 
 ## Stop Conditions
 
@@ -410,5 +453,4 @@ Future stages must stop or report `not_ready` when:
   split feasibility reassessment; no modeling.
 - v1.5.4: fixed 7-day asset/time-aware classification baselines and diagnostic
   claim-boundary outputs.
-- v1.5.5: model eligibility, trust-boundary report, and negative-result
-  closeout if needed.
+- v1.5.5: model eligibility, trust-boundary report, and conservative closeout.

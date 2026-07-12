@@ -66,8 +66,10 @@ not train models, fit survival curves, or estimate RUL.
 `src/features/temporal_asset_features.py` and
 `src/analyzers/asset_temporal_classification.py` provide generic cutoff-safe
 lookback feature construction and fixed asset/time-aware binary classification
-baseline utilities. They are used for the v1.5.4 Backblaze 7-day diagnostic
-classification baseline and do not perform survival modeling, RUL regression,
+baseline utilities. `src/analyzers/reliability_trust.py` aggregates compact
+classification artifacts into model-eligibility, operational-boundary, and
+claim-boundary closeout tables. They are used for the v1.5 Backblaze
+diagnostic case study and do not perform survival modeling, RUL regression,
 hyperparameter search, SHAP, or production alerting.
 
 ## Case Study Utilities
@@ -135,9 +137,9 @@ provenance acquisition, 60 composition-only descriptors, identifiability and
 ambiguity audit, group-aware baseline validation, applicability-domain
 diagnostics, error-structure summaries, and conservative claim-boundary
 closeout. It does not claim novel-material recommendation, DFT replacement,
-calibrated uncertainty, or production screening readiness. v1.4 is reserved for
-a Smart Factory Process Quality Case Study, and v1.5 is reserved for Generic
-Reliability Engineering.
+calibrated uncertainty, or production screening readiness. v1.4 and v1.5 extend
+the same trust-boundary pattern to Smart Factory process quality and
+Reliability Engineering case studies.
 
 The v1.4 Smart Factory case study is complete as a SECOM fallback
 process-quality trust-boundary demonstration: dataset candidate assessment,
@@ -147,13 +149,13 @@ time-aware classification baselines, and conservative closeout. It does not
 claim production readiness, calibrated probability, causal root cause, or
 group-aware generalization.
 
-The v1.5 reliability/risk work is currently at readiness and diagnostic
-baseline stage. It defines asset-level reliability fields, event/censoring
-policy, leakage risks, validation hierarchy, metrics, candidate dataset
-assessment, Backblaze full-year normalization/readiness outputs, and fixed
-7-day asset/time-aware classification baseline outputs. It does not claim
-survival probability, RUL, calibrated operational probability, or production
-maintenance readiness.
+The v1.5 reliability/risk work is complete as a Backblaze trust-boundary case
+study. It defines asset-level reliability fields, event/censoring policy,
+leakage risks, validation hierarchy, metrics, candidate dataset assessment,
+Backblaze full-year normalization/readiness outputs, fixed 7-day asset/time
+classification baselines, and model-eligibility closeout outputs. It does not
+claim survival probability, RUL, calibrated operational probability, root-cause
+discovery, or production maintenance readiness.
 
 ## Generated Artifacts
 

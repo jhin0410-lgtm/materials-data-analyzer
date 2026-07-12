@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.5
+
+- Added a generic reliability/risk contract covering asset identity,
+  event/censoring policy, leakage boundaries, validation hierarchy, metrics,
+  model-status vocabulary, and prohibited claims.
+- Assessed public reliability dataset candidates and selected Backblaze Hard
+  Drive Test Data 2013 as the conditional primary case study, with NASA
+  C-MAPSS retained as a benchmark backup.
+- Added a bounded Backblaze access gate, source SHA policy, archive inventory,
+  schema reconnaissance, and readiness summaries while keeping the raw archive
+  local-only.
+- Added full-year streaming normalization for the Backblaze 2013 archive,
+  event/censoring integrity summaries, horizon/lookback feasibility, split
+  feasibility, SMART feature inventory, and compact readiness outputs.
+- Added fixed 7-day horizon / 7-day lookback asset/time-aware classical
+  classification baselines with train-only preprocessing, asset-disjoint,
+  time-aware, combined asset/time validation, and random-row optimistic
+  reference.
+- Added compact classification metrics, split diagnostics, model summaries,
+  top-risk diagnostics, threshold diagnostics, error-structure summaries, and
+  conservative classification conclusions.
+- Added trust-boundary closeout outputs for model eligibility, validation
+  stability, weighting dependence, resource boundaries, operational boundaries,
+  claim boundaries, release readiness, and case-study documentation.
+- Documented that no representative model is selected: v1.5 supports
+  retrospective offline diagnostic ranking only, not production alerts.
+
+This release does not add survival modeling, RUL regression, Weibull fitting,
+hyperparameter tuning, SHAP, causal root-cause analysis, calibrated failure
+probability claims, or maintenance automation.
+
 ## v1.4
 
 - Added the Smart Factory process-quality contract and leakage map.

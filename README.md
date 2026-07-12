@@ -193,17 +193,18 @@ python -m pytest
 
 ## Real-Data Case Studies
 
-The repository currently includes four representative real-data case studies:
+The repository currently includes five representative real-data case studies:
 
 - Kaggle NASA Li-ion Battery
 - Battery Archive
 - Materials Project
 - Smart Factory / UCI SECOM
+- Reliability / Backblaze Hard Drive Test Data
 
-It also includes a v1.5 reliability/risk planning track with a completed
-Backblaze access gate, full-year normalization audit, and readiness
-reassessment plus fixed 7-day diagnostic classification baselines for future
-asset-level datasets.
+The Reliability / Backblaze work is complete as an offline trust-boundary case
+study: access gate, full-year normalization audit, event/censoring readiness,
+fixed 7-day diagnostic classification baselines, and model-eligibility
+closeout.
 
 These case studies demonstrate source-specific preparation and validation
 workflows. They are not the core product identity; the core project remains a
@@ -300,23 +301,32 @@ Case-study documents:
 - [`data/case_studies/smart_factory/case_study.md`](data/case_studies/smart_factory/case_study.md)
 - [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md)
 
-### Reliability / Risk Readiness Stage
+### Reliability / Backblaze Hard Drive Test Data
 
-The v1.5 reliability track is currently a readiness-stage framework, not a
-completed modeling case study. It defines asset-level event, censoring,
-leakage, validation, metric, and trust-boundary requirements for future public
-reliability datasets. v1.5.3 extends the Backblaze 2013 archive work from a
-bounded audit to full-year streaming normalization and compact readiness
-summaries. v1.5.4 adds fixed 7-day asset/time-aware classical classification
-baselines as diagnostic screening evidence, while keeping raw archives and
-large row-level outputs local-only. It does not fit survival models, fit RUL
-regressors, claim calibrated operational probabilities, or make production
-maintenance claims.
+The v1.5 reliability track uses Backblaze Hard Drive Test Data 2013 as an
+asset-level reliability case study. It defines event/censoring policy, leakage
+boundaries, asset/time-aware validation, fixed 7-day diagnostic classification
+baselines, and a conservative trust-boundary closeout.
+
+Observed closeout highlights:
+
+- 5,091,501 normalized daily rows and 29,072 drive assets
+- 724 failed assets and 4,797 positive 7-day labels
+- best primary median PR-AUC: 0.0998
+- best combined asset/time PR-AUC: 0.1119
+- combined top 1% reference precision/lift/capture: 0.0703 / 62.9x / 0.846
+- representative model: none selected
+
+This case study supports retrospective offline ranking diagnostics only. It
+does not fit survival models, estimate RUL, claim calibrated operational
+probabilities, run SHAP, identify root cause, or make production maintenance
+claims.
 
 Planning documents:
 
 - [`docs/RELIABILITY_V1_5_PLAN.md`](docs/RELIABILITY_V1_5_PLAN.md)
 - [`data/case_studies/reliability/README.md`](data/case_studies/reliability/README.md)
+- [`data/case_studies/reliability/case_study.md`](data/case_studies/reliability/case_study.md)
 
 ## Optional Connectors
 
@@ -407,10 +417,21 @@ outputs/{run_name}/reports/
 - See [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md) and
   [`data/case_studies/smart_factory/`](data/case_studies/smart_factory/).
 
+### v1.5 Complete: Reliability Trust Boundary
+
+- Backblaze Hard Drive Test Data 2013 is used as an asset-level reliability
+  case study.
+- The workflow covers source access, full-year streaming normalization,
+  event/censoring integrity, fixed 7-day asset/time-aware classification
+  baselines, and model-eligibility closeout.
+- The final result is diagnostic-only: no representative model, calibrated
+  failure probability, survival/RUL claim, SHAP/root-cause claim, or production
+  maintenance claim is made.
+- See [`docs/RELIABILITY_V1_5_PLAN.md`](docs/RELIABILITY_V1_5_PLAN.md) and
+  [`data/case_studies/reliability/`](data/case_studies/reliability/).
+
 ### Later
 
-- v1.5 reliability/risk fixed baseline validation after the Backblaze full-year
-  normalization and readiness reassessment
 - Streamlit demo after CLI outputs and report structure are stable
 - More case studies using public engineering tabular datasets
 - Additional optional connectors where licensing and credentials are handled safely
