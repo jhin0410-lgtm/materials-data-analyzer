@@ -164,12 +164,29 @@ reliability_v1_5_full_readiness_summary.csv
 reliability_v1_5_full_task_readiness.csv
 ```
 
-The raw Backblaze archive and large row-level normalized trajectory tables
-remain local-only by default:
+Compact reproducibility artifacts for the v1.5.4 fixed 7-day classification
+baseline include:
+
+```text
+reliability_v1_5_classification_metrics.csv
+reliability_v1_5_classification_split_diagnostics.csv
+reliability_v1_5_classification_model_summary.csv
+reliability_v1_5_asset_time_gap_summary.csv
+reliability_v1_5_top_risk_summary.csv
+reliability_v1_5_threshold_summary.csv
+reliability_v1_5_error_structure_summary.csv
+reliability_v1_5_classification_conclusion.csv
+```
+
+The raw Backblaze archive, large row-level normalized trajectory tables, local
+7-day feature dataset, and row-level prediction diagnostics remain local-only
+by default:
 
 ```text
 data/raw/reliability/backblaze_drive_stats/data_2013.zip
 reliability_v1_5_backblaze_analysis_ready.csv
+reliability_v1_5_horizon_7d_lookback_7d_dataset.csv
+reliability_v1_5_classification_predictions.csv
 reliability_v1_5_*_row_level.csv
 ```
 

@@ -121,6 +121,42 @@ end of archive, removal, retirement, or other unobserved causes. Survival
 analysis is therefore only conditionally ready for a future survival-specific
 censoring audit. RUL regression and recurrent event analysis remain `not_ready`.
 
+## v1.5.4 7-Day Classification Baseline Result
+
+v1.5.4 uses the v1.5.3 readiness gate to run fixed classical baselines for a
+7-day failure-risk task. The task is retrospective and offline:
+
+- horizon: 7 days
+- lookback: 7 calendar days including the prediction origin day
+- eligible origins: 4,892,482
+- positive labels: 4,797
+- positive assets: 706
+- post-event excluded rows: 904
+- right-edge excluded rows: 198,115
+
+Primary evidence uses asset-disjoint, final-month time-aware, and combined
+asset-disjoint future validation. Stratified random row split is reported only
+as an optimistic reference because same-asset and adjacent-origin dependence can
+inflate results.
+
+Fixed baselines include dummy prior, logistic regression, random forest, and
+histogram gradient boosting. Two predeclared feature sets are evaluated:
+conservative SMART-only aggregates and SMART plus safe operational metadata.
+All non-dummy predictive models use deterministic training-only subsampling
+under the resource policy; test partitions are not subsampled.
+
+Compact observed results:
+
+- valid metric rows: 64
+- best primary median PR-AUC: 0.0998
+- best combined asset/time PR-AUC: 0.1119
+- best combined 1% top-risk failed-asset capture: 84.6%
+- representative model: `none_selected`
+
+The result is a diagnostic screening signal only. It is not a calibrated
+failure probability, maintenance recommendation, root-cause explanation,
+survival model, RUL model, or production alert system.
+
 ## Contract and Leakage Map
 
 - [`reliability_contract_v1_5.json`](reliability_contract_v1_5.json) defines
@@ -139,6 +175,10 @@ censoring audit. RUL regression and recurrent event analysis remain `not_ready`.
   [`full_year_manifest_v1_5.json`](full_year_manifest_v1_5.json) record the
   v1.5.3 full-year member inclusion, schema harmonization, local analysis-ready
   output policy, event/censoring treatment, and readiness conclusion.
+- [`classification_spec_v1_5.json`](classification_spec_v1_5.json) records the
+  v1.5.4 fixed 7-day horizon/lookback, feature sets, validation hierarchy,
+  repeated-origin weighting, resource policy, metrics, thresholds, local
+  outputs, allowed claims, and prohibited claims.
 
 ## Relationship to Existing Case Studies
 
@@ -166,9 +206,10 @@ v1.5.1 does not perform:
 - dashboarding
 - main merge, tag, or release
 
-v1.5.3 also does not perform classifier training, survival modeling, RUL
-regression, Weibull fitting, rolling feature generation, feature selection, or
-production maintenance decision automation.
+v1.5.4 performs fixed classical binary classification baselines only. It still
+does not perform survival modeling, RUL regression, Weibull fitting,
+hyperparameter tuning, SHAP, causal maintenance analysis, calibrated production
+probability estimation, or production maintenance decision automation.
 
 ## Roadmap
 
@@ -179,5 +220,6 @@ production maintenance decision automation.
 - v1.5.3: full-year analysis-ready normalization, event/censoring integrity,
   horizon/lookback feasibility, split feasibility, and task readiness
   reassessment.
-- v1.5.4: fixed baseline validation if the data passes readiness gates.
+- v1.5.4: fixed 7-day asset/time-aware classification baselines and diagnostic
+  claim-boundary outputs.
 - v1.5.5: trust-boundary closeout and conservative documentation.

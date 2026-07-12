@@ -202,7 +202,8 @@ The repository currently includes four representative real-data case studies:
 
 It also includes a v1.5 reliability/risk planning track with a completed
 Backblaze access gate, full-year normalization audit, and readiness
-reassessment for future asset-level datasets.
+reassessment plus fixed 7-day diagnostic classification baselines for future
+asset-level datasets.
 
 These case studies demonstrate source-specific preparation and validation
 workflows. They are not the core product identity; the core project remains a
@@ -306,9 +307,11 @@ completed modeling case study. It defines asset-level event, censoring,
 leakage, validation, metric, and trust-boundary requirements for future public
 reliability datasets. v1.5.3 extends the Backblaze 2013 archive work from a
 bounded audit to full-year streaming normalization and compact readiness
-summaries, while keeping raw archives and large row-level outputs local-only.
-It does not train classifiers, fit survival models, fit RUL regressors, or make
-production maintenance claims.
+summaries. v1.5.4 adds fixed 7-day asset/time-aware classical classification
+baselines as diagnostic screening evidence, while keeping raw archives and
+large row-level outputs local-only. It does not fit survival models, fit RUL
+regressors, claim calibrated operational probabilities, or make production
+maintenance claims.
 
 Planning documents:
 

@@ -191,6 +191,58 @@ The full analysis-ready table
 local-only artifact of about 1.42 GB. Compact summaries, manifests, and
 inventory tables are the tracked reproducibility artifacts.
 
+## v1.5.4 Fixed 7-Day Classification Baselines
+
+v1.5.4 fixes the primary task to a 7-day horizon and 7-day lookback before
+modeling. Prediction origins are drive observation dates. A positive label
+means the first observed failure occurs after the origin and within the next 7
+days. Same-day failure rows, post-failure rows, and origins without complete
+7-day future visibility are excluded from prediction origins.
+
+The local-only 7d/7d feature dataset contains:
+
+- eligible origins: 4,892,482
+- positive labels: 4,797
+- positive assets: 706
+- post-event excluded rows: 904
+- right-edge excluded rows: 198,115
+- local file: `data/processed/reliability_v1_5_horizon_7d_lookback_7d_dataset.csv`
+  at about 2.56 GB
+
+Feature sets were fixed before running models:
+
+- `smart_only_conservative`: 7-day aggregates from the five target-independent
+  conservative SMART candidates.
+- `smart_plus_safe_operational_metadata`: the same SMART aggregates plus drive
+  age, observation density/count metadata, `capacity_bytes`, and train-only
+  model-category encoding.
+
+Validation hierarchy:
+
+- primary: asset-disjoint, final-month time-aware, and combined asset-disjoint
+  future holdout
+- secondary: stratified random row split as optimistic reference only
+- repeated-origin policy: asset-balanced weighting is primary; raw row weighting
+  is reported as a diagnostic comparison
+
+Actual fixed-baseline results:
+
+- valid metric rows: 64
+- best primary median PR-AUC: 0.0998
+- best combined asset/time PR-AUC: 0.1119
+- best combined 1% top-risk failed-asset capture: 84.6% for the
+  resource-limited random forest with SMART plus safe metadata
+- random row reference is higher for some random-forest runs, consistent with
+  possible same-asset dependence, adjacent-origin correlation, or temporal
+  optimism
+- all non-dummy predictive models used deterministic training-only subsampling
+  under the v1.5.4 resource policy; full test partitions were not subsampled
+
+No representative model is selected automatically. These results support a
+retrospective offline diagnostic screening signal, not calibrated operational
+probabilities, survival probabilities, root-cause claims, or production
+maintenance decisions.
+
 ## Data Contract
 
 The contract is
@@ -327,10 +379,11 @@ structure, so it is not a reliability primary dataset.
 
 v1.5.1 did not do data download or API access. v1.5.2 performed a bounded
 official-source access gate and schema/readiness audit. v1.5.3 performs
-full-year normalization and readiness reassessment only. v1.5 still does not do
-model training, survival model fitting, Weibull fitting, RUL regression, actual
-prediction feature engineering, hyperparameter tuning, SHAP, causal
-maintenance analysis, dashboards, main merge, tag, or release.
+full-year normalization and readiness reassessment only. v1.5.4 performs fixed
+classical binary classification baselines only. v1.5 still does not do survival
+model fitting, Weibull fitting, RUL regression, hyperparameter tuning, SHAP,
+causal maintenance analysis, calibrated production probability, automatic
+maintenance decisions, dashboards, main merge, tag, or release.
 
 ## Stop Conditions
 
@@ -355,6 +408,7 @@ Future stages must stop or report `not_ready` when:
   outputs; no modeling.
 - v1.5.3: full-year normalization, event/censoring integrity audit, horizon and
   split feasibility reassessment; no modeling.
-- v1.5.4: fixed baseline validation if readiness gates pass.
+- v1.5.4: fixed 7-day asset/time-aware classification baselines and diagnostic
+  claim-boundary outputs.
 - v1.5.5: model eligibility, trust-boundary report, and negative-result
   closeout if needed.

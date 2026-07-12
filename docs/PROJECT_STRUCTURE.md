@@ -63,6 +63,13 @@ for reliability/risk case studies. `src/connectors/reliability.py` and
 and streaming full-year normalization audits for v1.5 readiness gates. They do
 not train models, fit survival curves, or estimate RUL.
 
+`src/features/temporal_asset_features.py` and
+`src/analyzers/asset_temporal_classification.py` provide generic cutoff-safe
+lookback feature construction and fixed asset/time-aware binary classification
+baseline utilities. They are used for the v1.5.4 Backblaze 7-day diagnostic
+classification baseline and do not perform survival modeling, RUL regression,
+hyperparameter search, SHAP, or production alerting.
+
 ## Case Study Utilities
 
 Case-study utilities prepare public or external datasets for the core analyzer:
@@ -140,10 +147,13 @@ time-aware classification baselines, and conservative closeout. It does not
 claim production readiness, calibrated probability, causal root cause, or
 group-aware generalization.
 
-The v1.5 reliability/risk work is currently at contract and readiness stage. It
-defines asset-level reliability fields, event/censoring policy, leakage risks,
-validation hierarchy, metrics, candidate dataset assessment, and Backblaze
-full-year normalization/readiness outputs for future phases.
+The v1.5 reliability/risk work is currently at readiness and diagnostic
+baseline stage. It defines asset-level reliability fields, event/censoring
+policy, leakage risks, validation hierarchy, metrics, candidate dataset
+assessment, Backblaze full-year normalization/readiness outputs, and fixed
+7-day asset/time-aware classification baseline outputs. It does not claim
+survival probability, RUL, calibrated operational probability, or production
+maintenance readiness.
 
 ## Generated Artifacts
 
