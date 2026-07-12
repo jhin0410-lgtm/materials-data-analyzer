@@ -1,0 +1,129 @@
+{
+  "schema_version": "2.0",
+  "schema_name": "pipeline_config_schema_v2",
+  "status": "scaffold_stage",
+  "description": "Contract for configuration-driven case-study pipeline dry runs. This is a lightweight schema document, not executable code.",
+  "required_fields": [
+    "schema_version",
+    "pipeline_id",
+    "case_study_id",
+    "plugin_id",
+    "stage"
+  ],
+  "allowed_stages": [
+    "acquisition",
+    "normalization",
+    "readiness",
+    "feature_build",
+    "validation",
+    "trust",
+    "closeout"
+  ],
+  "fields": {
+    "schema_version": {
+      "type": "string",
+      "required": true,
+      "allowed_values": [
+        "2.0"
+      ]
+    },
+    "pipeline_id": {
+      "type": "string",
+      "required": true
+    },
+    "case_study_id": {
+      "type": "string",
+      "required": true
+    },
+    "plugin_id": {
+      "type": "string",
+      "required": true
+    },
+    "stage": {
+      "type": "string",
+      "required": true
+    },
+    "input_artifacts": {
+      "type": "array[string]",
+      "required": false,
+      "meaning": "Artifact IDs from the artifact registry"
+    },
+    "output_artifacts": {
+      "type": "array[string]",
+      "required": false
+    },
+    "local_only_outputs": {
+      "type": "array[string]",
+      "required": false
+    },
+    "tracked_outputs": {
+      "type": "array[string]",
+      "required": false
+    },
+    "connector": {
+      "type": "object",
+      "required": false
+    },
+    "loader": {
+      "type": "object",
+      "required": false
+    },
+    "readiness_analyzer": {
+      "type": "object",
+      "required": false
+    },
+    "feature_builder": {
+      "type": "object",
+      "required": false
+    },
+    "validator": {
+      "type": "string",
+      "required": false,
+      "meaning": "Validation policy ID from the validation registry"
+    },
+    "trust_policy": {
+      "type": "string",
+      "required": false,
+      "meaning": "Trust policy ID from the trust registry"
+    },
+    "parameters": {
+      "type": "object",
+      "required": false
+    },
+    "random_state": {
+      "type": "integer",
+      "required": false
+    },
+    "resource_budget": {
+      "type": "object",
+      "required": false
+    },
+    "provenance_policy": {
+      "type": "object",
+      "required": false
+    },
+    "credential_policy": {
+      "type": "object",
+      "required": false,
+      "rules": [
+        "store_credentials must not be true",
+        "credentials are never stored in config files"
+      ]
+    },
+    "dry_run": {
+      "type": "boolean",
+      "required": false,
+      "v2_0_1_policy": "true is the only supported execution mode"
+    },
+    "stop_conditions": {
+      "type": "array[string]",
+      "required": false
+    }
+  },
+  "security_rules": [
+    "Config files contain metadata only and no executable code.",
+    "Python expressions, eval, exec, shell commands, and arbitrary imports are prohibited.",
+    "Artifact references use registry IDs rather than absolute local paths.",
+    "Path traversal and credentials are prohibited."
+  ]
+}

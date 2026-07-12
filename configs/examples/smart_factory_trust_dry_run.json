@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.0",
+  "pipeline_id": "smart_factory_v1_4_trust_dry_run",
+  "case_study_id": "smart_factory",
+  "plugin_id": "smart_factory",
+  "stage": "trust",
+  "input_artifacts": [
+    "smart_factory_v1_4_classification_metrics"
+  ],
+  "tracked_outputs": [
+    "smart_factory_v1_4_trust_summary"
+  ],
+  "local_only_outputs": [
+    "smart_factory_v1_4_classification_predictions"
+  ],
+  "validator": "time_aware_classification",
+  "trust_policy": "smart_factory_time_aware",
+  "parameters": {
+    "network_required": false,
+    "model_training_required": false
+  },
+  "resource_budget": {
+    "max_runtime_seconds": 0
+  },
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "stop_conditions": [
+    "missing_compact_artifact",
+    "unsupported_claim_detected"
+  ]
+}

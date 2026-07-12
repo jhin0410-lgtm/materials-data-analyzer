@@ -1,0 +1,61 @@
+{
+  "schema_version": "2.0",
+  "schema_name": "run_manifest_schema_v2",
+  "status": "scaffold_stage",
+  "description": "Contract for future platform run manifests. v2.0.1 only plans dry runs and does not execute pipelines.",
+  "fields": {
+    "run_id": "string",
+    "pipeline_id": "string",
+    "plugin_id": "string",
+    "stage": "string",
+    "config_sha256": "string",
+    "source_artifacts": "array[artifact_reference]",
+    "output_artifacts": "array[artifact_reference]",
+    "code_commit": "git_sha",
+    "started_at": "timestamp",
+    "completed_at": "timestamp",
+    "status": "string",
+    "dry_run": "boolean",
+    "test_mode": "boolean",
+    "environment": "object",
+    "python_version": "string",
+    "dependency_summary": "object",
+    "random_state": "integer",
+    "warnings": "array[string]",
+    "errors": "array[string]",
+    "claim_boundary": "string",
+    "local_only_outputs": "array[artifact_reference]",
+    "tracked_outputs": "array[artifact_reference]"
+  },
+  "required_fields": [
+    "run_id",
+    "pipeline_id",
+    "plugin_id",
+    "stage",
+    "config_sha256",
+    "code_commit",
+    "status",
+    "dry_run",
+    "warnings",
+    "errors",
+    "claim_boundary"
+  ],
+  "privacy_and_security_rules": [
+    "Do not store host absolute paths.",
+    "Do not store usernames.",
+    "Do not store credentials.",
+    "Do not record raw API responses or raw dataset rows.",
+    "Use artifact IDs and relative paths from the artifact registry."
+  ],
+  "allowed_statuses": [
+    "planned",
+    "ready",
+    "blocked_missing_artifact",
+    "blocked_plugin_not_runnable",
+    "blocked_stage_unsupported",
+    "blocked_network_required",
+    "blocked_invalid_config",
+    "completed",
+    "failed"
+  ]
+}

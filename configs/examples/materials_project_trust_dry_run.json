@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.0",
+  "pipeline_id": "materials_project_v1_3_trust_dry_run",
+  "case_study_id": "materials_project",
+  "plugin_id": "materials_project",
+  "stage": "trust",
+  "input_artifacts": [
+    "materials_project_v1_3_validation_metrics"
+  ],
+  "tracked_outputs": [
+    "materials_project_v1_3_trust_conclusion"
+  ],
+  "local_only_outputs": [
+    "materials_project_v1_3_validation_predictions"
+  ],
+  "validator": "group_aware_regression",
+  "trust_policy": "materials_group_generalization",
+  "parameters": {
+    "network_required": false,
+    "model_training_required": false
+  },
+  "resource_budget": {
+    "max_runtime_seconds": 0
+  },
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "stop_conditions": [
+    "missing_compact_artifact",
+    "unsupported_claim_detected"
+  ]
+}

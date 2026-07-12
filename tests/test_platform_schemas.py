@@ -1,0 +1,33 @@
+import json
+from pathlib import Path
+
+
+def test_platform_schema_json_files_parse():
+    for path in [
+        Path("data/platform/pipeline_config_schema_v2.json"),
+        Path("data/platform/run_manifest_schema_v2.json"),
+    ]:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        assert payload["schema_version"] == "2.0"
+        assert payload["status"] == "scaffold_stage"
+
+
+def test_example_configs_have_no_credentials_or_absolute_paths():
+    for path in Path("configs/examples").glob("*.json"):
+        text = path.read_text(encoding="utf-8")
+        assert "C:/" not in text
+        assert "C:\\" not in text
+        assert "password=" not in text.lower()
+        assert "secret=" not in text.lower()
+        assert "token=" not in text.lower()
+        payload = json.loads(text)
+        assert payload["credential_policy"]["store_credentials"] is False
+        assert payload["dry_run"] is True
+
+
+def test_platform_docs_are_scaffold_stage_not_completed_pipeline():
+    text = Path("docs/PLATFORM_V2_PLAN.md").read_text(encoding="utf-8")
+
+    assert "Status: `scaffold_stage`" in text
+    assert "does not execute actual acquisition" in text
+    assert "Actual `run` execution is intentionally deferred" in text
