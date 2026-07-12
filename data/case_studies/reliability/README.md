@@ -209,6 +209,8 @@ representative-model selection.
   survival/RUL, explainability, and applicability boundaries.
 - [`case_study.md`](case_study.md) is the narrative Backblaze reliability
   closeout report.
+- [`../../../docs/releases/V1_5_0.md`](../../../docs/releases/V1_5_0.md) is
+  the release-facing summary for the v1.5.0 GitHub release.
 
 ## Relationship to Existing Case Studies
 

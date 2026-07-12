@@ -133,6 +133,7 @@ data/case_studies/reliability/classification_spec_v1_5.json
 data/case_studies/reliability/trust_spec_v1_5.json
 data/case_studies/reliability/case_study.md
 docs/RELIABILITY_V1_5_PLAN.md
+docs/releases/V1_5_0.md
 ```
 
 ## Other Source Notes

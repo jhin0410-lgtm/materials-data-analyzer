@@ -157,6 +157,11 @@ classification baselines, and model-eligibility closeout outputs. It does not
 claim survival probability, RUL, calibrated operational probability, root-cause
 discovery, or production maintenance readiness.
 
+Portfolio and release-facing documentation lives in `docs/`, including
+`docs/PORTFOLIO_OVERVIEW.md` and versioned release notes under
+`docs/releases/`. These documents summarize tracked artifacts and claim
+boundaries; they do not replace source manifests or case-study contracts.
+
 ## Generated Artifacts
 
 Generated artifacts include:
