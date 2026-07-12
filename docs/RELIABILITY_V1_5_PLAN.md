@@ -1,12 +1,12 @@
 # Reliability v1.5 Plan
 
 Status: `contract_stage`; v1.5.2 access gate is `access_gate_complete`
-and readiness is `conditionally_ready` for a future binary horizon failure-risk
-workflow.
+and v1.5.3 full-year normalization/readiness reassessment is
+`conditionally_ready` for a future binary horizon failure-risk workflow.
 
 v1.5 starts a generic reliability/risk workflow for asset-level engineering
-data. It does not download data, train models, fit survival curves, or claim
-production maintenance readiness.
+data. The tracked repository does not contain raw downloads, trained models,
+survival curves, RUL estimates, or production maintenance readiness claims.
 
 ## Motivation
 
@@ -132,6 +132,64 @@ Task boundaries:
 
 This is still a readiness-stage result. It does not train a reliability model,
 fit survival curves, estimate RUL, or make production maintenance claims.
+
+## v1.5.3 Full-Year Normalization and Readiness Reassessment
+
+v1.5.3 extends the bounded access-gate audit to the full 2013 Backblaze archive
+without extracting the raw ZIP or loading the full year into memory at once. The
+raw archive remains local-only, while compact inventories and summaries are
+tracked for reproducibility.
+
+Full-year observed results:
+
+- ZIP members: 535
+- valid daily CSV files: 266
+- excluded members: 269 macOS metadata, hidden, malformed, or unsupported
+  members
+- date range: 2013-04-10 to 2013-12-31
+- total normalized rows: 5,091,501
+- total assets: 29,072
+- multi-observation assets: 29,058
+- failure rows: 724
+- failed assets: 724
+- schema signatures: 1 compatible source schema with 85 source columns
+- SMART feature columns: 80
+- usable SMART feature candidates under conservative availability checks: 5
+
+Event and censoring findings:
+
+- first observed `failure=1` is treated as the terminal event candidate
+- 717 failed assets fail on their last observation
+- 7 assets have post-failure observations and are retained only as diagnosed
+  anomalies, not prediction features
+- 6 failed assets have no previous history before the failure row
+- non-failed exits are right-censoring candidates, but drive retirement,
+  removal, and replacement reasons remain unknown
+- censoring categories include `observed_failure`,
+  `administrative_end_of_archive`, `lost_to_observation`,
+  `single_observation_unknown`, and `post_failure_inconsistent`
+
+Task readiness after the full-year audit:
+
+- `binary_horizon_failure`: `conditionally_ready`
+- `terminal_event_prediction`: `conditionally_ready`
+- `degradation_trajectory`: `conditionally_ready`
+- `survival_time_to_event`: `conditionally_ready`, but only with an explicit
+  survival-specific censoring audit
+- `rul_regression`: `not_ready`
+- `recurrent_event_analysis`: `not_ready`
+
+The selected primary task remains `binary_horizon_failure`. The recommended
+initial horizon and lookback are both 7 days: the 7-day horizon has 4,892,482
+eligible prediction rows, 4,797 positive labels, and 706 positive assets; the
+7-day lookback has a 93.6% complete-window proportion. Asset-disjoint,
+chronological, and combined asset-disjoint future splits are all
+`conditionally_ready`; random row split remains prohibited as primary evidence.
+
+The full analysis-ready table
+`data/processed/reliability_v1_5_backblaze_analysis_ready.csv` is a generated
+local-only artifact of about 1.42 GB. Compact summaries, manifests, and
+inventory tables are the tracked reproducibility artifacts.
 
 ## Data Contract
 
@@ -267,8 +325,9 @@ structure, so it is not a reliability primary dataset.
 
 ## Non-Goals
 
-v1.5.1 did not do data download or API access. v1.5.2 performed only a bounded
-official-source access gate and schema/readiness audit. v1.5 still does not do
+v1.5.1 did not do data download or API access. v1.5.2 performed a bounded
+official-source access gate and schema/readiness audit. v1.5.3 performs
+full-year normalization and readiness reassessment only. v1.5 still does not do
 model training, survival model fitting, Weibull fitting, RUL regression, actual
 prediction feature engineering, hyperparameter tuning, SHAP, causal
 maintenance analysis, dashboards, main merge, tag, or release.
@@ -294,7 +353,8 @@ Future stages must stop or report `not_ready` when:
 - v1.5.1: contract, candidate assessment, leakage map, and readiness scaffold.
 - v1.5.2: Backblaze access gate, bounded schema reconnaissance, and readiness
   outputs; no modeling.
-- v1.5.3: normalization and event/censoring audit if the access gate passes.
+- v1.5.3: full-year normalization, event/censoring integrity audit, horizon and
+  split feasibility reassessment; no modeling.
 - v1.5.4: fixed baseline validation if readiness gates pass.
 - v1.5.5: model eligibility, trust-boundary report, and negative-result
   closeout if needed.

@@ -1,0 +1,6 @@
+censoring_status,asset_count,observation_count,date_range,interpretation,readiness_status,limitation
+administrative_end_of_archive,27206,4916837,2013-04-10 to 2013-12-31,asset observed on archive final date without failure,conditionally_ready,"Exit reason, retirement, and replacement are not directly observed."
+lost_to_observation,1134,100043,2013-04-10 to 2013-12-27,asset exits before archive end without observed failure,conditionally_ready,"Exit reason, retirement, and replacement are not directly observed."
+observed_failure,717,73420,2013-04-10 to 2013-12-31,failure=1 observed and treated as explicit event candidate,conditionally_ready,"Exit reason, retirement, and replacement are not directly observed."
+post_failure_inconsistent,7,1193,2013-04-10 to 2013-12-19,failure followed by later rows; retained as anomaly,requires_review,"Exit reason, retirement, and replacement are not directly observed."
+single_observation_unknown,8,8,2013-12-31 to 2013-12-31,single row without enough follow-up context,requires_review,"Exit reason, retirement, and replacement are not directly observed."

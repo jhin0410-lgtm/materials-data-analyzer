@@ -129,7 +129,7 @@ smart_factory_v1_4_secom_analysis_ready.csv
 smart_factory_v1_4_classification_predictions.csv
 ```
 
-## Reliability v1.5 Access-Gate Summaries
+## Reliability v1.5 Access-Gate and Full-Year Summaries
 
 Compact reproducibility artifacts for the Reliability v1.5 Backblaze bounded
 access gate include:
@@ -145,11 +145,31 @@ reliability_v1_5_validation_feasibility.csv
 reliability_v1_5_acquisition_conclusion.csv
 ```
 
-The raw Backblaze archive and any future row-level normalized trajectory table
+Compact reproducibility artifacts for the v1.5.3 Backblaze full-year
+normalization and readiness reassessment include:
+
+```text
+reliability_v1_5_full_archive_inventory.csv
+reliability_v1_5_schema_drift_summary.csv
+reliability_v1_5_trajectory_summary.csv
+reliability_v1_5_event_integrity_summary.csv
+reliability_v1_5_censoring_summary.csv
+reliability_v1_5_temporal_coverage_summary.csv
+reliability_v1_5_smart_feature_inventory.csv
+reliability_v1_5_full_leakage_audit.csv
+reliability_v1_5_horizon_feasibility.csv
+reliability_v1_5_lookback_feasibility.csv
+reliability_v1_5_split_feasibility.csv
+reliability_v1_5_full_readiness_summary.csv
+reliability_v1_5_full_task_readiness.csv
+```
+
+The raw Backblaze archive and large row-level normalized trajectory tables
 remain local-only by default:
 
 ```text
 data/raw/reliability/backblaze_drive_stats/data_2013.zip
+reliability_v1_5_backblaze_analysis_ready.csv
 reliability_v1_5_*_row_level.csv
 ```
 

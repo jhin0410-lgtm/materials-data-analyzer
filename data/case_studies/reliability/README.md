@@ -1,7 +1,7 @@
 # Reliability Case Study Planning
 
-Status: `contract_stage` for v1.5.1 and `access_gate_complete` /
-`readiness_stage` for v1.5.2.
+Status: `contract_stage` for v1.5.1, `access_gate_complete` for v1.5.2,
+and `full_year_readiness_stage` for v1.5.3.
 
 This folder defines the generic reliability/risk use-case boundary for future
 asset-level case studies. It does not contain downloaded reliability raw data,
@@ -37,9 +37,10 @@ trust-boundary reporting.
 - Degradation trajectory analysis: sensor, capacity, wear, or health-index
   trajectories using only past measurements.
 
-Contract scaffolding was implemented in v1.5.1. v1.5.2 adds a bounded
-Backblaze access gate and compact readiness audit, but still does not train
-models or create a full normalized trajectory table.
+Contract scaffolding was implemented in v1.5.1. v1.5.2 added a bounded
+Backblaze access gate and compact readiness audit. v1.5.3 adds full-year
+streaming normalization and event/censoring readiness reassessment, but still
+does not train models.
 
 ## Dataset Candidate Decision
 
@@ -57,11 +58,12 @@ Current decision:
 - `battery_archive_existing`: `rejected`
 - `uci_secom_existing`: `rejected_for_primary`
 
-The Backblaze drive data is the preferred next access-gate candidate because it
-has explicit asset identifiers, repeated observations, dates, condition
-variables, and observed failures. It was not downloaded in v1.5.1. v1.5.2
-verified bounded access and file structure for the 2013 archive, while full
-censoring and normalization remain future work.
+The Backblaze drive data is the preferred reliability candidate because it has
+explicit asset identifiers, repeated observations, dates, condition variables,
+and observed failures. It was not downloaded in v1.5.1. v1.5.2 verified
+bounded access and file structure for the 2013 archive. v1.5.3 then processed
+the full archive into a local-only analysis-ready trajectory table and compact
+readiness summaries.
 
 NASA C-MAPSS is retained as a benchmark backup for RUL methodology, but it is a
 simulation benchmark rather than real-world operational evidence.
@@ -87,6 +89,38 @@ Survival, RUL regression, and recurrent event analysis remain `not_ready`.
 Censoring is interpreted conservatively as administrative last observation in
 the bounded sample, not as a completed operational survival audit.
 
+## v1.5.3 Full-Year Normalization Result
+
+The v1.5.3 full-year audit streams the official 2013 Backblaze archive member
+by member. It does not extract raw daily CSV files and does not commit the raw
+archive or the large row-level analysis-ready table.
+
+Compact observed results:
+
+- valid daily CSV files: 266
+- excluded archive members: 269
+- date range: 2013-04-10 to 2013-12-31
+- normalized rows: 5,091,501
+- assets: 29,072
+- multi-observation assets: 29,058
+- failure rows / failed assets: 724 / 724
+- post-failure anomaly assets: 7
+- compatible schema signatures: 1
+- SMART feature columns: 80
+- selected primary task: `binary_horizon_failure`
+- recommended horizon / lookback: 7 days / 7 days
+- overall readiness verdict: `conditionally_ready`
+
+The 7-day horizon has 4,892,482 eligible prediction rows and 4,797 positive
+labels. Asset-disjoint, chronological, and combined asset-disjoint future
+splits are `conditionally_ready`; random row split remains an optimistic or
+prohibited reference, not primary evidence.
+
+Censoring is still uncertain: non-failure asset exits may reflect administrative
+end of archive, removal, retirement, or other unobserved causes. Survival
+analysis is therefore only conditionally ready for a future survival-specific
+censoring audit. RUL regression and recurrent event analysis remain `not_ready`.
+
 ## Contract and Leakage Map
 
 - [`reliability_contract_v1_5.json`](reliability_contract_v1_5.json) defines
@@ -101,6 +135,10 @@ the bounded sample, not as a completed operational survival audit.
   [`acquisition_manifest_v1_5.json`](acquisition_manifest_v1_5.json) record
   the v1.5.2 Backblaze access gate, source metadata, SHA policy, local-only raw
   archive policy, and compact readiness result.
+- [`normalization_spec_v1_5.json`](normalization_spec_v1_5.json) and
+  [`full_year_manifest_v1_5.json`](full_year_manifest_v1_5.json) record the
+  v1.5.3 full-year member inclusion, schema harmonization, local analysis-ready
+  output policy, event/censoring treatment, and readiness conclusion.
 
 ## Relationship to Existing Case Studies
 
@@ -128,12 +166,18 @@ v1.5.1 does not perform:
 - dashboarding
 - main merge, tag, or release
 
+v1.5.3 also does not perform classifier training, survival modeling, RUL
+regression, Weibull fitting, rolling feature generation, feature selection, or
+production maintenance decision automation.
+
 ## Roadmap
 
 - v1.5.1: generic reliability contract, candidate assessment, leakage map, and
   readiness scaffold.
 - v1.5.2: dataset access gate for Backblaze, bounded schema reconnaissance,
   leakage-schema audit, and compact readiness outputs.
-- v1.5.3: analysis-ready normalization and event/censoring audit.
+- v1.5.3: full-year analysis-ready normalization, event/censoring integrity,
+  horizon/lookback feasibility, split feasibility, and task readiness
+  reassessment.
 - v1.5.4: fixed baseline validation if the data passes readiness gates.
 - v1.5.5: trust-boundary closeout and conservative documentation.

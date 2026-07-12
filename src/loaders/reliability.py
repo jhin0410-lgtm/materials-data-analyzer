@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Iterable
 
 import pandas as pd
 
@@ -28,6 +29,8 @@ LEAKAGE_PATTERNS: tuple[tuple[str, str], ...] = (
     ("teardown", "failure_code_after_teardown"),
     ("full_lifetime", "full_lifetime_normalization"),
 )
+
+DAILY_CSV_RE = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2})\.csv$", re.IGNORECASE)
 
 
 def infer_reliability_column_metadata(column: str) -> dict[str, object]:
@@ -269,6 +272,211 @@ def select_degradation_feature_columns(df: pd.DataFrame) -> list[str]:
         and pd.api.types.is_numeric_dtype(df[column])
     ]
     return sorted(candidates)
+
+
+def classify_archive_member(member_path: str, file_name: str, uncompressed_size: int) -> dict[str, object]:
+    """Classify a source archive member for reliability raw inventory."""
+    parsed_date = parse_daily_member_date(file_name)
+    member_lower = member_path.casefold()
+    is_macos = "__macosx" in member_lower or file_name.startswith("._")
+    is_hidden = file_name.startswith(".")
+    is_empty = int(uncompressed_size) == 0
+    if is_macos:
+        member_type = "macos_metadata"
+        inclusion_status = "excluded"
+        exclusion_reason = "macos_metadata"
+    elif is_hidden:
+        member_type = "hidden_file"
+        inclusion_status = "excluded"
+        exclusion_reason = "hidden_file"
+    elif is_empty:
+        member_type = "empty_member"
+        inclusion_status = "excluded"
+        exclusion_reason = "empty_member"
+    elif parsed_date:
+        member_type = "valid_daily_csv"
+        inclusion_status = "included"
+        exclusion_reason = ""
+    elif file_name.casefold().endswith(".csv"):
+        member_type = "malformed_filename"
+        inclusion_status = "excluded"
+        exclusion_reason = "csv_filename_does_not_match_yyyy_mm_dd"
+    else:
+        member_type = "unsupported_member"
+        inclusion_status = "excluded"
+        exclusion_reason = "unsupported_member_type"
+    return {
+        "member_type": member_type,
+        "parsed_date": parsed_date,
+        "valid_daily_csv": bool(member_type == "valid_daily_csv"),
+        "inclusion_status": inclusion_status,
+        "exclusion_reason": exclusion_reason,
+    }
+
+
+def parse_daily_member_date(file_name: str) -> str:
+    """Parse ``YYYY-MM-DD.csv`` file names and return an ISO date string."""
+    match = DAILY_CSV_RE.match(Path(file_name).name)
+    return match.group("date") if match else ""
+
+
+def build_full_archive_inventory(zip_inventory: pd.DataFrame) -> pd.DataFrame:
+    """Build a classified full archive inventory from ZIP member metadata."""
+    rows: list[dict[str, object]] = []
+    for _, row in zip_inventory.iterrows():
+        classified = classify_archive_member(
+            str(row["member_path"]),
+            str(row["file_name"]),
+            int(row["uncompressed_size_bytes"]),
+        )
+        rows.append(
+            {
+                "member_name": row["member_path"],
+                "member_type": classified["member_type"],
+                "parsed_date": classified["parsed_date"],
+                "compressed_size": int(row["compressed_size_bytes"]),
+                "uncompressed_size": int(row["uncompressed_size_bytes"]),
+                "valid_daily_csv": classified["valid_daily_csv"],
+                "inclusion_status": classified["inclusion_status"],
+                "exclusion_reason": classified["exclusion_reason"],
+                "duplicate_date_status": "not_evaluated",
+                "schema_status": "not_checked",
+                "notes": "",
+            }
+        )
+    inventory = pd.DataFrame(rows)
+    if inventory.empty:
+        return inventory
+    valid = inventory["valid_daily_csv"].astype(bool)
+    duplicate_dates = inventory.loc[valid, "parsed_date"].duplicated(keep=False)
+    inventory.loc[valid, "duplicate_date_status"] = "unique_date"
+    inventory.loc[inventory.loc[valid].index[duplicate_dates], "duplicate_date_status"] = "duplicate_date"
+    inventory.loc[~valid, "duplicate_date_status"] = "not_applicable"
+    return inventory.sort_values(["member_name"]).reset_index(drop=True)
+
+
+def select_valid_daily_members(full_inventory: pd.DataFrame) -> list[str]:
+    """Return included daily CSV member names in chronological order."""
+    if full_inventory.empty:
+        return []
+    valid = full_inventory[
+        full_inventory["valid_daily_csv"].astype(bool)
+        & full_inventory["duplicate_date_status"].isin(["unique_date"])
+    ].copy()
+    valid = valid.sort_values(["parsed_date", "member_name"])
+    return valid["member_name"].astype(str).tolist()
+
+
+def normalize_backblaze_daily_frame(
+    frame: pd.DataFrame,
+    *,
+    source_member: str,
+    source_order_start: int,
+) -> pd.DataFrame:
+    """Normalize one Backblaze daily CSV frame without using future data."""
+    required = {"date", "serial_number", "model", "capacity_bytes", "failure"}
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(f"Backblaze daily frame missing required columns: {', '.join(missing)}")
+    normalized = frame.copy()
+    row_count = len(normalized)
+    normalized.insert(0, "source_member", source_member)
+    normalized.insert(1, "source_row_index", range(row_count))
+    normalized["observation_date"] = pd.to_datetime(normalized["date"], errors="coerce").dt.date.astype(str)
+    normalized["serial_number"] = normalized["serial_number"].astype(str)
+    normalized["failure"] = pd.to_numeric(normalized["failure"], errors="coerce")
+    invalid_failure = normalized["failure"].notna() & ~normalized["failure"].isin([0, 1])
+    if invalid_failure.any():
+        examples = sorted(normalized.loc[invalid_failure, "failure"].dropna().astype(str).unique().tolist())
+        raise ValueError(f"Backblaze failure values must be limited to {{0, 1}}; found {examples}")
+    normalized["event_indicator"] = normalized["failure"].fillna(0).astype(int)
+    normalized["source_order_index"] = range(source_order_start, source_order_start + row_count)
+    preferred = [
+        "source_member",
+        "source_row_index",
+        "observation_date",
+        "serial_number",
+        "model",
+        "capacity_bytes",
+        "failure",
+        "event_indicator",
+        "source_order_index",
+    ]
+    smart_columns = sorted(column for column in normalized.columns if str(column).casefold().startswith("smart_"))
+    return normalized[preferred + smart_columns]
+
+
+def smart_feature_metadata(feature_name: str) -> dict[str, str]:
+    """Return SMART id and raw/normalized type from a SMART column name."""
+    match = re.match(r"^smart_(?P<id>\d+)_(?P<kind>normalized|raw)$", feature_name, re.IGNORECASE)
+    if not match:
+        return {"smart_id": "", "feature_type": "unknown"}
+    return {"smart_id": match.group("id"), "feature_type": match.group("kind").lower()}
+
+
+def classify_censoring_status(
+    *,
+    obs_count: int,
+    failure_count: int,
+    first_failure_date: str,
+    last_observation_date: str,
+    archive_last_date: str,
+    has_post_failure_observation: bool,
+) -> str:
+    """Classify asset-level censoring or event status conservatively."""
+    if failure_count and has_post_failure_observation:
+        return "post_failure_inconsistent"
+    if failure_count:
+        return "observed_failure"
+    if obs_count <= 1:
+        return "single_observation_unknown"
+    if last_observation_date == archive_last_date:
+        return "administrative_end_of_archive"
+    if first_failure_date:
+        return "observed_failure"
+    return "lost_to_observation"
+
+
+def classify_post_failure_status(
+    observation_date: str,
+    failure: int,
+    first_failure_date: str,
+) -> str:
+    """Classify a row relative to the asset's first observed failure."""
+    if not first_failure_date:
+        return "no_observed_failure"
+    if observation_date < first_failure_date:
+        return "pre_failure_observation"
+    if observation_date == first_failure_date and int(failure) == 1:
+        return "failure_observation"
+    if observation_date == first_failure_date:
+        return "same_day_failure_context"
+    return "post_failure_observation"
+
+
+def status_from_bool(condition: bool, ready: str = "ready", not_ready: str = "not_ready") -> str:
+    """Convert booleans to machine-readable readiness status labels."""
+    return ready if condition else not_ready
+
+
+def quantile_dict(values: Iterable[int | float], prefix: str) -> dict[str, float]:
+    """Return compact quantiles for numeric values."""
+    series = pd.Series(list(values), dtype="float64")
+    if series.empty:
+        return {
+            f"{prefix}_p05": 0.0,
+            f"{prefix}_p25": 0.0,
+            f"{prefix}_p50": 0.0,
+            f"{prefix}_p75": 0.0,
+            f"{prefix}_p95": 0.0,
+        }
+    return {
+        f"{prefix}_p05": float(series.quantile(0.05)),
+        f"{prefix}_p25": float(series.quantile(0.25)),
+        f"{prefix}_p50": float(series.quantile(0.50)),
+        f"{prefix}_p75": float(series.quantile(0.75)),
+        f"{prefix}_p95": float(series.quantile(0.95)),
+    }
 
 
 def summarize_backblaze_assets(readiness_df: pd.DataFrame) -> pd.DataFrame:

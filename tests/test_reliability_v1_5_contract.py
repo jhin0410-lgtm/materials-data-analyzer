@@ -155,7 +155,7 @@ def test_docs_mark_v1_5_as_contract_stage_not_completed_case_study() -> None:
 
     assert "Status: `contract_stage`" in plan
     assert "Status: `contract_stage`" in readme
-    assert "does not download data" in plan
+    assert "tracked repository does not contain raw downloads" in plan.lower()
     assert "does not contain downloaded raw data" in readme
     assert "Backblaze" in plan
     assert "NASA C-MAPSS" in plan
