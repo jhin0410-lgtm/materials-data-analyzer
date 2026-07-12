@@ -1,0 +1,7 @@
+dataset_id,task,status,selected_primary_task,basis
+backblaze_drive_stats,binary_horizon_failure,conditionally_ready,True,failure event and date support exist; horizon labels require v1.5.3 construction.
+backblaze_drive_stats,terminal_event_prediction,conditionally_ready,False,terminal failure flag exists but no modeling is performed in v1.5.2.
+backblaze_drive_stats,survival_time_to_event,not_ready,False,censoring is inferred from bounded sample; full follow-up audit is required.
+backblaze_drive_stats,rul_regression,not_ready,False,RUL target is not provided and final-life target construction is not implemented.
+backblaze_drive_stats,degradation_trajectory,conditionally_ready,False,"SMART attributes provide condition trajectories, but feature engineering is deferred."
+backblaze_drive_stats,recurrent_event_analysis,not_ready,False,Drive failure is terminal; no repair or recurrent event policy exists.

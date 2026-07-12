@@ -1,0 +1,6 @@
+horizon_days,eligible_prediction_rows,positive_labels,negative_labels,unique_positive_assets,unique_negative_assets,assets_with_sufficient_lookback,right_edge_censoring_affected_rows,post_event_excluded_rows,prevalence,leakage_safe_constructibility,recommended_status
+1,5062249,704,5061545,704,29056,29058,28348,904,0.0001390686234517504,True,ready
+3,5005569,2094,5003475,705,29052,29058,85028,904,0.0004183340595245016,True,ready
+7,4892482,4797,4887685,706,29022,29058,198115,904,0.0009804839343302643,True,ready
+14,4696728,9207,4687521,706,28222,29058,393869,904,0.0019603008732888088,True,ready
+30,4261871,18021,4243850,706,27733,29058,828726,904,0.004228424558134209,True,ready

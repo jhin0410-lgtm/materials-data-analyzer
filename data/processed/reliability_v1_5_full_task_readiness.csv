@@ -1,0 +1,7 @@
+task,status,basis
+binary_horizon_failure,conditionally_ready,Horizon labels can be constructed with first observed failure and past/current observations only.
+terminal_event_prediction,conditionally_ready,"Terminal failure rows exist, but this is not yet a modeling task."
+survival_time_to_event,conditionally_ready,"Events exist, but censoring is administrative/uncertain and requires survival-specific audit."
+rul_regression,not_ready,No RUL target is provided and non-event assets need explicit treatment.
+recurrent_event_analysis,not_ready,Failure is treated as terminal; repair/recurrent event semantics are absent.
+degradation_trajectory,conditionally_ready,SMART features provide longitudinal condition variables; rolling feature generation is deferred.

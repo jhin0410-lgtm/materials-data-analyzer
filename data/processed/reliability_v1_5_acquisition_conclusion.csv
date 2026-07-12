@@ -1,0 +1,2 @@
+case_study_version,active_dataset,access_gate_status,readiness_verdict,selected_primary_task,asset_count,event_count,modeling_performed,next_step,claim_boundary
+v1.5.2,backblaze_drive_stats,access_verified,conditionally_ready,binary_horizon_failure,28767,10,False,v1.5.3 analysis-ready normalization and event/censoring audit,readiness_stage_only_no_reliability_model

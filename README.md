@@ -2,6 +2,10 @@
 
 [![CI](https://github.com/jhin0410-lgtm/materials-data-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/jhin0410-lgtm/materials-data-analyzer/actions/workflows/ci.yml)
 
+`materials_data_analyzer` is a reproducible engineering-data analysis framework
+for provenance, readiness checks, leakage-aware validation, and bounded
+scientific claims.
+
 ## What This Project Is
 
 `materials_data_analyzer` is a **Tabular Engineering Data Analysis & Virtual Experiment Screening Platform**.
@@ -47,6 +51,16 @@ The simulation workflow is a data-driven screening aid. It uses observed target-
 - Scenario and candidate condition screening
 - Baseline model validation diagnostics
 - Markdown report generation
+
+## Core Principles
+
+- Prefer explicit data contracts over implicit assumptions.
+- Separate raw/local artifacts from compact tracked summaries.
+- Fit preprocessing only on training partitions when validation is involved.
+- Treat random splits as optimistic references when asset, battery, material,
+  or time dependence can inflate results.
+- Preserve weak, negative, or limited results instead of tuning them away.
+- State what each result can and cannot support before making claims.
 
 ## What This Project Is Not
 
@@ -191,18 +205,42 @@ Run tests:
 python -m pytest
 ```
 
+On Windows, the repository-local test runner avoids user temp-directory
+permission issues:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
+```
+
+The tracked test suite is designed to run without local raw datasets, Backblaze
+archives, row-level predictions, or generated `outputs/` folders.
+
 ## Real-Data Case Studies
 
-The repository currently includes four representative real-data case studies:
+The repository currently includes five representative real-data case studies:
 
 - Kaggle NASA Li-ion Battery
 - Battery Archive
 - Materials Project
 - Smart Factory / UCI SECOM
+- Reliability / Backblaze Hard Drive Test Data
+
+The Reliability / Backblaze work is complete as an offline trust-boundary case
+study: access gate, full-year normalization audit, event/censoring readiness,
+fixed 7-day diagnostic classification baselines, and model-eligibility
+closeout.
 
 These case studies demonstrate source-specific preparation and validation
 workflows. They are not the core product identity; the core project remains a
 Tabular Engineering Data Analysis & Virtual Experiment Screening Platform.
+
+| Case study | Task | Validation emphasis | Trust result | Release |
+| --- | --- | --- | --- | --- |
+| Kaggle NASA Li-ion Battery | Capacity-retention analysis | Random split vs `battery_id` group split | Stronger within-battery interpolation than unseen-battery generalization | v0.8 |
+| Battery Archive | Cycle-level capacity retention and threshold proxies | Data quality, observed censoring, reliability group summaries | Descriptive cycle-data case study; no forecasting/RUL claim | v1.1 |
+| Materials Project | Computed-property screening and composition-only validation | Group-aware chemical-system validation and applicability domain | Descriptive screening reproducible; predictive validation weak | v1.2 / v1.3 |
+| Smart Factory / UCI SECOM | Process-quality failure classification | Time-aware validation and random-split gap | Diagnostic-only; no production model selected | v1.4.0 |
+| Reliability / Backblaze | 7-day drive failure-risk ranking | Asset-disjoint, time-aware, combined asset/time validation | Diagnostic-only; no representative model selected | v1.5.0 |
 
 ### Kaggle NASA Li-ion Battery
 
@@ -295,6 +333,47 @@ Case-study documents:
 - [`data/case_studies/smart_factory/case_study.md`](data/case_studies/smart_factory/case_study.md)
 - [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md)
 
+### Reliability / Backblaze Hard Drive Test Data
+
+The v1.5 reliability track uses Backblaze Hard Drive Test Data 2013 as an
+asset-level reliability case study. It defines event/censoring policy, leakage
+boundaries, asset/time-aware validation, fixed 7-day diagnostic classification
+baselines, and a conservative trust-boundary closeout.
+
+Observed closeout highlights:
+
+- 5,091,501 normalized daily rows and 29,072 drive assets
+- 724 failed assets and 4,797 positive 7-day labels
+- best primary median PR-AUC: 0.0998
+- best combined asset/time PR-AUC: 0.1119
+- combined top 1% reference precision/lift/capture: 0.0703 / 62.9x / 0.846
+- representative model: none selected
+
+This case study supports retrospective offline ranking diagnostics only. It
+does not fit survival models, estimate RUL, claim calibrated operational
+probabilities, run SHAP, identify root cause, or make production maintenance
+claims.
+
+Planning documents:
+
+- [`docs/RELIABILITY_V1_5_PLAN.md`](docs/RELIABILITY_V1_5_PLAN.md)
+- [`data/case_studies/reliability/README.md`](data/case_studies/reliability/README.md)
+- [`data/case_studies/reliability/case_study.md`](data/case_studies/reliability/case_study.md)
+
+## Validation and Trust Boundary
+
+Validation design is part of the result, not an afterthought. Where the data
+has repeated batteries, assets, materials, timestamps, or process periods, the
+project reports group-aware or time-aware evidence separately from optimistic
+random-split references.
+
+Trust-boundary closeouts record whether a model is descriptive-only,
+diagnostic-only, limited evidence for further validation, or not run. A case
+study can be complete even when no representative model is selected. The
+Backblaze v1.5 release is an example: top-risk concentration exists, but
+repeated daily origins, resource-limited training, uncertain censoring, and
+missing external validation keep the result inside a diagnostic boundary.
+
 ## Optional Connectors
 
 The connector layer is optional and experimental. It is not required to use the core CSV analyzer.
@@ -345,6 +424,16 @@ outputs/{run_name}/figures/
 outputs/{run_name}/reports/
 ```
 
+## Releases
+
+- v1.5.0: Reliability / Backblaze asset- and time-aware validation with
+  trust-boundary closeout. See [`docs/releases/V1_5_0.md`](docs/releases/V1_5_0.md).
+- v1.4.0: Smart Factory / UCI SECOM time-aware validation and trust boundary.
+- v1.3.1: Materials Project group-aware validation and trust boundary.
+
+For a portfolio-oriented overview of the architecture and case-study arc, see
+[`docs/PORTFOLIO_OVERVIEW.md`](docs/PORTFOLIO_OVERVIEW.md).
+
 ## Roadmap
 
 ### v0.9: Virtual Experiment Screening Polish
@@ -383,6 +472,19 @@ outputs/{run_name}/reports/
   claim is made.
 - See [`docs/SMART_FACTORY_V1_4_PLAN.md`](docs/SMART_FACTORY_V1_4_PLAN.md) and
   [`data/case_studies/smart_factory/`](data/case_studies/smart_factory/).
+
+### v1.5 Complete: Reliability Trust Boundary
+
+- Backblaze Hard Drive Test Data 2013 is used as an asset-level reliability
+  case study.
+- The workflow covers source access, full-year streaming normalization,
+  event/censoring integrity, fixed 7-day asset/time-aware classification
+  baselines, and model-eligibility closeout.
+- The final result is diagnostic-only: no representative model, calibrated
+  failure probability, survival/RUL claim, SHAP/root-cause claim, or production
+  maintenance claim is made.
+- See [`docs/RELIABILITY_V1_5_PLAN.md`](docs/RELIABILITY_V1_5_PLAN.md) and
+  [`data/case_studies/reliability/`](data/case_studies/reliability/).
 
 ### Later
 

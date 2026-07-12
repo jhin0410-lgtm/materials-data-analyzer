@@ -1,0 +1,18 @@
+field_or_pattern,leakage_type,status,mitigation
+days_to_last_observation,full_lifetime_metadata,target_construction_only,Last observed date is future information at prediction time.
+asset_last_observation_date,archive_end_metadata,target_construction_only,Used for censoring/label feasibility only.
+final_lifetime,final_trajectory_statistic,prohibited_feature,No full-life statistic may be a prediction feature.
+future_smart_values,future_observation,prohibited_feature,Rolling features must use past windows only.
+post_failure_rows,post_event_measurement,prohibited_feature,Rows after first failure are retained only for diagnostics.
+full_trajectory_normalization,global_per_asset_normalization,prohibited_feature,Do not normalize using full asset history.
+globally_fitted_smoothing,global_filtering,prohibited_feature,Any smoothing must be train-only and past-only.
+future_interpolation,future_sample_interpolation,prohibited_feature,Past-only forward-fill is the safe default.
+failure_date,event_time,target_construction_only,"Failure date is an outcome, not a feature."
+censoring_date,administrative_end,target_construction_only,Censoring date is evaluation metadata.
+asset_maximum_observed_date,asset_max_cycle_equivalent,prohibited_feature,Maximum observed date leaks follow-up length.
+random_row_split,same_asset_leakage,prohibited_feature,Random rows mix identical serial numbers across splits.
+same_asset_train_test,asset_identity_leakage,prohibited_feature,Asset-disjoint claims require serial_number exclusivity.
+future_observations_in_rolling_windows,future_window,prohibited_feature,Cutoffs must be closed-left/past-only.
+model,asset_family_proxy,safe_feature,Can be a static covariate but not a causal claim.
+serial_number,identity,metadata_only,"Used for grouping, not as a prediction feature."
+archive_end_knowledge,administrative_end,target_construction_only,Allowed only to mark right-edge label feasibility.

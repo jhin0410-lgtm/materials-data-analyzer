@@ -1,0 +1,6 @@
+lookback_window_days,eligible_assets,eligible_prediction_origins,positive_origins_within_30d,median_observations_available,complete_window_proportion,irregular_gap_proportion,leakage_status,feasibility_status
+current_day_only,29066,5090597,18021,1.0,1.0,0.0,past_or_current_observations_only,ready
+3,29066,5090597,18021,3.0,0.9787264637133916,0.021273536286608427,past_or_current_observations_only,ready
+7,29066,5090597,18021,7.0,0.9363361507500987,0.06366384924990134,past_or_current_observations_only,ready
+14,29066,5090597,18021,14.0,0.8631877557779569,0.1368122442220431,past_or_current_observations_only,ready
+30,29066,5090597,18021,30.0,0.7018844744535857,0.2981155255464143,past_or_current_observations_only,ready

@@ -1,0 +1,25 @@
+field,value,evidence
+audit_verdict,passed,All required v1.5.4 compact artifacts were available and parsed.
+row_prevalence_baseline,0.000980484,4797/4892482 positive 7-day labels.
+positive_asset_prevalence,0.0242845,706/29072 assets have positive labels.
+best_primary_median_pr_auc,0.0998157,"Best median over asset-disjoint, time-aware, and combined primary splits."
+best_combined_pr_auc,0.111927,Combined asset/time validation is the strictest evidence.
+representative_model_selected,false,No model is promoted to representative status.
+representative_model,none,"Resource-limited training, repeated origins, threshold burden, and external-validation gaps block selection."
+v1_5_4_model_status_counts,candidate_for_further_validation=12; diagnostic_only=4,Input v1.5.4 statuses are preserved separately from trust eligibility.
+v1_5_5_eligibility_status_counts,descriptive_only=4; diagnostic_only=12,Trust closeout applies stricter representative-model gates.
+random_reference_boundary,random_optimistic_for_some_combinations,Random row split is optimistic reference only.
+weighting_boundary,raw_row_dependency_detected,Raw-row gains can reflect repeated-origin and long-lived-asset dominance.
+resource_boundary,all_non_dummy_models_resource_limited,Non-dummy models use deterministic training-only subsampling; test sets are not subsampled.
+combined_top_1_reference_model,random_forest|smart_plus_safe_operational_metadata|asset_balanced,Reference top-risk row is fixed for interpretation and is not a representative model selection.
+combined_top_1_precision,0.0702576,Precision is not calibrated failure probability.
+combined_top_1_lift,62.9233,Lift must be read with absolute precision and false-positive burden.
+combined_top_1_failed_asset_capture,0.846154,"Capture rate is retrospective ranking concentration, not prediction accuracy."
+threshold_boundary,ranking_only_not_operational_threshold,0.5 threshold rows are diagnostic and not tuned with test labels.
+calibration_boundary,uncalibrated_relative_score_only,No independent calibration set or calibration model is used.
+event_boundary,post_failure_anomalies=7; no_prior_history_failures=6,"Event anomalies are retained as limitations, not silently removed from the audit."
+censoring_boundary,administrative_end_of_archive=27206; lost_to_observation=1134; observed_failure=717; post_failure_inconsistent=7; single_observation_unknown=8,"Non-failure exits may be administrative, retirement, removal, or unknown."
+survival_model_status,deferred_not_ready,Operational censoring distribution and exit reasons are unresolved.
+rul_model_status,deferred_not_ready,No RUL target is constructed or modeled.
+shap_status,deferred_not_justified,No representative model exists and causal/root-cause claims are prohibited.
+overall_readiness,conditionally_ready,"Case study is complete as trust-boundary demonstration, not production model."

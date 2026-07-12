@@ -1,0 +1,9 @@
+field,value,evidence
+v1_5_release_readiness,release_ready,Reliability case study is complete as a bounded offline trust-boundary demonstration.
+representative_model,none_selected,No model satisfies representative-model criteria.
+model_eligibility,descriptive_only=4; diagnostic_only=12,v1.5.5 applies conservative trust-boundary rules to v1.5.4 outputs.
+representative_model_selected,false,Production-ready status does not exist.
+allowed_use,retrospective_offline_ranking_diagnostic,Use for portfolio demonstration of reliability validation and trust boundaries.
+not_allowed_use,production_alert_or_maintenance_automation,"No calibrated probability, cost model, intervention evidence, or prospective validation exists."
+future_data_requirements,multi_year_external_holdout_retirement_reason_maintenance_logs_failure_modes_calibration_period,Further data structure is more valuable than tuning current baselines.
+recommended_next_phase,v1_5_release_documentation_or_next_domain_contract,"Do not proceed to SHAP, tuning, survival, or RUL until stronger evidence exists."

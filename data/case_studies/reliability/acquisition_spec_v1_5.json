@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.5.2",
+  "status": "access_gate_complete",
+  "primary_candidate": "backblaze_drive_stats",
+  "backup_candidate": "nasa_cmapss",
+  "active_candidate": "backblaze_drive_stats",
+  "source_type": "public_reliability_asset_history",
+  "official_source": "https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data",
+  "source_url": "https://f001.backblazeb2.com/file/Backblaze-Hard-Drive-Data/data_2013.zip",
+  "access_method": "official_backblaze_2013_zip_bounded_sample",
+  "authentication_requirement": "none_observed_for_2013_public_zip",
+  "access_status": "access_verified",
+  "terms_status": "public_source_terms_reviewed_for_tracked_compact_artifacts",
+  "license_status": "public_terms_documented_by_source_reuse_scope_requires_attribution",
+  "redistribution_status": "raw_not_redistributed_tracked_compact_artifacts_only",
+  "retrieval_timestamp": "2026-07-11T23:40:49+00:00",
+  "expected_files": [
+    "data_2013.zip"
+  ],
+  "observed_files": [
+    "data_2013.zip"
+  ],
+  "expected_size": "about 81 MB for data_2013.zip",
+  "observed_file_sizes": "recorded_in_acquisition_manifest_v1_5_json",
+  "archive_policy": "Raw archive stays under data/raw/reliability and is not tracked.",
+  "checksum_policy": "Compute SHA256 before and after script execution without overwriting existing raw source.",
+  "extraction_policy": "Do not extract full archive; list members and read bounded selected CSV members.",
+  "raw_local_paths": [
+    "data/raw/reliability/backblaze_drive_stats/data_2013.zip"
+  ],
+  "tracked_manifest_paths": [
+    "data/case_studies/reliability/acquisition_manifest_v1_5.json",
+    "data/processed/reliability_v1_5_schema_inventory.csv",
+    "data/processed/reliability_v1_5_leakage_schema_audit.csv",
+    "data/processed/reliability_v1_5_readiness_summary.csv",
+    "data/processed/reliability_v1_5_task_feasibility.csv",
+    "data/processed/reliability_v1_5_asset_summary.csv",
+    "data/processed/reliability_v1_5_event_censoring_summary.csv",
+    "data/processed/reliability_v1_5_validation_feasibility.csv",
+    "data/processed/reliability_v1_5_acquisition_conclusion.csv"
+  ],
+  "fallback_policy": {
+    "fallback_activated": false,
+    "fallback_candidate": "nasa_cmapss",
+    "fallback_rule": "Activate backup when access, terms, license, file inventory, or readiness gate fails."
+  },
+  "credential_policy": {
+    "credential_values_logged": false,
+    "repository_credentials_allowed": false,
+    "environment_variable_values_allowed": false
+  },
+  "allowed_network_operations": [
+    "HEAD official Backblaze 2013 ZIP when --allow-network is set",
+    "GET official Backblaze 2013 ZIP when --allow-network --download is set"
+  ],
+  "prohibited_operations": [
+    "model_training",
+    "survival_modeling",
+    "RUL_regression",
+    "Weibull_fitting",
+    "full_archive_extraction",
+    "raw_data_commit",
+    "credential_logging"
+  ],
+  "stop_conditions": [
+    "candidate_decision_inconsistent",
+    "official_source_unavailable",
+    "terms_unresolved",
+    "license_unresolved",
+    "download_exceeds_budget",
+    "archive_malformed",
+    "no_asset_id",
+    "no_repeated_measurements",
+    "no_usable_event",
+    "no_timestamp_or_cycle",
+    "raw_source_overwritten",
+    "credential_or_absolute_path_leak"
+  ]
+}

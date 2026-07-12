@@ -1,0 +1,4 @@
+dataset_id,validation_type,ready,basis,claim_scope,status,random_row_split_policy
+backblaze_drive_stats,asset_disjoint_split,True,assets=28767; min_assets=5; events=10; min_events=5,unseen_asset_generalization,conditionally_ready,prohibited_as_primary_evidence
+backblaze_drive_stats,forward_time_split,True,time_or_cycle_ready=True; rows=96838; min_rows=20; events=10,future_known_population_prediction,conditionally_ready,prohibited_as_primary_evidence
+backblaze_drive_stats,combined_asset_time_split,True,asset_ready=True; time_or_cycle_ready=True; event_ready=True,future_unseen_asset_generalization,conditionally_ready,prohibited_as_primary_evidence

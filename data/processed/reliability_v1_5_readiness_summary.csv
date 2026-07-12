@@ -1,0 +1,10 @@
+dataset_id,check,value,status,note
+backblaze_drive_stats,overall_readiness,bounded_access_gate,conditionally_ready,Backblaze 2013 bounded schema/readiness gate; not model training.
+backblaze_drive_stats,asset_identity,28767,partially_repeated_assets,serial_number mapped to asset_id.
+backblaze_drive_stats,event_definition,10,valid_binary,failure column mapped to binary event_indicator.
+backblaze_drive_stats,temporal_order,ordered;ordered,ready,date mapped to observation_timestamp; cycle is derived per asset.
+backblaze_drive_stats,censoring_support,administrative_last_observation_in_bounded_sample,conditionally_ready,Survival claims require a fuller follow-up and censoring audit.
+backblaze_drive_stats,selected_primary_task,binary_horizon_failure,conditionally_ready,"Selected for future horizon-style failure risk readiness, not survival modeling."
+backblaze_drive_stats,asset_disjoint_split,True,conditionally_ready,assets=28767; min_assets=5; events=10; min_events=5
+backblaze_drive_stats,forward_time_split,True,conditionally_ready,time_or_cycle_ready=True; rows=96838; min_rows=20; events=10
+backblaze_drive_stats,combined_asset_time_split,True,conditionally_ready,asset_ready=True; time_or_cycle_ready=True; event_ready=True

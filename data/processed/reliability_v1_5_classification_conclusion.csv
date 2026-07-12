@@ -1,0 +1,9 @@
+field,value,evidence
+primary_task,binary_7_day_failure_risk,7-day horizon and 7-day lookback were fixed before modeling.
+primary_evidence,asset_disjoint_time_aware_combined_validation,Random row split is optimistic reference only.
+best_primary_median_pr_auc,0.0998157,Average precision / PR-AUC is the primary metric.
+best_combined_pr_auc,0.111927,Combined asset/time split is the strictest evidence.
+representative_model,none_selected,No model is automatically promoted; use status and split stability.
+strongest_diagnostic_model,random_forest,Descriptive only; not a production alert model.
+allowed_claim,offline_retrospective_failure_risk_ranking_diagnostic,Classical baselines can be compared under fixed splits.
+prohibited_claim,calibrated_probability_or_maintenance_decision,"No survival, RUL, causal, calibrated operational, or production claim."

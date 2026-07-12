@@ -56,6 +56,22 @@ classification validation and trust-boundary summaries. They are diagnostic
 utilities, not AutoML, SHAP, real-time monitoring, or production decision
 engines.
 
+`src/analyzers/reliability_readiness.py` provides generic asset, event,
+censoring, temporal-order, validation-feasibility, and leakage-readiness checks
+for reliability/risk case studies. `src/connectors/reliability.py` and
+`src/loaders/reliability.py` support source discovery, schema reconnaissance,
+and streaming full-year normalization audits for v1.5 readiness gates. They do
+not train models, fit survival curves, or estimate RUL.
+
+`src/features/temporal_asset_features.py` and
+`src/analyzers/asset_temporal_classification.py` provide generic cutoff-safe
+lookback feature construction and fixed asset/time-aware binary classification
+baseline utilities. `src/analyzers/reliability_trust.py` aggregates compact
+classification artifacts into model-eligibility, operational-boundary, and
+claim-boundary closeout tables. They are used for the v1.5 Backblaze
+diagnostic case study and do not perform survival modeling, RUL regression,
+hyperparameter search, SHAP, or production alerting.
+
 ## Case Study Utilities
 
 Case-study utilities prepare public or external datasets for the core analyzer:
@@ -107,6 +123,7 @@ data/case_studies/kaggle_battery/
 data/case_studies/battery_archive/
 data/case_studies/materials_project/
 data/case_studies/smart_factory/
+data/case_studies/reliability/
 ```
 
 They document source data, processing steps, quality review, analysis-ready or
@@ -120,9 +137,9 @@ provenance acquisition, 60 composition-only descriptors, identifiability and
 ambiguity audit, group-aware baseline validation, applicability-domain
 diagnostics, error-structure summaries, and conservative claim-boundary
 closeout. It does not claim novel-material recommendation, DFT replacement,
-calibrated uncertainty, or production screening readiness. v1.4 is reserved for
-a Smart Factory Process Quality Case Study, and v1.5 is reserved for Generic
-Reliability Engineering.
+calibrated uncertainty, or production screening readiness. v1.4 and v1.5 extend
+the same trust-boundary pattern to Smart Factory process quality and
+Reliability Engineering case studies.
 
 The v1.4 Smart Factory case study is complete as a SECOM fallback
 process-quality trust-boundary demonstration: dataset candidate assessment,
@@ -131,6 +148,19 @@ normalization, temporal integrity checks, feature-quality audit, fixed
 time-aware classification baselines, and conservative closeout. It does not
 claim production readiness, calibrated probability, causal root cause, or
 group-aware generalization.
+
+The v1.5 reliability/risk work is complete as a Backblaze trust-boundary case
+study. It defines asset-level reliability fields, event/censoring policy,
+leakage risks, validation hierarchy, metrics, candidate dataset assessment,
+Backblaze full-year normalization/readiness outputs, fixed 7-day asset/time
+classification baselines, and model-eligibility closeout outputs. It does not
+claim survival probability, RUL, calibrated operational probability, root-cause
+discovery, or production maintenance readiness.
+
+Portfolio and release-facing documentation lives in `docs/`, including
+`docs/PORTFOLIO_OVERVIEW.md` and versioned release notes under
+`docs/releases/`. These documents summarize tracked artifacts and claim
+boundaries; they do not replace source manifests or case-study contracts.
 
 ## Generated Artifacts
 

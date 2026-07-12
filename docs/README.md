@@ -6,6 +6,7 @@ This directory collects project references, specifications, audits, policies, ca
 
 - [Project Structure](PROJECT_STRUCTURE.md): core platform, case-study utilities, connectors, generated artifacts, and data policy overview.
 - [Outputs Policy](OUTPUTS_POLICY.md): how `outputs/` and generated run artifacts should be treated.
+- [Portfolio Overview](PORTFOLIO_OVERVIEW.md): portfolio-oriented summary of architecture, case studies, validation rigor, and limitations.
 - [Testing Guide](../TESTING.md): current test-running notes.
 
 ## Active Specifications
@@ -21,6 +22,8 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Archive Data Audit](BATTERY_ARCHIVE_DATA_AUDIT.md): raw zip inventory and case-study feasibility review.
 - [Materials Project Data Audit](MATERIALS_PROJECT_DATA_AUDIT.md): local 50-row pilot audit, schema/quality follow-up, and descriptive screening notes.
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
+- [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
+- [v1.5.0 Release Notes](releases/V1_5_0.md): Backblaze reliability validation and trust-boundary release notes.
 - [Project Audit](audits/PROJECT_AUDIT.md): earlier project inventory.
 - [Commit Boundary Review](audits/COMMIT_BOUNDARY_REVIEW.md): guidance on what should and should not be committed.
 
@@ -38,6 +41,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Archive case study](../data/case_studies/battery_archive/): raw zip inventory, cycle-data normalization, quality metrics, threshold proxies, and reliability group summary.
 - [Materials Project case study](../data/case_studies/materials_project/): query contract, schema quality audit, descriptive computed-property screening, exact-provenance validation, and trust-boundary closeout.
 - [Smart Factory process-quality case study](../data/case_studies/smart_factory/): SECOM fallback provenance, readiness artifacts, time-aware classification baselines, and trust-boundary closeout.
+- [Reliability / Backblaze case study](../data/case_studies/reliability/): asset-level reliability/risk contract, leakage map, Backblaze full-year normalization audit, fixed 7-day diagnostic classification baselines, and trust-boundary closeout.
 
 ## Images
 

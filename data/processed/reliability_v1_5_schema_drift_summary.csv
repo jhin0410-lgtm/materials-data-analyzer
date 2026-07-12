@@ -1,0 +1,2 @@
+schema_signature,first_date,last_date,member_count,column_count,added_columns,removed_columns,compatibility_status,normalization_action
+8f4590ec5926294a0232ffb80b0045b1997b05de,2013-04-10,2013-12-31,266,85,,,compatible,use_as_is

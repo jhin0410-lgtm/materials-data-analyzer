@@ -108,6 +108,34 @@ data/case_studies/smart_factory/trust_spec_v1_4.json
 docs/SMART_FACTORY_V1_4_PLAN.md
 ```
 
+### `reliability/`
+
+Representative asset-level reliability/risk case study using Backblaze Hard
+Drive Test Data 2013. This folder does not contain downloaded raw data or
+trained production models. It defines the reliability problem taxonomy,
+dataset candidate assessment, data contract, leakage map, validation hierarchy,
+censoring policy, Backblaze access gate, full-year normalization readiness
+audit, fixed 7-day diagnostic classification baselines, and trust-boundary
+closeout.
+
+Key files:
+
+```text
+data/case_studies/reliability/README.md
+data/case_studies/reliability/reliability_contract_v1_5.json
+data/case_studies/reliability/leakage_map_v1_5.csv
+data/case_studies/reliability/dataset_candidates_v1_5.csv
+data/case_studies/reliability/acquisition_spec_v1_5.json
+data/case_studies/reliability/acquisition_manifest_v1_5.json
+data/case_studies/reliability/normalization_spec_v1_5.json
+data/case_studies/reliability/full_year_manifest_v1_5.json
+data/case_studies/reliability/classification_spec_v1_5.json
+data/case_studies/reliability/trust_spec_v1_5.json
+data/case_studies/reliability/case_study.md
+docs/RELIABILITY_V1_5_PLAN.md
+docs/releases/V1_5_0.md
+```
+
 ## Other Source Notes
 
 Other folders may contain source notes or early dataset exploration notes:

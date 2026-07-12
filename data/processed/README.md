@@ -129,6 +129,81 @@ smart_factory_v1_4_secom_analysis_ready.csv
 smart_factory_v1_4_classification_predictions.csv
 ```
 
+## Reliability v1.5 Access-Gate and Full-Year Summaries
+
+Compact reproducibility artifacts for the Reliability v1.5 Backblaze bounded
+access gate include:
+
+```text
+reliability_v1_5_schema_inventory.csv
+reliability_v1_5_leakage_schema_audit.csv
+reliability_v1_5_readiness_summary.csv
+reliability_v1_5_task_feasibility.csv
+reliability_v1_5_asset_summary.csv
+reliability_v1_5_event_censoring_summary.csv
+reliability_v1_5_validation_feasibility.csv
+reliability_v1_5_acquisition_conclusion.csv
+```
+
+Compact reproducibility artifacts for the v1.5.3 Backblaze full-year
+normalization and readiness reassessment include:
+
+```text
+reliability_v1_5_full_archive_inventory.csv
+reliability_v1_5_schema_drift_summary.csv
+reliability_v1_5_trajectory_summary.csv
+reliability_v1_5_event_integrity_summary.csv
+reliability_v1_5_censoring_summary.csv
+reliability_v1_5_temporal_coverage_summary.csv
+reliability_v1_5_smart_feature_inventory.csv
+reliability_v1_5_full_leakage_audit.csv
+reliability_v1_5_horizon_feasibility.csv
+reliability_v1_5_lookback_feasibility.csv
+reliability_v1_5_split_feasibility.csv
+reliability_v1_5_full_readiness_summary.csv
+reliability_v1_5_full_task_readiness.csv
+```
+
+Compact reproducibility artifacts for the v1.5.4 fixed 7-day classification
+baseline include:
+
+```text
+reliability_v1_5_classification_metrics.csv
+reliability_v1_5_classification_split_diagnostics.csv
+reliability_v1_5_classification_model_summary.csv
+reliability_v1_5_asset_time_gap_summary.csv
+reliability_v1_5_top_risk_summary.csv
+reliability_v1_5_threshold_summary.csv
+reliability_v1_5_error_structure_summary.csv
+reliability_v1_5_classification_conclusion.csv
+```
+
+Compact reproducibility artifacts for the v1.5.5 trust-boundary closeout
+include:
+
+```text
+reliability_v1_5_model_eligibility.csv
+reliability_v1_5_validation_stability_summary.csv
+reliability_v1_5_weighting_dependency_summary.csv
+reliability_v1_5_resource_boundary.csv
+reliability_v1_5_operational_boundary.csv
+reliability_v1_5_claim_boundary.csv
+reliability_v1_5_trust_summary.csv
+reliability_v1_5_closeout_conclusion.csv
+```
+
+The raw Backblaze archive, large row-level normalized trajectory tables, local
+7-day feature dataset, and row-level prediction diagnostics remain local-only
+by default:
+
+```text
+data/raw/reliability/backblaze_drive_stats/data_2013.zip
+reliability_v1_5_backblaze_analysis_ready.csv
+reliability_v1_5_horizon_7d_lookback_7d_dataset.csv
+reliability_v1_5_classification_predictions.csv
+reliability_v1_5_*_row_level.csv
+```
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.

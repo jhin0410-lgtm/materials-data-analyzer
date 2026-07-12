@@ -1,0 +1,21 @@
+field_or_pattern,leakage_type,availability_time,risk_level,allowed_as_feature,allowed_as_metadata,mitigation,validation_test
+post_failure_measurements,post-failure measurements,after event,high,false,true,Exclude from prediction-time features and retain only as outcome metadata,assert prohibited feature pattern is not in feature list
+maintenance_action_after_diagnosis,maintenance action after diagnosis,after diagnosis,high,false,true,Use only maintenance actions known before prediction_origin,check maintenance_timestamp <= prediction_origin for features
+replacement_indicator,replacement indicator,after repair or replacement,high,false,true,Treat as outcome or recurrent-event metadata unless known before origin,assert replacement-after fields are not features
+final_cycle_count,final cycle count,end of trajectory,high,false,true,Use only for target construction outside prediction-time feature table,assert final_cycle/max_cycle columns are excluded
+future_degradation_windows,future degradation windows,after prediction_origin,high,false,false,Build rolling windows with past-only observations,unit test rolling window does not use future rows
+full_lifetime_normalization,full-lifetime normalization,end of trajectory,high,false,true,Fit normalization statistics on training history only,assert no global per-asset lifetime statistic is used as feature
+asset_maximum_cycle,asset maximum cycle,end of trajectory,high,false,true,Use as target construction metadata only,assert max_cycle pattern is excluded
+target_derived_health_index,target-derived health index,after label construction,high,false,true,Separate health index labels from prediction-time covariates,assert target_health_index fields are excluded
+test_asset_statistics_in_preprocessing,test asset statistics in preprocessing,test fold,high,false,false,Fit imputers scalers filters and smoothers on train assets only,train-only preprocessing test
+random_row_split_mixing_same_asset,random row split mixing same asset,split design,high,false,true,Use grouped or asset-disjoint split for unseen-asset claims,assert train/test asset sets do not overlap
+future_observation_in_rolling_features,future observation in rolling features,after prediction_origin,high,false,false,Use lagged/closed-left rolling windows only,assert feature timestamp <= prediction_origin
+failure_code_after_teardown,failure code assigned after teardown,after event inspection,high,false,true,Use as target/failure_mode metadata only,assert teardown/failure_code fields excluded from features
+censoring_timestamp_as_feature,censoring timestamp treated as known feature,administrative end or last follow-up,medium,false,true,Use for censoring definition and evaluation not model features,assert censoring timestamp not in feature matrix
+remaining_useful_life_label,remaining useful life derived using final event,end of trajectory,high,false,true,Construct target after split while excluding RUL from covariates,assert RUL columns excluded from feature list
+survivor_only_selection,survivor-only selection bias,cohort construction,medium,false,true,Report inclusion rules and censoring distribution,compare censored/event asset counts
+repaired_asset_history_crossing_origin,repaired asset history crossing prediction origin,before and after repair,high,false,true,Define clock reset or create new episode after replacement,assert episode_id or repair policy exists for recurrent events
+duplicated_trajectories,duplicated trajectories,source artifact,medium,false,true,Detect duplicate asset/cycle trajectories before split,deduplicate audit or grouped duplicate test
+operating_regime_hidden_asset_identity,operating regime acting as hidden asset identity,metadata,medium,true,true,Use regime holdout when claiming unseen regime generalization,check regime cardinality and asset overlap
+globally_fitted_smoothing,globally fitted smoothing/filtering,full dataset,high,false,false,Fit filters on training partition and past windows only,assert smoothing is train-only and past-only
+future_sample_interpolation,interpolation using future samples,after prediction_origin,high,false,false,Use forward-fill or past interpolation only,assert interpolation source rows precede prediction origin

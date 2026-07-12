@@ -1,0 +1,246 @@
+{
+  "schema_version": "1.0",
+  "case_study_version": "v1.5.4",
+  "status": "classification_baseline_stage",
+  "source_inputs": {
+    "raw_archive": "data/raw/reliability/backblaze_drive_stats/data_2013.zip",
+    "analysis_ready_csv": "data/processed/reliability_v1_5_backblaze_analysis_ready.csv",
+    "analysis_ready_size_bytes": 1419795211,
+    "full_year_manifest": "data/case_studies/reliability/full_year_manifest_v1_5.json",
+    "horizon_feasibility": "data/processed/reliability_v1_5_horizon_feasibility.csv",
+    "lookback_feasibility": "data/processed/reliability_v1_5_lookback_feasibility.csv",
+    "split_feasibility": "data/processed/reliability_v1_5_split_feasibility.csv",
+    "smart_feature_inventory": "data/processed/reliability_v1_5_smart_feature_inventory.csv"
+  },
+  "source_sha_policy": {
+    "archive_sha256": "7f5a53e79b16e695b4b034955806bb3bb194534b169f6eca460dfd3dc48096fe",
+    "verify_archive_before_and_after": true,
+    "analysis_ready_is_local_only": true
+  },
+  "task": {
+    "name": "binary_horizon_failure",
+    "target_column": "target_failure_within_7d",
+    "horizon_days": 7,
+    "lookback_days": 7,
+    "prediction_origin": "asset observation_date",
+    "label_definition": "1 if first observed failure occurs after prediction origin and within 7 days; otherwise 0 when full 7-day future visibility exists"
+  },
+  "label_construction": {
+    "same_day_failure_origin_policy": "exclude_same_day_failure_rows_from_prediction_origins",
+    "right_edge_policy": "exclude_origins_without_full_7_day_future_visibility",
+    "post_failure_policy": "exclude_failure_day_and_post_failure_rows_as_prediction_origins",
+    "event_policy": "first observed failure is terminal event candidate",
+    "failure_free_exit_policy": "do_not_interpret_archive_exit_as_healthy_retirement"
+  },
+  "lookback_policy": {
+    "window": "7 calendar days including prediction origin day",
+    "window_start": "origin_date - 6 days",
+    "window_end": "origin_date",
+    "allowed_aggregates": [
+      "current",
+      "mean",
+      "median",
+      "min",
+      "max",
+      "std",
+      "count",
+      "missing_count",
+      "delta",
+      "slope",
+      "days_observed",
+      "observation_density"
+    ],
+    "prohibited": [
+      "future_interpolation",
+      "centered_rolling_window",
+      "full_trajectory_normalization",
+      "asset_lifetime",
+      "asset_last_date",
+      "days_to_failure",
+      "days_to_final_observation",
+      "failure_date_as_feature",
+      "censoring_date_as_feature",
+      "archive_end_as_feature"
+    ]
+  },
+  "feature_policy": {
+    "smart_feature_candidates": [
+      "smart_194_raw",
+      "smart_197_raw",
+      "smart_1_raw",
+      "smart_5_raw",
+      "smart_9_raw"
+    ],
+    "feature_sets": [
+      {
+        "name": "smart_only_conservative",
+        "description": "Target-independent conservative SMART candidate aggregates only."
+      },
+      {
+        "name": "smart_plus_safe_operational_metadata",
+        "description": "SMART aggregates plus drive age, observation density, capacity_bytes, and train-only model category encoding."
+      }
+    ],
+    "prohibited_features": [
+      "serial_number",
+      "raw_asset_identity_encoding",
+      "target_association_selected_features",
+      "days_to_last_observation",
+      "asset_last_observation_date",
+      "event_date",
+      "failure_date",
+      "future_smart_values"
+    ],
+    "identity_proxy_note": "model and capacity_bytes can act as hidden asset/population proxies and are reported as diagnostic metadata-sensitive features"
+  },
+  "validation_hierarchy": {
+    "primary": [
+      "asset_disjoint_stratified_80_20",
+      "final_month_holdout",
+      "combined_asset_disjoint_future_holdout"
+    ],
+    "secondary_reference": [
+      "stratified_random_row_reference_80_20"
+    ],
+    "random_reference_policy": "optimistic_reference_only_not_primary_evidence",
+    "final_holdout_start": "2013-12-01",
+    "asset_test_size": 0.2,
+    "random_test_size": 0.2
+  },
+  "repeated_origin_policy": {
+    "primary_weighting": "asset_balanced",
+    "weighting_policies": [
+      "asset_balanced",
+      "raw_row"
+    ],
+    "limitation": "Adjacent origins from the same drive are dependent; effective sample size is lower than row count."
+  },
+  "preprocessing": {
+    "fit_scope": "training_partition_only",
+    "missing_rate_threshold": 0.95,
+    "near_constant_top_value_rate": 0.99,
+    "numeric_imputation": "train_median",
+    "linear_scaling": "train_standard_scaler",
+    "categorical_encoding": "train_only_one_hot_with_unknown_bucket",
+    "prohibited": [
+      "full_dataset_imputation",
+      "full_dataset_scaling",
+      "full_dataset_category_vocabulary",
+      "target_encoding",
+      "target_informed_feature_filtering",
+      "SMOTE",
+      "test_threshold_tuning"
+    ]
+  },
+  "model_configurations": [
+    {
+      "name": "dummy_prior",
+      "estimator_type": "dummy_prior",
+      "max_training_rows": null
+    },
+    {
+      "name": "logistic_regression",
+      "estimator_type": "logistic_regression",
+      "fixed_configuration": "solver=liblinear,max_iter=300",
+      "max_training_rows": 250000
+    },
+    {
+      "name": "random_forest",
+      "estimator_type": "random_forest",
+      "fixed_configuration": "n_estimators=12,max_depth=10,min_samples_leaf=5,max_features=sqrt",
+      "max_training_rows": 120000
+    },
+    {
+      "name": "hist_gradient_boosting",
+      "estimator_type": "hist_gradient_boosting",
+      "fixed_configuration": "max_iter=20,learning_rate=0.08,max_leaf_nodes=15,max_bins=32",
+      "max_training_rows": 200000
+    }
+  ],
+  "imbalance_policy": {
+    "class_weighting": "sample_weight_class_balance",
+    "asset_weighting": "asset_balanced_primary",
+    "smote": "prohibited",
+    "test_set_resampling": "prohibited"
+  },
+  "resource_budget": {
+    "feature_construction_chunksize": 100000,
+    "default_max_training_rows": 200000,
+    "prediction_sample_max_rows": 5000,
+    "test_set_subsampling": "prohibited",
+    "training_subsampling_policy": "training_partition_only_deterministic_include_all_positive_rows_then_sample_negative_rows"
+  },
+  "metrics": {
+    "primary": "average_precision_pr_auc",
+    "secondary": [
+      "roc_auc",
+      "balanced_accuracy",
+      "mcc",
+      "f1",
+      "precision",
+      "recall",
+      "specificity",
+      "npv",
+      "brier_score",
+      "log_loss_when_valid"
+    ],
+    "top_risk_fractions": [
+      0.001,
+      0.005,
+      0.01,
+      0.05
+    ]
+  },
+  "threshold_policy": {
+    "default_threshold": 0.5,
+    "threshold_selection": "none",
+    "test_label_threshold_tuning": "prohibited"
+  },
+  "calibration_boundary": {
+    "brier_and_log_loss_are_diagnostics": true,
+    "calibrated_probability_claim": "prohibited",
+    "score_language": "uncalibrated relative failure-risk score"
+  },
+  "local_outputs": {
+    "feature_dataset": "data/processed/reliability_v1_5_horizon_7d_lookback_7d_dataset.csv",
+    "predictions": "data/processed/reliability_v1_5_classification_predictions.csv"
+  },
+  "tracked_outputs": {
+    "metrics": "data/processed/reliability_v1_5_classification_metrics.csv",
+    "split_diagnostics": "data/processed/reliability_v1_5_classification_split_diagnostics.csv",
+    "model_summary": "data/processed/reliability_v1_5_classification_model_summary.csv",
+    "asset_time_gap_summary": "data/processed/reliability_v1_5_asset_time_gap_summary.csv",
+    "top_risk_summary": "data/processed/reliability_v1_5_top_risk_summary.csv",
+    "threshold_summary": "data/processed/reliability_v1_5_threshold_summary.csv",
+    "error_structure_summary": "data/processed/reliability_v1_5_error_structure_summary.csv",
+    "classification_conclusion": "data/processed/reliability_v1_5_classification_conclusion.csv"
+  },
+  "allowed_claims": [
+    "retrospective offline failure-risk ranking",
+    "asset/time-aware baseline feasibility",
+    "validation gap diagnostics",
+    "limited diagnostic screening"
+  ],
+  "prohibited_claims": [
+    "guaranteed failure probability",
+    "maintenance effect",
+    "root cause",
+    "automatic replacement decision",
+    "survival probability",
+    "guaranteed early warning",
+    "production deployment readiness",
+    "generalization beyond this 2013 Backblaze population"
+  ],
+  "stop_conditions": [
+    "source SHA mismatch",
+    "7-day label count inconsistent",
+    "feature construction future leakage",
+    "asset overlap in asset or combined split",
+    "invalid chronology",
+    "memory or disk budget exceeded",
+    "all primary metrics undefined",
+    "raw serial number in tracked output",
+    "credential or absolute path leak"
+  ],
+  "random_state": 42
+}
