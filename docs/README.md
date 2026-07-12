@@ -8,6 +8,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Outputs Policy](OUTPUTS_POLICY.md): how `outputs/` and generated run artifacts should be treated.
 - [Portfolio Overview](PORTFOLIO_OVERVIEW.md): portfolio-oriented summary of architecture, case studies, validation rigor, and limitations.
 - [Platform Architecture](PLATFORM_ARCHITECTURE.md): v2 scaffold architecture, registries, config contract, CLI, and backward-compatibility boundary.
+- [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
 - [Testing Guide](../TESTING.md): current test-running notes.
 
 ## Active Specifications

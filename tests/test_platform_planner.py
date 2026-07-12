@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from src.platform_core.artifacts import build_default_artifact_registry
+from src.platform_core.adapter_registry import build_default_adapter_registry
 from src.platform_core.planner import build_dry_run_plan
 from src.platform_core.registry import build_default_plugin_registry
 from src.platform_core.trust_registry import build_default_trust_policy_registry
@@ -8,11 +9,14 @@ from src.platform_core.validation_registry import build_default_validation_polic
 
 
 def _registries():
+    plugin_registry = build_default_plugin_registry()
+    artifact_registry = build_default_artifact_registry()
     return (
-        build_default_plugin_registry(),
-        build_default_artifact_registry(),
+        plugin_registry,
+        artifact_registry,
         build_default_validation_policy_registry(),
         build_default_trust_policy_registry(),
+        build_default_adapter_registry(plugin_registry, artifact_registry),
     )
 
 
@@ -22,6 +26,7 @@ def _config():
         "pipeline_id": "reliability_demo",
         "case_study_id": "reliability",
         "plugin_id": "reliability",
+        "adapter_id": "reliability_trust_closeout",
         "stage": "trust",
         "input_artifacts": ["reliability_v1_5_classification_metrics"],
         "tracked_outputs": ["reliability_v1_5_trust_summary"],
@@ -34,15 +39,17 @@ def _config():
     }
 
 
-def test_dry_run_reports_metadata_only_plugin_block_without_side_effects(tmp_path):
+def test_dry_run_reports_manifest_ready_without_side_effects(tmp_path):
     before = set(tmp_path.iterdir())
 
     validation, plan = build_dry_run_plan(_config(), *_registries(), repo_root=Path.cwd())
 
     assert validation.valid
-    assert plan.execution_status == "blocked_plugin_not_runnable"
-    assert "blocked_plugin_not_runnable" in plan.blocked_reasons
+    assert plan.execution_status == "ready_for_dry_run_manifest"
+    assert plan.adapter_id == "reliability_trust_closeout"
+    assert plan.execution_allowed is False
     assert plan.network_requirement == "not_required"
+    assert plan.raw_data_requirement == "not_required"
     assert plan.model_training_requirement == "not_required"
     assert set(tmp_path.iterdir()) == before
 

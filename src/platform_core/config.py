@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .adapter_registry import AdapterRegistry
 from .artifacts import ArtifactRegistry, validate_relative_path
 from .plugins import ALLOWED_STAGES
 from .registry import PluginRegistry
@@ -46,6 +47,11 @@ ALLOWED_CONFIG_FIELDS = {
     "provenance_policy",
     "credential_policy",
     "dry_run",
+    "adapter_id",
+    "write_manifest",
+    "manifest_output",
+    "run_id",
+    "overwrite_manifest",
     "stop_conditions",
 }
 
@@ -89,6 +95,7 @@ def validate_pipeline_config(
     artifact_registry: ArtifactRegistry,
     validation_registry: ValidationPolicyRegistry,
     trust_registry: TrustPolicyRegistry,
+    adapter_registry: AdapterRegistry | None = None,
 ) -> ConfigValidationResult:
     errors: list[str] = []
     warnings: list[str] = []
@@ -125,6 +132,21 @@ def validate_pipeline_config(
             )
         if stage is not None and not plugin.supports_stage(str(stage)):
             errors.append(f"plugin {plugin.plugin_id} does not support stage {stage}")
+
+    adapter_id = config.get("adapter_id")
+    if adapter_id:
+        if adapter_registry is None:
+            warnings.append("adapter_id provided but adapter registry was not supplied")
+        else:
+            try:
+                adapter = adapter_registry.get(str(adapter_id))
+            except KeyError:
+                errors.append(f"unknown adapter_id: {adapter_id}")
+            else:
+                if plugin is not None and adapter.plugin_id != plugin.plugin_id:
+                    errors.append(f"adapter {adapter.adapter_id} does not belong to plugin {plugin.plugin_id}")
+                if stage is not None and adapter.stage != stage:
+                    errors.append(f"adapter {adapter.adapter_id} does not support stage {stage}")
 
     for field in LIST_FIELDS:
         value = config.get(field, [])
@@ -177,6 +199,21 @@ def validate_pipeline_config(
         if credential_policy.get("store_credentials") is True:
             errors.append("credential_policy.store_credentials must not be true")
 
+    for field in ("write_manifest", "overwrite_manifest"):
+        if field in config and not isinstance(config[field], bool):
+            errors.append(f"{field} must be a boolean")
+
+    for field in ("manifest_output", "run_id", "adapter_id"):
+        if field in config and config[field] is not None and not isinstance(config[field], str):
+            errors.append(f"{field} must be a string")
+
+    manifest_output = config.get("manifest_output")
+    if manifest_output:
+        try:
+            validate_relative_path(str(manifest_output))
+        except ValueError as exc:
+            errors.append(f"manifest_output invalid: {exc}")
+
     for field in ("connector", "loader", "readiness_analyzer", "feature_builder"):
         value = config.get(field)
         if isinstance(value, dict):
@@ -199,6 +236,14 @@ def load_and_validate_pipeline_config(
     artifact_registry: ArtifactRegistry,
     validation_registry: ValidationPolicyRegistry,
     trust_registry: TrustPolicyRegistry,
+    adapter_registry: AdapterRegistry | None = None,
 ) -> ConfigValidationResult:
     config = load_json_config(config_path)
-    return validate_pipeline_config(config, plugin_registry, artifact_registry, validation_registry, trust_registry)
+    return validate_pipeline_config(
+        config,
+        plugin_registry,
+        artifact_registry,
+        validation_registry,
+        trust_registry,
+        adapter_registry,
+    )

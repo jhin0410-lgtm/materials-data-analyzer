@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0",
-  "pipeline_id": "reliability_v1_5_trust_dry_run",
+  "pipeline_id": "reliability_v1_5_trust_manifest_dry_run",
   "case_study_id": "reliability",
   "plugin_id": "reliability",
   "adapter_id": "reliability_trust_closeout",
@@ -9,7 +9,9 @@
     "reliability_v1_5_classification_metrics"
   ],
   "tracked_outputs": [
-    "reliability_v1_5_trust_summary"
+    "reliability_v1_5_trust_summary",
+    "reliability_v1_5_claim_boundary",
+    "reliability_v1_5_closeout_conclusion"
   ],
   "local_only_outputs": [
     "reliability_v1_5_backblaze_analysis_ready",
@@ -29,6 +31,10 @@
     "store_credentials": false
   },
   "dry_run": true,
+  "write_manifest": true,
+  "run_id": "reliability-trust-manifest-dry-run",
+  "manifest_output": "outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json",
+  "overwrite_manifest": false,
   "stop_conditions": [
     "missing_compact_artifact",
     "unsupported_claim_detected"

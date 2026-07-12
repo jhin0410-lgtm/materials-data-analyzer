@@ -2,6 +2,8 @@ from pathlib import Path
 
 
 PLATFORM_FILES = [
+    Path("src/platform_core/adapters.py"),
+    Path("src/platform_core/adapter_registry.py"),
     Path("src/platform_core/plugins.py"),
     Path("src/platform_core/registry.py"),
     Path("src/platform_core/artifacts.py"),
@@ -9,6 +11,7 @@ PLATFORM_FILES = [
     Path("src/platform_core/trust_registry.py"),
     Path("src/platform_core/config.py"),
     Path("src/platform_core/planner.py"),
+    Path("src/platform_core/manifests.py"),
     Path("src/cli.py"),
 ]
 

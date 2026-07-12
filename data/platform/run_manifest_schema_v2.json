@@ -2,11 +2,12 @@
   "schema_version": "2.0",
   "schema_name": "run_manifest_schema_v2",
   "status": "scaffold_stage",
-  "description": "Contract for future platform run manifests. v2.0.1 only plans dry runs and does not execute pipelines.",
+  "description": "Contract for platform dry-run manifests. v2.0.2 can write manifest-only dry runs and still does not execute pipelines.",
   "fields": {
     "run_id": "string",
     "pipeline_id": "string",
     "plugin_id": "string",
+    "adapter_id": "string",
     "stage": "string",
     "config_sha256": "string",
     "source_artifacts": "array[artifact_reference]",
@@ -23,7 +24,8 @@
     "random_state": "integer",
     "warnings": "array[string]",
     "errors": "array[string]",
-    "claim_boundary": "string",
+    "claim_boundary": "object",
+    "execution_boundary": "object",
     "local_only_outputs": "array[artifact_reference]",
     "tracked_outputs": "array[artifact_reference]"
   },
@@ -31,6 +33,7 @@
     "run_id",
     "pipeline_id",
     "plugin_id",
+    "adapter_id",
     "stage",
     "config_sha256",
     "code_commit",
@@ -49,13 +52,9 @@
   ],
   "allowed_statuses": [
     "planned",
-    "ready",
-    "blocked_missing_artifact",
-    "blocked_plugin_not_runnable",
-    "blocked_stage_unsupported",
-    "blocked_network_required",
-    "blocked_invalid_config",
-    "completed",
-    "failed"
+    "blocked",
+    "dry_run_completed",
+    "invalid_config",
+    "adapter_disabled"
   ]
 }

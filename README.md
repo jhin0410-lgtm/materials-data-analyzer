@@ -436,21 +436,24 @@ For a portfolio-oriented overview of the architecture and case-study arc, see
 
 ## Platform v2 Scaffold
 
-v2.0.1 starts a configuration-driven platform layer without replacing the
-existing CLI or case-study scripts. It adds explicit plugin, artifact,
-validation-policy, and trust-policy registries plus a dry-run CLI scaffold.
+v2.0.2 continues the configuration-driven platform layer without replacing the
+existing CLI or case-study scripts. It adds explicit plugin, adapter, artifact,
+validation-policy, and trust-policy registries plus dry-run manifest support.
 
 ```powershell
 python -m src.cli list-plugins
+python -m src.cli list-adapters
 python -m src.cli validate-config configs/examples/reliability_trust_dry_run.json
 python -m src.cli dry-run configs/examples/reliability_trust_dry_run.json
+python -m src.cli dry-run configs/examples/reliability_trust_manifest_dry_run.json --write-manifest
 ```
 
 This layer is currently `scaffold_stage`: it can inspect metadata, validate
-configs, and plan dry-runs, but it does not execute acquisition, model
-training, or network operations. See
+configs, plan dry-runs, and write local manifest-only dry-run records, but it
+does not execute acquisition, model training, trust scripts, raw-data reads, or
+network operations. See
 [`docs/PLATFORM_ARCHITECTURE.md`](docs/PLATFORM_ARCHITECTURE.md) and
-[`docs/PLATFORM_V2_PLAN.md`](docs/PLATFORM_V2_PLAN.md).
+[`docs/PLATFORM_ADAPTERS.md`](docs/PLATFORM_ADAPTERS.md).
 
 ## Roadmap
 

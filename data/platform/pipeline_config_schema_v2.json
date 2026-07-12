@@ -43,6 +43,11 @@
       "type": "string",
       "required": true
     },
+    "adapter_id": {
+      "type": "string",
+      "required": false,
+      "meaning": "Adapter ID from the explicit adapter registry. User configs cannot provide module_path or callable_name."
+    },
     "input_artifacts": {
       "type": "array[string]",
       "required": false,
@@ -113,7 +118,30 @@
     "dry_run": {
       "type": "boolean",
       "required": false,
-      "v2_0_1_policy": "true is the only supported execution mode"
+      "v2_0_policy": "true is the only supported execution mode"
+    },
+    "write_manifest": {
+      "type": "boolean",
+      "required": false,
+      "meaning": "When true, dry-run may write exactly one local run manifest."
+    },
+    "manifest_output": {
+      "type": "string",
+      "required": false,
+      "rules": [
+        "relative repository path only",
+        "absolute paths and traversal are prohibited",
+        "outputs/platform_runs is the default local-only location"
+      ]
+    },
+    "run_id": {
+      "type": "string",
+      "required": false
+    },
+    "overwrite_manifest": {
+      "type": "boolean",
+      "required": false,
+      "default": false
     },
     "stop_conditions": {
       "type": "array[string]",

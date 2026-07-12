@@ -73,10 +73,10 @@ diagnostic case study and do not perform survival modeling, RUL regression,
 hyperparameter search, SHAP, or production alerting.
 
 `src/platform_core/` contains the additive v2 scaffold: plugin metadata,
-artifact metadata, validation/trust policy registries, JSON config validation,
-and a side-effect-free dry-run planner. `src/cli.py` exposes this scaffold via
-`python -m src.cli`. It does not replace existing scripts or execute pipelines
-in v2.0.1.
+adapter metadata, artifact metadata, validation/trust policy registries, JSON
+config validation, side-effect-free dry-run planning, and local dry-run
+manifest writing. `src/cli.py` exposes this scaffold via `python -m src.cli`.
+It does not replace existing scripts or execute pipelines in v2.0.2.
 
 ## Case Study Utilities
 

@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `scaffold_stage` for v2.0.1.
+Status: `scaffold_stage` for v2.0.2.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -15,8 +15,9 @@ changing output schemas, or replacing `src/process_data.py`.
   are declared in JSON or typed metadata.
 - No hidden execution: configs cannot contain Python expressions, shell
   commands, arbitrary imports, or credentials.
-- Dry-run first: v2.0.1 plans workflows and validates config, but does not run
-  acquisition, model training, or network operations.
+- Dry-run first: v2.0.2 plans workflows, maps selected trust adapters, and can
+  write local dry-run manifests, but does not run acquisition, model training,
+  trust scripts, or network operations.
 
 ## Component Boundaries
 
@@ -35,11 +36,14 @@ In code:
 
 - `src/platform_core/plugins.py`: plugin metadata contract
 - `src/platform_core/registry.py`: explicit plugin registry
+- `src/platform_core/adapters.py`: thin adapter metadata contract
+- `src/platform_core/adapter_registry.py`: explicit adapter registry
 - `src/platform_core/artifacts.py`: artifact registry and path policy
 - `src/platform_core/validation_registry.py`: validation policy metadata
 - `src/platform_core/trust_registry.py`: trust policy metadata
 - `src/platform_core/config.py`: lightweight JSON config validation
 - `src/platform_core/planner.py`: side-effect-free dry-run planner
+- `src/platform_core/manifests.py`: safe local dry-run manifest writer
 - `src/cli.py`: unified CLI scaffold
 
 ## Plugin Registry
@@ -49,12 +53,26 @@ The initial registry contains metadata for:
 | Plugin | Case study | Status | Notes |
 | --- | --- | --- | --- |
 | `battery_archive` | Battery Archive | `scaffolded` | Existing cycle-data scripts remain the orchestration layer. |
-| `materials_project` | Materials Project | `scaffolded` | Registers exact-provenance validation and trust artifacts. |
-| `smart_factory` | Smart Factory / SECOM | `scaffolded` | Registers time-aware classification and trust artifacts. |
-| `reliability` | Backblaze reliability | `scaffolded` | Registers asset/time-aware validation and trust artifacts. |
+| `materials_project` | Materials Project | `dry_run_ready` | Trust adapter is mapped for manifest-only dry-runs. |
+| `smart_factory` | Smart Factory / SECOM | `dry_run_ready` | Trust adapter is mapped for manifest-only dry-runs. |
+| `reliability` | Backblaze reliability | `dry_run_ready` | Trust adapter is mapped for manifest-only dry-runs. |
 
 `scaffolded` means the platform can inspect, validate, and dry-run metadata.
 It does not mean v2 can execute the full case-study pipeline yet.
+`dry_run_ready` means a safe adapter mapping exists for manifest planning; it
+still does not allow script execution.
+
+## Adapter Registry
+
+`src/platform_core/adapter_registry.py` maps selected trust/closeout stages to
+existing script metadata through explicit adapter IDs:
+
+- `materials_project_trust_closeout`
+- `smart_factory_trust_closeout`
+- `reliability_trust_closeout`
+
+Adapters store module paths as metadata only. The unified CLI does not import
+or execute those modules in v2.0.2.
 
 ## Artifact Registry
 
@@ -99,12 +117,14 @@ production claims.
 The initial implementation uses lightweight validation in
 `src/platform_core/config.py` instead of adding a JSON-schema dependency.
 
-Example dry-run configs live in `configs/examples/`.
+Example dry-run and manifest dry-run configs live in `configs/examples/`.
 
 ## Run Manifest Contract
 
 `data/platform/run_manifest_schema_v2.json` defines the future run manifest.
-v2.0.1 does not write run manifests yet; it only defines the contract.
+v2.0.2 can write a single local dry-run manifest under `outputs/platform_runs/`
+when requested with `--write-manifest`. Manifests are local-only and ignored by
+Git.
 
 ## Unified CLI
 
@@ -114,8 +134,13 @@ The scaffold is available with:
 python -m src.cli list-plugins
 python -m src.cli inspect-plugin reliability
 python -m src.cli list-artifacts --plugin reliability
+python -m src.cli list-adapters
+python -m src.cli inspect-adapter reliability_trust_closeout
 python -m src.cli validate-config configs/examples/reliability_trust_dry_run.json
 python -m src.cli dry-run configs/examples/reliability_trust_dry_run.json
+python -m src.cli dry-run configs/examples/reliability_trust_manifest_dry_run.json --write-manifest
+python -m src.cli validate-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
+python -m src.cli show-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli show-policy reliability_asset_time_aware
 python -m src.cli show-version
 ```
@@ -124,7 +149,7 @@ Add `--json` before the command for deterministic JSON output.
 
 ## Backward Compatibility
 
-v2.0.1 does not remove, rename, or replace:
+v2.0.2 does not remove, rename, or replace:
 
 - `src/process_data.py`
 - existing scripts under `scripts/`
@@ -133,7 +158,7 @@ v2.0.1 does not remove, rename, or replace:
 - test paths
 - documentation links
 
-The platform layer is a scaffold for later adapters.
+The platform layer is a scaffold for later executable adapters.
 
 ## Security and Safety
 
@@ -150,8 +175,8 @@ The scaffold avoids:
 
 ## Known Technical Debt
 
-- Existing case-study scripts are not yet callable through v2 adapters.
+- Existing case-study scripts are not yet executable through v2 adapters.
 - Registries are explicit Python metadata, not external package discovery.
-- Dry-run reports scaffold readiness, not executable pipeline readiness.
+- Dry-run reports manifest readiness, not executable pipeline readiness.
 - Artifact registry coverage is intentionally selective and should expand as
   adapters are implemented.

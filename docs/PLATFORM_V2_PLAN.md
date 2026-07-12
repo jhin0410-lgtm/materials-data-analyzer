@@ -1,6 +1,6 @@
 # Platform v2 Plan
 
-Status: `scaffold_stage` for v2.0.1.
+Status: `scaffold_stage` for v2.0.2.
 
 ## Why v2
 
@@ -57,17 +57,33 @@ case-study recomputation.
 
 No existing module is deprecated or deleted in v2.0.1.
 
+## v2.0.2 Scope
+
+v2.0.2 adds thin, explicit adapter metadata for selected trust/closeout stages:
+
+- `materials_project_trust_closeout`
+- `smart_factory_trust_closeout`
+- `reliability_trust_closeout`
+
+The adapters are safe for dry-run and manifest-only planning. They do not
+execute acquisition, normalization, validation, trust scripts, subprocesses, or
+arbitrary imports.
+
+v2.0.2 also adds local dry-run manifest writing under `outputs/platform_runs/`.
+The manifest captures selected plugin, adapter, stage, config hash, expected
+artifacts, execution boundary, and trust claim boundary.
+
 ## Registry Roadmap
 
-The first registry entries are metadata-only/scaffolded:
+The first registry entries are metadata-only/scaffolded or dry-run-ready:
 
 - `battery_archive`
-- `materials_project`
-- `smart_factory`
-- `reliability`
+- `materials_project` (`dry_run_ready` for trust manifest planning)
+- `smart_factory` (`dry_run_ready` for trust manifest planning)
+- `reliability` (`dry_run_ready` for trust manifest planning)
 
-Future work should add thin adapters only after the metadata contract remains
-stable across more than one case study.
+Future work should make adapters executable only after manifest-only behavior
+remains stable across more than one case study.
 
 ## CLI Roadmap
 
@@ -80,6 +96,14 @@ v2.0.1 supports:
 - `dry-run`
 - `show-policy`
 - `show-version`
+
+v2.0.2 adds:
+
+- `list-adapters`
+- `inspect-adapter`
+- `dry-run --write-manifest`
+- `show-manifest`
+- `validate-manifest`
 
 Actual `run` execution is intentionally deferred.
 
@@ -100,8 +124,8 @@ v2.0.1 does not add:
 ## Release Roadmap
 
 - v2.0.1: architecture contract, registries, config validation, CLI scaffold
-- v2.0.2: thin case-study adapters for selected trust/closeout stages
-- v2.0.3: executable configuration pipeline with manifest writing
+- v2.0.2: thin case-study adapters and safe dry-run manifests
+- v2.0.3: controlled executable configuration pipeline for approved adapters
 - v2.0.4: unified report generation from registered artifacts
 - v2.0.5: platform-level trust-boundary release
 

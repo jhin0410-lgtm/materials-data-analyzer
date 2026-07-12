@@ -20,7 +20,15 @@ ALLOWED_STAGES = (
     "closeout",
 )
 
-ALLOWED_PLUGIN_STATUSES = ("metadata_only", "scaffolded", "runnable", "deprecated")
+ALLOWED_PLUGIN_STATUSES = (
+    "metadata_only",
+    "scaffolded",
+    "adapter_mapped",
+    "dry_run_ready",
+    "executable_disabled",
+    "runnable",
+    "deprecated",
+)
 
 
 @dataclass(frozen=True)
@@ -40,6 +48,7 @@ class PluginMetadata:
     validation_policy_id: str | None = None
     trust_policy_id: str | None = None
     status: str = "metadata_only"
+    adapter_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.plugin_id:
@@ -53,6 +62,8 @@ class PluginMetadata:
             raise ValueError(f"unsupported stages for {self.plugin_id}: {unsupported}")
         if len(set(self.supported_stages)) != len(self.supported_stages):
             raise ValueError(f"duplicate stages for {self.plugin_id}")
+        if len(set(self.adapter_ids)) != len(self.adapter_ids):
+            raise ValueError(f"duplicate adapter_ids for {self.plugin_id}")
 
     def supports_stage(self, stage: str) -> bool:
         return stage in self.supported_stages
@@ -72,4 +83,5 @@ class PluginMetadata:
             "validation_policy_id": self.validation_policy_id,
             "trust_policy_id": self.trust_policy_id,
             "status": self.status,
+            "adapter_ids": list(self.adapter_ids),
         }

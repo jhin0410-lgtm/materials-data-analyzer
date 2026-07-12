@@ -61,6 +61,7 @@ def build_default_plugin_registry() -> PluginRegistry:
             validation_policy_id="group_aware_regression",
             trust_policy_id=None,
             status="scaffolded",
+            adapter_ids=(),
         )
     )
     registry.register(
@@ -83,7 +84,8 @@ def build_default_plugin_registry() -> PluginRegistry:
             tracked_artifacts=("materials_project_v1_3_trust_conclusion",),
             validation_policy_id="group_aware_regression",
             trust_policy_id="materials_group_generalization",
-            status="scaffolded",
+            status="dry_run_ready",
+            adapter_ids=("materials_project_trust_closeout",),
         )
     )
     registry.register(
@@ -106,7 +108,8 @@ def build_default_plugin_registry() -> PluginRegistry:
             tracked_artifacts=("smart_factory_v1_4_trust_summary",),
             validation_policy_id="time_aware_classification",
             trust_policy_id="smart_factory_time_aware",
-            status="scaffolded",
+            status="dry_run_ready",
+            adapter_ids=("smart_factory_trust_closeout",),
         )
     )
     registry.register(
@@ -134,7 +137,8 @@ def build_default_plugin_registry() -> PluginRegistry:
             tracked_artifacts=("reliability_v1_5_trust_summary",),
             validation_policy_id="asset_time_combined_classification",
             trust_policy_id="reliability_asset_time_aware",
-            status="scaffolded",
+            status="dry_run_ready",
+            adapter_ids=("reliability_trust_closeout",),
         )
     )
     return registry

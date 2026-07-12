@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from src.platform_core.adapter_registry import build_default_adapter_registry
 from src.platform_core.artifacts import build_default_artifact_registry
 from src.platform_core.config import load_and_validate_pipeline_config, validate_pipeline_config
 from src.platform_core.registry import build_default_plugin_registry
@@ -9,11 +10,14 @@ from src.platform_core.validation_registry import build_default_validation_polic
 
 
 def _registries():
+    plugin_registry = build_default_plugin_registry()
+    artifact_registry = build_default_artifact_registry()
     return (
-        build_default_plugin_registry(),
-        build_default_artifact_registry(),
+        plugin_registry,
+        artifact_registry,
         build_default_validation_policy_registry(),
         build_default_trust_policy_registry(),
+        build_default_adapter_registry(plugin_registry, artifact_registry),
     )
 
 
@@ -23,6 +27,7 @@ def _valid_config():
         "pipeline_id": "demo",
         "case_study_id": "reliability",
         "plugin_id": "reliability",
+        "adapter_id": "reliability_trust_closeout",
         "stage": "trust",
         "input_artifacts": ["reliability_v1_5_classification_metrics"],
         "tracked_outputs": ["reliability_v1_5_trust_summary"],
@@ -57,13 +62,31 @@ def test_config_version_and_required_fields():
 def test_config_rejects_unknown_policy_and_unknown_field():
     config = _valid_config()
     config["validator"] = "missing_policy"
-    config["extra"] = "not allowed"
+    config["module_path"] = "not.allowed"
+    config["callable_name"] = "main"
 
     result = validate_pipeline_config(config, *_registries())
 
     assert not result.valid
     assert "unknown validation policy: missing_policy" in result.errors
-    assert "unknown fields: extra" in result.errors
+    assert "unknown fields: callable_name, module_path" in result.errors
+
+
+def test_config_rejects_unknown_or_mismatched_adapter():
+    config = _valid_config()
+    config["adapter_id"] = "missing_adapter"
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert "unknown adapter_id: missing_adapter" in result.errors
+
+    config = _valid_config()
+    config["adapter_id"] = "materials_project_trust_closeout"
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert any("does not belong to plugin" in error for error in result.errors)
 
 
 def test_config_rejects_absolute_component_path_and_credentials():
@@ -76,6 +99,16 @@ def test_config_rejects_absolute_component_path_and_credentials():
     assert not result.valid
     assert any("absolute paths" in error for error in result.errors)
     assert "credential_policy.store_credentials must not be true" in result.errors
+
+
+def test_config_rejects_manifest_path_traversal():
+    config = _valid_config()
+    config["manifest_output"] = "../outputs/run_manifest.json"
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert any("manifest_output invalid" in error for error in result.errors)
 
 
 def test_config_json_load_rejects_non_object(tmp_path):
