@@ -1,0 +1,110 @@
+{
+  "schema_version": "2.0",
+  "schema_name": "case_study_onboarding_schema_v2",
+  "status": "scaffold_stage",
+  "description": "Metadata-only contract for onboarding a new case-study domain into the v2 platform interface. Passing this contract does not enable execution.",
+  "required_fields": [
+    "schema_version",
+    "case_study_id",
+    "display_name",
+    "domain",
+    "description",
+    "primary_unit",
+    "input_data_type",
+    "target_or_event",
+    "target_type",
+    "supported_stages",
+    "data_contract",
+    "leakage_policy",
+    "validation_policy",
+    "trust_policy",
+    "artifact_definitions",
+    "local_only_patterns",
+    "credential_policy",
+    "resource_budget",
+    "allowed_claims",
+    "prohibited_claims",
+    "stop_conditions",
+    "documentation",
+    "tests"
+  ],
+  "optional_fields": [
+    "plugin_id",
+    "adapter_id",
+    "time_key",
+    "time_key_unavailable_reason",
+    "group_keys",
+    "group_key_unavailable_reason",
+    "execution_candidate"
+  ],
+  "allowed_stages": [
+    "contract",
+    "acquisition",
+    "normalization",
+    "readiness",
+    "feature_build",
+    "validation",
+    "trust",
+    "closeout",
+    "report"
+  ],
+  "artifact_definition_fields": [
+    "artifact_id",
+    "stage",
+    "path",
+    "format",
+    "tracked_policy",
+    "producer",
+    "consumers",
+    "provenance_required",
+    "checksum_required",
+    "required_for_dry_run",
+    "required_for_execution"
+  ],
+  "tracked_policy_values": [
+    "tracked",
+    "local_only",
+    "generated_compact",
+    "external_raw",
+    "optional"
+  ],
+  "readiness_matrix": [
+    "identity_defined",
+    "time_structure_defined",
+    "group_structure_defined",
+    "target_defined",
+    "leakage_policy_defined",
+    "validation_policy_defined",
+    "trust_policy_defined",
+    "artifacts_defined",
+    "local_only_policy_defined",
+    "provenance_defined",
+    "tests_defined",
+    "docs_defined",
+    "adapter_mapped",
+    "executable_allowed"
+  ],
+  "status_values": [
+    "valid_metadata_only",
+    "valid_dry_run_ready",
+    "valid_execution_candidate",
+    "incomplete",
+    "invalid",
+    "blocked_policy_mismatch"
+  ],
+  "security_rules": [
+    "Onboarding configs are JSON metadata only.",
+    "No Python expressions, eval, exec, shell commands, arbitrary imports, or dynamic module paths are allowed.",
+    "All paths must be repository-relative and must not contain traversal.",
+    "Raw and local-only artifacts cannot be tracked.",
+    "Config cannot grant execution permission, network access, raw-data access, model training, or canonical overwrite.",
+    "Passing onboarding validation does not prove scientific validity."
+  ],
+  "policy_rules": [
+    "A time-aware validation policy requires a time_key or an explicit unavailable reason.",
+    "A group-aware validation policy requires group_keys or an explicit unavailable reason.",
+    "Combined asset/time validation requires both time_key and group_keys.",
+    "A trust policy is required before a case study can become an execution candidate.",
+    "production_ready is not an onboarding status."
+  ]
+}

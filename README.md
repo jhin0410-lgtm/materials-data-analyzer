@@ -436,26 +436,34 @@ For a portfolio-oriented overview of the architecture and case-study arc, see
 
 ## Platform v2 Scaffold
 
-v2.0.3 continues the configuration-driven platform layer without replacing the
+v2.0.4 continues the configuration-driven platform layer without replacing the
 existing CLI or case-study scripts. It adds explicit plugin, adapter, artifact,
-validation-policy, and trust-policy registries plus dry-run and controlled
-verify-run manifest support.
+validation-policy, trust-policy, case-study, and onboarding registries plus
+dry-run and controlled verify-run manifest support.
 
 ```powershell
 python -m src.cli list-plugins
 python -m src.cli list-adapters
+python -m src.cli list-case-studies
+python -m src.cli inspect-case-study reliability
 python -m src.cli validate-config configs/examples/reliability_trust_dry_run.json
+python -m src.cli validate-onboarding configs/examples/environmental_monitoring_onboarding.json
+python -m src.cli onboarding-plan configs/examples/environmental_monitoring_onboarding.json
 python -m src.cli dry-run configs/examples/reliability_trust_dry_run.json
 python -m src.cli dry-run configs/examples/reliability_trust_manifest_dry_run.json --write-manifest
 python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify
 ```
 
 This layer is currently `scaffold_stage`: it can inspect metadata, validate
-configs, plan dry-runs, write local manifest-only dry-run records, and verify
-Reliability trust compact artifacts. It does not execute acquisition, model
-training, trust scripts, raw-data reads, or network operations. See
+configs, validate new-domain onboarding metadata, plan dry-runs, write local
+manifest-only dry-run records, and verify Reliability trust compact artifacts.
+It does not execute acquisition, model training, trust scripts, raw-data reads,
+or network operations. See
 [`docs/PLATFORM_ARCHITECTURE.md`](docs/PLATFORM_ARCHITECTURE.md) and
-[`docs/PLATFORM_EXECUTION.md`](docs/PLATFORM_EXECUTION.md).
+[`docs/PLATFORM_EXECUTION.md`](docs/PLATFORM_EXECUTION.md). For the domain
+interface and onboarding contract, see
+[`docs/CASE_STUDY_INTERFACE.md`](docs/CASE_STUDY_INTERFACE.md) and
+[`docs/NEW_DOMAIN_ONBOARDING.md`](docs/NEW_DOMAIN_ONBOARDING.md).
 
 ## Roadmap
 

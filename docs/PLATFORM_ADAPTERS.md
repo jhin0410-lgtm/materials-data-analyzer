@@ -1,6 +1,6 @@
 # Platform Adapters
 
-Status: `scaffold_stage` for v2.0.3.
+Status: `scaffold_stage` for v2.0.4.
 
 Adapters are a thin metadata layer between the v2 platform registry and the
 existing case-study scripts. The scripts in `scripts/` remain canonical.
@@ -9,7 +9,7 @@ execution remains disabled.
 
 ## Execution Boundary
 
-Allowed in v2.0.2:
+Allowed in the current scaffold:
 
 - list adapter metadata
 - validate configs that reference registered adapter IDs
@@ -18,7 +18,7 @@ Allowed in v2.0.2:
 - execute `reliability_trust_closeout` in verify mode
 - inspect and validate that manifest
 
-Not allowed in v2.0.2:
+Not allowed in the current scaffold:
 
 - acquisition
 - raw data reads
@@ -39,6 +39,9 @@ Not allowed in v2.0.2:
 
 Battery Archive remains `scaffolded` because its closeout workflow is not yet
 mapped to the same trust-policy adapter contract.
+
+v2.0.4 adds a separate case-study interface registry. That registry describes
+domain and lifecycle coverage; it does not make these adapters executable.
 
 ## Script Inventory
 

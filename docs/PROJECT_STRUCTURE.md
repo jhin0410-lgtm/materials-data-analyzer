@@ -73,11 +73,12 @@ diagnostic case study and do not perform survival modeling, RUL regression,
 hyperparameter search, SHAP, or production alerting.
 
 `src/platform_core/` contains the additive v2 scaffold: plugin metadata,
-adapter metadata, artifact metadata, validation/trust policy registries, JSON
-config validation, side-effect-free dry-run planning, local manifest writing,
-and the v2.0.3 controlled reliability trust verify runtime. `src/cli.py`
-exposes this scaffold via `python -m src.cli`. It does not replace existing
-scripts or execute acquisition/modeling pipelines in v2.0.3.
+adapter metadata, artifact metadata, case-study metadata, validation/trust
+policy registries, JSON config validation, onboarding validation,
+side-effect-free dry-run planning, local manifest writing, and the controlled
+reliability trust verify runtime. `src/cli.py` exposes this scaffold via
+`python -m src.cli`. It does not replace existing scripts or execute
+acquisition/modeling pipelines.
 
 ## Case Study Utilities
 
@@ -113,7 +114,11 @@ Connectors may help ingest from external data sources, but the core analyzer rem
 
 ## Local Configs And Notebooks
 
-`configs/` and `notebooks/` are currently local-only in this workspace through `.git/info/exclude`. That local exclude file is not shared across clones, so this policy should be revisited before asking others to contribute. Do not commit credentials, private paths, executed scratch notebooks, or local API settings; if a public example config is needed, create a sanitized template intentionally.
+`configs/examples/` contains sanitized tracked examples. Local, private, or
+secret configs remain ignored by narrow `.gitignore` patterns and should not be
+committed. `notebooks/` remains local scratch space unless a public example is
+created intentionally. Do not commit credentials, private paths, executed
+scratch notebooks, or local API settings.
 
 ## Case Study Documentation
 

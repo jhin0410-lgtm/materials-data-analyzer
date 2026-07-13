@@ -6,6 +6,7 @@ def test_platform_schema_json_files_parse():
     for path in [
         Path("data/platform/pipeline_config_schema_v2.json"),
         Path("data/platform/run_manifest_schema_v2.json"),
+        Path("data/platform/case_study_onboarding_schema_v2.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["schema_version"] == "2.0"
@@ -22,7 +23,10 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
         assert "token=" not in text.lower()
         payload = json.loads(text)
         assert payload["credential_policy"]["store_credentials"] is False
-        if payload.get("execution_mode"):
+        if "artifact_definitions" in payload:
+            assert payload["schema_version"] == "2.0"
+            assert payload.get("execution_candidate") is not True
+        elif payload.get("execution_mode"):
             assert payload["execution_mode"] in {"verify", "isolated_run"}
         else:
             assert payload["dry_run"] is True

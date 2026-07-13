@@ -18,6 +18,10 @@ PLATFORM_FILES = [
     Path("src/platform_core/execution_runtime.py"),
     Path("src/platform_core/executable_adapters.py"),
     Path("src/platform_core/case_adapters/reliability.py"),
+    Path("src/platform_core/case_studies.py"),
+    Path("src/platform_core/case_study_registry.py"),
+    Path("src/platform_core/case_study_adapter.py"),
+    Path("src/platform_core/onboarding.py"),
     Path("src/cli.py"),
 ]
 

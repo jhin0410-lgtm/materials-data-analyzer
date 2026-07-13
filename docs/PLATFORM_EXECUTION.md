@@ -1,6 +1,6 @@
 # Platform Execution
 
-Status: `scaffold_stage` for v2.0.3.
+Status: `scaffold_stage` for v2.0.4.
 
 v2.0.3 introduces controlled adapter execution for one narrow case:
 `reliability_trust_closeout` in `verify` mode. It verifies existing tracked
@@ -127,3 +127,6 @@ This is not a production orchestration engine. It is a manifest-first execution
 boundary for one read-only verification adapter. Canonical output promotion,
 real adapter execution for other stages, and isolated output comparison remain
 future work.
+
+v2.0.4 case-study onboarding validation does not change this execution
+boundary. Passing onboarding validation never grants runtime permission.

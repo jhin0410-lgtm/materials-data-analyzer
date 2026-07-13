@@ -1,6 +1,6 @@
 # Platform v2 Plan
 
-Status: `scaffold_stage` for v2.0.3.
+Status: `scaffold_stage` for v2.0.4.
 
 ## Why v2
 
@@ -84,6 +84,22 @@ Materials Project and Smart Factory adapter execution remain blocked. General
 script execution, acquisition, normalization, model training, raw data reads,
 and canonical output overwrite remain out of scope.
 
+## v2.0.4 Scope
+
+v2.0.4 adds a generic case-study interface and onboarding contract:
+
+- `CaseStudyMetadata` and lifecycle-stage metadata
+- explicit case-study registry for Battery Archive, Materials Project, Smart
+  Factory, and Reliability
+- adapter bridge from case-study stages to the existing adapter registry
+- metadata-only onboarding schema for future domains
+- onboarding validator for policy compatibility, artifact contracts, path
+  safety, local/tracked conflicts, claim boundaries, and readiness status
+- synthetic `environmental_monitoring` onboarding example
+
+This stage does not migrate old scripts, recompute case-study results, execute
+acquisition, train models, or grant new runtime permissions.
+
 ## Registry Roadmap
 
 The first registry entries are metadata-only/scaffolded or dry-run-ready:
@@ -116,6 +132,15 @@ v2.0.2 adds:
 - `show-manifest`
 - `validate-manifest`
 
+v2.0.4 adds:
+
+- `list-case-studies`
+- `inspect-case-study`
+- `list-case-study-stages`
+- `validate-onboarding`
+- `inspect-onboarding`
+- `onboarding-plan`
+
 Actual `run` execution is intentionally deferred.
 
 ## Non-Goals
@@ -137,7 +162,7 @@ v2.0.1 does not add:
 - v2.0.1: architecture contract, registries, config validation, CLI scaffold
 - v2.0.2: thin case-study adapters and safe dry-run manifests
 - v2.0.3: controlled reliability trust verify runtime and manifest lifecycle
-- v2.0.4: unified report generation from registered artifacts
+- v2.0.4: case-study interface, onboarding contract, and domain metadata validation
 - v2.0.5: platform-level trust-boundary release
 
 Advanced physics-aware materials descriptors, graph neural networks, or SHAP

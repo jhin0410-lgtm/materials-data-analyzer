@@ -15,6 +15,8 @@ from typing import Any
 
 from .platform_core.adapter_registry import build_default_adapter_registry
 from .platform_core.artifacts import build_default_artifact_registry
+from .platform_core.case_study_adapter import build_case_study_stage_plan
+from .platform_core.case_study_registry import build_default_case_study_registry
 from .platform_core.config import load_and_validate_pipeline_config, load_json_config
 from .platform_core.executable_adapters import build_approved_adapter_callables
 from .platform_core.execution_policy import build_default_execution_policy_registry
@@ -33,6 +35,7 @@ from .platform_core.manifests import (
     load_run_manifest,
     write_run_manifest,
 )
+from .platform_core.onboarding import load_and_validate_onboarding_config
 from .platform_core.planner import build_dry_run_plan
 from .platform_core.registry import build_default_plugin_registry
 from .platform_core.trust_registry import build_default_trust_policy_registry
@@ -61,6 +64,26 @@ def _registries() -> tuple[Any, Any, Any, Any, Any, Any]:
         build_default_trust_policy_registry(),
         adapter_registry,
         build_default_execution_policy_registry(),
+    )
+
+
+def _case_study_registries() -> tuple[Any, Any, Any, Any, Any, Any, Any]:
+    plugin_registry, artifact_registry, validation_registry, trust_registry, adapter_registry, execution_policy_registry = _registries()
+    case_study_registry = build_default_case_study_registry(
+        plugin_registry,
+        artifact_registry,
+        validation_registry,
+        trust_registry,
+        adapter_registry,
+    )
+    return (
+        plugin_registry,
+        artifact_registry,
+        validation_registry,
+        trust_registry,
+        adapter_registry,
+        execution_policy_registry,
+        case_study_registry,
     )
 
 
@@ -172,6 +195,196 @@ def _cmd_inspect_adapter(args: argparse.Namespace) -> int:
             ]
         )
     return 0
+
+
+def _cmd_list_case_studies(args: argparse.Namespace) -> int:
+    *_, case_study_registry = _case_study_registries()
+    payload = case_study_registry.completeness_snapshot()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                (
+                    f"{item['case_study_id']}\t{item['status']}\t"
+                    f"{item['onboarding_status']}\t{','.join(item['supported_stages'])}"
+                )
+                for item in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_inspect_case_study(args: argparse.Namespace) -> int:
+    *_, case_study_registry = _case_study_registries()
+    try:
+        case_study = case_study_registry.get(args.case_study_id)
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_ADAPTER_NOT_FOUND
+    payload = case_study.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"case_study_id: {payload['case_study_id']}",
+                f"display_name: {payload['display_name']}",
+                f"domain: {payload['domain']}",
+                f"status: {payload['status']}",
+                f"onboarding_status: {payload['onboarding_status']}",
+                f"plugin_id: {payload['plugin_id']}",
+                f"validation_policy_id: {payload['validation_policy_id']}",
+                f"trust_policy_id: {payload['trust_policy_id']}",
+                f"executable_stages: {', '.join(payload['executable_stages']) if payload['executable_stages'] else 'none'}",
+                f"documentation_path: {payload['documentation_path']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_case_study_stages(args: argparse.Namespace) -> int:
+    plugin_registry, artifact_registry, validation_registry, trust_registry, adapter_registry, _, case_study_registry = _case_study_registries()
+    del plugin_registry, validation_registry, trust_registry
+    try:
+        case_study = case_study_registry.get(args.case_study_id)
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_ADAPTER_NOT_FOUND
+    plans = [
+        build_case_study_stage_plan(
+            case_study_id=case_study.case_study_id,
+            stage=stage,
+            case_study_registry=case_study_registry,
+            artifact_registry=artifact_registry,
+            adapter_registry=adapter_registry,
+        ).to_dict()
+        for stage in case_study.supported_stages
+    ]
+    if args.json:
+        _emit_json(plans)
+    else:
+        _emit_lines(
+            [
+                (
+                    f"{plan['stage']}\t{plan['execution_status']}\t"
+                    f"{plan['adapter_id'] or 'no_adapter'}\t{plan['execution_boundary']}"
+                )
+                for plan in plans
+            ]
+        )
+    return 0
+
+
+def _load_onboarding_result(config_path: str):
+    _, _, validation_registry, trust_registry, _, _, case_study_registry = _case_study_registries()
+    return load_and_validate_onboarding_config(
+        config_path,
+        case_study_registry=case_study_registry,
+        validation_registry=validation_registry,
+        trust_registry=trust_registry,
+    )
+
+
+def _cmd_validate_onboarding(args: argparse.Namespace) -> int:
+    try:
+        result = _load_onboarding_result(args.config_path)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        payload = {"valid": False, "status": "invalid", "errors": [str(exc)], "warnings": []}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(result.to_dict())
+    else:
+        lines = [f"valid: {str(result.valid).lower()}", f"status: {result.status}"]
+        lines.extend(f"error: {error}" for error in result.errors)
+        lines.extend(f"warning: {warning}" for warning in result.warnings)
+        _emit_lines(lines)
+    return 0 if result.valid else EXIT_INVALID_CONFIG
+
+
+def _cmd_inspect_onboarding(args: argparse.Namespace) -> int:
+    try:
+        result = _load_onboarding_result(args.config_path)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "status": "invalid", "errors": [str(exc)]})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = {
+        "status": result.status,
+        "readiness_matrix": result.readiness_matrix,
+        "errors": list(result.errors),
+        "warnings": list(result.warnings),
+        "config": result.config,
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {result.status}",
+                *[
+                    f"{key}: {str(value).lower()}"
+                    for key, value in sorted(result.readiness_matrix.items())
+                ],
+            ]
+        )
+    return 0 if result.valid else EXIT_INVALID_CONFIG
+
+
+def _cmd_onboarding_plan(args: argparse.Namespace) -> int:
+    try:
+        result = _load_onboarding_result(args.config_path)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "status": "invalid", "errors": [str(exc)]})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    config = result.config or {}
+    artifacts = config.get("artifact_definitions", []) if isinstance(config.get("artifact_definitions", []), list) else []
+    payload = {
+        "case_study_id": config.get("case_study_id"),
+        "status": result.status,
+        "plugin": config.get("plugin_id") or "not_registered",
+        "validation_policy": config.get("validation_policy"),
+        "trust_policy": config.get("trust_policy"),
+        "artifact_count": len(artifacts),
+        "missing_fields": [key for key, value in result.readiness_matrix.items() if not value],
+        "stage_readiness": {
+            stage: {
+                "declared": stage in (config.get("supported_stages") or []),
+                "adapter_mapped": bool(config.get("adapter_id") and stage == "trust"),
+                "execution_allowed": False,
+            }
+            for stage in sorted(set(config.get("supported_stages") or []))
+            if isinstance(stage, str)
+        },
+        "next_steps": list(result.next_steps),
+        "errors": list(result.errors),
+        "warnings": list(result.warnings),
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"case_study_id: {payload['case_study_id']}",
+                f"status: {payload['status']}",
+                f"plugin: {payload['plugin']}",
+                f"validation_policy: {payload['validation_policy']}",
+                f"trust_policy: {payload['trust_policy']}",
+                f"artifact_count: {payload['artifact_count']}",
+                f"missing_fields: {', '.join(payload['missing_fields']) if payload['missing_fields'] else 'none'}",
+                f"next_steps: {'; '.join(payload['next_steps']) if payload['next_steps'] else 'none'}",
+            ]
+        )
+    return 0 if result.valid else EXIT_INVALID_CONFIG
 
 
 def _cmd_validate_config(args: argparse.Namespace) -> int:
@@ -531,9 +744,41 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_adapter_parser.add_argument("adapter_id")
     inspect_adapter_parser.set_defaults(func=_cmd_inspect_adapter)
 
+    subparsers.add_parser("list-case-studies", help="list registered case-study interfaces").set_defaults(
+        func=_cmd_list_case_studies
+    )
+
+    inspect_case_study_parser = subparsers.add_parser("inspect-case-study", help="inspect one case-study interface")
+    inspect_case_study_parser.add_argument("case_study_id")
+    inspect_case_study_parser.set_defaults(func=_cmd_inspect_case_study)
+
+    case_study_stages_parser = subparsers.add_parser(
+        "list-case-study-stages", help="list lifecycle-stage metadata for one case study"
+    )
+    case_study_stages_parser.add_argument("case_study_id")
+    case_study_stages_parser.set_defaults(func=_cmd_list_case_study_stages)
+
     validate_parser = subparsers.add_parser("validate-config", help="validate a pipeline config")
     validate_parser.add_argument("config_path")
     validate_parser.set_defaults(func=_cmd_validate_config)
+
+    validate_onboarding_parser = subparsers.add_parser(
+        "validate-onboarding", help="validate a new-domain onboarding contract"
+    )
+    validate_onboarding_parser.add_argument("config_path")
+    validate_onboarding_parser.set_defaults(func=_cmd_validate_onboarding)
+
+    inspect_onboarding_parser = subparsers.add_parser(
+        "inspect-onboarding", help="inspect onboarding readiness without side effects"
+    )
+    inspect_onboarding_parser.add_argument("config_path")
+    inspect_onboarding_parser.set_defaults(func=_cmd_inspect_onboarding)
+
+    onboarding_plan_parser = subparsers.add_parser(
+        "onboarding-plan", help="show next steps for a new-domain onboarding contract"
+    )
+    onboarding_plan_parser.add_argument("config_path")
+    onboarding_plan_parser.set_defaults(func=_cmd_onboarding_plan)
 
     dry_run_parser = subparsers.add_parser("dry-run", help="build a dry-run execution plan")
     dry_run_parser.add_argument("config_path")

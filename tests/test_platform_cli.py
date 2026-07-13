@@ -127,4 +127,4 @@ def test_cli_show_policy_and_version():
     assert policy.returncode == 0
     assert json.loads(policy.stdout)["policy_type"] == "trust"
     assert version.returncode == 0
-    assert json.loads(version.stdout)["platform_version"] == "2.0.3-dev"
+    assert json.loads(version.stdout)["platform_version"] == "2.0.4-dev"

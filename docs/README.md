@@ -8,6 +8,8 @@ This directory collects project references, specifications, audits, policies, ca
 - [Outputs Policy](OUTPUTS_POLICY.md): how `outputs/` and generated run artifacts should be treated.
 - [Portfolio Overview](PORTFOLIO_OVERVIEW.md): portfolio-oriented summary of architecture, case studies, validation rigor, and limitations.
 - [Platform Architecture](PLATFORM_ARCHITECTURE.md): v2 scaffold architecture, registries, config contract, CLI, and backward-compatibility boundary.
+- [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
+- [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
 - [Platform Execution](PLATFORM_EXECUTION.md): v2.0.3 controlled verify runtime, allowlist, side-effect guard, manifest lifecycle, and CLI exit codes.
 - [Testing Guide](../TESTING.md): current test-running notes.

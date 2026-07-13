@@ -1,0 +1,108 @@
+{
+  "schema_version": "2.0",
+  "snapshot_type": "case_study_registry_snapshot_v2",
+  "status": "deterministic_static_snapshot",
+  "case_studies": [
+    {
+      "case_study_id": "battery_archive",
+      "status": "partially_onboarded",
+      "supported_stages": [
+        "contract",
+        "acquisition",
+        "normalization",
+        "readiness",
+        "validation",
+        "closeout"
+      ],
+      "mapped_stages": [],
+      "executable_stages": [],
+      "missing_stages": [
+        "validation"
+      ],
+      "validation_policy": "group_aware_regression",
+      "trust_policy": null,
+      "artifact_count": 5,
+      "test_coverage_status": "synthetic_platform_tests",
+      "documentation_status": "documented",
+      "release_tag": "v1.1",
+      "onboarding_status": "metadata_ready"
+    },
+    {
+      "case_study_id": "materials_project",
+      "status": "interface_mapped",
+      "supported_stages": [
+        "contract",
+        "acquisition",
+        "normalization",
+        "validation",
+        "trust",
+        "closeout"
+      ],
+      "mapped_stages": [
+        "trust"
+      ],
+      "executable_stages": [],
+      "missing_stages": [],
+      "validation_policy": "group_aware_regression",
+      "trust_policy": "materials_group_generalization",
+      "artifact_count": 5,
+      "test_coverage_status": "synthetic_platform_tests",
+      "documentation_status": "documented",
+      "release_tag": "v1.3.1",
+      "onboarding_status": "dry_run_ready"
+    },
+    {
+      "case_study_id": "reliability",
+      "status": "partially_onboarded",
+      "supported_stages": [
+        "contract",
+        "acquisition",
+        "normalization",
+        "readiness",
+        "feature_build",
+        "validation",
+        "trust",
+        "closeout"
+      ],
+      "mapped_stages": [
+        "trust"
+      ],
+      "executable_stages": [
+        "trust"
+      ],
+      "missing_stages": [],
+      "validation_policy": "asset_time_combined_classification",
+      "trust_policy": "reliability_asset_time_aware",
+      "artifact_count": 11,
+      "test_coverage_status": "synthetic_platform_tests",
+      "documentation_status": "documented",
+      "release_tag": "v1.5.0",
+      "onboarding_status": "execution_candidate"
+    },
+    {
+      "case_study_id": "smart_factory",
+      "status": "interface_mapped",
+      "supported_stages": [
+        "contract",
+        "acquisition",
+        "normalization",
+        "readiness",
+        "validation",
+        "trust",
+        "closeout"
+      ],
+      "mapped_stages": [
+        "trust"
+      ],
+      "executable_stages": [],
+      "missing_stages": [],
+      "validation_policy": "time_aware_classification",
+      "trust_policy": "smart_factory_time_aware",
+      "artifact_count": 6,
+      "test_coverage_status": "synthetic_platform_tests",
+      "documentation_status": "documented",
+      "release_tag": "v1.4.0",
+      "onboarding_status": "dry_run_ready"
+    }
+  ]
+}

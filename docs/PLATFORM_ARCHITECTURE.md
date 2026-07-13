@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `scaffold_stage` for v2.0.3.
+Status: `scaffold_stage` for v2.0.4.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -15,10 +15,12 @@ changing output schemas, or replacing `src/process_data.py`.
   are declared in JSON or typed metadata.
 - No hidden execution: configs cannot contain Python expressions, shell
   commands, arbitrary imports, or credentials.
-- Manifest first: v2.0.3 plans workflows, maps selected trust adapters, writes
+- Manifest first: v2.0.4 plans workflows, maps selected trust adapters, writes
   local manifests, and allows one read-only reliability trust verification
   adapter. It does not run acquisition, model training, raw-data reads, trust
   scripts, or network operations.
+- Domain interface first: case studies now expose common lifecycle metadata
+  and onboarding readiness without forcing old scripts into one abstraction.
 
 ## Component Boundaries
 
@@ -49,6 +51,9 @@ In code:
 - `src/platform_core/execution_runtime.py`: controlled verify runtime
 - `src/platform_core/artifact_resolver.py`: safe artifact ID resolution
 - `src/platform_core/side_effects.py`: side-effect accounting
+- `src/platform_core/case_studies.py`: generic case-study interface contract
+- `src/platform_core/case_study_registry.py`: explicit case-study registry
+- `src/platform_core/onboarding.py`: metadata-only new-domain onboarding validator
 - `src/cli.py`: unified CLI scaffold
 
 ## Plugin Registry
@@ -67,6 +72,21 @@ It does not mean v2 can execute the full case-study pipeline yet.
 `dry_run_ready` means a safe adapter mapping exists for manifest planning.
 Only `reliability_trust_closeout` has an additional verify-mode execution
 allowlist entry in v2.0.3.
+
+## Case-Study Interface
+
+v2.0.4 adds a domain-facing case-study registry on top of the plugin and
+adapter registries. It maps Battery Archive, Materials Project, Smart Factory,
+and Reliability to common lifecycle stages while preserving their existing
+scripts and output contracts. No case study is marked `fully_onboarded`.
+
+The interface can be inspected with:
+
+```powershell
+python -m src.cli list-case-studies
+python -m src.cli inspect-case-study reliability
+python -m src.cli list-case-study-stages reliability
+```
 
 ## Adapter Registry
 
@@ -143,7 +163,12 @@ python -m src.cli inspect-plugin reliability
 python -m src.cli list-artifacts --plugin reliability
 python -m src.cli list-adapters
 python -m src.cli inspect-adapter reliability_trust_closeout
+python -m src.cli list-case-studies
+python -m src.cli inspect-case-study reliability
+python -m src.cli list-case-study-stages reliability
 python -m src.cli validate-config configs/examples/reliability_trust_dry_run.json
+python -m src.cli validate-onboarding configs/examples/environmental_monitoring_onboarding.json
+python -m src.cli onboarding-plan configs/examples/environmental_monitoring_onboarding.json
 python -m src.cli dry-run configs/examples/reliability_trust_dry_run.json
 python -m src.cli dry-run configs/examples/reliability_trust_manifest_dry_run.json --write-manifest
 python -m src.cli list-executable-adapters
