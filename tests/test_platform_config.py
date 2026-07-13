@@ -111,6 +111,31 @@ def test_config_rejects_manifest_path_traversal():
     assert any("manifest_output invalid" in error for error in result.errors)
 
 
+def test_config_cannot_elevate_execution_permissions():
+    config = _valid_config()
+    config["execution_allowed"] = True
+    config["network_allowed"] = True
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert "execution_allowed cannot be set by config" in result.errors
+    assert "network_allowed cannot be set by config" in result.errors
+
+
+def test_config_rejects_looser_resource_budget_override():
+    config = _valid_config()
+    config["execution_mode"] = "verify"
+    config["dry_run"] = False
+    config["resource_budget"] = {"max_output_bytes": 10}
+    config["resource_budget_override"] = {"max_output_bytes": 20}
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert any("cannot be less strict" in error for error in result.errors)
+
+
 def test_config_json_load_rejects_non_object(tmp_path):
     path = tmp_path / "bad.json"
     path.write_text(json.dumps(["not", "object"]), encoding="utf-8")

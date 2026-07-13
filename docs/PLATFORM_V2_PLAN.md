@@ -1,6 +1,6 @@
 # Platform v2 Plan
 
-Status: `scaffold_stage` for v2.0.2.
+Status: `scaffold_stage` for v2.0.3.
 
 ## Why v2
 
@@ -73,6 +73,17 @@ v2.0.2 also adds local dry-run manifest writing under `outputs/platform_runs/`.
 The manifest captures selected plugin, adapter, stage, config hash, expected
 artifacts, execution boundary, and trust claim boundary.
 
+## v2.0.3 Scope
+
+v2.0.3 adds a controlled executable runtime for exactly one adapter:
+`reliability_trust_closeout` in `verify` mode. The runtime reads only tracked
+compact artifacts, writes local run outputs under `outputs/platform_runs/`,
+records input/output checksums, and applies side-effect accounting.
+
+Materials Project and Smart Factory adapter execution remain blocked. General
+script execution, acquisition, normalization, model training, raw data reads,
+and canonical output overwrite remain out of scope.
+
 ## Registry Roadmap
 
 The first registry entries are metadata-only/scaffolded or dry-run-ready:
@@ -125,7 +136,7 @@ v2.0.1 does not add:
 
 - v2.0.1: architecture contract, registries, config validation, CLI scaffold
 - v2.0.2: thin case-study adapters and safe dry-run manifests
-- v2.0.3: controlled executable configuration pipeline for approved adapters
+- v2.0.3: controlled reliability trust verify runtime and manifest lifecycle
 - v2.0.4: unified report generation from registered artifacts
 - v2.0.5: platform-level trust-boundary release
 

@@ -22,7 +22,10 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
         assert "token=" not in text.lower()
         payload = json.loads(text)
         assert payload["credential_policy"]["store_credentials"] is False
-        assert payload["dry_run"] is True
+        if payload.get("execution_mode"):
+            assert payload["execution_mode"] in {"verify", "isolated_run"}
+        else:
+            assert payload["dry_run"] is True
 
 
 def test_platform_docs_are_scaffold_stage_not_completed_pipeline():

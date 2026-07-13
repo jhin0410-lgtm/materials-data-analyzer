@@ -74,9 +74,10 @@ hyperparameter search, SHAP, or production alerting.
 
 `src/platform_core/` contains the additive v2 scaffold: plugin metadata,
 adapter metadata, artifact metadata, validation/trust policy registries, JSON
-config validation, side-effect-free dry-run planning, and local dry-run
-manifest writing. `src/cli.py` exposes this scaffold via `python -m src.cli`.
-It does not replace existing scripts or execute pipelines in v2.0.2.
+config validation, side-effect-free dry-run planning, local manifest writing,
+and the v2.0.3 controlled reliability trust verify runtime. `src/cli.py`
+exposes this scaffold via `python -m src.cli`. It does not replace existing
+scripts or execute acquisition/modeling pipelines in v2.0.3.
 
 ## Case Study Utilities
 

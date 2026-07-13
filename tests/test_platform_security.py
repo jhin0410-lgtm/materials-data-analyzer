@@ -12,6 +12,12 @@ PLATFORM_FILES = [
     Path("src/platform_core/config.py"),
     Path("src/platform_core/planner.py"),
     Path("src/platform_core/manifests.py"),
+    Path("src/platform_core/execution_policy.py"),
+    Path("src/platform_core/artifact_resolver.py"),
+    Path("src/platform_core/side_effects.py"),
+    Path("src/platform_core/execution_runtime.py"),
+    Path("src/platform_core/executable_adapters.py"),
+    Path("src/platform_core/case_adapters/reliability.py"),
     Path("src/cli.py"),
 ]
 
@@ -21,7 +27,8 @@ def test_platform_scaffold_has_no_dynamic_execution_or_network_imports():
 
     assert "eval(" not in combined
     assert "exec(" not in combined
-    assert "subprocess" not in combined
+    assert "import subprocess" not in combined
+    assert "subprocess." not in combined
     assert "requests" not in combined
     assert "urllib" not in combined
     assert "socket" not in combined

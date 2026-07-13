@@ -15,8 +15,12 @@
     "code_commit": "git_sha",
     "started_at": "timestamp",
     "completed_at": "timestamp",
+    "duration_seconds": "number",
     "status": "string",
+    "lifecycle_events": "array[string]",
     "dry_run": "boolean",
+    "execution_mode": "string",
+    "adapter_policy_version": "string",
     "test_mode": "boolean",
     "environment": "object",
     "python_version": "string",
@@ -26,8 +30,18 @@
     "errors": "array[string]",
     "claim_boundary": "object",
     "execution_boundary": "object",
+    "input_checksums": "object",
+    "produced_artifacts": "array[relative_path]",
+    "output_checksums": "object",
+    "side_effect_status": "string",
+    "side_effect_report": "relative_path",
+    "canonical_comparison": "string",
+    "exit_status": "string",
+    "exception_type": "string",
+    "error_summary": "string",
     "local_only_outputs": "array[artifact_reference]",
-    "tracked_outputs": "array[artifact_reference]"
+    "tracked_outputs": "array[artifact_reference]",
+    "output_directory": "relative_path"
   },
   "required_fields": [
     "run_id",
@@ -52,9 +66,15 @@
   ],
   "allowed_statuses": [
     "planned",
+    "preflight_validated",
+    "execution_started",
+    "execution_completed",
+    "verification_completed",
     "blocked",
     "dry_run_completed",
     "invalid_config",
-    "adapter_disabled"
+    "adapter_disabled",
+    "failed",
+    "side_effect_violation"
   ]
 }

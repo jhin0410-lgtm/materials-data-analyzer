@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `scaffold_stage` for v2.0.2.
+Status: `scaffold_stage` for v2.0.3.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -15,9 +15,10 @@ changing output schemas, or replacing `src/process_data.py`.
   are declared in JSON or typed metadata.
 - No hidden execution: configs cannot contain Python expressions, shell
   commands, arbitrary imports, or credentials.
-- Dry-run first: v2.0.2 plans workflows, maps selected trust adapters, and can
-  write local dry-run manifests, but does not run acquisition, model training,
-  trust scripts, or network operations.
+- Manifest first: v2.0.3 plans workflows, maps selected trust adapters, writes
+  local manifests, and allows one read-only reliability trust verification
+  adapter. It does not run acquisition, model training, raw-data reads, trust
+  scripts, or network operations.
 
 ## Component Boundaries
 
@@ -44,6 +45,10 @@ In code:
 - `src/platform_core/config.py`: lightweight JSON config validation
 - `src/platform_core/planner.py`: side-effect-free dry-run planner
 - `src/platform_core/manifests.py`: safe local dry-run manifest writer
+- `src/platform_core/execution_policy.py`: explicit execution allowlist
+- `src/platform_core/execution_runtime.py`: controlled verify runtime
+- `src/platform_core/artifact_resolver.py`: safe artifact ID resolution
+- `src/platform_core/side_effects.py`: side-effect accounting
 - `src/cli.py`: unified CLI scaffold
 
 ## Plugin Registry
@@ -59,8 +64,9 @@ The initial registry contains metadata for:
 
 `scaffolded` means the platform can inspect, validate, and dry-run metadata.
 It does not mean v2 can execute the full case-study pipeline yet.
-`dry_run_ready` means a safe adapter mapping exists for manifest planning; it
-still does not allow script execution.
+`dry_run_ready` means a safe adapter mapping exists for manifest planning.
+Only `reliability_trust_closeout` has an additional verify-mode execution
+allowlist entry in v2.0.3.
 
 ## Adapter Registry
 
@@ -125,6 +131,7 @@ Example dry-run and manifest dry-run configs live in `configs/examples/`.
 v2.0.2 can write a single local dry-run manifest under `outputs/platform_runs/`
 when requested with `--write-manifest`. Manifests are local-only and ignored by
 Git.
+v2.0.3 also writes terminal execution manifests for approved verify runs.
 
 ## Unified CLI
 
@@ -139,6 +146,10 @@ python -m src.cli inspect-adapter reliability_trust_closeout
 python -m src.cli validate-config configs/examples/reliability_trust_dry_run.json
 python -m src.cli dry-run configs/examples/reliability_trust_dry_run.json
 python -m src.cli dry-run configs/examples/reliability_trust_manifest_dry_run.json --write-manifest
+python -m src.cli list-executable-adapters
+python -m src.cli show-execution-policy reliability_trust_closeout
+python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify
+python -m src.cli verify-run outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
 python -m src.cli validate-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli show-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli show-policy reliability_asset_time_aware

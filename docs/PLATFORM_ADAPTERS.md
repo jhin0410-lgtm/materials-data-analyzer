@@ -1,10 +1,11 @@
 # Platform Adapters
 
-Status: `scaffold_stage` for v2.0.2.
+Status: `scaffold_stage` for v2.0.3.
 
 Adapters are a thin metadata layer between the v2 platform registry and the
-existing case-study scripts. The scripts in `scripts/` remain canonical. v2.0.2
-does not import or execute them.
+existing case-study scripts. The scripts in `scripts/` remain canonical.
+v2.0.3 approves only one read-only verification callable; general script
+execution remains disabled.
 
 ## Execution Boundary
 
@@ -14,6 +15,7 @@ Allowed in v2.0.2:
 - validate configs that reference registered adapter IDs
 - build dry-run plans
 - write one local dry-run manifest when requested
+- execute `reliability_trust_closeout` in verify mode
 - inspect and validate that manifest
 
 Not allowed in v2.0.2:
@@ -33,7 +35,7 @@ Not allowed in v2.0.2:
 | --- | --- | --- | --- | --- |
 | `materials_project_trust_closeout` | `materials_project` | `trust` | `executable_disabled` | `scripts/run_materials_project_v1_3_trust_analysis.py` |
 | `smart_factory_trust_closeout` | `smart_factory` | `trust` | `executable_disabled` | `scripts/run_smart_factory_v1_4_trust_analysis.py` |
-| `reliability_trust_closeout` | `reliability` | `trust` | `executable_disabled` | `scripts/run_reliability_v1_5_trust_analysis.py` |
+| `reliability_trust_closeout` | `reliability` | `trust` | `verify_allowed` | `scripts/run_reliability_v1_5_trust_analysis.py` metadata; approved callable is `src/platform_core/case_adapters/reliability.py` |
 
 Battery Archive remains `scaffolded` because its closeout workflow is not yet
 mapped to the same trust-policy adapter contract.

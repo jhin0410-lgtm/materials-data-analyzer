@@ -52,6 +52,11 @@ ALLOWED_CONFIG_FIELDS = {
     "manifest_output",
     "run_id",
     "overwrite_manifest",
+    "execution_mode",
+    "require_clean_tree",
+    "verify_canonical_outputs",
+    "output_directory",
+    "resource_budget_override",
     "stop_conditions",
 }
 
@@ -199,13 +204,16 @@ def validate_pipeline_config(
         if credential_policy.get("store_credentials") is True:
             errors.append("credential_policy.store_credentials must not be true")
 
-    for field in ("write_manifest", "overwrite_manifest"):
+    for field in ("write_manifest", "overwrite_manifest", "require_clean_tree", "verify_canonical_outputs"):
         if field in config and not isinstance(config[field], bool):
             errors.append(f"{field} must be a boolean")
 
-    for field in ("manifest_output", "run_id", "adapter_id"):
+    for field in ("manifest_output", "run_id", "adapter_id", "execution_mode", "output_directory"):
         if field in config and config[field] is not None and not isinstance(config[field], str):
             errors.append(f"{field} must be a string")
+
+    if config.get("execution_mode") and config["execution_mode"] not in {"verify", "isolated_run"}:
+        errors.append(f"unsupported execution_mode: {config['execution_mode']}")
 
     manifest_output = config.get("manifest_output")
     if manifest_output:
@@ -213,6 +221,39 @@ def validate_pipeline_config(
             validate_relative_path(str(manifest_output))
         except ValueError as exc:
             errors.append(f"manifest_output invalid: {exc}")
+
+    output_directory = config.get("output_directory")
+    if output_directory:
+        try:
+            validate_relative_path(str(output_directory))
+        except ValueError as exc:
+            errors.append(f"output_directory invalid: {exc}")
+
+    if config.get("resource_budget_override") and not isinstance(config["resource_budget_override"], dict):
+        errors.append("resource_budget_override must be an object")
+    elif isinstance(config.get("resource_budget_override"), dict):
+        base_budget = config.get("resource_budget", {})
+        if not isinstance(base_budget, dict):
+            errors.append("resource_budget must be an object when resource_budget_override is used")
+        else:
+            for key, value in sorted(config["resource_budget_override"].items()):
+                if not isinstance(value, (int, float)) or value < 0:
+                    errors.append(f"resource_budget_override.{key} must be a non-negative number")
+                    continue
+                base_value = base_budget.get(key)
+                if isinstance(base_value, (int, float)) and value > base_value:
+                    errors.append(f"resource_budget_override.{key} cannot be less strict than resource_budget.{key}")
+
+    forbidden_permission_fields = {
+        "execution_allowed",
+        "network_allowed",
+        "raw_data_allowed",
+        "model_training_allowed",
+        "process_spawn_allowed",
+        "canonical_overwrite_allowed",
+    }
+    for field in sorted(forbidden_permission_fields & set(config)):
+        errors.append(f"{field} cannot be set by config")
 
     for field in ("connector", "loader", "readiness_analyzer", "feature_builder"):
         value = config.get(field)
@@ -224,8 +265,8 @@ def validate_pipeline_config(
                 except ValueError as exc:
                     errors.append(f"{field}.relative_path invalid: {exc}")
 
-    if config.get("dry_run") is not True:
-        warnings.append("v2.0.1 scaffold supports dry_run=true only")
+    if config.get("dry_run") is not True and not config.get("execution_mode"):
+        warnings.append("dry_run=false is only supported with an explicit execution_mode")
 
     return ConfigValidationResult(valid=not errors, errors=tuple(errors), warnings=tuple(warnings), config=config)
 

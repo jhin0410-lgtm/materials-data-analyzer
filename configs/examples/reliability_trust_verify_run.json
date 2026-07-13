@@ -1,0 +1,54 @@
+{
+  "schema_version": "2.0",
+  "pipeline_id": "reliability_v1_5_trust_verify_run",
+  "case_study_id": "reliability",
+  "plugin_id": "reliability",
+  "adapter_id": "reliability_trust_closeout",
+  "stage": "trust",
+  "execution_mode": "verify",
+  "dry_run": false,
+  "write_manifest": true,
+  "run_id": "reliability-trust-verify-run",
+  "output_directory": "outputs/platform_runs/reliability-trust-verify-run",
+  "overwrite_manifest": false,
+  "require_clean_tree": true,
+  "verify_canonical_outputs": true,
+  "input_artifacts": [
+    "reliability_v1_5_classification_metrics",
+    "reliability_v1_5_model_eligibility",
+    "reliability_v1_5_validation_stability_summary",
+    "reliability_v1_5_trust_summary",
+    "reliability_v1_5_claim_boundary",
+    "reliability_v1_5_closeout_conclusion"
+  ],
+  "tracked_outputs": [
+    "reliability_v1_5_trust_summary",
+    "reliability_v1_5_claim_boundary",
+    "reliability_v1_5_closeout_conclusion"
+  ],
+  "local_only_outputs": [],
+  "validator": "asset_time_combined_classification",
+  "trust_policy": "reliability_asset_time_aware",
+  "parameters": {
+    "network_required": false,
+    "raw_data_required": false,
+    "model_training_required": false
+  },
+  "resource_budget": {
+    "max_input_files": 6,
+    "max_input_bytes": 250000,
+    "max_output_files": 4,
+    "max_output_bytes": 750000,
+    "timeout_seconds": 30
+  },
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "stop_conditions": [
+    "missing_compact_artifact",
+    "representative_model_changed",
+    "unsupported_claim_detected",
+    "canonical_artifact_modified",
+    "side_effect_violation"
+  ]
+}

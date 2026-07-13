@@ -120,6 +120,25 @@
       "required": false,
       "v2_0_policy": "true is the only supported execution mode"
     },
+    "execution_mode": {
+      "type": "string",
+      "required": false,
+      "allowed_values": [
+        "verify",
+        "isolated_run"
+      ],
+      "meaning": "Controlled execution mode. v2.0.3 only approves reliability trust verify."
+    },
+    "require_clean_tree": {
+      "type": "boolean",
+      "required": false,
+      "default": true
+    },
+    "verify_canonical_outputs": {
+      "type": "boolean",
+      "required": false,
+      "default": true
+    },
     "write_manifest": {
       "type": "boolean",
       "required": false,
@@ -143,6 +162,22 @@
       "required": false,
       "default": false
     },
+    "output_directory": {
+      "type": "string",
+      "required": false,
+      "rules": [
+        "relative repository path only",
+        "must remain under outputs/platform_runs for executable adapters"
+      ]
+    },
+    "resource_budget_override": {
+      "type": "object",
+      "required": false,
+      "rules": [
+        "can only make the configured resource budget stricter",
+        "cannot grant network, raw data, model training, process spawning, or overwrite permission"
+      ]
+    },
     "stop_conditions": {
       "type": "array[string]",
       "required": false
@@ -152,6 +187,7 @@
     "Config files contain metadata only and no executable code.",
     "Python expressions, eval, exec, shell commands, and arbitrary imports are prohibited.",
     "Artifact references use registry IDs rather than absolute local paths.",
-    "Path traversal and credentials are prohibited."
+    "Path traversal and credentials are prohibited.",
+    "Executable permission, network permission, raw-data permission, model-training permission, process spawning, and canonical overwrite permission cannot be enabled from config."
   ]
 }

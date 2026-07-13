@@ -17,10 +17,16 @@ from .trust_registry import TrustPolicyRegistry
 
 ALLOWED_MANIFEST_STATUSES = (
     "planned",
+    "preflight_validated",
+    "execution_started",
+    "execution_completed",
+    "verification_completed",
     "blocked",
     "dry_run_completed",
     "invalid_config",
     "adapter_disabled",
+    "failed",
+    "side_effect_violation",
 )
 
 

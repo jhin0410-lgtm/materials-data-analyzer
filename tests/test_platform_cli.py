@@ -72,7 +72,7 @@ def test_cli_dry_run_manifest_round_trip(tmp_path):
         str(manifest_out),
     )
 
-    assert result.returncode == 2
+    assert result.returncode == 9
     assert "manifest_error" in json.loads(result.stdout)
 
     relative_manifest = "outputs/platform_runs/test-cli-manifest/run_manifest.json"
@@ -127,4 +127,4 @@ def test_cli_show_policy_and_version():
     assert policy.returncode == 0
     assert json.loads(policy.stdout)["policy_type"] == "trust"
     assert version.returncode == 0
-    assert json.loads(version.stdout)["platform_version"] == "2.0.2-dev"
+    assert json.loads(version.stdout)["platform_version"] == "2.0.3-dev"
