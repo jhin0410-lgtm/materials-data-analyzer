@@ -76,9 +76,11 @@ hyperparameter search, SHAP, or production alerting.
 adapter metadata, artifact metadata, case-study metadata, validation/trust
 policy registries, JSON config validation, onboarding validation,
 side-effect-free dry-run planning, local manifest writing, and the controlled
-reliability trust verify runtime. `src/cli.py` exposes this scaffold via
-`python -m src.cli`. It does not replace existing scripts or execute
-acquisition/modeling pipelines.
+reliability trust verify runtime. v2.0.5 also adds read-only platform report
+models, explicit compact-artifact extractors, registry snapshots, and
+JSON/Markdown report generation under `outputs/platform_reports/`. `src/cli.py`
+exposes this scaffold via `python -m src.cli`. It does not replace existing
+scripts or execute acquisition/modeling pipelines.
 
 ## Case Study Utilities
 
@@ -116,9 +118,10 @@ Connectors may help ingest from external data sources, but the core analyzer rem
 
 `configs/examples/` contains sanitized tracked examples. Local, private, or
 secret configs remain ignored by narrow `.gitignore` patterns and should not be
-committed. `notebooks/` remains local scratch space unless a public example is
-created intentionally. Do not commit credentials, private paths, executed
-scratch notebooks, or local API settings.
+committed. Platform report examples live alongside dry-run and onboarding
+examples and write only ignored local outputs. `notebooks/` remains local
+scratch space unless a public example is created intentionally. Do not commit
+credentials, private paths, executed scratch notebooks, or local API settings.
 
 ## Case Study Documentation
 
@@ -184,6 +187,8 @@ outputs/
 ```
 
 `data/processed/` may contain curated case-study summary tables. `outputs/` contains regenerable analyzer run outputs and should generally stay local. See [`OUTPUTS_POLICY.md`](OUTPUTS_POLICY.md) for the repository-level outputs policy.
+Platform report outputs are generated under `outputs/platform_reports/` and are
+local-only.
 
 For Materials Project, compact tracked candidates include query manifests,
 property inventories, quality summaries, screening summaries, descriptor

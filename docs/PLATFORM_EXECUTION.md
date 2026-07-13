@@ -1,6 +1,6 @@
 # Platform Execution
 
-Status: `scaffold_stage` for v2.0.4.
+Status: `scaffold_stage` for v2.0.5.
 
 v2.0.3 introduces controlled adapter execution for one narrow case:
 `reliability_trust_closeout` in `verify` mode. It verifies existing tracked
@@ -130,3 +130,7 @@ future work.
 
 v2.0.4 case-study onboarding validation does not change this execution
 boundary. Passing onboarding validation never grants runtime permission.
+
+v2.0.5 platform reporting also does not change this execution boundary. Report
+generation is a read-only local summary of registries and tracked compact
+artifacts, not an adapter execution mode.

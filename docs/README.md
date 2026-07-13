@@ -12,6 +12,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
 - [Platform Execution](PLATFORM_EXECUTION.md): v2.0.3 controlled verify runtime, allowlist, side-effect guard, manifest lifecycle, and CLI exit codes.
+- [Platform Reporting](PLATFORM_REPORTING.md): v2.0.5 read-only JSON/Markdown platform reports from registries and compact artifacts.
 - [Testing Guide](../TESTING.md): current test-running notes.
 
 ## Active Specifications
@@ -29,6 +30,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
 - [Platform v2 Plan](PLATFORM_V2_PLAN.md): configuration-driven platform scaffold roadmap.
+- [Platform v2 Closeout](PLATFORM_V2_CLOSEOUT.md): v2.0.1-v2.0.5 scaffold summary, current execution boundary, and v2.1 roadmap.
 - [v1.5.0 Release Notes](releases/V1_5_0.md): Backblaze reliability validation and trust-boundary release notes.
 - [Project Audit](audits/PROJECT_AUDIT.md): earlier project inventory.
 - [Commit Boundary Review](audits/COMMIT_BOUNDARY_REVIEW.md): guidance on what should and should not be committed.

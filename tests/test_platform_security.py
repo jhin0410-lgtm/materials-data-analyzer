@@ -22,6 +22,10 @@ PLATFORM_FILES = [
     Path("src/platform_core/case_study_registry.py"),
     Path("src/platform_core/case_study_adapter.py"),
     Path("src/platform_core/onboarding.py"),
+    Path("src/platform_core/reports.py"),
+    Path("src/platform_core/report_extractors.py"),
+    Path("src/platform_core/report_generator.py"),
+    Path("src/platform_core/snapshots.py"),
     Path("src/cli.py"),
 ]
 

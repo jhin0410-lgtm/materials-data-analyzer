@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `scaffold_stage` for v2.0.4.
+Status: `scaffold_stage` for v2.0.5.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -15,12 +15,14 @@ changing output schemas, or replacing `src/process_data.py`.
   are declared in JSON or typed metadata.
 - No hidden execution: configs cannot contain Python expressions, shell
   commands, arbitrary imports, or credentials.
-- Manifest first: v2.0.4 plans workflows, maps selected trust adapters, writes
+- Manifest first: v2.0.5 plans workflows, maps selected trust adapters, writes
   local manifests, and allows one read-only reliability trust verification
   adapter. It does not run acquisition, model training, raw-data reads, trust
   scripts, or network operations.
 - Domain interface first: case studies now expose common lifecycle metadata
   and onboarding readiness without forcing old scripts into one abstraction.
+- Report read-only: platform reports summarize registries and tracked compact
+  artifacts without recomputing scientific results.
 
 ## Component Boundaries
 
@@ -54,6 +56,10 @@ In code:
 - `src/platform_core/case_studies.py`: generic case-study interface contract
 - `src/platform_core/case_study_registry.py`: explicit case-study registry
 - `src/platform_core/onboarding.py`: metadata-only new-domain onboarding validator
+- `src/platform_core/reports.py`: platform report data model
+- `src/platform_core/report_extractors.py`: explicit compact-artifact extractors
+- `src/platform_core/report_generator.py`: JSON/Markdown report renderer and local-only writer
+- `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/cli.py`: unified CLI scaffold
 
 ## Plugin Registry
@@ -177,6 +183,11 @@ python -m src.cli execute configs/examples/reliability_trust_verify_run.json --m
 python -m src.cli verify-run outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
 python -m src.cli validate-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli show-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
+python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
+python -m src.cli generate-report --config configs/examples/platform_report_all_case_studies.json
+python -m src.cli validate-report outputs/platform_reports/platform_v2_all_case_studies
+python -m src.cli inspect-report outputs/platform_reports/platform_v2_all_case_studies
+python -m src.cli list-report-sources
 python -m src.cli show-policy reliability_asset_time_aware
 python -m src.cli show-version
 ```
@@ -216,3 +227,5 @@ The scaffold avoids:
 - Dry-run reports manifest readiness, not executable pipeline readiness.
 - Artifact registry coverage is intentionally selective and should expand as
   adapters are implemented.
+- The report engine is JSON/Markdown only and does not generate HTML, PDF, or a
+  dashboard.

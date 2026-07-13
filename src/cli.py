@@ -38,6 +38,12 @@ from .platform_core.manifests import (
 from .platform_core.onboarding import load_and_validate_onboarding_config
 from .platform_core.planner import build_dry_run_plan
 from .platform_core.registry import build_default_plugin_registry
+from .platform_core.report_generator import (
+    generate_report,
+    load_report_config,
+    load_report_json,
+    load_report_manifest,
+)
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
 from .platform_core.version import PLATFORM_VERSION
@@ -712,6 +718,194 @@ def _cmd_validate_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+def _report_formats(args: argparse.Namespace) -> tuple[str, ...] | None:
+    if not getattr(args, "format", None):
+        return None
+    if args.format == "all":
+        return ("json", "markdown")
+    return (args.format,)
+
+
+def _load_report_config_for_cli(args: argparse.Namespace) -> dict[str, Any]:
+    config = load_report_config(args.config_path)
+    if getattr(args, "case_study", None):
+        config["selected_case_studies"] = list(args.case_study)
+    if getattr(args, "report_id", None):
+        config["report_id"] = args.report_id
+    if getattr(args, "output_dir", None):
+        config["output_dir"] = args.output_dir
+    if getattr(args, "format", None):
+        config["formats"] = list(_report_formats(args) or [])
+    if getattr(args, "overwrite", False):
+        config["overwrite"] = True
+    return config
+
+
+def _cmd_preview_report(args: argparse.Namespace) -> int:
+    try:
+        config = _load_report_config_for_cli(args)
+        result = generate_report(
+            config,
+            repo_root=Path.cwd(),
+            write=False,
+            formats_override=_report_formats(args),
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        payload = {"status": "invalid_report_config", "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_report_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = result.summary()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"report_id: {payload['report_id']}",
+                f"generation_status: {payload['generation_status']}",
+                f"case_study_ids: {', '.join(payload['case_study_ids'])}",
+                f"generated_formats: {', '.join(payload['generated_formats'])}",
+                f"scientific_recomputation_performed: {payload['scientific_recomputation_performed']}",
+                "output_dir: none",
+            ]
+        )
+    return 0
+
+
+def _cmd_generate_report(args: argparse.Namespace) -> int:
+    try:
+        config = _load_report_config_for_cli(args)
+        result = generate_report(
+            config,
+            repo_root=Path.cwd(),
+            write=True,
+            output_dir_override=args.output_dir,
+            report_id_override=args.report_id,
+            formats_override=_report_formats(args),
+            overwrite=args.overwrite or None,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, FileExistsError) as exc:
+        payload = {"status": "report_generation_failed", "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"report_generation_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY if isinstance(exc, (ValueError, FileExistsError)) else EXIT_INVALID_CONFIG
+    payload = result.summary()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"report_id: {payload['report_id']}",
+                f"generation_status: {payload['generation_status']}",
+                f"output_dir: {payload['output_dir']}",
+                f"written_files: {', '.join(payload['written_files'])}",
+                f"scientific_recomputation_performed: {payload['scientific_recomputation_performed']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_report(args: argparse.Namespace) -> int:
+    try:
+        manifest = load_report_manifest(args.report_path)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        payload = {"valid": False, "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"valid: false\nerror: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = {
+        "valid": True,
+        "report_id": manifest["report_id"],
+        "generation_status": manifest["generation_status"],
+        "case_study_ids": manifest["case_study_ids"],
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                "valid: true",
+                f"report_id: {payload['report_id']}",
+                f"generation_status: {payload['generation_status']}",
+                f"case_study_ids: {', '.join(payload['case_study_ids'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_inspect_report(args: argparse.Namespace) -> int:
+    try:
+        report = load_report_json(args.report_path)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        payload = {"valid": False, "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid report: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = {
+        "report_schema_version": report.get("report_schema_version"),
+        "platform_version": report.get("platform_version"),
+        "platform_status": report.get("platform_status"),
+        "case_study_ids": [case["case_study_id"] for case in report.get("case_studies", [])],
+        "scientific_recomputation_performed": report.get("scientific_recomputation_performed"),
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"platform_version: {payload['platform_version']}",
+                f"platform_status: {payload['platform_status']}",
+                f"case_study_ids: {', '.join(payload['case_study_ids'])}",
+                f"scientific_recomputation_performed: {payload['scientific_recomputation_performed']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_report_sources(args: argparse.Namespace) -> int:
+    config = {
+        "schema_version": "2.0",
+        "report_id": "report_sources_preview",
+        "formats": ["json", "markdown"],
+        "output_dir": "outputs/platform_reports/report_sources_preview",
+    }
+    try:
+        result = generate_report(config, repo_root=Path.cwd(), write=False)
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        payload = {"status": "failed", "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    sources = [
+        {
+            "case_study_id": case.case_study_id,
+            "source_artifacts": [artifact.artifact_id for artifact in case.artifacts],
+            "warning_count": len(case.warnings),
+        }
+        for case in result.report.case_studies
+    ]
+    if args.json:
+        _emit_json(sources)
+    else:
+        _emit_lines(
+            [
+                f"{source['case_study_id']}\t{','.join(source['source_artifacts']) or 'none'}\twarnings={source['warning_count']}"
+                for source in sources
+            ]
+        )
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -817,6 +1011,35 @@ def build_parser() -> argparse.ArgumentParser:
     validate_manifest_parser = subparsers.add_parser("validate-manifest", help="validate a run manifest")
     validate_manifest_parser.add_argument("manifest_path")
     validate_manifest_parser.set_defaults(func=_cmd_validate_manifest)
+
+    generate_report_parser = subparsers.add_parser("generate-report", help="generate a local-only platform report")
+    generate_report_parser.add_argument("--config", dest="config_path", required=True)
+    generate_report_parser.add_argument("--format", choices=["json", "markdown", "all"])
+    generate_report_parser.add_argument("--case-study", action="append", help="filter to a case_study_id; may be repeated")
+    generate_report_parser.add_argument("--output-dir", help="repository-relative outputs/platform_reports directory")
+    generate_report_parser.add_argument("--report-id", help="override report_id")
+    generate_report_parser.add_argument("--overwrite", action="store_true", help="allow replacing an existing report")
+    generate_report_parser.set_defaults(func=_cmd_generate_report)
+
+    preview_report_parser = subparsers.add_parser("preview-report", help="preview a platform report without writing files")
+    preview_report_parser.add_argument("--config", dest="config_path", required=True)
+    preview_report_parser.add_argument("--format", choices=["json", "markdown", "all"])
+    preview_report_parser.add_argument("--case-study", action="append", help="filter to a case_study_id; may be repeated")
+    preview_report_parser.add_argument("--output-dir", help="accepted for preview compatibility")
+    preview_report_parser.add_argument("--report-id", help="override report_id")
+    preview_report_parser.set_defaults(func=_cmd_preview_report)
+
+    validate_report_parser = subparsers.add_parser("validate-report", help="validate a generated platform report manifest")
+    validate_report_parser.add_argument("report_path")
+    validate_report_parser.set_defaults(func=_cmd_validate_report)
+
+    inspect_report_parser = subparsers.add_parser("inspect-report", help="inspect a generated platform report")
+    inspect_report_parser.add_argument("report_path")
+    inspect_report_parser.set_defaults(func=_cmd_inspect_report)
+
+    subparsers.add_parser("list-report-sources", help="list tracked compact artifacts used by platform reports").set_defaults(
+        func=_cmd_list_report_sources
+    )
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

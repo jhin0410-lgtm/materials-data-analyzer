@@ -1,0 +1,37 @@
+{
+  "schema_version": "2.0",
+  "schema_name": "report_manifest_schema_v2",
+  "status": "scaffold_stage",
+  "description": "Contract for local-only read-only platform report manifests.",
+  "required_fields": [
+    "report_id",
+    "report_schema_version",
+    "platform_version",
+    "code_commit",
+    "generated_formats",
+    "source_registry_snapshot",
+    "source_artifacts",
+    "source_artifact_checksums",
+    "case_study_ids",
+    "warnings",
+    "errors",
+    "output_files",
+    "output_checksums",
+    "generation_status",
+    "local_only",
+    "scientific_recomputation_performed"
+  ],
+  "generation_status_enum": [
+    "completed",
+    "preview_only",
+    "failed"
+  ],
+  "rules": [
+    "local_only must be true.",
+    "scientific_recomputation_performed must be false.",
+    "output_files must be repository-relative paths under outputs/platform_reports.",
+    "source_artifacts must be tracked compact artifacts or metadata references.",
+    "report_manifest.json may appear in output_files without a self-referential checksum.",
+    "No raw data path, credential, username, host name, or absolute path may be stored."
+  ]
+}
