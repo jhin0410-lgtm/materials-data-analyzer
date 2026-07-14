@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `development_stage` for v2.1.4.
+Status: `feature_complete_pending_release_audit` for v2.1.5.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -27,9 +27,12 @@ changing output schemas, or replacing `src/process_data.py`.
   local SQLite metadata index without rerunning scientific workflows.
 - Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
   gaps, claim decisions, and evidence graphs from persisted metadata only.
-- Scientific metadata first: v2.1.4 adds bounded scientific execution on top of
+- Scientific metadata first: v2.1 adds bounded scientific execution on top of
   unit-aware constraints, domain-knowledge packs, applicability checks, and
   XRD Bragg/Scherrer examples without raw-data reads or model training.
+- Trust boundaries before features: v2.1.5 classifies scientific evidence
+  levels, constraint roles, feature-candidate eligibility, and prohibited
+  physics claims before any feature builder or model integration.
 
 ## Component Boundaries
 
@@ -80,6 +83,12 @@ In code:
 - `src/platform_core/scientific_applicability.py`: small JSON applicability and validation checks
 - `src/platform_core/scientific_execution.py`: bounded scientific execution,
   unit normalization, finding persistence, and local-only result writing
+- `src/platform_core/scientific_feature_candidates.py`: metadata model for
+  physics-aware feature candidates
+- `src/platform_core/scientific_feature_registry.py`: explicit feature-candidate
+  registry and validation
+- `src/platform_core/scientific_trust.py`: scientific trust-boundary and
+  feature-eligibility evaluation from stored execution evidence
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/cli.py`: unified CLI scaffold
 
@@ -201,14 +210,19 @@ SQLite tables without rerunning the underlying science.
 
 See [`PLATFORM_DIAGNOSTICS.md`](PLATFORM_DIAGNOSTICS.md).
 
-## Scientific Constraint Registry
+## Scientific Constraint And Trust Registry
 
-v2.1.4 adds bounded execution for registered evaluator IDs and explicit
+v2.1 adds bounded execution for registered evaluator IDs and explicit
 scalar/small-list inputs. The first explicit examples are XRD Bragg/Scherrer
 metadata checks. Equations are display-only and are never parsed from config.
+v2.1.5 adds scientific trust evaluation over stored execution evidence:
+constraint roles, evidence levels, feature-candidate eligibility, and claim
+boundaries are recorded without generating feature values or training models.
 
 See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
 [`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
+[`SCIENTIFIC_TRUST_BOUNDARY.md`](SCIENTIFIC_TRUST_BOUNDARY.md),
+[`SCIENTIFIC_FEATURE_CANDIDATES.md`](SCIENTIFIC_FEATURE_CANDIDATES.md),
 [`XRD_PHYSICS_VALIDATION.md`](XRD_PHYSICS_VALIDATION.md),
 [`DOMAIN_KNOWLEDGE_PACKS.md`](DOMAIN_KNOWLEDGE_PACKS.md), and
 [`PHYSICS_AWARE_ROADMAP.md`](PHYSICS_AWARE_ROADMAP.md).
@@ -259,6 +273,9 @@ python -m src.cli convert-unit --value 25 --from degC --to K
 python -m src.cli export-scientific-registry --output outputs/platform_science/scientific_registry.json --overwrite
 python -m src.cli preview-scientific-check configs/examples/xrd_bragg_consistent_check.json
 python -m src.cli execute-scientific-check configs/examples/xrd_scherrer_uncorrected_check.json --persist
+python -m src.cli evaluate-scientific-trust xrd_scherrer_uncorrected_check
+python -m src.cli list-scientific-feature-candidates
+python -m src.cli scientific-trust-validate
 python -m src.cli show-version
 ```
 

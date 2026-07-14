@@ -229,6 +229,7 @@ class PlatformReport:
     validation_policy_summary: tuple[dict[str, Any], ...]
     trust_policy_summary: tuple[dict[str, Any], ...]
     registry_diagnostics_summary: dict[str, Any]
+    scientific_trust_summary: dict[str, Any]
     testing_summary: dict[str, Any]
     security_boundaries: tuple[str, ...]
     limitations: tuple[str, ...]
@@ -253,6 +254,7 @@ class PlatformReport:
             "validation_policy_summary": list(self.validation_policy_summary),
             "trust_policy_summary": list(self.trust_policy_summary),
             "registry_diagnostics_summary": self.registry_diagnostics_summary,
+            "scientific_trust_summary": self.scientific_trust_summary,
             "testing_summary": self.testing_summary,
             "security_boundaries": list(self.security_boundaries),
             "limitations": list(self.limitations),

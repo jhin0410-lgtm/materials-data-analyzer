@@ -61,10 +61,15 @@ from .platform_core.registry_service import RegistryService
 from .platform_core.run_registry import (
     DEFAULT_EXPORT_DIR,
     DEFAULT_REGISTRY_PATH,
+    assert_no_sensitive_strings,
+    get_scientific_trust_evaluation,
+    list_scientific_feature_eligibility,
+    list_scientific_trust_evaluations,
     RegistryConflictError,
     RegistryPathError,
     RegistryValidationError,
     RunRegistryError,
+    store_scientific_trust_evaluation,
     UnsupportedRegistryVersion,
 )
 from .platform_core.domain_knowledge import build_default_domain_knowledge_registry
@@ -85,6 +90,14 @@ from .platform_core.scientific_execution import (
     validate_scientific_registry,
     validate_scientific_result_payload,
     write_scientific_outputs,
+)
+from .platform_core.scientific_feature_registry import build_default_scientific_feature_registry
+from .platform_core.scientific_trust import (
+    CLAIM_BOUNDARY_IDS,
+    closeout_conclusion,
+    constraint_role_snapshot,
+    evaluate_feature_candidate_against_execution,
+    evaluate_scientific_trust,
 )
 from .platform_core.units import build_default_unit_registry
 from .platform_core.trust_registry import build_default_trust_policy_registry
@@ -1864,6 +1877,266 @@ def _cmd_scientific_registry_validate(args: argparse.Namespace) -> int:
     return 0 if payload["valid"] else EXIT_REGISTRY
 
 
+def _cmd_list_scientific_feature_candidates(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_feature_registry()
+    payload = registry.snapshot(
+        domain=args.domain,
+        eligibility_status=args.eligibility_status,
+        validation_status=args.validation_status,
+    )
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{row['feature_id']}\t{row['domain']}\t{row['eligibility_status']}\t{row['validation_status']}"
+                for row in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_inspect_scientific_feature_candidate(args: argparse.Namespace) -> int:
+    try:
+        payload = build_default_scientific_feature_registry().get(args.feature_id).to_dict()
+    except KeyError as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"feature_id: {payload['feature_id']}",
+                f"domain: {payload['domain']}",
+                f"eligibility_status: {payload['eligibility_status']}",
+                f"validation_status: {payload['validation_status']}",
+                f"expected_claim: {payload['expected_claim']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_evaluate_scientific_feature(args: argparse.Namespace) -> int:
+    try:
+        execution = get_scientific_execution(args.execution_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+        feature = build_default_scientific_feature_registry().get(args.feature_id)
+        payload = evaluate_feature_candidate_against_execution(feature, execution).to_dict()
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "feature_evaluation_failed", "error": str(exc)})
+        else:
+            print(f"feature_evaluation_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"feature_id: {payload['feature_id']}",
+                f"eligibility_status: {payload['eligibility_status']}",
+                f"leakage_status: {payload['leakage_status']}",
+                f"assumption_status: {payload['assumption_status']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_evaluate_scientific_trust(args: argparse.Namespace) -> int:
+    try:
+        execution = get_scientific_execution(args.execution_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+        evaluation = evaluate_scientific_trust(execution)
+        payload = evaluation.to_dict()
+        storage = None
+        if not args.no_persist:
+            storage = store_scientific_trust_evaluation(payload, repo_root=Path.cwd(), registry_path=args.registry_path)
+            payload["persistence"] = storage
+    except (KeyError, RunRegistryError, RegistryPathError, RegistryConflictError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "trust_evaluation_failed", "error": str(exc)})
+        else:
+            print(f"trust_evaluation_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        eligible_count = sum(
+            row["eligibility_status"] in {"eligible_bounded", "eligible_with_metadata_requirement"}
+            for row in payload["feature_eligibility"]
+        )
+        _emit_lines(
+            [
+                f"trust_evaluation_id: {payload['evaluation_id']}",
+                f"execution_id: {payload['execution_id']}",
+                f"evidence_level: {payload['evidence_level']}",
+                f"feature_eligible_count: {eligible_count}",
+                f"prohibited_claim_count: {len(payload['prohibited_claims'])}",
+                f"persisted: {str(not args.no_persist).lower()}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_scientific_trust(args: argparse.Namespace) -> int:
+    try:
+        payload = get_scientific_trust_evaluation(
+            args.trust_evaluation_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        row = payload["evaluation"]
+        _emit_lines(
+            [
+                f"trust_evaluation_id: {row['trust_evaluation_id']}",
+                f"execution_id: {row['execution_id']}",
+                f"evidence_level: {row['evidence_level']}",
+                f"feature_eligible_count: {row['feature_eligible_count']}",
+                f"blocker_count: {row['blocker_count']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_feature_eligibility(args: argparse.Namespace) -> int:
+    try:
+        payload = list_scientific_feature_eligibility(
+            args.trust_evaluation_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row['feature_id']}\t{row['eligibility_status']}\t{row['leakage_status']}" for row in payload])
+    return 0
+
+
+def _cmd_list_scientific_claim_boundaries(args: argparse.Namespace) -> int:
+    if args.trust_evaluation_id:
+        try:
+            payload = get_scientific_trust_evaluation(
+                args.trust_evaluation_id,
+                repo_root=Path.cwd(),
+                registry_path=args.registry_path,
+            )["claim_boundaries"]
+        except (KeyError, RunRegistryError, RegistryPathError) as exc:
+            if args.json:
+                _emit_json({"status": "not_found", "error": str(exc)})
+            else:
+                print(f"not_found: {exc}", file=sys.stderr)
+            return EXIT_REGISTRY
+    else:
+        payload = [
+            {
+                "claim_id": claim_id,
+                "default_status": "registered_boundary",
+                "execution_evidence_required": claim_id
+                not in {"physics_informed_feature_available", "bounded_quantity_estimated"},
+            }
+            for claim_id in CLAIM_BOUNDARY_IDS
+        ]
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row.get('claim_id')}\t{row.get('status', row.get('default_status'))}" for row in payload])
+    return 0
+
+
+def _cmd_scientific_trust_validate(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_feature_registry()
+    feature_validation = registry.validate()
+    constraint_registry = build_default_scientific_constraint_registry()
+    constraint_roles = constraint_role_snapshot(constraint_registry)
+    registry_validation = validate_scientific_registry(repo_root=Path.cwd(), registry_path=args.registry_path)
+    payload = {
+        "valid": bool(feature_validation["valid"] and registry_validation["valid"]),
+        "feature_registry": feature_validation,
+        "constraint_role_count": len(constraint_roles),
+        "registry_validation": registry_validation,
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"feature_count: {feature_validation['feature_count']}",
+                f"constraint_role_count: {len(constraint_roles)}",
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_REGISTRY
+
+
+def _cmd_export_scientific_trust(args: argparse.Namespace) -> int:
+    try:
+        validate_relative_path(args.output)
+        normalized = args.output.replace("\\", "/")
+        if not normalized.startswith("outputs/platform_science/"):
+            raise RegistryPathError("scientific trust export must be under outputs/platform_science/")
+        root = Path.cwd().resolve()
+        target = (root / args.output).resolve()
+        if root != target and root not in target.parents:
+            raise RegistryPathError("scientific trust export must stay inside repository root")
+        if target.exists() and not args.overwrite:
+            raise FileExistsError(f"export already exists: {target.relative_to(root).as_posix()}")
+        trust_rows = list_scientific_trust_evaluations(repo_root=root, registry_path=args.registry_path)
+        payload = {
+            "schema_version": "2.1.5",
+            "trust_evaluations": [
+                get_scientific_trust_evaluation(
+                    row["trust_evaluation_id"],
+                    repo_root=root,
+                    registry_path=args.registry_path,
+                )
+                for row in trust_rows
+            ],
+            "closeout": closeout_conclusion().to_dict(),
+        }
+        assert_no_sensitive_strings(payload)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_name(f".{target.name}.tmp")
+        try:
+            temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            temp.replace(target)
+        finally:
+            if temp.exists():
+                temp.unlink()
+    except (OSError, ValueError, FileExistsError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "export_failed", "error": str(exc)})
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {
+        "status": "exported",
+        "output": target.relative_to(root).as_posix(),
+        "trust_evaluation_count": len(payload["trust_evaluations"]),
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"output: {result['output']}", f"trust_evaluation_count: {result['trust_evaluation_count']}"])
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -2221,6 +2494,69 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_registry_path(scientific_registry_validate_parser)
     scientific_registry_validate_parser.set_defaults(func=_cmd_scientific_registry_validate)
+
+    feature_candidates_parser = subparsers.add_parser(
+        "list-scientific-feature-candidates", help="list scientific feature-candidate metadata"
+    )
+    feature_candidates_parser.add_argument("--domain")
+    feature_candidates_parser.add_argument("--eligibility-status")
+    feature_candidates_parser.add_argument("--validation-status")
+    feature_candidates_parser.set_defaults(func=_cmd_list_scientific_feature_candidates)
+
+    inspect_feature_parser = subparsers.add_parser(
+        "inspect-scientific-feature-candidate", help="inspect one scientific feature candidate"
+    )
+    inspect_feature_parser.add_argument("feature_id")
+    inspect_feature_parser.set_defaults(func=_cmd_inspect_scientific_feature_candidate)
+
+    evaluate_feature_parser = subparsers.add_parser(
+        "evaluate-scientific-feature", help="evaluate metadata eligibility for one feature candidate against a persisted execution"
+    )
+    evaluate_feature_parser.add_argument("execution_id")
+    evaluate_feature_parser.add_argument("feature_id")
+    add_registry_path(evaluate_feature_parser)
+    evaluate_feature_parser.set_defaults(func=_cmd_evaluate_scientific_feature)
+
+    evaluate_trust_parser = subparsers.add_parser(
+        "evaluate-scientific-trust", help="evaluate scientific trust boundary for a persisted scientific execution"
+    )
+    evaluate_trust_parser.add_argument("execution_id")
+    evaluate_trust_parser.add_argument("--no-persist", action="store_true", help="preview trust evaluation without writing registry rows")
+    add_registry_path(evaluate_trust_parser)
+    evaluate_trust_parser.set_defaults(func=_cmd_evaluate_scientific_trust)
+
+    show_trust_parser = subparsers.add_parser("show-scientific-trust", help="show one persisted scientific trust evaluation")
+    show_trust_parser.add_argument("trust_evaluation_id")
+    add_registry_path(show_trust_parser)
+    show_trust_parser.set_defaults(func=_cmd_show_scientific_trust)
+
+    list_feature_eligibility_parser = subparsers.add_parser(
+        "list-feature-eligibility", help="list feature eligibility rows for a trust evaluation"
+    )
+    list_feature_eligibility_parser.add_argument("trust_evaluation_id")
+    add_registry_path(list_feature_eligibility_parser)
+    list_feature_eligibility_parser.set_defaults(func=_cmd_list_feature_eligibility)
+
+    claim_boundaries_parser = subparsers.add_parser(
+        "list-scientific-claim-boundaries", help="list registered or persisted scientific claim boundaries"
+    )
+    claim_boundaries_parser.add_argument("--trust-evaluation-id")
+    add_registry_path(claim_boundaries_parser)
+    claim_boundaries_parser.set_defaults(func=_cmd_list_scientific_claim_boundaries)
+
+    trust_validate_parser = subparsers.add_parser(
+        "scientific-trust-validate", help="validate scientific trust registry metadata and local tables"
+    )
+    add_registry_path(trust_validate_parser)
+    trust_validate_parser.set_defaults(func=_cmd_scientific_trust_validate)
+
+    export_trust_parser = subparsers.add_parser(
+        "export-scientific-trust", help="export persisted scientific trust summaries to local-only outputs"
+    )
+    add_registry_path(export_trust_parser)
+    export_trust_parser.add_argument("--output", default="outputs/platform_science/scientific_trust_export.json")
+    export_trust_parser.add_argument("--overwrite", action="store_true")
+    export_trust_parser.set_defaults(func=_cmd_export_scientific_trust)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

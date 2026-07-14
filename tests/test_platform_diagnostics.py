@@ -179,7 +179,7 @@ def test_registry_schema_migrates_v1_database_to_diagnostic_schema(tmp_path):
 
     version = get_schema_version(tmp_path, "outputs/platform_registry/legacy.sqlite3")
 
-    assert version == 3
+    assert version == 4
     with sqlite3.connect(db_path) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert {"diagnostic_evaluations", "diagnostic_findings", "evidence_gaps", "claim_evaluations"} <= tables

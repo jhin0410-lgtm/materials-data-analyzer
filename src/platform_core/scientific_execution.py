@@ -1572,12 +1572,32 @@ def validate_scientific_registry(
         ).fetchone()["count"]
         if orphan_claims:
             errors.append(f"orphan scientific claim evaluations: {orphan_claims}")
+        orphan_trust = connection.execute(
+            """
+            SELECT COUNT(*) AS count FROM scientific_trust_evaluations t
+            LEFT JOIN scientific_executions e ON e.execution_id = t.execution_id
+            WHERE e.execution_id IS NULL
+            """
+        ).fetchone()["count"]
+        if orphan_trust:
+            errors.append(f"orphan scientific trust evaluations: {orphan_trust}")
         for row in connection.execute("SELECT normalized_values_json, assumptions_json, evidence_refs_json FROM scientific_findings"):
             for field in ("normalized_values_json", "assumptions_json", "evidence_refs_json"):
                 try:
                     assert_no_sensitive_strings(json.loads(row[field]))
                 except (json.JSONDecodeError, ValueError) as exc:
                     errors.append(f"{field}:{exc}")
+        for table, fields in {
+            "scientific_constraint_eligibility": ("reason_codes_json", "remediation_codes_json"),
+            "scientific_feature_eligibility": ("reason_codes_json",),
+            "scientific_claim_boundaries": ("support_refs_json", "conflict_refs_json"),
+        }.items():
+            for row in connection.execute(f"SELECT {', '.join(fields)} FROM {table}"):
+                for field in fields:
+                    try:
+                        assert_no_sensitive_strings(json.loads(row[field]))
+                    except (json.JSONDecodeError, ValueError) as exc:
+                        errors.append(f"{table}.{field}:{exc}")
     return {"valid": not errors, "errors": errors, "schema_version": REGISTRY_SCHEMA_VERSION}
 
 

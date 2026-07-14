@@ -94,7 +94,7 @@ def test_registry_initialization_and_schema_version(tmp_path):
 
     assert path.exists()
     assert path.as_posix().endswith("outputs/platform_registry/platform_registry.sqlite3")
-    assert get_schema_version(tmp_path) == 3
+    assert get_schema_version(tmp_path) == 4
 
 
 def test_registry_rejects_absolute_and_traversal_paths(tmp_path):

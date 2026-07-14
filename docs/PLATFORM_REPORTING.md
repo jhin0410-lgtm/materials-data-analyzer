@@ -1,6 +1,6 @@
 # Platform Reporting
 
-Status: `development_stage` for v2.1.2.
+Status: `feature_complete_pending_release_audit` for v2.1.5.
 
 The platform report engine creates a local-only summary of v2 registry metadata
 and tracked compact case-study artifacts. It is read-only: it does not run
@@ -29,6 +29,12 @@ v2.1.2 adds an opt-in `registry_diagnostics_summary` field. When
 diagnostic records from the local registry and summarizes counts/status. It
 does not automatically run diagnostics.
 
+v2.1.5 adds an opt-in `scientific_trust_summary` field. When
+`include_scientific_trust` is true, the report reads already persisted
+scientific trust rows from the local registry and summarizes trust evaluation,
+feature eligibility, and prohibited-claim counts. It does not execute
+scientific checks or recompute trust evaluations.
+
 ## Source Boundary
 
 Allowed inputs:
@@ -51,8 +57,8 @@ Prohibited inputs:
 - arbitrary `outputs/` files
 - network sources
 
-Optional registry diagnostics input is limited to the local SQLite metadata
-registry under `outputs/platform_registry/`.
+Optional registry diagnostics and scientific trust inputs are limited to the
+local SQLite metadata registry under `outputs/platform_registry/`.
 
 ## Extraction Policy
 

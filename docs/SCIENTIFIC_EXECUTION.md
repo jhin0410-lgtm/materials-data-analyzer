@@ -1,10 +1,12 @@
 # Scientific Execution
 
-Status: `development_stage` for v2.1.4.
+Status: `feature_complete_pending_release_audit` for v2.1.5.
 
 v2.1.4 adds a bounded scientific execution layer for explicit scalar and
 small-list metadata checks. It runs only code-registered evaluators and small
 domain-specific derivations after applicability, unit, and assumption checks.
+v2.1.5 adds trust-boundary evaluation over stored execution records, including
+evidence levels, feature eligibility, constraint roles, and claim boundaries.
 
 ## Execution Pipeline
 
@@ -16,6 +18,8 @@ optional local registry persistence.
 
 `scientific_recomputation_performed` means a registered scientific evaluator or
 bounded derivation ran. It does not mean a case-study dataset was recomputed.
+Scientific trust evaluation does not recompute the scientific result; it reads
+stored execution rows and registry metadata.
 
 ## Supported Checks
 
@@ -46,12 +50,20 @@ python -m src.cli execute-scientific-check configs/examples/xrd_bragg_consistent
 python -m src.cli show-scientific-execution xrd_bragg_consistent_check
 python -m src.cli list-scientific-findings --execution-id xrd_bragg_consistent_check
 python -m src.cli evaluate-scientific-claim xrd_bragg_consistent_check phase_identification_supported
+python -m src.cli evaluate-scientific-trust xrd_bragg_consistent_check
+python -m src.cli show-scientific-trust scientific_trust_<id>
+python -m src.cli list-scientific-feature-candidates
+python -m src.cli inspect-scientific-feature-candidate xrd.bragg_d_spacing
+python -m src.cli list-scientific-claim-boundaries
 python -m src.cli scientific-registry-validate
+python -m src.cli scientific-trust-validate
 ```
 
 `preview-scientific-check` never persists findings or writes result files.
 `execute-scientific-check` can persist to the local SQLite registry and can
 write local-only JSON/Markdown artifacts under `outputs/platform_science/`.
+`evaluate-scientific-trust` records metadata-only trust boundaries and feature
+eligibility. It does not create feature datasets or connect features to models.
 
 ## Local Outputs
 

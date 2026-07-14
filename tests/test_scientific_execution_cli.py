@@ -10,6 +10,9 @@ def _run_cli(*args):
 
 def test_scientific_execution_cli_preview_execute_persist_and_output():
     registry_path = "outputs/platform_registry/test_science_cli.sqlite3"
+    registry_file = Path(registry_path)
+    if registry_file.exists():
+        registry_file.unlink()
     execution = _run_cli(
         "--json",
         "execute-scientific-check",

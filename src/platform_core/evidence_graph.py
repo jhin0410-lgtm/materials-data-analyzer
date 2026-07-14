@@ -161,3 +161,51 @@ def build_scientific_execution_evidence_graph(
         if trust_policy_id:
             graph.add_edge(claim_node, f"trust_policy:{trust_policy_id}", "governed_by")
     return graph.to_dict()
+
+
+def build_scientific_trust_evidence_graph(
+    *,
+    trust_evaluation_id: str,
+    execution_id: str,
+    feature_eligibility: list[dict[str, Any]],
+    claim_boundaries: list[dict[str, Any]],
+    constraint_eligibility: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build metadata-only graph links for a scientific trust evaluation."""
+
+    graph = EvidenceGraph()
+    trust_node = f"scientific_trust_evaluation:{trust_evaluation_id}"
+    execution_node = f"scientific_execution:{execution_id}"
+    graph.add_node(trust_node, "scientific_trust_evaluation")
+    graph.add_node(execution_node, "scientific_execution")
+    graph.add_edge(trust_node, execution_node, "trust_evaluates_execution")
+    for item in constraint_eligibility:
+        constraint_node = f"constraint:{item['constraint_id']}"
+        role_node = f"constraint_role:{item['constraint_id']}:{item['role']}"
+        graph.add_node(constraint_node, "scientific_constraint")
+        graph.add_node(role_node, "constraint_eligibility", role=item["role"], status=item["eligibility_status"])
+        graph.add_edge(trust_node, role_node, "records_constraint_role")
+        graph.add_edge(role_node, constraint_node, "classifies_constraint")
+    for item in feature_eligibility:
+        feature_node = f"feature_candidate:{item['feature_id']}"
+        eligibility_node = f"feature_eligibility:{trust_evaluation_id}:{item['feature_id']}"
+        graph.add_node(feature_node, "scientific_feature_candidate")
+        graph.add_node(
+            eligibility_node,
+            "feature_eligibility",
+            status=item["eligibility_status"],
+            leakage_status=item["leakage_status"],
+        )
+        graph.add_edge(trust_node, eligibility_node, "records_feature_eligibility")
+        graph.add_edge(eligibility_node, feature_node, "evaluates_feature_candidate")
+    for item in claim_boundaries:
+        claim_node = f"claim:{item['claim_id']}"
+        graph.add_node(claim_node, "scientific_claim", status=item["status"])
+        if item["status"] in {"supported", "supported_with_limits"}:
+            edge_type = "trust_allows_claim"
+        elif item["status"] == "prohibited":
+            edge_type = "trust_prohibits_claim"
+        else:
+            edge_type = "trust_limits_claim"
+        graph.add_edge(trust_node, claim_node, edge_type)
+    return graph.to_dict()

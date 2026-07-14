@@ -45,7 +45,7 @@ def test_scientific_execution_persistence_is_idempotent(tmp_path):
     assert validate_scientific_registry(repo_root=tmp_path, registry_path=registry_path)["valid"] is True
 
 
-def test_registry_schema_migrates_v2_to_v3_with_scientific_tables(tmp_path):
+def test_registry_schema_migrates_v2_to_v4_with_scientific_tables(tmp_path):
     db_path = tmp_path / "outputs" / "platform_registry" / "legacy_v2.sqlite3"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as connection:
@@ -56,7 +56,38 @@ def test_registry_schema_migrates_v2_to_v3_with_scientific_tables(tmp_path):
             "INSERT INTO registry_metadata(metadata_id, schema_version, created_at, updated_at) VALUES (1, 2, '2026-07-14T00:00:00Z', '2026-07-14T00:00:00Z')"
         )
 
-    assert get_schema_version(tmp_path, "outputs/platform_registry/legacy_v2.sqlite3") == 3
+    assert get_schema_version(tmp_path, "outputs/platform_registry/legacy_v2.sqlite3") == 4
     with sqlite3.connect(db_path) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-    assert {"scientific_executions", "scientific_findings", "scientific_claim_evaluations", "scientific_unit_conversions"} <= tables
+    assert {
+        "scientific_executions",
+        "scientific_findings",
+        "scientific_claim_evaluations",
+        "scientific_unit_conversions",
+        "scientific_trust_evaluations",
+        "scientific_constraint_eligibility",
+        "scientific_feature_eligibility",
+        "scientific_claim_boundaries",
+    } <= tables
+
+
+def test_registry_schema_migrates_v3_to_v4_with_trust_tables(tmp_path):
+    db_path = tmp_path / "outputs" / "platform_registry" / "legacy_v3.sqlite3"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            "CREATE TABLE registry_metadata (metadata_id INTEGER PRIMARY KEY CHECK (metadata_id = 1), schema_version INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO registry_metadata(metadata_id, schema_version, created_at, updated_at) VALUES (1, 3, '2026-07-14T00:00:00Z', '2026-07-14T00:00:00Z')"
+        )
+
+    assert get_schema_version(tmp_path, "outputs/platform_registry/legacy_v3.sqlite3") == 4
+    with sqlite3.connect(db_path) as connection:
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    assert {
+        "scientific_trust_evaluations",
+        "scientific_constraint_eligibility",
+        "scientific_feature_eligibility",
+        "scientific_claim_boundaries",
+    } <= tables

@@ -1,6 +1,6 @@
 # Platform v2.1 Plan
 
-Status: `development_stage`.
+Status: `feature_complete_pending_release_audit`.
 
 v2.1 continues the v2 platform scaffold by improving reproducibility metadata
 and controlled local execution bookkeeping. It does not change v1.x case-study
@@ -95,15 +95,40 @@ It still does not execute arbitrary equations, user callables, raw dataset
 scans, DFT/FEM/CFD, model training, phase identification, or production
 decision automation.
 
+## v2.1.5 Scope
+
+v2.1.5 closes the scientific execution layer with trust-boundary metadata:
+
+- evidence-level vocabulary from metadata registration through bounded quantity
+  estimation
+- constraint-role classification for validation, diagnostics, feature
+  candidates, model-constraint candidates, and post-prediction checks
+- metadata-only scientific feature-candidate registry
+- feature eligibility checks against persisted execution variables and units
+- claim-boundary evaluation for supported, unsupported, and prohibited
+  scientific claims
+- SQLite registry schema `4` tables for trust evaluations, constraint
+  eligibility, feature eligibility, and claim boundaries
+- optional read-only report summary of stored scientific trust rows
+
+It does not generate feature values, connect features to models, apply model
+constraints, run SHAP, perform DFT/FEM/CFD, identify phases, or claim production
+scientific validity.
+
 ## Registry Roadmap
 
-Planned follow-up work:
+Completed v2.1 work:
 
 - v2.1.2: registry-aware policy diagnostics and evidence-gap analysis
 - v2.1.3: scientific constraint and domain-knowledge metadata scaffold
 - v2.1.4: bounded scientific execution, XRD consistency checks, and finding
   persistence
-- v2.1.5: v2.1 closeout and release readiness audit
+- v2.1.5: scientific trust boundary, feature eligibility, and v2.1 closeout
+
+Recommended follow-up work:
+
+- v2.2: selected bounded feature builders with leakage tests and no model
+  claim unless model-input evidence exists
 
 ## Non-Goals
 

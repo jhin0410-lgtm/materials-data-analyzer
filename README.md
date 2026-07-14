@@ -219,12 +219,13 @@ archives, row-level predictions, or generated `outputs/` folders.
 
 ### Platform Scientific Execution
 
-The v2 platform layer includes a bounded scientific constraint and execution
-layer. It can list unit-aware constraints, inspect domain-knowledge packs,
-validate small explicit JSON metadata, run registered scalar/small-list checks,
-and persist scientific findings locally. Current examples include XRD Bragg
-d-spacing, Scherrer crystallite-size metadata, synthetic composition
-consistency, and synthetic battery cycle checks.
+The v2 platform layer includes a bounded scientific constraint, execution, and
+trust-boundary layer. It can list unit-aware constraints, inspect
+domain-knowledge packs, validate small explicit JSON metadata, run registered
+scalar/small-list checks, persist scientific findings locally, classify
+constraint roles, and evaluate metadata-only feature eligibility. Current
+examples include XRD Bragg d-spacing, Scherrer crystallite-size metadata,
+synthetic composition consistency, and synthetic battery cycle checks.
 
 It does not parse arbitrary equations, call user functions, read raw datasets,
 train models, run DFT/FEM/CFD, identify XRD phases, or make production
@@ -237,12 +238,17 @@ python -m src.cli list-knowledge-packs
 python -m src.cli validate-scientific-input configs/examples/scientific_constraints_xrd_bragg_scherrer.json
 python -m src.cli preview-scientific-check configs/examples/xrd_bragg_consistent_check.json
 python -m src.cli execute-scientific-check configs/examples/xrd_scherrer_uncorrected_check.json --persist
+python -m src.cli evaluate-scientific-trust xrd_scherrer_uncorrected_check
+python -m src.cli list-scientific-feature-candidates
+python -m src.cli inspect-scientific-feature-candidate xrd.bragg_d_spacing
 python -m src.cli convert-unit --value 25 --from degC --to K
 ```
 
 See [`docs/SCIENTIFIC_CONSTRAINTS.md`](docs/SCIENTIFIC_CONSTRAINTS.md),
-[`docs/SCIENTIFIC_EXECUTION.md`](docs/SCIENTIFIC_EXECUTION.md), and
-[`docs/DOMAIN_KNOWLEDGE_PACKS.md`](docs/DOMAIN_KNOWLEDGE_PACKS.md).
+[`docs/SCIENTIFIC_EXECUTION.md`](docs/SCIENTIFIC_EXECUTION.md),
+[`docs/SCIENTIFIC_TRUST_BOUNDARY.md`](docs/SCIENTIFIC_TRUST_BOUNDARY.md),
+[`docs/SCIENTIFIC_FEATURE_CANDIDATES.md`](docs/SCIENTIFIC_FEATURE_CANDIDATES.md),
+and [`docs/DOMAIN_KNOWLEDGE_PACKS.md`](docs/DOMAIN_KNOWLEDGE_PACKS.md).
 
 ## Real-Data Case Studies
 
@@ -468,7 +474,7 @@ For a portfolio-oriented overview of the architecture and case-study arc, see
 
 ## Platform v2 Scaffold
 
-v2.1.2 continues the configuration-driven platform layer without replacing the
+v2.1.5 continues the configuration-driven platform layer without replacing the
 existing CLI or case-study scripts. It adds explicit plugin, adapter, artifact,
 validation-policy, trust-policy, case-study, and onboarding registries plus
 dry-run, controlled verify-run manifest support, and local-only read-only
@@ -476,7 +482,10 @@ platform reports. It also adds a local-only SQLite run/artifact registry for
 manifest ingestion, lineage, reproducibility status, and run comparison.
 Registry diagnostics can evaluate persisted run metadata against validation
 and trust policies, record evidence gaps, and evaluate registered claim IDs
-without rerunning scripts or recomputing scientific results.
+without rerunning scripts or recomputing scientific results. Scientific
+execution can now persist bounded findings and evaluate stored trust boundaries,
+feature-candidate eligibility, and unsupported physics claims without creating
+feature datasets or training models.
 
 ```powershell
 python -m src.cli list-plugins
@@ -496,6 +505,7 @@ python -m src.cli registry-list-runs
 python -m src.cli diagnose-run reliability-trust-verify-run
 python -m src.cli show-diagnostics reliability-trust-verify-run
 python -m src.cli evaluate-claim reliability-trust-verify-run production_deployment
+python -m src.cli scientific-trust-validate
 ```
 
 This layer is currently `scaffold_stage`: it can inspect metadata, validate
@@ -503,16 +513,18 @@ configs, validate new-domain onboarding metadata, plan dry-runs, write local
 manifest-only dry-run records, and verify Reliability trust compact artifacts.
 It can also summarize registry metadata and tracked compact artifacts into
 JSON/Markdown reports under ignored `outputs/platform_reports/` and can
-summarize stored registry diagnostics when explicitly requested. It does not
+summarize stored registry diagnostics and scientific trust summaries when
+explicitly requested. It does not
 execute acquisition, model training, trust scripts, raw-data reads,
 row-level prediction reads, scientific result recomputation, arbitrary
 diagnostic rules, AI/LLM claim interpretation, or network operations. See
 [`docs/PLATFORM_ARCHITECTURE.md`](docs/PLATFORM_ARCHITECTURE.md) and
 [`docs/PLATFORM_EXECUTION.md`](docs/PLATFORM_EXECUTION.md). For reporting,
-run registry, diagnostics, domain interface, and onboarding, see
+run registry, diagnostics, scientific trust boundaries, domain interface, and onboarding, see
 [`docs/PLATFORM_REPORTING.md`](docs/PLATFORM_REPORTING.md),
 [`docs/PLATFORM_RUN_REGISTRY.md`](docs/PLATFORM_RUN_REGISTRY.md),
 [`docs/PLATFORM_DIAGNOSTICS.md`](docs/PLATFORM_DIAGNOSTICS.md),
+[`docs/SCIENTIFIC_TRUST_BOUNDARY.md`](docs/SCIENTIFIC_TRUST_BOUNDARY.md),
 [`docs/CASE_STUDY_INTERFACE.md`](docs/CASE_STUDY_INTERFACE.md) and
 [`docs/NEW_DOMAIN_ONBOARDING.md`](docs/NEW_DOMAIN_ONBOARDING.md).
 

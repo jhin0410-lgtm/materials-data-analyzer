@@ -1,11 +1,11 @@
 {
   "schema_version": "2.1",
   "schema_name": "platform_registry_schema_v2",
-  "status": "development_stage",
+  "status": "feature_complete_pending_release_audit",
   "storage_backend": "sqlite3",
   "default_registry_path": "outputs/platform_registry/platform_registry.sqlite3",
   "local_only": true,
-  "database_schema_version": 3,
+  "database_schema_version": 4,
   "description": "Logical schema for the local persistent platform run and artifact registry. The SQLite DDL lives in src/platform_core/run_registry.py.",
   "tables": {
     "runs": {
@@ -214,6 +214,58 @@
         "normalized_value",
         "normalized_unit",
         "conversion_status"
+      ]
+    },
+    "scientific_trust_evaluations": {
+      "primary_key": "trust_evaluation_id",
+      "fields": [
+        "trust_evaluation_id",
+        "execution_id",
+        "trust_policy_version",
+        "overall_status",
+        "evidence_level",
+        "feature_eligible_count",
+        "model_constraint_eligible_count",
+        "blocker_count",
+        "source_execution_hash",
+        "created_at"
+      ]
+    },
+    "scientific_constraint_eligibility": {
+      "primary_key": "eligibility_id",
+      "fields": [
+        "eligibility_id",
+        "trust_evaluation_id",
+        "constraint_id",
+        "role",
+        "eligibility_status",
+        "reason_codes_json",
+        "remediation_codes_json"
+      ]
+    },
+    "scientific_feature_eligibility": {
+      "primary_key": "feature_eligibility_id",
+      "fields": [
+        "feature_eligibility_id",
+        "trust_evaluation_id",
+        "feature_id",
+        "eligibility_status",
+        "prediction_time_available",
+        "leakage_status",
+        "assumption_status",
+        "reason_codes_json"
+      ]
+    },
+    "scientific_claim_boundaries": {
+      "primary_key": "boundary_id",
+      "fields": [
+        "boundary_id",
+        "trust_evaluation_id",
+        "claim_id",
+        "status",
+        "support_refs_json",
+        "conflict_refs_json",
+        "reason_code"
       ]
     },
     "registry_metadata": {

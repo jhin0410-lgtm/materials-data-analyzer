@@ -1,10 +1,10 @@
 # Physics-Aware Roadmap
 
-Status: `planned`.
+Status: `feature_complete_pending_release_audit`.
 
-v2.1.4 adds bounded scientific execution for scalar/small-list metadata checks.
-It is the first step toward physics-aware governance, not a physics-aware
-modeling release.
+v2.1 adds bounded scientific execution for scalar/small-list metadata checks
+and v2.1.5 adds feature-candidate eligibility and scientific trust boundaries.
+This is physics-aware governance, not a physics-aware modeling release.
 
 ## Current Foundation
 
@@ -15,14 +15,17 @@ modeling release.
 - applicability checks for small JSON metadata
 - scientific evidence-graph helper
 - bounded scientific execution and local finding persistence
+- scientific trust-boundary evaluation
+- metadata-only scientific feature-candidate registry
 - registered scientific claim IDs
 - CLI list/inspect/validate/execute/export commands
 
 ## Future Sequence
 
 1. v2.1.4: execute bounded scientific checks and persist findings locally.
-2. v2.1.5: close out v2.1 registry/science execution release readiness.
-3. v2.x: allow approved constraints to annotate feature builders and validation
+2. v2.1.5: classify constraint roles, feature eligibility, and claim
+   boundaries without generating features.
+3. v2.2: allow approved constraints to annotate feature builders and validation
    reports without executing arbitrary equations.
 4. Later v2.x: add optional scientific descriptors only after contracts,
    provenance, applicability, and trust boundaries are in place.

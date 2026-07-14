@@ -21,7 +21,7 @@ from .manifests import validate_run_manifest
 from .report_generator import validate_report_manifest
 
 
-REGISTRY_SCHEMA_VERSION = 3
+REGISTRY_SCHEMA_VERSION = 4
 DEFAULT_REGISTRY_PATH = "outputs/platform_registry/platform_registry.sqlite3"
 DEFAULT_EXPORT_DIR = "outputs/platform_registry/exports"
 
@@ -345,12 +345,58 @@ def _initialize_schema(connection: sqlite3.Connection) -> None:
             conversion_status TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS scientific_trust_evaluations (
+            trust_evaluation_id TEXT PRIMARY KEY,
+            execution_id TEXT NOT NULL REFERENCES scientific_executions(execution_id) ON DELETE CASCADE,
+            trust_policy_version TEXT NOT NULL,
+            overall_status TEXT NOT NULL,
+            evidence_level TEXT NOT NULL,
+            feature_eligible_count INTEGER NOT NULL,
+            model_constraint_eligible_count INTEGER NOT NULL,
+            blocker_count INTEGER NOT NULL,
+            source_execution_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scientific_constraint_eligibility (
+            eligibility_id TEXT PRIMARY KEY,
+            trust_evaluation_id TEXT NOT NULL REFERENCES scientific_trust_evaluations(trust_evaluation_id) ON DELETE CASCADE,
+            constraint_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            eligibility_status TEXT NOT NULL,
+            reason_codes_json TEXT NOT NULL,
+            remediation_codes_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scientific_feature_eligibility (
+            feature_eligibility_id TEXT PRIMARY KEY,
+            trust_evaluation_id TEXT NOT NULL REFERENCES scientific_trust_evaluations(trust_evaluation_id) ON DELETE CASCADE,
+            feature_id TEXT NOT NULL,
+            eligibility_status TEXT NOT NULL,
+            prediction_time_available INTEGER NOT NULL,
+            leakage_status TEXT NOT NULL,
+            assumption_status TEXT NOT NULL,
+            reason_codes_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scientific_claim_boundaries (
+            boundary_id TEXT PRIMARY KEY,
+            trust_evaluation_id TEXT NOT NULL REFERENCES scientific_trust_evaluations(trust_evaluation_id) ON DELETE CASCADE,
+            claim_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            support_refs_json TEXT NOT NULL,
+            conflict_refs_json TEXT NOT NULL,
+            reason_code TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_artifacts_run_role ON artifacts(run_id, role, artifact_id);
         CREATE INDEX IF NOT EXISTS idx_runs_plugin_stage ON runs(plugin_id, stage, run_id);
         CREATE INDEX IF NOT EXISTS idx_diag_eval_run ON diagnostic_evaluations(run_id, evaluated_at);
         CREATE INDEX IF NOT EXISTS idx_diag_findings_eval ON diagnostic_findings(evaluation_id, severity, status);
         CREATE INDEX IF NOT EXISTS idx_science_findings_execution ON scientific_findings(execution_id, severity, status);
         CREATE INDEX IF NOT EXISTS idx_science_claims_execution ON scientific_claim_evaluations(execution_id, claim_id);
+        CREATE INDEX IF NOT EXISTS idx_science_trust_execution ON scientific_trust_evaluations(execution_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_science_feature_eligibility ON scientific_feature_eligibility(trust_evaluation_id, feature_id);
         """
     )
     row = connection.execute("SELECT schema_version FROM registry_metadata WHERE metadata_id = 1").fetchone()
@@ -373,19 +419,25 @@ def _initialize_schema(connection: sqlite3.Connection) -> None:
 
 
 def _migrate_schema(connection: sqlite3.Connection, current_version: int, target_version: int) -> None:
-    if current_version == 0 and target_version in {1, 2, 3}:
+    if current_version == 0 and target_version in {1, 2, 3, 4}:
         connection.execute(
             "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
             (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
         )
         return
-    if current_version == 1 and target_version in {2, 3}:
+    if current_version == 1 and target_version in {2, 3, 4}:
         connection.execute(
             "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
             (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
         )
         return
-    if current_version == 2 and target_version == 3:
+    if current_version == 2 and target_version in {3, 4}:
+        connection.execute(
+            "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
+            (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
+        )
+        return
+    if current_version == 3 and target_version == 4:
         connection.execute(
             "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
             (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
@@ -1375,3 +1427,215 @@ def compare_diagnostic_evaluations(
             reproducibility_status(run_b, repo_root=repo_root, registry_path=registry_path, check_files=False)["status"],
         ),
     }
+
+
+def store_scientific_trust_evaluation(
+    evaluation: dict[str, Any],
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> dict[str, Any]:
+    """Store a scientific trust-boundary evaluation idempotently."""
+
+    assert_no_sensitive_strings(evaluation)
+    path = initialize_registry(repo_root, registry_path)
+    trust_id = str(evaluation["evaluation_id"])
+    source_hash = str(evaluation["source_execution_hash"])
+    feature_rows = evaluation.get("feature_eligibility", [])
+    constraint_rows = evaluation.get("constraint_eligibility", [])
+    claim_rows = evaluation.get("claim_boundaries", [])
+    created_at = utc_now_iso()
+    feature_eligible_count = sum(
+        row.get("eligibility_status") in {"eligible_bounded", "eligible_with_metadata_requirement"}
+        for row in feature_rows
+    )
+    model_constraint_eligible_count = 1 if evaluation.get("model_constraint_eligibility") == "candidate_with_limits" else 0
+    blocker_count = len(evaluation.get("rejection_reasons", [])) + sum(
+        str(row.get("eligibility_status", "")).startswith("blocked")
+        for row in constraint_rows + feature_rows
+    )
+    with _connect(path) as connection:
+        _initialize_schema(connection)
+        existing = connection.execute(
+            """
+            SELECT source_execution_hash, trust_policy_version
+            FROM scientific_trust_evaluations
+            WHERE trust_evaluation_id = ?
+            """,
+            (trust_id,),
+        ).fetchone()
+        if existing is not None:
+            if existing["source_execution_hash"] == source_hash and existing["trust_policy_version"] == evaluation["trust_policy_version"]:
+                return {"status": "idempotent", "trust_evaluation_id": trust_id, "execution_id": evaluation["execution_id"]}
+            raise RegistryConflictError(f"scientific trust evaluation already exists with different metadata: {trust_id}")
+        with connection:
+            connection.execute(
+                """
+                INSERT INTO scientific_trust_evaluations(
+                    trust_evaluation_id, execution_id, trust_policy_version, overall_status,
+                    evidence_level, feature_eligible_count, model_constraint_eligible_count,
+                    blocker_count, source_execution_hash, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    trust_id,
+                    evaluation["execution_id"],
+                    evaluation["trust_policy_version"],
+                    evaluation.get("execution_status", "trust_boundary_recorded"),
+                    evaluation["evidence_level"],
+                    feature_eligible_count,
+                    model_constraint_eligible_count,
+                    blocker_count,
+                    source_hash,
+                    created_at,
+                ),
+            )
+            for row in constraint_rows:
+                connection.execute(
+                    """
+                    INSERT INTO scientific_constraint_eligibility(
+                        eligibility_id, trust_evaluation_id, constraint_id, role,
+                        eligibility_status, reason_codes_json, remediation_codes_json
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        _record_id(trust_id, "constraint", row["constraint_id"], row["role"]),
+                        trust_id,
+                        row["constraint_id"],
+                        row["role"],
+                        row["eligibility_status"],
+                        json.dumps(row.get("reason_codes", []), sort_keys=True),
+                        json.dumps(row.get("remediation_codes", []), sort_keys=True),
+                    ),
+                )
+            for row in feature_rows:
+                connection.execute(
+                    """
+                    INSERT INTO scientific_feature_eligibility(
+                        feature_eligibility_id, trust_evaluation_id, feature_id,
+                        eligibility_status, prediction_time_available, leakage_status,
+                        assumption_status, reason_codes_json
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        _record_id(trust_id, "feature", row["feature_id"]),
+                        trust_id,
+                        row["feature_id"],
+                        row["eligibility_status"],
+                        1 if row.get("prediction_time_available") else 0,
+                        row["leakage_status"],
+                        row["assumption_status"],
+                        json.dumps(row.get("reason_codes", []), sort_keys=True),
+                    ),
+                )
+            for row in claim_rows:
+                connection.execute(
+                    """
+                    INSERT INTO scientific_claim_boundaries(
+                        boundary_id, trust_evaluation_id, claim_id, status,
+                        support_refs_json, conflict_refs_json, reason_code
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        _record_id(trust_id, "claim", row["claim_id"]),
+                        trust_id,
+                        row["claim_id"],
+                        row["status"],
+                        json.dumps(row.get("support_refs", []), sort_keys=True),
+                        json.dumps(row.get("conflict_refs", []), sort_keys=True),
+                        row["reason_code"],
+                    ),
+                )
+    return {
+        "status": "stored",
+        "trust_evaluation_id": trust_id,
+        "execution_id": evaluation["execution_id"],
+        "feature_eligibility_count": len(feature_rows),
+        "claim_boundary_count": len(claim_rows),
+    }
+
+
+def get_scientific_trust_evaluation(
+    trust_evaluation_id: str,
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> dict[str, Any]:
+    path = initialize_registry(repo_root, registry_path)
+    with _connect(path) as connection:
+        row = connection.execute(
+            "SELECT * FROM scientific_trust_evaluations WHERE trust_evaluation_id = ?",
+            (trust_evaluation_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown scientific trust_evaluation_id: {trust_evaluation_id}")
+        constraints = _dicts(
+            connection.execute(
+                """
+                SELECT * FROM scientific_constraint_eligibility
+                WHERE trust_evaluation_id = ?
+                ORDER BY constraint_id, role
+                """,
+                (trust_evaluation_id,),
+            )
+        )
+        features = _dicts(
+            connection.execute(
+                """
+                SELECT * FROM scientific_feature_eligibility
+                WHERE trust_evaluation_id = ?
+                ORDER BY feature_id
+                """,
+                (trust_evaluation_id,),
+            )
+        )
+        claims = _dicts(
+            connection.execute(
+                """
+                SELECT * FROM scientific_claim_boundaries
+                WHERE trust_evaluation_id = ?
+                ORDER BY claim_id
+                """,
+                (trust_evaluation_id,),
+            )
+        )
+    return {
+        "evaluation": dict(row),
+        "constraint_eligibility": constraints,
+        "feature_eligibility": features,
+        "claim_boundaries": claims,
+    }
+
+
+def list_scientific_trust_evaluations(
+    *,
+    execution_id: str | None = None,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> list[dict[str, Any]]:
+    path = initialize_registry(repo_root, registry_path)
+    query = "SELECT * FROM scientific_trust_evaluations"
+    params: list[Any] = []
+    if execution_id:
+        query += " WHERE execution_id = ?"
+        params.append(execution_id)
+    query += " ORDER BY execution_id, created_at, trust_evaluation_id"
+    with _connect(path) as connection:
+        return _dicts(connection.execute(query, tuple(params)))
+
+
+def list_scientific_feature_eligibility(
+    trust_evaluation_id: str,
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> list[dict[str, Any]]:
+    return get_scientific_trust_evaluation(
+        trust_evaluation_id,
+        repo_root=repo_root,
+        registry_path=registry_path,
+    )["feature_eligibility"]

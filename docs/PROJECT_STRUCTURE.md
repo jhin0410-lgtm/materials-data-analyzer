@@ -87,7 +87,10 @@ adds unit definitions, scientific constraint metadata, code-registered safe
 evaluators, domain-knowledge packs, scientific applicability checks, and
 XRD Bragg/Scherrer metadata examples. v2.1.4 adds bounded scientific execution,
 XRD Bragg/Scherrer consistency checks, scientific finding persistence, and
-local-only outputs under `outputs/platform_science/`. These additions do not
+local-only outputs under `outputs/platform_science/`. v2.1.5 adds scientific
+trust-boundary evaluation, constraint-role classification, metadata-only
+feature-candidate registries, deterministic snapshots in `data/platform/`, and
+SQLite schema `4` trust tables. These additions do not
 execute arbitrary equations, read raw data, train models, or run physics
 simulators.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
