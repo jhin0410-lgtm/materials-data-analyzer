@@ -1,12 +1,15 @@
 # Platform Run Registry
 
-Status: `development_stage` for v2.1.2.
+Status: `development_stage` for v2.1.4.
 
 The platform run registry is a local-only SQLite metadata index for run
 manifests, report manifests, artifact instances, lineage, and reproducibility
-checks. v2.1.2 adds policy diagnostic and evidence-gap tables. The registry
+checks. v2.1.2 adds policy diagnostic and evidence-gap tables. v2.1.4 adds
+bounded scientific execution tables. The registry
 extends the v2.0 manifest/report scaffold without executing
-acquisition, model training, raw-data reads, or scientific recomputation.
+acquisition, model training, raw-data reads, or full case-study scientific
+recomputation. v2.1.4 scientific executions are bounded scalar/small-list
+checks and are stored separately.
 
 ## Purpose
 
@@ -56,10 +59,15 @@ Tables:
   execution findings
 - `evidence_gaps`: machine-readable missing-evidence or policy-gap records
 - `claim_evaluations`: registered claim support/prohibition decisions
+- `scientific_executions`: bounded scientific execution summaries
+- `scientific_findings`: per-constraint scientific findings
+- `scientific_claim_evaluations`: claim decisions tied to scientific findings
+- `scientific_unit_conversions`: original and normalized unit metadata
 - `registry_metadata`: schema version and timestamps
 
-The current database schema version is `2`. Existing schema-version-1 local
-registries are migrated in place by adding diagnostics tables; newer
+The current database schema version is `3`. Existing schema-version-1 or
+schema-version-2 local registries are migrated in place by adding diagnostics
+and scientific execution tables; newer
 unsupported schema versions are rejected.
 
 ## Manifest Ingestion
@@ -188,6 +196,15 @@ python -m src.cli list-findings --run-id reliability-trust-verify-run
 python -m src.cli list-evidence-gaps reliability-trust-verify-run
 python -m src.cli evaluate-claim reliability-trust-verify-run production_deployment
 python -m src.cli diagnostics-validate
+```
+
+Evaluate bounded scientific checks:
+
+```powershell
+python -m src.cli execute-scientific-check configs/examples/xrd_bragg_consistent_check.json --persist
+python -m src.cli show-scientific-execution xrd_bragg_consistent_check
+python -m src.cli list-scientific-findings --execution-id xrd_bragg_consistent_check
+python -m src.cli scientific-registry-validate
 ```
 
 Existing commands can opt into registration:

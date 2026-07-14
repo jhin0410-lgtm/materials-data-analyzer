@@ -85,8 +85,11 @@ v2.1.2 adds registry diagnostics, evidence-gap analysis, registered claim
 evaluation, and evidence-graph summaries from persisted metadata only. v2.1.3
 adds unit definitions, scientific constraint metadata, code-registered safe
 evaluators, domain-knowledge packs, scientific applicability checks, and
-XRD Bragg/Scherrer metadata examples. These additions do not execute arbitrary
-equations, read raw data, train models, or run physics simulators.
+XRD Bragg/Scherrer metadata examples. v2.1.4 adds bounded scientific execution,
+XRD Bragg/Scherrer consistency checks, scientific finding persistence, and
+local-only outputs under `outputs/platform_science/`. These additions do not
+execute arbitrary equations, read raw data, train models, or run physics
+simulators.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 

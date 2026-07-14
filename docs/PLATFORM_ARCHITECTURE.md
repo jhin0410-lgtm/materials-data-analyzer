@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `development_stage` for v2.1.3.
+Status: `development_stage` for v2.1.4.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -27,9 +27,9 @@ changing output schemas, or replacing `src/process_data.py`.
   local SQLite metadata index without rerunning scientific workflows.
 - Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
   gaps, claim decisions, and evidence graphs from persisted metadata only.
-- Scientific metadata first: v2.1.3 adds unit-aware scientific constraints,
-  domain-knowledge packs, applicability checks, and XRD Bragg/Scherrer
-  examples without running physics solvers or model training.
+- Scientific metadata first: v2.1.4 adds bounded scientific execution on top of
+  unit-aware constraints, domain-knowledge packs, applicability checks, and
+  XRD Bragg/Scherrer examples without raw-data reads or model training.
 
 ## Component Boundaries
 
@@ -78,6 +78,8 @@ In code:
 - `src/platform_core/scientific_constraint_registry.py`: explicit scientific constraint registry
 - `src/platform_core/domain_knowledge.py`: domain-knowledge pack registry
 - `src/platform_core/scientific_applicability.py`: small JSON applicability and validation checks
+- `src/platform_core/scientific_execution.py`: bounded scientific execution,
+  unit normalization, finding persistence, and local-only result writing
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/cli.py`: unified CLI scaffold
 
@@ -201,12 +203,13 @@ See [`PLATFORM_DIAGNOSTICS.md`](PLATFORM_DIAGNOSTICS.md).
 
 ## Scientific Constraint Registry
 
-v2.1.3 adds metadata contracts for units, dimensions, assumptions,
-applicability, conservative consistency checks, and claim boundaries. The first
-explicit example is XRD Bragg/Scherrer metadata. Equations are display-only and
-only registered evaluator IDs can run.
+v2.1.4 adds bounded execution for registered evaluator IDs and explicit
+scalar/small-list inputs. The first explicit examples are XRD Bragg/Scherrer
+metadata checks. Equations are display-only and are never parsed from config.
 
 See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
+[`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
+[`XRD_PHYSICS_VALIDATION.md`](XRD_PHYSICS_VALIDATION.md),
 [`DOMAIN_KNOWLEDGE_PACKS.md`](DOMAIN_KNOWLEDGE_PACKS.md), and
 [`PHYSICS_AWARE_ROADMAP.md`](PHYSICS_AWARE_ROADMAP.md).
 
@@ -254,6 +257,8 @@ python -m src.cli list-knowledge-packs
 python -m src.cli validate-scientific-input configs/examples/scientific_constraints_xrd_bragg_scherrer.json
 python -m src.cli convert-unit --value 25 --from degC --to K
 python -m src.cli export-scientific-registry --output outputs/platform_science/scientific_registry.json --overwrite
+python -m src.cli preview-scientific-check configs/examples/xrd_bragg_consistent_check.json
+python -m src.cli execute-scientific-check configs/examples/xrd_scherrer_uncorrected_check.json --persist
 python -m src.cli show-version
 ```
 

@@ -1,0 +1,56 @@
+{
+  "schema_version": "2.1",
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "execution_id": "materials_composition_consistency_check",
+  "knowledge_pack_id": "materials_basic_v1",
+  "constraint_ids": [
+    "materials.composition_fraction.non_negative",
+    "materials.composition_fraction.sum_to_one",
+    "materials.energy_above_hull.non_negative_tolerance"
+  ],
+  "inputs": [
+    {
+      "variable_id": "composition_fraction",
+      "value": [
+        0.5,
+        0.3,
+        0.2
+      ],
+      "unit": "fraction",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "energy_above_hull_ev_atom",
+      "value": -2e-07,
+      "unit": "eV",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    }
+  ],
+  "metadata": {
+    "expected_broad_result_status": "consistent",
+    "elements": [
+      "Fe",
+      "Si",
+      "C"
+    ],
+    "element_property_values": [
+      1.26,
+      1.11,
+      0.67
+    ]
+  },
+  "requested_claim_ids": [
+    "dimensionally_consistent",
+    "conservation_respected",
+    "thermodynamic_consistency"
+  ],
+  "persist_findings": false,
+  "strict_mode": false,
+  "output_policy": {
+    "write_outputs": false
+  }
+}

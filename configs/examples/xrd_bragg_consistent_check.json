@@ -1,0 +1,51 @@
+{
+  "schema_version": "2.1",
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "execution_id": "xrd_bragg_consistent_check",
+  "knowledge_pack_id": "xrd_crystallography_basic_v1",
+  "constraint_ids": [
+    "xrd.bragg.geometry"
+  ],
+  "inputs": [
+    {
+      "variable_id": "two_theta",
+      "value": 44.7,
+      "unit": "degree",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "wavelength",
+      "value": 1.5406,
+      "unit": "angstrom",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "supplied_d_spacing",
+      "value": 2.026,
+      "unit": "angstrom",
+      "uncertainty": {
+        "absolute_uncertainty": 0.001
+      },
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    }
+  ],
+  "metadata": {
+    "expected_broad_result_status": "conditionally_consistent",
+    "d_spacing_tolerance_angstrom": 0.02
+  },
+  "requested_claim_ids": [
+    "dimensionally_consistent",
+    "physically_consistent_input",
+    "phase_identification_supported"
+  ],
+  "persist_findings": false,
+  "strict_mode": false,
+  "output_policy": {
+    "write_outputs": false
+  }
+}

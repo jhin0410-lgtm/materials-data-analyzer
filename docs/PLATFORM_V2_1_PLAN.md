@@ -79,14 +79,30 @@ v2.1.3 adds a scientific constraint and domain-knowledge scaffold:
 It does not execute equations from config, read raw datasets, train models,
 perform DFT/FEM/CFD, or claim physical validity without explicit evidence.
 
+## v2.1.4 Scope
+
+v2.1.4 adds bounded scientific execution and persistence:
+
+- request/result models for scalar and small-list scientific checks
+- unit normalization and conversion records before evaluator execution
+- XRD Bragg d-spacing and Scherrer crystallite-size metadata checks
+- synthetic materials composition and battery cycle consistency checks
+- scientific execution, finding, claim, and unit-conversion tables in registry
+  schema `3`
+- CLI preview, execute, show, list, validate, and export commands
+
+It still does not execute arbitrary equations, user callables, raw dataset
+scans, DFT/FEM/CFD, model training, phase identification, or production
+decision automation.
+
 ## Registry Roadmap
 
 Planned follow-up work:
 
 - v2.1.2: registry-aware policy diagnostics and evidence-gap analysis
 - v2.1.3: scientific constraint and domain-knowledge metadata scaffold
-- v2.1.4: connect scientific applicability findings to registry diagnostics
-  and platform reports
+- v2.1.4: bounded scientific execution, XRD consistency checks, and finding
+  persistence
 - v2.1.5: v2.1 closeout and release readiness audit
 
 ## Non-Goals

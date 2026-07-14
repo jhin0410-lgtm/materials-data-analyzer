@@ -5,7 +5,7 @@
   "storage_backend": "sqlite3",
   "default_registry_path": "outputs/platform_registry/platform_registry.sqlite3",
   "local_only": true,
-  "database_schema_version": 2,
+  "database_schema_version": 3,
   "description": "Logical schema for the local persistent platform run and artifact registry. The SQLite DDL lives in src/platform_core/run_registry.py.",
   "tables": {
     "runs": {
@@ -156,6 +156,64 @@
         "supporting_evidence_json",
         "conflicting_evidence_json",
         "reason_code"
+      ]
+    },
+    "scientific_executions": {
+      "primary_key": "execution_id",
+      "fields": [
+        "execution_id",
+        "run_id",
+        "knowledge_pack_id",
+        "request_hash",
+        "status",
+        "started_at",
+        "completed_at",
+        "finding_count",
+        "blocker_count",
+        "rule_registry_version",
+        "code_commit",
+        "knowledge_pack_version"
+      ]
+    },
+    "scientific_findings": {
+      "primary_key": "finding_id",
+      "fields": [
+        "finding_id",
+        "execution_id",
+        "constraint_id",
+        "evaluator_id",
+        "status",
+        "severity",
+        "message_code",
+        "claim_impact",
+        "normalized_values_json",
+        "assumptions_json",
+        "evidence_refs_json"
+      ]
+    },
+    "scientific_claim_evaluations": {
+      "primary_key": "claim_eval_id",
+      "fields": [
+        "claim_eval_id",
+        "execution_id",
+        "claim_id",
+        "status",
+        "support_refs_json",
+        "conflict_refs_json",
+        "reason_code"
+      ]
+    },
+    "scientific_unit_conversions": {
+      "primary_key": "conversion_id",
+      "fields": [
+        "conversion_id",
+        "execution_id",
+        "variable_id",
+        "original_value",
+        "original_unit",
+        "normalized_value",
+        "normalized_unit",
+        "conversion_status"
       ]
     },
     "registry_metadata": {

@@ -11,6 +11,8 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/report_manifest_schema_v2.json"),
         Path("data/platform/scientific_constraint_schema_v2.json"),
         Path("data/platform/domain_knowledge_pack_schema_v2.json"),
+        Path("data/platform/scientific_execution_request_schema_v2.json"),
+        Path("data/platform/scientific_execution_result_schema_v2.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["schema_version"] in {"2.0", "2.1"}
@@ -39,6 +41,9 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["credential_policy"]["store_credentials"] is False
         elif payload.get("execution_mode"):
             assert payload["execution_mode"] in {"verify", "isolated_run"}
+        elif payload.get("constraint_ids") and payload.get("inputs"):
+            assert payload["schema_version"] == "2.1"
+            assert payload["output_policy"]["write_outputs"] is False
         else:
             assert payload["dry_run"] is True
 

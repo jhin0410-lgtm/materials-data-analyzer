@@ -1,6 +1,6 @@
 # Domain Knowledge Packs
 
-Status: `scaffold_stage` for v2.1.3.
+Status: `development_stage` for v2.1.4.
 
 Domain knowledge packs group variable definitions, assumptions, mechanism
 metadata, feature candidates, caution statements, and scientific constraint IDs.

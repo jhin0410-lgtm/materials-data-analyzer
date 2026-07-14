@@ -217,23 +217,31 @@ powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 The tracked test suite is designed to run without local raw datasets, Backblaze
 archives, row-level predictions, or generated `outputs/` folders.
 
-### Platform Scientific Constraint Scaffold
+### Platform Scientific Execution
 
-The v2 platform layer includes a metadata-only scientific constraint registry.
-It can list unit-aware constraints, inspect domain-knowledge packs, validate
-small explicit JSON metadata, and export a local-only registry snapshot. It
-does not execute equations, read raw datasets, train models, or run physics
-simulation.
+The v2 platform layer includes a bounded scientific constraint and execution
+layer. It can list unit-aware constraints, inspect domain-knowledge packs,
+validate small explicit JSON metadata, run registered scalar/small-list checks,
+and persist scientific findings locally. Current examples include XRD Bragg
+d-spacing, Scherrer crystallite-size metadata, synthetic composition
+consistency, and synthetic battery cycle checks.
+
+It does not parse arbitrary equations, call user functions, read raw datasets,
+train models, run DFT/FEM/CFD, identify XRD phases, or make production
+decisions.
 
 ```powershell
 python -m src.cli list-scientific-constraints
 python -m src.cli inspect-scientific-constraint xrd.scherrer.preconditions
 python -m src.cli list-knowledge-packs
 python -m src.cli validate-scientific-input configs/examples/scientific_constraints_xrd_bragg_scherrer.json
+python -m src.cli preview-scientific-check configs/examples/xrd_bragg_consistent_check.json
+python -m src.cli execute-scientific-check configs/examples/xrd_scherrer_uncorrected_check.json --persist
 python -m src.cli convert-unit --value 25 --from degC --to K
 ```
 
-See [`docs/SCIENTIFIC_CONSTRAINTS.md`](docs/SCIENTIFIC_CONSTRAINTS.md) and
+See [`docs/SCIENTIFIC_CONSTRAINTS.md`](docs/SCIENTIFIC_CONSTRAINTS.md),
+[`docs/SCIENTIFIC_EXECUTION.md`](docs/SCIENTIFIC_EXECUTION.md), and
 [`docs/DOMAIN_KNOWLEDGE_PACKS.md`](docs/DOMAIN_KNOWLEDGE_PACKS.md).
 
 ## Real-Data Case Studies

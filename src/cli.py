@@ -75,6 +75,17 @@ from .platform_core.scientific_applicability import (
 )
 from .platform_core.scientific_constraint_registry import build_default_scientific_constraint_registry
 from .platform_core.scientific_evaluators import build_default_evaluator_registry
+from .platform_core.scientific_execution import (
+    execute_scientific_config,
+    export_scientific_findings,
+    get_scientific_claim_evaluation,
+    get_scientific_execution,
+    list_scientific_findings,
+    load_execution_config,
+    validate_scientific_registry,
+    validate_scientific_result_payload,
+    write_scientific_outputs,
+)
 from .platform_core.units import build_default_unit_registry
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
@@ -1630,6 +1641,229 @@ def _cmd_export_scientific_registry(args: argparse.Namespace) -> int:
     return 0
 
 
+def _science_persist_override(args: argparse.Namespace) -> bool | None:
+    if getattr(args, "persist", False) and getattr(args, "no_persist", False):
+        raise ValueError("--persist and --no-persist are mutually exclusive")
+    if getattr(args, "persist", False):
+        return True
+    if getattr(args, "no_persist", False):
+        return False
+    return None
+
+
+def _scientific_result_summary(result: Any, output_payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = result.to_dict()
+    summary = {
+        "execution_id": payload["execution_id"],
+        "knowledge_pack_id": payload["knowledge_pack_id"],
+        "overall_status": payload["overall_status"],
+        "applicability_status": payload["applicability_status"],
+        "finding_count": payload["finding_count"],
+        "blocker_count": payload["blocker_count"],
+        "scientific_recomputation_performed": payload["scientific_recomputation_performed"],
+        "raw_data_read": payload["raw_data_read"],
+        "model_training_performed": payload["model_training_performed"],
+        "derived_outputs": payload["derived_outputs"],
+        "claim_evaluations": payload["claim_evaluations"],
+    }
+    if output_payload:
+        summary["output"] = output_payload
+    return summary
+
+
+def _emit_scientific_summary(args: argparse.Namespace, summary: dict[str, Any]) -> None:
+    if args.json:
+        _emit_json(summary)
+    else:
+        _emit_lines(
+            [
+                f"execution_id: {summary['execution_id']}",
+                f"overall_status: {summary['overall_status']}",
+                f"applicability_status: {summary['applicability_status']}",
+                f"finding_count: {summary['finding_count']}",
+                f"blocker_count: {summary['blocker_count']}",
+                f"scientific_recomputation_performed: {str(summary['scientific_recomputation_performed']).lower()}",
+            ]
+        )
+
+
+def _cmd_preview_scientific_check(args: argparse.Namespace) -> int:
+    try:
+        config = load_execution_config(args.config_path)
+        result = execute_scientific_config(
+            config,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            persist=False,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryConflictError) as exc:
+        payload = {"status": "invalid_config", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    _emit_scientific_summary(args, _scientific_result_summary(result))
+    return 0 if result.overall_status not in {"invalid_input", "failed"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_execute_scientific_check(args: argparse.Namespace) -> int:
+    try:
+        config = load_execution_config(args.config_path)
+        result = execute_scientific_config(
+            config,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            persist=_science_persist_override(args),
+        )
+        output_payload = None
+        output_policy = config.get("output_policy", {}) if isinstance(config.get("output_policy", {}), dict) else {}
+        if args.output_dir or output_policy.get("write_outputs") is True:
+            output_payload = write_scientific_outputs(
+                result,
+                repo_root=Path.cwd(),
+                output_dir=args.output_dir or output_policy.get("output_dir"),
+                overwrite=bool(output_policy.get("overwrite", False) or getattr(args, "overwrite", False)),
+            )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryConflictError) as exc:
+        payload = {"status": "execution_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"execution_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    except (RegistryPathError, FileExistsError) as exc:
+        payload = {"status": "output_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"output_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    _emit_scientific_summary(args, _scientific_result_summary(result, output_payload))
+    return 0 if result.overall_status not in {"invalid_input", "failed"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_show_scientific_execution(args: argparse.Namespace) -> int:
+    try:
+        payload = get_scientific_execution(args.execution_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        row = payload["execution"]
+        _emit_lines(
+            [
+                f"execution_id: {row['execution_id']}",
+                f"knowledge_pack_id: {row['knowledge_pack_id']}",
+                f"status: {row['status']}",
+                f"finding_count: {row['finding_count']}",
+                f"blocker_count: {row['blocker_count']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_scientific_findings(args: argparse.Namespace) -> int:
+    try:
+        payload = list_scientific_findings(
+            execution_id=args.execution_id,
+            severity=args.severity,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "list_failed", "error": str(exc)})
+        else:
+            print(f"list_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row['execution_id']}\t{row['constraint_id']}\t{row['severity']}\t{row['status']}" for row in payload])
+    return 0
+
+
+def _cmd_evaluate_scientific_claim(args: argparse.Namespace) -> int:
+    try:
+        payload = get_scientific_claim_evaluation(
+            args.execution_id,
+            args.claim_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "claim_failed", "error": str(exc)})
+        else:
+            print(f"claim_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"execution_id: {payload.get('execution_id', args.execution_id)}",
+                f"claim_id: {payload['claim_id']}",
+                f"status: {payload['status']}",
+                f"reason_code: {payload['reason_code']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_scientific_result(args: argparse.Namespace) -> int:
+    try:
+        payload = json.loads(Path(args.path).read_text(encoding="utf-8"))
+        result = validate_scientific_result_payload(payload)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        result = {"valid": False, "errors": [str(exc)]}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result['valid']).lower()}", *[f"error: {error}" for error in result["errors"]]])
+    return 0 if result["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_export_scientific_findings(args: argparse.Namespace) -> int:
+    try:
+        payload = export_scientific_findings(
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            output=args.output,
+            overwrite=args.overwrite,
+        )
+    except (OSError, ValueError, FileExistsError, RegistryPathError) as exc:
+        payload = {"status": "export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"output: {payload['output']}", f"finding_count: {payload['finding_count']}"])
+    return 0
+
+
+def _cmd_scientific_registry_validate(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_scientific_registry(repo_root=Path.cwd(), registry_path=args.registry_path)
+    except (RunRegistryError, RegistryPathError) as exc:
+        payload = {"valid": False, "errors": [str(exc)]}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", *[f"error: {error}" for error in payload["errors"]]])
+    return 0 if payload["valid"] else EXIT_REGISTRY
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -1925,6 +2159,68 @@ def build_parser() -> argparse.ArgumentParser:
     export_scientific_parser.add_argument("--domain")
     export_scientific_parser.add_argument("--overwrite", action="store_true")
     export_scientific_parser.set_defaults(func=_cmd_export_scientific_registry)
+
+    preview_scientific_parser = subparsers.add_parser(
+        "preview-scientific-check", help="preview a bounded scientific check without persistence or file output"
+    )
+    preview_scientific_parser.add_argument("config_path")
+    add_registry_path(preview_scientific_parser)
+    preview_scientific_parser.set_defaults(func=_cmd_preview_scientific_check)
+
+    execute_scientific_parser = subparsers.add_parser(
+        "execute-scientific-check", help="execute a bounded scientific check with optional persistence"
+    )
+    execute_scientific_parser.add_argument("config_path")
+    add_registry_path(execute_scientific_parser)
+    persist_group = execute_scientific_parser.add_mutually_exclusive_group()
+    persist_group.add_argument("--persist", action="store_true")
+    persist_group.add_argument("--no-persist", action="store_true")
+    execute_scientific_parser.add_argument("--output-dir")
+    execute_scientific_parser.add_argument("--overwrite", action="store_true")
+    execute_scientific_parser.set_defaults(func=_cmd_execute_scientific_check)
+
+    show_scientific_execution_parser = subparsers.add_parser(
+        "show-scientific-execution", help="show one persisted scientific execution"
+    )
+    show_scientific_execution_parser.add_argument("execution_id")
+    add_registry_path(show_scientific_execution_parser)
+    show_scientific_execution_parser.set_defaults(func=_cmd_show_scientific_execution)
+
+    list_scientific_findings_parser = subparsers.add_parser(
+        "list-scientific-findings", help="list persisted scientific findings"
+    )
+    list_scientific_findings_parser.add_argument("--execution-id")
+    list_scientific_findings_parser.add_argument("--severity")
+    add_registry_path(list_scientific_findings_parser)
+    list_scientific_findings_parser.set_defaults(func=_cmd_list_scientific_findings)
+
+    scientific_claim_parser = subparsers.add_parser(
+        "evaluate-scientific-claim", help="show one persisted scientific claim evaluation"
+    )
+    scientific_claim_parser.add_argument("execution_id")
+    scientific_claim_parser.add_argument("claim_id")
+    add_registry_path(scientific_claim_parser)
+    scientific_claim_parser.set_defaults(func=_cmd_evaluate_scientific_claim)
+
+    validate_scientific_result_parser = subparsers.add_parser(
+        "validate-scientific-result", help="validate a scientific execution result JSON file"
+    )
+    validate_scientific_result_parser.add_argument("path")
+    validate_scientific_result_parser.set_defaults(func=_cmd_validate_scientific_result)
+
+    export_scientific_findings_parser = subparsers.add_parser(
+        "export-scientific-findings", help="export persisted scientific findings to local-only outputs"
+    )
+    add_registry_path(export_scientific_findings_parser)
+    export_scientific_findings_parser.add_argument("--output", default="outputs/platform_science/scientific_findings_export.json")
+    export_scientific_findings_parser.add_argument("--overwrite", action="store_true")
+    export_scientific_findings_parser.set_defaults(func=_cmd_export_scientific_findings)
+
+    scientific_registry_validate_parser = subparsers.add_parser(
+        "scientific-registry-validate", help="validate scientific execution tables in the local registry"
+    )
+    add_registry_path(scientific_registry_validate_parser)
+    scientific_registry_validate_parser.set_defaults(func=_cmd_scientific_registry_validate)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

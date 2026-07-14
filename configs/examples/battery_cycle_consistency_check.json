@@ -1,0 +1,80 @@
+{
+  "schema_version": "2.1",
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "execution_id": "battery_cycle_consistency_check",
+  "knowledge_pack_id": "battery_degradation_basic_v1",
+  "constraint_ids": [
+    "battery.capacity.non_negative",
+    "battery.coulombic_efficiency.bounds",
+    "battery.cycle_index.non_decreasing",
+    "battery.temperature.arrhenius_domain"
+  ],
+  "inputs": [
+    {
+      "variable_id": "capacity",
+      "value": [
+        2.0,
+        1.98,
+        1.96
+      ],
+      "unit": "Ah",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "coulombic_efficiency",
+      "value": [
+        0.998,
+        1.001,
+        0.999
+      ],
+      "unit": "fraction",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "cycle_index",
+      "value": [
+        1,
+        2,
+        3
+      ],
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "temperature",
+      "value": 25,
+      "unit": "degC",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "resistance",
+      "value": 0.035,
+      "unit": "ohm",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    }
+  ],
+  "metadata": {
+    "expected_broad_result_status": "conditionally_consistent",
+    "baseline_capacity": 2.0,
+    "voltage_range": [
+      2.5,
+      4.2
+    ]
+  },
+  "requested_claim_ids": [
+    "dimensionally_consistent",
+    "physically_consistent_input",
+    "degradation_mechanism_supported"
+  ],
+  "persist_findings": false,
+  "strict_mode": false,
+  "output_policy": {
+    "write_outputs": false
+  }
+}

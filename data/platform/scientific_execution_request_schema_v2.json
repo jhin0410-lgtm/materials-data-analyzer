@@ -1,0 +1,103 @@
+{
+  "schema_version": "2.1",
+  "status": "scaffold_stage",
+  "description": "Bounded scientific execution request schema for scalar and small-list consistency checks.",
+  "required": [
+    "execution_id",
+    "knowledge_pack_id",
+    "constraint_ids",
+    "inputs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.1"
+    },
+    "execution_id": {
+      "type": "string"
+    },
+    "knowledge_pack_id": {
+      "type": "string"
+    },
+    "constraint_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "required": [
+          "variable_id",
+          "value"
+        ],
+        "properties": {
+          "variable_id": {
+            "type": "string"
+          },
+          "value": {
+            "description": "JSON scalar or small numeric list only."
+          },
+          "unit": {
+            "type": "string"
+          },
+          "uncertainty": {
+            "type": "object",
+            "properties": {
+              "absolute_uncertainty": {
+                "type": "number"
+              },
+              "relative_uncertainty": {
+                "type": "number"
+              }
+            }
+          },
+          "source": {
+            "type": "string"
+          },
+          "semantic_status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "requested_claim_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "persist_findings": {
+      "type": "boolean"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "strict_mode": {
+      "type": "boolean"
+    },
+    "output_policy": {
+      "type": "object"
+    }
+  },
+  "forbidden_fields": [
+    "input_path",
+    "csv_path",
+    "raw_path",
+    "dataset_path",
+    "model_path",
+    "script_path",
+    "callable",
+    "callable_name",
+    "module_path",
+    "python_expression",
+    "equation",
+    "raw_table"
+  ]
+}

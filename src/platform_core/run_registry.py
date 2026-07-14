@@ -21,7 +21,7 @@ from .manifests import validate_run_manifest
 from .report_generator import validate_report_manifest
 
 
-REGISTRY_SCHEMA_VERSION = 2
+REGISTRY_SCHEMA_VERSION = 3
 DEFAULT_REGISTRY_PATH = "outputs/platform_registry/platform_registry.sqlite3"
 DEFAULT_EXPORT_DIR = "outputs/platform_registry/exports"
 
@@ -295,10 +295,62 @@ def _initialize_schema(connection: sqlite3.Connection) -> None:
             reason_code TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS scientific_executions (
+            execution_id TEXT PRIMARY KEY,
+            run_id TEXT,
+            knowledge_pack_id TEXT NOT NULL,
+            request_hash TEXT NOT NULL,
+            status TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            completed_at TEXT NOT NULL,
+            finding_count INTEGER NOT NULL,
+            blocker_count INTEGER NOT NULL,
+            rule_registry_version INTEGER NOT NULL,
+            code_commit TEXT NOT NULL,
+            knowledge_pack_version TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scientific_findings (
+            finding_id TEXT PRIMARY KEY,
+            execution_id TEXT NOT NULL REFERENCES scientific_executions(execution_id) ON DELETE CASCADE,
+            constraint_id TEXT NOT NULL,
+            evaluator_id TEXT,
+            status TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            message_code TEXT NOT NULL,
+            claim_impact TEXT NOT NULL,
+            normalized_values_json TEXT NOT NULL,
+            assumptions_json TEXT NOT NULL,
+            evidence_refs_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scientific_claim_evaluations (
+            claim_eval_id TEXT PRIMARY KEY,
+            execution_id TEXT NOT NULL REFERENCES scientific_executions(execution_id) ON DELETE CASCADE,
+            claim_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            support_refs_json TEXT NOT NULL,
+            conflict_refs_json TEXT NOT NULL,
+            reason_code TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scientific_unit_conversions (
+            conversion_id TEXT PRIMARY KEY,
+            execution_id TEXT NOT NULL REFERENCES scientific_executions(execution_id) ON DELETE CASCADE,
+            variable_id TEXT NOT NULL,
+            original_value TEXT,
+            original_unit TEXT,
+            normalized_value TEXT,
+            normalized_unit TEXT,
+            conversion_status TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_artifacts_run_role ON artifacts(run_id, role, artifact_id);
         CREATE INDEX IF NOT EXISTS idx_runs_plugin_stage ON runs(plugin_id, stage, run_id);
         CREATE INDEX IF NOT EXISTS idx_diag_eval_run ON diagnostic_evaluations(run_id, evaluated_at);
         CREATE INDEX IF NOT EXISTS idx_diag_findings_eval ON diagnostic_findings(evaluation_id, severity, status);
+        CREATE INDEX IF NOT EXISTS idx_science_findings_execution ON scientific_findings(execution_id, severity, status);
+        CREATE INDEX IF NOT EXISTS idx_science_claims_execution ON scientific_claim_evaluations(execution_id, claim_id);
         """
     )
     row = connection.execute("SELECT schema_version FROM registry_metadata WHERE metadata_id = 1").fetchone()
@@ -321,13 +373,19 @@ def _initialize_schema(connection: sqlite3.Connection) -> None:
 
 
 def _migrate_schema(connection: sqlite3.Connection, current_version: int, target_version: int) -> None:
-    if current_version == 0 and target_version in {1, 2}:
+    if current_version == 0 and target_version in {1, 2, 3}:
         connection.execute(
             "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
             (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
         )
         return
-    if current_version == 1 and target_version == 2:
+    if current_version == 1 and target_version in {2, 3}:
+        connection.execute(
+            "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
+            (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
+        )
+        return
+    if current_version == 2 and target_version == 3:
         connection.execute(
             "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
             (REGISTRY_SCHEMA_VERSION, utc_now_iso()),

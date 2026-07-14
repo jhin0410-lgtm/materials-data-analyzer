@@ -108,3 +108,56 @@ def build_scientific_evidence_graph(
         graph.add_node(f"scientific_finding:{finding_id}", "scientific_finding", status=finding.get("status"), severity=finding.get("severity"), category=finding.get("category"))
         graph.add_edge(f"scientific_finding:{finding_id}", f"constraint:{finding['constraint_id']}", "evaluates")
     return graph.to_dict()
+
+
+def build_scientific_execution_evidence_graph(
+    *,
+    execution_id: str,
+    knowledge_pack: dict[str, Any],
+    constraints: list[dict[str, Any]],
+    inputs: list[dict[str, Any]],
+    findings: list[dict[str, Any]],
+    claim_evaluations: list[dict[str, Any]],
+    trust_policy_id: str | None = None,
+) -> dict[str, Any]:
+    """Build a small graph for one bounded scientific execution."""
+
+    graph = EvidenceGraph()
+    execution_node = f"scientific_execution:{execution_id}"
+    graph.add_node(execution_node, "scientific_execution")
+    pack_node = f"knowledge_pack:{knowledge_pack['pack_id']}"
+    graph.add_node(pack_node, "domain_knowledge_pack", domain=knowledge_pack.get("domain"))
+    graph.add_edge(execution_node, pack_node, "uses")
+    if trust_policy_id:
+        policy_node = f"trust_policy:{trust_policy_id}"
+        graph.add_node(policy_node, "trust_policy")
+        graph.add_edge(execution_node, policy_node, "governed_by")
+    for constraint in constraints:
+        constraint_node = f"constraint:{constraint['constraint_id']}"
+        graph.add_node(constraint_node, "scientific_constraint", evaluator_id=constraint.get("evaluator_id"))
+        graph.add_edge(execution_node, constraint_node, "evaluates")
+        if constraint.get("evaluator_id"):
+            evaluator_node = f"evaluator:{constraint['evaluator_id']}"
+            graph.add_node(evaluator_node, "scientific_evaluator")
+            graph.add_edge(constraint_node, evaluator_node, "implemented_by")
+    for item in inputs:
+        variable_node = f"variable:{item['variable_id']}"
+        graph.add_node(variable_node, "scientific_variable", semantic_status=item.get("semantic_status"))
+        graph.add_edge(variable_node, execution_node, "provides")
+        if item.get("unit"):
+            unit_node = f"unit:{item['unit']}"
+            graph.add_node(unit_node, "unit")
+            graph.add_edge(variable_node, unit_node, "has_unit")
+    for finding in findings:
+        finding_node = f"scientific_finding:{finding['finding_id']}"
+        graph.add_node(finding_node, "scientific_finding", status=finding.get("status"), severity=finding.get("severity"))
+        graph.add_edge(finding_node, f"constraint:{finding['constraint_id']}", "derived_from")
+        for evidence_ref in finding.get("evidence_refs", []):
+            if evidence_ref.startswith("scientific_evidence:"):
+                graph.add_edge(finding_node, f"claim:{evidence_ref.split(':', 1)[1]}", "supports_or_limits")
+    for claim in claim_evaluations:
+        claim_node = f"claim:{claim['claim_id']}"
+        graph.add_node(claim_node, "claim", status=claim.get("status"))
+        if trust_policy_id:
+            graph.add_edge(claim_node, f"trust_policy:{trust_policy_id}", "governed_by")
+    return graph.to_dict()

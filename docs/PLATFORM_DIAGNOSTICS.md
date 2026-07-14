@@ -1,6 +1,6 @@
 # Platform Diagnostics
 
-Status: `development_stage` for v2.1.3.
+Status: `development_stage` for v2.1.4.
 
 Platform diagnostics add a deterministic policy-intelligence layer on top of
 the local run registry. They inspect persisted run metadata, artifact records,
@@ -21,10 +21,10 @@ Diagnostics answer metadata questions such as:
 - Which evidence gaps would narrow or block a claim?
 
 Diagnostics are a registry-governance layer, not a scientific scoring layer.
-v2.1.3 adds a separate scientific constraint scaffold for unit, dimension,
-applicability, and claim-boundary metadata. Those findings can be represented
-in an evidence graph, but they still do not read raw data or recompute
-case-study results.
+v2.1.4 adds a separate bounded scientific execution layer for scalar/small-list
+checks. Scientific findings can be persisted in their own registry tables and
+represented in an evidence graph, but they still do not read raw data or
+recompute case-study results.
 
 ## Data Model
 
@@ -42,12 +42,20 @@ claim parsing is intentionally unsupported.
 
 ## Registry Tables
 
-v2.1.2 updates the local SQLite registry to schema version `2` and adds:
+v2.1.4 updates the local SQLite registry to schema version `3`. Diagnostic
+tables remain:
 
 - `diagnostic_evaluations`
 - `diagnostic_findings`
 - `evidence_gaps`
 - `claim_evaluations`
+
+Scientific execution tables are stored separately:
+
+- `scientific_executions`
+- `scientific_findings`
+- `scientific_claim_evaluations`
+- `scientific_unit_conversions`
 
 The tables store metadata only. They do not store raw rows, row-level
 predictions, serial numbers, credentials, host paths, usernames, or model
@@ -70,7 +78,9 @@ database graph engine and has no external dependency.
 
 `build_scientific_evidence_graph` adds metadata-only nodes for scientific
 constraints, domain-knowledge packs, variables, units, and scientific findings.
-It does not infer mechanisms or execute equations.
+`build_scientific_execution_evidence_graph` links one execution to its
+knowledge pack, constraints, inputs, units, findings, and claims. Neither graph
+infers mechanisms or executes equations.
 
 ## CLI
 

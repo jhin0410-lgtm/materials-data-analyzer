@@ -26,12 +26,22 @@ class EvaluatorMetadata:
     description: str
     callable: EvaluatorCallable
     supported_roles: tuple[str, ...] = ("range_check", "consistency_check", "unit_check")
+    max_input_items: int = 1000
+    supported_scalar_types: tuple[str, ...] = ("int", "float")
+    output_schema: dict[str, object] = field(default_factory=dict)
+    numerical_tolerance: float = 1e-9
+    failure_mode: str = "finding_unavailable"
 
     def to_dict(self) -> dict[str, object]:
         return {
             "evaluator_id": self.evaluator_id,
             "description": self.description,
             "supported_roles": list(self.supported_roles),
+            "max_input_items": self.max_input_items,
+            "supported_scalar_types": list(self.supported_scalar_types),
+            "output_schema": dict(self.output_schema),
+            "numerical_tolerance": self.numerical_tolerance,
+            "failure_mode": self.failure_mode,
         }
 
 

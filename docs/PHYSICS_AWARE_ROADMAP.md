@@ -2,9 +2,9 @@
 
 Status: `planned`.
 
-v2.1.3 adds scientific constraint and domain-knowledge metadata only. It is the
-first step toward physics-aware governance, not a physics-aware modeling
-release.
+v2.1.4 adds bounded scientific execution for scalar/small-list metadata checks.
+It is the first step toward physics-aware governance, not a physics-aware
+modeling release.
 
 ## Current Foundation
 
@@ -14,14 +14,14 @@ release.
 - domain knowledge packs
 - applicability checks for small JSON metadata
 - scientific evidence-graph helper
+- bounded scientific execution and local finding persistence
 - registered scientific claim IDs
-- CLI list/inspect/validate/export commands
+- CLI list/inspect/validate/execute/export commands
 
 ## Future Sequence
 
-1. v2.1.4: connect scientific applicability findings to run-registry
-   diagnostics and platform reports.
-2. v2.1.5: close out v2.1 registry/science metadata release readiness.
+1. v2.1.4: execute bounded scientific checks and persist findings locally.
+2. v2.1.5: close out v2.1 registry/science execution release readiness.
 3. v2.x: allow approved constraints to annotate feature builders and validation
    reports without executing arbitrary equations.
 4. Later v2.x: add optional scientific descriptors only after contracts,
