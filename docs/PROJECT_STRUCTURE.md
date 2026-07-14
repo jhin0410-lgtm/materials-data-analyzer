@@ -78,9 +78,24 @@ policy registries, JSON config validation, onboarding validation,
 side-effect-free dry-run planning, local manifest writing, and the controlled
 reliability trust verify runtime. v2.0.5 also adds read-only platform report
 models, explicit compact-artifact extractors, registry snapshots, and
-JSON/Markdown report generation under `outputs/platform_reports/`. `src/cli.py`
-exposes this scaffold via `python -m src.cli`. It does not replace existing
-scripts or execute acquisition/modeling pipelines.
+JSON/Markdown report generation under `outputs/platform_reports/`. v2.1.1 adds
+a local-only SQLite run/artifact registry under `outputs/platform_registry/`
+for manifest ingestion, lineage, reproducibility status, and run comparison.
+v2.1.2 adds registry diagnostics, evidence-gap analysis, registered claim
+evaluation, and evidence-graph summaries from persisted metadata only. v2.1.3
+adds unit definitions, scientific constraint metadata, code-registered safe
+evaluators, domain-knowledge packs, scientific applicability checks, and
+XRD Bragg/Scherrer metadata examples. v2.1.4 adds bounded scientific execution,
+XRD Bragg/Scherrer consistency checks, scientific finding persistence, and
+local-only outputs under `outputs/platform_science/`. v2.1.5 adds scientific
+trust-boundary evaluation, constraint-role classification, metadata-only
+feature-candidate registries, deterministic snapshots in `data/platform/`, and
+SQLite schema `4` trust tables. v2.1.0 is release-ready as a metadata and
+bounded-execution trust layer. These additions do not
+execute arbitrary equations, read raw data, train models, or run physics
+simulators.
+`src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
+existing scripts or execute acquisition/modeling pipelines.
 
 ## Case Study Utilities
 
@@ -188,7 +203,10 @@ outputs/
 
 `data/processed/` may contain curated case-study summary tables. `outputs/` contains regenerable analyzer run outputs and should generally stay local. See [`OUTPUTS_POLICY.md`](OUTPUTS_POLICY.md) for the repository-level outputs policy.
 Platform report outputs are generated under `outputs/platform_reports/` and are
-local-only.
+local-only. Platform registry databases and exports are generated under
+`outputs/platform_registry/` and are also local-only. Registry diagnostic
+tables and exports are metadata-only local artifacts under the same ignored
+path.
 
 For Materials Project, compact tracked candidates include query manifests,
 property inventories, quality summaries, screening summaries, descriptor

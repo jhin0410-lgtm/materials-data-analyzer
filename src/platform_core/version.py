@@ -1,3 +1,3 @@
 """Platform scaffold version metadata."""
 
-PLATFORM_VERSION = "2.0.5-dev"
+PLATFORM_VERSION = "2.1.3-dev"

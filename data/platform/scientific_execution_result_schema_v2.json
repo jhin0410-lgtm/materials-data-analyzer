@@ -1,0 +1,48 @@
+{
+  "schema_version": "2.1",
+  "status": "scaffold_stage",
+  "description": "Bounded scientific execution result schema.",
+  "required": [
+    "execution_id",
+    "knowledge_pack_id",
+    "overall_status",
+    "applicability_status",
+    "finding_count",
+    "blocker_count",
+    "findings",
+    "normalized_inputs",
+    "unit_conversions",
+    "assumption_results",
+    "claim_evaluations",
+    "evidence_refs",
+    "warnings",
+    "errors",
+    "scientific_recomputation_performed",
+    "raw_data_read",
+    "model_training_performed"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.1"
+    },
+    "overall_status": {
+      "enum": [
+        "consistent",
+        "conditionally_consistent",
+        "inconsistent",
+        "unavailable",
+        "invalid_input",
+        "failed"
+      ]
+    },
+    "raw_data_read": {
+      "const": false
+    },
+    "model_training_performed": {
+      "const": false
+    },
+    "scientific_recomputation_performed": {
+      "type": "boolean"
+    }
+  }
+}

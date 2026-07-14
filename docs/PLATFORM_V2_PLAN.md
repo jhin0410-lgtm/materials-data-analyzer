@@ -1,6 +1,6 @@
 # Platform v2 Plan
 
-Status: `scaffold_stage` for v2.0.5.
+Status: `development_stage` for v2.1.2.
 
 ## Why v2
 
@@ -117,6 +117,41 @@ The report engine does not run acquisition, normalization, feature engineering,
 model training, trust analyzers, raw-data reads, row-level prediction reads, or
 scientific metric recomputation.
 
+## v2.1.1 Scope
+
+v2.1.1 adds a persistent local run registry:
+
+- standard-library `sqlite3` backend under `outputs/platform_registry/`
+- run and report manifest ingestion
+- artifact instance records and input-to-output lineage
+- metadata-only reproducibility status
+- run comparison by config, code, input checksum, output checksum, and status
+- registry validation/export CLI
+- optional `--register-run` for dry-run, controlled execute, and report
+  generation commands
+
+It does not execute acquisition, train models, read raw data, recompute
+scientific results, broaden adapter permissions, or overwrite canonical
+artifacts.
+
+## v2.1.2 Scope
+
+v2.1.2 adds registry policy diagnostics:
+
+- deterministic diagnostic rules for provenance, artifact policy, validation,
+  trust, claim boundary, and execution metadata
+- diagnostic SQLite tables for evaluations, findings, evidence gaps, and
+  registered claim evaluations
+- evidence graph summaries linking run, code/config, artifacts, policies, and
+  claims
+- CLI commands for `diagnose-run`, `show-diagnostics`, `list-findings`,
+  `list-evidence-gaps`, `evaluate-claim`, `compare-diagnostics`,
+  `diagnostics-validate`, and `diagnostics-export`
+- opt-in platform report diagnostics summary
+
+It does not run adapters, read raw data, parse free-form claims, call AI/LLM
+services, train models, recompute metrics, or broaden execution permissions.
+
 ## Registry Roadmap
 
 The first registry entries are metadata-only/scaffolded or dry-run-ready:
@@ -166,6 +201,30 @@ v2.0.5 adds:
 - `inspect-report`
 - `list-report-sources`
 
+v2.1.1 adds:
+
+- `registry-init`
+- `registry-ingest`
+- `registry-list-runs`
+- `registry-show-run`
+- `registry-list-artifacts`
+- `registry-lineage`
+- `registry-reproducibility`
+- `registry-compare-runs`
+- `registry-validate`
+- `registry-export`
+
+v2.1.2 adds:
+
+- `diagnose-run`
+- `show-diagnostics`
+- `list-findings`
+- `list-evidence-gaps`
+- `evaluate-claim`
+- `compare-diagnostics`
+- `diagnostics-validate`
+- `diagnostics-export`
+
 Actual `run` execution is intentionally deferred for general case-study
 pipelines.
 
@@ -190,6 +249,8 @@ v2.0.1 does not add:
 - v2.0.3: controlled reliability trust verify runtime and manifest lifecycle
 - v2.0.4: case-study interface, onboarding contract, and domain metadata validation
 - v2.0.5: read-only platform report engine and v2 closeout candidate
+- v2.1.1: persistent local run/artifact registry and reproducibility index
+- v2.1.2: registry policy diagnostics and evidence-gap analysis
 
 Advanced physics-aware materials descriptors, graph neural networks, or SHAP
 remain later v2.x work and should only be added when validation gates justify

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .platform_core.adapter_registry import build_default_adapter_registry
-from .platform_core.artifacts import build_default_artifact_registry
+from .platform_core.artifacts import build_default_artifact_registry, validate_relative_path
 from .platform_core.case_study_adapter import build_case_study_stage_plan
 from .platform_core.case_study_registry import build_default_case_study_registry
 from .platform_core.config import load_and_validate_pipeline_config, load_json_config
@@ -28,6 +28,19 @@ from .platform_core.execution_runtime import (
     SideEffectViolationError,
     VerificationMismatchError,
     execute_adapter_runtime,
+)
+from .platform_core.diagnostic_service import (
+    DiagnosticSchemaError,
+    UnsupportedRuleSet,
+    compare_diagnostic_evaluations,
+    diagnose_run,
+    diagnostic_summary_exit_status,
+    diagnostics_validate,
+    evaluate_claim,
+    export_diagnostics,
+    list_diagnostic_findings,
+    list_evidence_gaps,
+    show_diagnostics,
 )
 from .platform_core.manifests import (
     build_run_manifest,
@@ -44,6 +57,49 @@ from .platform_core.report_generator import (
     load_report_json,
     load_report_manifest,
 )
+from .platform_core.registry_service import RegistryService
+from .platform_core.run_registry import (
+    DEFAULT_EXPORT_DIR,
+    DEFAULT_REGISTRY_PATH,
+    assert_no_sensitive_strings,
+    get_scientific_trust_evaluation,
+    list_scientific_feature_eligibility,
+    list_scientific_trust_evaluations,
+    RegistryConflictError,
+    RegistryPathError,
+    RegistryValidationError,
+    RunRegistryError,
+    store_scientific_trust_evaluation,
+    UnsupportedRegistryVersion,
+)
+from .platform_core.domain_knowledge import build_default_domain_knowledge_registry
+from .platform_core.scientific_applicability import (
+    check_scientific_applicability,
+    load_scientific_config,
+    validate_scientific_input,
+)
+from .platform_core.scientific_constraint_registry import build_default_scientific_constraint_registry
+from .platform_core.scientific_evaluators import build_default_evaluator_registry
+from .platform_core.scientific_execution import (
+    execute_scientific_config,
+    export_scientific_findings,
+    get_scientific_claim_evaluation,
+    get_scientific_execution,
+    list_scientific_findings,
+    load_execution_config,
+    validate_scientific_registry,
+    validate_scientific_result_payload,
+    write_scientific_outputs,
+)
+from .platform_core.scientific_feature_registry import build_default_scientific_feature_registry
+from .platform_core.scientific_trust import (
+    CLAIM_BOUNDARY_IDS,
+    closeout_conclusion,
+    constraint_role_snapshot,
+    evaluate_feature_candidate_against_execution,
+    evaluate_scientific_trust,
+)
+from .platform_core.units import build_default_unit_registry
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
 from .platform_core.version import PLATFORM_VERSION
@@ -57,6 +113,13 @@ EXIT_SIDE_EFFECT = 6
 EXIT_VERIFICATION_MISMATCH = 7
 EXIT_RUNTIME_FAILURE = 8
 EXIT_PATH_POLICY = 9
+EXIT_REGISTRY = 10
+EXIT_DIAGNOSTIC_WARNING = 10
+EXIT_DIAGNOSTIC_BLOCKER = 11
+EXIT_DIAGNOSTIC_RUN_NOT_FOUND = 12
+EXIT_DIAGNOSTIC_POLICY_MISSING = 13
+EXIT_DIAGNOSTIC_SCHEMA = 14
+EXIT_DIAGNOSTIC_RULESET = 15
 
 
 def _registries() -> tuple[Any, Any, Any, Any, Any, Any]:
@@ -93,12 +156,69 @@ def _case_study_registries() -> tuple[Any, Any, Any, Any, Any, Any, Any]:
     )
 
 
+def _scientific_registries() -> tuple[Any, Any, Any, Any]:
+    unit_registry = build_default_unit_registry()
+    evaluator_registry = build_default_evaluator_registry()
+    constraint_registry = build_default_scientific_constraint_registry(evaluator_registry, unit_registry)
+    knowledge_registry = build_default_domain_knowledge_registry()
+    return unit_registry, evaluator_registry, constraint_registry, knowledge_registry
+
+
 def _emit_json(payload: object) -> None:
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
 def _emit_lines(lines: list[str]) -> None:
     print("\n".join(lines))
+
+
+def _registry_service(args: argparse.Namespace) -> RegistryService:
+    return RegistryService(Path.cwd(), getattr(args, "registry_path", None) or DEFAULT_REGISTRY_PATH)
+
+
+def _registry_error_code(exc: Exception) -> int:
+    if isinstance(exc, (RegistryPathError, FileExistsError)):
+        return EXIT_PATH_POLICY
+    if isinstance(exc, (RegistryConflictError, RegistryValidationError, UnsupportedRegistryVersion)):
+        return EXIT_REGISTRY
+    if isinstance(exc, RunRegistryError):
+        return EXIT_REGISTRY
+    return EXIT_RUNTIME_FAILURE
+
+
+def _emit_registry_error(args: argparse.Namespace, status: str, exc: Exception) -> int:
+    code = _registry_error_code(exc)
+    payload = {"status": status, "exit_code": code, "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"{status}: {exc}", file=sys.stderr)
+    return code
+
+
+def _diagnostic_error_code(exc: Exception) -> int:
+    if isinstance(exc, UnsupportedRuleSet):
+        return EXIT_DIAGNOSTIC_RULESET
+    if isinstance(exc, DiagnosticSchemaError):
+        return EXIT_DIAGNOSTIC_SCHEMA
+    if isinstance(exc, KeyError):
+        message = str(exc)
+        if "run_id" in message or "no diagnostics" in message:
+            return EXIT_DIAGNOSTIC_RUN_NOT_FOUND
+        return EXIT_DIAGNOSTIC_POLICY_MISSING
+    if isinstance(exc, RunRegistryError):
+        return EXIT_DIAGNOSTIC_SCHEMA
+    return EXIT_RUNTIME_FAILURE
+
+
+def _emit_diagnostic_error(args: argparse.Namespace, status: str, exc: Exception) -> int:
+    code = _diagnostic_error_code(exc)
+    payload = {"status": status, "exit_code": code, "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"{status}: {exc}", file=sys.stderr)
+    return code
 
 
 def _cmd_list_plugins(args: argparse.Namespace) -> int:
@@ -443,6 +563,8 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
     )
     manifest_path = config.get("manifest_output") if isinstance(config.get("manifest_output"), str) else None
     manifest = None
+    written_manifest_path: Path | None = None
+    registry_result = None
     if args.write_manifest:
         try:
             manifest = build_run_manifest(
@@ -460,6 +582,7 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
                 manifest_output=manifest_path,
                 overwrite=bool(args.overwrite or config.get("overwrite_manifest") is True),
             )
+            written_manifest_path = written_path
             manifest_path = str(written_path.relative_to(Path.cwd()))
         except (OSError, ValueError) as exc:
             payload = {
@@ -472,10 +595,23 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
             else:
                 print(f"manifest_error: {exc}", file=sys.stderr)
             return EXIT_PATH_POLICY
+    if args.register_run:
+        if written_manifest_path is None:
+            payload = {"status": "registry_failed", "error": "--register-run requires --write-manifest"}
+            if args.json:
+                _emit_json(payload)
+            else:
+                print("registry_failed: --register-run requires --write-manifest", file=sys.stderr)
+            return EXIT_REGISTRY
+        try:
+            registry_result = _registry_service(args).ingest(written_manifest_path)
+        except Exception as exc:
+            return _emit_registry_error(args, "registry_failed", exc)
     payload = {
         "config_validation": validation.to_dict(),
         "dry_run_plan": plan.to_dict(),
         "manifest_path": manifest_path,
+        "registry_result": registry_result,
     }
     if manifest is not None:
         payload["run_manifest"] = manifest
@@ -495,6 +631,7 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
                 f"adapter_id: {plan.adapter_id}",
                 f"execution_allowed: {plan.execution_allowed}",
                 f"manifest_path: {manifest_path or 'none'}",
+                f"registry_status: {registry_result['status'] if registry_result else 'not_requested'}",
             ]
         )
     return 0 if validation.valid else EXIT_INVALID_CONFIG
@@ -643,7 +780,18 @@ def _cmd_execute(args: argparse.Namespace) -> int:
         else:
             print(f"execution_failed: {exc}", file=sys.stderr)
         return code
-    payload = {"status": manifest["status"], "manifest": manifest, "result": result.to_dict() if result else None}
+    registry_result = None
+    if args.register_run:
+        try:
+            registry_result = _registry_service(args).ingest(Path(str(manifest["output_directory"])) / "run_manifest.json")
+        except Exception as exc:
+            return _emit_registry_error(args, "registry_failed", exc)
+    payload = {
+        "status": manifest["status"],
+        "manifest": manifest,
+        "result": result.to_dict() if result else None,
+        "registry_result": registry_result,
+    }
     if args.json:
         _emit_json(payload)
     else:
@@ -655,6 +803,7 @@ def _cmd_execute(args: argparse.Namespace) -> int:
                 f"execution_mode: {manifest['execution_mode']}",
                 f"side_effect_status: {manifest['side_effect_status']}",
                 f"produced_artifacts: {', '.join(manifest['produced_artifacts']) if manifest['produced_artifacts'] else 'none'}",
+                f"registry_status: {registry_result['status'] if registry_result else 'not_requested'}",
             ]
         )
     return 0
@@ -794,6 +943,13 @@ def _cmd_generate_report(args: argparse.Namespace) -> int:
             print(f"report_generation_failed: {exc}", file=sys.stderr)
         return EXIT_PATH_POLICY if isinstance(exc, (ValueError, FileExistsError)) else EXIT_INVALID_CONFIG
     payload = result.summary()
+    registry_result = None
+    if args.register_run:
+        try:
+            registry_result = _registry_service(args).ingest(Path(str(result.output_dir)) / "report_manifest.json")
+        except Exception as exc:
+            return _emit_registry_error(args, "registry_failed", exc)
+        payload["registry_result"] = registry_result
     if args.json:
         _emit_json(payload)
     else:
@@ -804,6 +960,7 @@ def _cmd_generate_report(args: argparse.Namespace) -> int:
                 f"output_dir: {payload['output_dir']}",
                 f"written_files: {', '.join(payload['written_files'])}",
                 f"scientific_recomputation_performed: {payload['scientific_recomputation_performed']}",
+                f"registry_status: {registry_result['status'] if registry_result else 'not_requested'}",
             ]
         )
     return 0
@@ -906,6 +1063,1080 @@ def _cmd_list_report_sources(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_registry_init(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).initialize()
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_init_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"registry_path: {payload['registry_path']}",
+                f"schema_version: {payload['schema_version']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_ingest(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).ingest(args.manifest_path)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_ingest_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"run_id: {payload['run_id']}",
+                f"manifest_kind: {payload['manifest_kind']}",
+                f"artifact_records: {payload['artifact_records']}",
+                f"lineage_records: {payload['lineage_records']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_list_runs(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).list_runs()
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_list_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{run['run_id']}\t{run['plugin_id']}\t{run['stage']}\t{run['status']}\t{run['manifest_kind']}"
+                for run in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_show_run(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).get_run(args.run_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_show_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        run = payload["run"]
+        _emit_lines(
+            [
+                f"run_id: {run['run_id']}",
+                f"plugin_id: {run['plugin_id']}",
+                f"adapter_id: {run['adapter_id']}",
+                f"stage: {run['stage']}",
+                f"status: {run['status']}",
+                f"artifact_records: {len(payload['artifacts'])}",
+                f"warnings: {len(payload['warnings'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_list_artifacts(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).list_artifacts(args.run_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_artifacts_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                (
+                    f"{artifact['artifact_record_id']}\t{artifact['run_id']}\t{artifact['role']}\t"
+                    f"{artifact['artifact_id']}\t{artifact['relative_path']}"
+                )
+                for artifact in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_lineage(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).lineage(args.artifact_record_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_lineage_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        artifact = payload["artifact"]
+        _emit_lines(
+            [
+                f"artifact_record_id: {artifact['artifact_record_id']}",
+                f"artifact_id: {artifact['artifact_id']}",
+                f"parents: {len(payload['parents'])}",
+                f"children: {len(payload['children'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_reproducibility(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).reproducibility(args.run_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_reproducibility_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"run_id: {payload['run_id']}",
+                f"status: {payload['status']}",
+                f"reasons: {', '.join(payload['reasons']) if payload['reasons'] else 'none'}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_compare_runs(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).compare(args.run_a, args.run_b)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_compare_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"run_a: {payload['run_a']}",
+                f"run_b: {payload['run_b']}",
+                f"status: {payload['status']}",
+                f"reasons: {', '.join(payload['reasons']) if payload['reasons'] else 'none'}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_validate(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).validate()
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_validate_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"schema_version: {payload['schema_version']}",
+                *[f"error: {error}" for error in payload["errors"]],
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_REGISTRY
+
+
+def _cmd_registry_export(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).export(args.export_dir, overwrite=args.overwrite)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_export_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"json_path: {payload['json_path']}",
+                f"csv_path: {payload['csv_path']}",
+                f"run_count: {payload['run_count']}",
+                f"artifact_count: {payload['artifact_count']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_diagnose_run(args: argparse.Namespace) -> int:
+    try:
+        report = diagnose_run(
+            args.run_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            rule_set=args.rule_set,
+            persist=not args.no_persist,
+            check_files=bool(args.check_files),
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "diagnose_run_failed", exc)
+    payload = report.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        evaluation = payload["evaluation"]
+        _emit_lines(
+            [
+                f"run_id: {evaluation['run_id']}",
+                f"evaluation_id: {evaluation['evaluation_id']}",
+                f"overall_status: {evaluation['overall_status']}",
+                f"promotion_status: {evaluation['promotion_status']}",
+                f"findings: {evaluation['finding_count']}",
+                f"blockers: {evaluation['blocker_count']}",
+                f"evidence_gaps: {len(payload['evidence_gaps'])}",
+            ]
+        )
+    return diagnostic_summary_exit_status(report)
+
+
+def _cmd_show_diagnostics(args: argparse.Namespace) -> int:
+    try:
+        payload = show_diagnostics(args.run_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "show_diagnostics_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        evaluation = payload["evaluation"]
+        _emit_lines(
+            [
+                f"run_id: {evaluation['run_id']}",
+                f"evaluation_id: {evaluation['evaluation_id']}",
+                f"overall_status: {evaluation['overall_status']}",
+                f"promotion_status: {evaluation['promotion_status']}",
+                f"findings: {len(payload['findings'])}",
+                f"evidence_gaps: {len(payload['evidence_gaps'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_findings(args: argparse.Namespace) -> int:
+    try:
+        payload = list_diagnostic_findings(
+            run_id=args.run_id,
+            severity=args.severity,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "list_findings_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{item['run_id']}\t{item['rule_id']}\t{item['severity']}\t{item['status']}\t{item['claim_impact']}"
+                for item in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_list_evidence_gaps(args: argparse.Namespace) -> int:
+    try:
+        payload = list_evidence_gaps(args.run_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "list_evidence_gaps_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{item['gap_code']}\t{item['priority']}\t{item['current_status']}\t{item['impact']}"
+                for item in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_evaluate_claim(args: argparse.Namespace) -> int:
+    try:
+        payload = evaluate_claim(
+            args.run_id,
+            args.claim_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            rule_set=args.rule_set,
+            persist=not args.no_persist,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "evaluate_claim_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"claim_id: {payload['claim_id']}",
+                f"status: {payload['status']}",
+                f"reason_code: {payload['reason_code']}",
+            ]
+        )
+    return 0 if payload["status"] == "supported" else EXIT_DIAGNOSTIC_WARNING
+
+
+def _cmd_compare_diagnostics(args: argparse.Namespace) -> int:
+    try:
+        payload = compare_diagnostic_evaluations(
+            args.run_a,
+            args.run_b,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "compare_diagnostics_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"run_a: {payload['run_a']}",
+                f"run_b: {payload['run_b']}",
+                f"promotion_status_change: {payload['promotion_status_change'][0]} -> {payload['promotion_status_change'][1]}",
+                f"newly_violated_rules: {', '.join(payload['newly_violated_rules']) if payload['newly_violated_rules'] else 'none'}",
+                f"new_gaps: {', '.join(payload['new_gaps']) if payload['new_gaps'] else 'none'}",
+            ]
+        )
+    return 0
+
+
+def _cmd_diagnostics_validate(args: argparse.Namespace) -> int:
+    try:
+        payload = diagnostics_validate(repo_root=Path.cwd(), registry_path=args.registry_path)
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "diagnostics_validate_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"registry_path: {payload['registry_path']}",
+                *[f"error: {error}" for error in payload["errors"]],
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_DIAGNOSTIC_SCHEMA
+
+
+def _cmd_diagnostics_export(args: argparse.Namespace) -> int:
+    try:
+        payload = export_diagnostics(
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            export_dir=args.export_dir,
+            overwrite=args.overwrite,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "diagnostics_export_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"json_path: {payload['json_path']}",
+                f"csv_path: {payload['csv_path']}",
+                f"evaluation_count: {payload['evaluation_count']}",
+                f"finding_count: {payload['finding_count']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_scientific_constraints(args: argparse.Namespace) -> int:
+    _, _, constraint_registry, _ = _scientific_registries()
+    constraints = constraint_registry.snapshot(args.domain, args.category)
+    if args.json:
+        _emit_json(constraints)
+    else:
+        _emit_lines(
+            [
+                f"{constraint['constraint_id']}\t{constraint['domain']}\t{constraint['category']}\t{constraint['status']}"
+                for constraint in constraints
+            ]
+        )
+    return 0
+
+
+def _cmd_inspect_scientific_constraint(args: argparse.Namespace) -> int:
+    _, _, constraint_registry, _ = _scientific_registries()
+    try:
+        constraint = constraint_registry.get(args.constraint_id).to_dict()
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(constraint)
+    else:
+        _emit_lines(
+            [
+                f"constraint_id: {constraint['constraint_id']}",
+                f"domain: {constraint['domain']}",
+                f"category: {constraint['category']}",
+                f"evaluator_id: {constraint['evaluator_id']}",
+                f"evaluation_role: {constraint['evaluation_role']}",
+                f"status: {constraint['status']}",
+                f"description: {constraint['description']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_knowledge_packs(args: argparse.Namespace) -> int:
+    _, _, _, knowledge_registry = _scientific_registries()
+    packs = knowledge_registry.snapshot(args.domain)
+    if args.json:
+        _emit_json(packs)
+    else:
+        _emit_lines([f"{pack['pack_id']}\t{pack['domain']}\t{pack['status']}" for pack in packs])
+    return 0
+
+
+def _cmd_inspect_knowledge_pack(args: argparse.Namespace) -> int:
+    _, _, _, knowledge_registry = _scientific_registries()
+    try:
+        pack = knowledge_registry.get(args.pack_id).to_dict()
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(pack)
+    else:
+        _emit_lines(
+            [
+                f"pack_id: {pack['pack_id']}",
+                f"domain: {pack['domain']}",
+                f"status: {pack['status']}",
+                f"constraints: {', '.join(pack['constraint_ids'])}",
+                f"description: {pack['description']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_check_scientific_applicability(args: argparse.Namespace) -> int:
+    _, evaluator_registry, constraint_registry, _ = _scientific_registries()
+    try:
+        config = load_scientific_config(args.config_path)
+        result = check_scientific_applicability(
+            config,
+            constraint_registry=constraint_registry,
+            evaluator_registry=evaluator_registry,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        payload = {"valid": False, "status": "invalid_config", "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = result.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"status: {payload['status']}",
+                *[f"{item['constraint_id']}: {item['status']}" for item in payload["applicability"]],
+            ]
+        )
+    return 0 if result.valid else EXIT_INVALID_CONFIG
+
+
+def _cmd_validate_scientific_input(args: argparse.Namespace) -> int:
+    unit_registry, evaluator_registry, constraint_registry, _ = _scientific_registries()
+    try:
+        config = load_scientific_config(args.config_path)
+        result = validate_scientific_input(
+            config,
+            constraint_registry=constraint_registry,
+            evaluator_registry=evaluator_registry,
+            unit_registry=unit_registry,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        payload = {"valid": False, "status": "invalid_config", "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = result.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"status: {payload['status']}",
+                f"findings: {len(payload['findings'])}",
+                *[f"{finding['constraint_id']}: {finding['status']}" for finding in payload["findings"]],
+            ]
+        )
+    return 0 if result.valid else EXIT_INVALID_CONFIG
+
+
+def _cmd_list_unit_definitions(args: argparse.Namespace) -> int:
+    unit_registry, _, _, _ = _scientific_registries()
+    units = unit_registry.snapshot(args.dimension)
+    if args.json:
+        _emit_json(units)
+    else:
+        _emit_lines([f"{unit['unit_id']}\t{unit['dimension']}\tbase={unit['base_unit']}" for unit in units])
+    return 0
+
+
+def _cmd_convert_unit(args: argparse.Namespace) -> int:
+    unit_registry, _, _, _ = _scientific_registries()
+    try:
+        converted = unit_registry.convert_value(args.value, args.from_unit, args.to_unit)
+    except (KeyError, ValueError) as exc:
+        payload = {"status": "conversion_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"conversion_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = {"status": "converted", "value": args.value, "from_unit": args.from_unit, "to_unit": args.to_unit, "converted_value": converted}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(converted)
+    return 0
+
+
+def _resolve_scientific_export_output(repo_root: Path, output: str) -> Path:
+    validate_relative_path(output)
+    normalized = output.replace("\\", "/")
+    if not normalized.startswith("outputs/"):
+        raise ValueError("scientific registry export must be under outputs/")
+    root = repo_root.resolve()
+    target = (root / output).resolve()
+    if root != target and root not in target.parents:
+        raise ValueError("scientific registry export must stay inside repository root")
+    return target
+
+
+def _cmd_export_scientific_registry(args: argparse.Namespace) -> int:
+    unit_registry, evaluator_registry, constraint_registry, knowledge_registry = _scientific_registries()
+    payload = {
+        "schema_version": "2.1",
+        "platform_version": PLATFORM_VERSION,
+        "status": "scaffold_stage",
+        "units": unit_registry.snapshot(),
+        "evaluators": evaluator_registry.snapshot(),
+        "constraints": constraint_registry.snapshot(args.domain),
+        "knowledge_packs": knowledge_registry.snapshot(args.domain),
+    }
+    try:
+        target = _resolve_scientific_export_output(Path.cwd(), args.output)
+        if target.exists() and not args.overwrite:
+            raise FileExistsError(f"output already exists: {args.output}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        temp.replace(target)
+    except (OSError, ValueError, FileExistsError) as exc:
+        result = {"status": "export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {
+        "status": "exported",
+        "output": target.relative_to(Path.cwd()).as_posix(),
+        "constraint_count": len(payload["constraints"]),
+        "knowledge_pack_count": len(payload["knowledge_packs"]),
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"output: {result['output']}", f"constraint_count: {result['constraint_count']}"])
+    return 0
+
+
+def _science_persist_override(args: argparse.Namespace) -> bool | None:
+    if getattr(args, "persist", False) and getattr(args, "no_persist", False):
+        raise ValueError("--persist and --no-persist are mutually exclusive")
+    if getattr(args, "persist", False):
+        return True
+    if getattr(args, "no_persist", False):
+        return False
+    return None
+
+
+def _scientific_result_summary(result: Any, output_payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = result.to_dict()
+    summary = {
+        "execution_id": payload["execution_id"],
+        "knowledge_pack_id": payload["knowledge_pack_id"],
+        "overall_status": payload["overall_status"],
+        "applicability_status": payload["applicability_status"],
+        "finding_count": payload["finding_count"],
+        "blocker_count": payload["blocker_count"],
+        "scientific_recomputation_performed": payload["scientific_recomputation_performed"],
+        "raw_data_read": payload["raw_data_read"],
+        "model_training_performed": payload["model_training_performed"],
+        "derived_outputs": payload["derived_outputs"],
+        "claim_evaluations": payload["claim_evaluations"],
+    }
+    if output_payload:
+        summary["output"] = output_payload
+    return summary
+
+
+def _emit_scientific_summary(args: argparse.Namespace, summary: dict[str, Any]) -> None:
+    if args.json:
+        _emit_json(summary)
+    else:
+        _emit_lines(
+            [
+                f"execution_id: {summary['execution_id']}",
+                f"overall_status: {summary['overall_status']}",
+                f"applicability_status: {summary['applicability_status']}",
+                f"finding_count: {summary['finding_count']}",
+                f"blocker_count: {summary['blocker_count']}",
+                f"scientific_recomputation_performed: {str(summary['scientific_recomputation_performed']).lower()}",
+            ]
+        )
+
+
+def _cmd_preview_scientific_check(args: argparse.Namespace) -> int:
+    try:
+        config = load_execution_config(args.config_path)
+        result = execute_scientific_config(
+            config,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            persist=False,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryConflictError) as exc:
+        payload = {"status": "invalid_config", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    _emit_scientific_summary(args, _scientific_result_summary(result))
+    return 0 if result.overall_status not in {"invalid_input", "failed"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_execute_scientific_check(args: argparse.Namespace) -> int:
+    try:
+        config = load_execution_config(args.config_path)
+        result = execute_scientific_config(
+            config,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            persist=_science_persist_override(args),
+        )
+        output_payload = None
+        output_policy = config.get("output_policy", {}) if isinstance(config.get("output_policy", {}), dict) else {}
+        if args.output_dir or output_policy.get("write_outputs") is True:
+            output_payload = write_scientific_outputs(
+                result,
+                repo_root=Path.cwd(),
+                output_dir=args.output_dir or output_policy.get("output_dir"),
+                overwrite=bool(output_policy.get("overwrite", False) or getattr(args, "overwrite", False)),
+            )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryConflictError) as exc:
+        payload = {"status": "execution_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"execution_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    except (RegistryPathError, FileExistsError) as exc:
+        payload = {"status": "output_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"output_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    _emit_scientific_summary(args, _scientific_result_summary(result, output_payload))
+    return 0 if result.overall_status not in {"invalid_input", "failed"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_show_scientific_execution(args: argparse.Namespace) -> int:
+    try:
+        payload = get_scientific_execution(args.execution_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        row = payload["execution"]
+        _emit_lines(
+            [
+                f"execution_id: {row['execution_id']}",
+                f"knowledge_pack_id: {row['knowledge_pack_id']}",
+                f"status: {row['status']}",
+                f"finding_count: {row['finding_count']}",
+                f"blocker_count: {row['blocker_count']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_scientific_findings(args: argparse.Namespace) -> int:
+    try:
+        payload = list_scientific_findings(
+            execution_id=args.execution_id,
+            severity=args.severity,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "list_failed", "error": str(exc)})
+        else:
+            print(f"list_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row['execution_id']}\t{row['constraint_id']}\t{row['severity']}\t{row['status']}" for row in payload])
+    return 0
+
+
+def _cmd_evaluate_scientific_claim(args: argparse.Namespace) -> int:
+    try:
+        payload = get_scientific_claim_evaluation(
+            args.execution_id,
+            args.claim_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "claim_failed", "error": str(exc)})
+        else:
+            print(f"claim_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"execution_id: {payload.get('execution_id', args.execution_id)}",
+                f"claim_id: {payload['claim_id']}",
+                f"status: {payload['status']}",
+                f"reason_code: {payload['reason_code']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_scientific_result(args: argparse.Namespace) -> int:
+    try:
+        payload = json.loads(Path(args.path).read_text(encoding="utf-8"))
+        result = validate_scientific_result_payload(payload)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        result = {"valid": False, "errors": [str(exc)]}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result['valid']).lower()}", *[f"error: {error}" for error in result["errors"]]])
+    return 0 if result["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_export_scientific_findings(args: argparse.Namespace) -> int:
+    try:
+        payload = export_scientific_findings(
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            output=args.output,
+            overwrite=args.overwrite,
+        )
+    except (OSError, ValueError, FileExistsError, RegistryPathError) as exc:
+        payload = {"status": "export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"output: {payload['output']}", f"finding_count: {payload['finding_count']}"])
+    return 0
+
+
+def _cmd_scientific_registry_validate(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_scientific_registry(repo_root=Path.cwd(), registry_path=args.registry_path)
+    except (RunRegistryError, RegistryPathError) as exc:
+        payload = {"valid": False, "errors": [str(exc)]}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", *[f"error: {error}" for error in payload["errors"]]])
+    return 0 if payload["valid"] else EXIT_REGISTRY
+
+
+def _cmd_list_scientific_feature_candidates(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_feature_registry()
+    payload = registry.snapshot(
+        domain=args.domain,
+        eligibility_status=args.eligibility_status,
+        validation_status=args.validation_status,
+    )
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{row['feature_id']}\t{row['domain']}\t{row['eligibility_status']}\t{row['validation_status']}"
+                for row in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_inspect_scientific_feature_candidate(args: argparse.Namespace) -> int:
+    try:
+        payload = build_default_scientific_feature_registry().get(args.feature_id).to_dict()
+    except KeyError as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"feature_id: {payload['feature_id']}",
+                f"domain: {payload['domain']}",
+                f"eligibility_status: {payload['eligibility_status']}",
+                f"validation_status: {payload['validation_status']}",
+                f"expected_claim: {payload['expected_claim']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_evaluate_scientific_feature(args: argparse.Namespace) -> int:
+    try:
+        execution = get_scientific_execution(args.execution_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+        feature = build_default_scientific_feature_registry().get(args.feature_id)
+        payload = evaluate_feature_candidate_against_execution(feature, execution).to_dict()
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "feature_evaluation_failed", "error": str(exc)})
+        else:
+            print(f"feature_evaluation_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"feature_id: {payload['feature_id']}",
+                f"eligibility_status: {payload['eligibility_status']}",
+                f"leakage_status: {payload['leakage_status']}",
+                f"assumption_status: {payload['assumption_status']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_evaluate_scientific_trust(args: argparse.Namespace) -> int:
+    try:
+        execution = get_scientific_execution(args.execution_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+        evaluation = evaluate_scientific_trust(execution)
+        payload = evaluation.to_dict()
+        storage = None
+        if not args.no_persist:
+            storage = store_scientific_trust_evaluation(payload, repo_root=Path.cwd(), registry_path=args.registry_path)
+            payload["persistence"] = storage
+    except (KeyError, RunRegistryError, RegistryPathError, RegistryConflictError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "trust_evaluation_failed", "error": str(exc)})
+        else:
+            print(f"trust_evaluation_failed: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        eligible_count = sum(
+            row["eligibility_status"] in {"eligible_bounded", "eligible_with_metadata_requirement"}
+            for row in payload["feature_eligibility"]
+        )
+        _emit_lines(
+            [
+                f"trust_evaluation_id: {payload['evaluation_id']}",
+                f"execution_id: {payload['execution_id']}",
+                f"evidence_level: {payload['evidence_level']}",
+                f"feature_eligible_count: {eligible_count}",
+                f"prohibited_claim_count: {len(payload['prohibited_claims'])}",
+                f"persisted: {str(not args.no_persist).lower()}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_scientific_trust(args: argparse.Namespace) -> int:
+    try:
+        payload = get_scientific_trust_evaluation(
+            args.trust_evaluation_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        row = payload["evaluation"]
+        _emit_lines(
+            [
+                f"trust_evaluation_id: {row['trust_evaluation_id']}",
+                f"execution_id: {row['execution_id']}",
+                f"evidence_level: {row['evidence_level']}",
+                f"feature_eligible_count: {row['feature_eligible_count']}",
+                f"blocker_count: {row['blocker_count']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_feature_eligibility(args: argparse.Namespace) -> int:
+    try:
+        payload = list_scientific_feature_eligibility(
+            args.trust_evaluation_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except (KeyError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_REGISTRY
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row['feature_id']}\t{row['eligibility_status']}\t{row['leakage_status']}" for row in payload])
+    return 0
+
+
+def _cmd_list_scientific_claim_boundaries(args: argparse.Namespace) -> int:
+    if args.trust_evaluation_id:
+        try:
+            payload = get_scientific_trust_evaluation(
+                args.trust_evaluation_id,
+                repo_root=Path.cwd(),
+                registry_path=args.registry_path,
+            )["claim_boundaries"]
+        except (KeyError, RunRegistryError, RegistryPathError) as exc:
+            if args.json:
+                _emit_json({"status": "not_found", "error": str(exc)})
+            else:
+                print(f"not_found: {exc}", file=sys.stderr)
+            return EXIT_REGISTRY
+    else:
+        payload = [
+            {
+                "claim_id": claim_id,
+                "default_status": "registered_boundary",
+                "execution_evidence_required": claim_id
+                not in {"physics_informed_feature_available", "bounded_quantity_estimated"},
+            }
+            for claim_id in CLAIM_BOUNDARY_IDS
+        ]
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row.get('claim_id')}\t{row.get('status', row.get('default_status'))}" for row in payload])
+    return 0
+
+
+def _cmd_scientific_trust_validate(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_feature_registry()
+    feature_validation = registry.validate()
+    constraint_registry = build_default_scientific_constraint_registry()
+    constraint_roles = constraint_role_snapshot(constraint_registry)
+    registry_validation = validate_scientific_registry(repo_root=Path.cwd(), registry_path=args.registry_path)
+    payload = {
+        "valid": bool(feature_validation["valid"] and registry_validation["valid"]),
+        "feature_registry": feature_validation,
+        "constraint_role_count": len(constraint_roles),
+        "registry_validation": registry_validation,
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"feature_count: {feature_validation['feature_count']}",
+                f"constraint_role_count: {len(constraint_roles)}",
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_REGISTRY
+
+
+def _cmd_export_scientific_trust(args: argparse.Namespace) -> int:
+    try:
+        validate_relative_path(args.output)
+        normalized = args.output.replace("\\", "/")
+        if not normalized.startswith("outputs/platform_science/"):
+            raise RegistryPathError("scientific trust export must be under outputs/platform_science/")
+        root = Path.cwd().resolve()
+        target = (root / args.output).resolve()
+        if root != target and root not in target.parents:
+            raise RegistryPathError("scientific trust export must stay inside repository root")
+        if target.exists() and not args.overwrite:
+            raise FileExistsError(f"export already exists: {target.relative_to(root).as_posix()}")
+        trust_rows = list_scientific_trust_evaluations(repo_root=root, registry_path=args.registry_path)
+        payload = {
+            "schema_version": "2.1.5",
+            "trust_evaluations": [
+                get_scientific_trust_evaluation(
+                    row["trust_evaluation_id"],
+                    repo_root=root,
+                    registry_path=args.registry_path,
+                )
+                for row in trust_rows
+            ],
+            "closeout": closeout_conclusion().to_dict(),
+        }
+        assert_no_sensitive_strings(payload)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_name(f".{target.name}.tmp")
+        try:
+            temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            temp.replace(target)
+        finally:
+            if temp.exists():
+                temp.unlink()
+    except (OSError, ValueError, FileExistsError, RunRegistryError, RegistryPathError) as exc:
+        if args.json:
+            _emit_json({"status": "export_failed", "error": str(exc)})
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {
+        "status": "exported",
+        "output": target.relative_to(root).as_posix(),
+        "trust_evaluation_count": len(payload["trust_evaluations"]),
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"output: {result['output']}", f"trust_evaluation_count: {result['trust_evaluation_count']}"])
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -919,6 +2150,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="materials_data_analyzer v2 platform scaffold")
     parser.add_argument("--json", action="store_true", help="emit JSON output")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    def add_registry_path(subparser: argparse.ArgumentParser) -> None:
+        subparser.add_argument(
+            "--registry-path",
+            default=DEFAULT_REGISTRY_PATH,
+            help="repository-relative SQLite registry path under outputs/platform_registry",
+        )
 
     subparsers.add_parser("list-plugins", help="list registered case-study plugins").set_defaults(func=_cmd_list_plugins)
 
@@ -979,6 +2217,8 @@ def build_parser() -> argparse.ArgumentParser:
     dry_run_parser.add_argument("--write-manifest", action="store_true", help="write a local dry-run manifest")
     dry_run_parser.add_argument("--manifest-out", help="relative output path for the run manifest")
     dry_run_parser.add_argument("--overwrite", action="store_true", help="allow replacing an existing manifest")
+    dry_run_parser.add_argument("--register-run", action="store_true", help="ingest the written manifest into the local registry")
+    add_registry_path(dry_run_parser)
     dry_run_parser.set_defaults(func=_cmd_dry_run)
 
     execute_parser = subparsers.add_parser("execute", help="execute an approved adapter in controlled mode")
@@ -988,6 +2228,8 @@ def build_parser() -> argparse.ArgumentParser:
     execute_parser.add_argument("--run-id")
     execute_parser.add_argument("--output-dir")
     execute_parser.add_argument("--overwrite", action="store_true")
+    execute_parser.add_argument("--register-run", action="store_true", help="ingest the terminal manifest into the local registry")
+    add_registry_path(execute_parser)
     execute_parser.set_defaults(func=_cmd_execute)
 
     verify_run_parser = subparsers.add_parser("verify-run", help="verify a terminal run manifest")
@@ -1019,6 +2261,8 @@ def build_parser() -> argparse.ArgumentParser:
     generate_report_parser.add_argument("--output-dir", help="repository-relative outputs/platform_reports directory")
     generate_report_parser.add_argument("--report-id", help="override report_id")
     generate_report_parser.add_argument("--overwrite", action="store_true", help="allow replacing an existing report")
+    generate_report_parser.add_argument("--register-run", action="store_true", help="ingest the report manifest into the local registry")
+    add_registry_path(generate_report_parser)
     generate_report_parser.set_defaults(func=_cmd_generate_report)
 
     preview_report_parser = subparsers.add_parser("preview-report", help="preview a platform report without writing files")
@@ -1040,6 +2284,279 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list-report-sources", help="list tracked compact artifacts used by platform reports").set_defaults(
         func=_cmd_list_report_sources
     )
+
+    registry_init_parser = subparsers.add_parser("registry-init", help="initialize the local platform registry")
+    add_registry_path(registry_init_parser)
+    registry_init_parser.set_defaults(func=_cmd_registry_init)
+
+    registry_ingest_parser = subparsers.add_parser("registry-ingest", help="ingest one run or report manifest")
+    registry_ingest_parser.add_argument("manifest_path")
+    add_registry_path(registry_ingest_parser)
+    registry_ingest_parser.set_defaults(func=_cmd_registry_ingest)
+
+    registry_list_runs_parser = subparsers.add_parser("registry-list-runs", help="list persisted run records")
+    add_registry_path(registry_list_runs_parser)
+    registry_list_runs_parser.set_defaults(func=_cmd_registry_list_runs)
+
+    registry_show_run_parser = subparsers.add_parser("registry-show-run", help="show one persisted run record")
+    registry_show_run_parser.add_argument("run_id")
+    add_registry_path(registry_show_run_parser)
+    registry_show_run_parser.set_defaults(func=_cmd_registry_show_run)
+
+    registry_list_artifacts_parser = subparsers.add_parser("registry-list-artifacts", help="list persisted artifact records")
+    registry_list_artifacts_parser.add_argument("--run-id")
+    add_registry_path(registry_list_artifacts_parser)
+    registry_list_artifacts_parser.set_defaults(func=_cmd_registry_list_artifacts)
+
+    registry_lineage_parser = subparsers.add_parser("registry-lineage", help="show lineage for one artifact record")
+    registry_lineage_parser.add_argument("artifact_record_id")
+    add_registry_path(registry_lineage_parser)
+    registry_lineage_parser.set_defaults(func=_cmd_registry_lineage)
+
+    registry_repro_parser = subparsers.add_parser("registry-reproducibility", help="assess one run's metadata reproducibility")
+    registry_repro_parser.add_argument("run_id")
+    add_registry_path(registry_repro_parser)
+    registry_repro_parser.set_defaults(func=_cmd_registry_reproducibility)
+
+    registry_compare_parser = subparsers.add_parser("registry-compare-runs", help="compare two persisted run records")
+    registry_compare_parser.add_argument("run_a")
+    registry_compare_parser.add_argument("run_b")
+    add_registry_path(registry_compare_parser)
+    registry_compare_parser.set_defaults(func=_cmd_registry_compare_runs)
+
+    registry_validate_parser = subparsers.add_parser("registry-validate", help="validate registry integrity")
+    add_registry_path(registry_validate_parser)
+    registry_validate_parser.set_defaults(func=_cmd_registry_validate)
+
+    registry_export_parser = subparsers.add_parser("registry-export", help="export a local registry snapshot")
+    registry_export_parser.add_argument("--export-dir", default=DEFAULT_EXPORT_DIR)
+    registry_export_parser.add_argument("--overwrite", action="store_true")
+    add_registry_path(registry_export_parser)
+    registry_export_parser.set_defaults(func=_cmd_registry_export)
+
+    diagnose_run_parser = subparsers.add_parser("diagnose-run", help="evaluate deterministic policy diagnostics for one run")
+    diagnose_run_parser.add_argument("run_id")
+    diagnose_run_parser.add_argument("--rule-set", default="diagnostic_rules_v1")
+    diagnose_run_parser.add_argument("--no-persist", action="store_true", help="do not store the diagnostic evaluation")
+    diagnose_run_parser.add_argument("--check-files", action="store_true", help="verify tracked artifact checksums when files exist")
+    add_registry_path(diagnose_run_parser)
+    diagnose_run_parser.set_defaults(func=_cmd_diagnose_run)
+
+    show_diagnostics_parser = subparsers.add_parser("show-diagnostics", help="show the latest persisted diagnostics for one run")
+    show_diagnostics_parser.add_argument("run_id")
+    add_registry_path(show_diagnostics_parser)
+    show_diagnostics_parser.set_defaults(func=_cmd_show_diagnostics)
+
+    findings_parser = subparsers.add_parser("list-findings", help="list persisted diagnostic findings")
+    findings_parser.add_argument("--run-id")
+    findings_parser.add_argument("--severity", choices=["info", "warning", "error", "blocker"])
+    add_registry_path(findings_parser)
+    findings_parser.set_defaults(func=_cmd_list_findings)
+
+    gaps_parser = subparsers.add_parser("list-evidence-gaps", help="list evidence gaps for one diagnosed run")
+    gaps_parser.add_argument("run_id")
+    add_registry_path(gaps_parser)
+    gaps_parser.set_defaults(func=_cmd_list_evidence_gaps)
+
+    claim_parser = subparsers.add_parser("evaluate-claim", help="evaluate one registered claim against persisted run evidence")
+    claim_parser.add_argument("run_id")
+    claim_parser.add_argument("claim_id")
+    claim_parser.add_argument("--rule-set", default="diagnostic_rules_v1")
+    claim_parser.add_argument("--no-persist", action="store_true")
+    add_registry_path(claim_parser)
+    claim_parser.set_defaults(func=_cmd_evaluate_claim)
+
+    compare_diagnostics_parser = subparsers.add_parser("compare-diagnostics", help="compare latest diagnostic evaluations for two runs")
+    compare_diagnostics_parser.add_argument("run_a")
+    compare_diagnostics_parser.add_argument("run_b")
+    add_registry_path(compare_diagnostics_parser)
+    compare_diagnostics_parser.set_defaults(func=_cmd_compare_diagnostics)
+
+    diagnostics_validate_parser = subparsers.add_parser("diagnostics-validate", help="validate diagnostic registry tables")
+    add_registry_path(diagnostics_validate_parser)
+    diagnostics_validate_parser.set_defaults(func=_cmd_diagnostics_validate)
+
+    diagnostics_export_parser = subparsers.add_parser("diagnostics-export", help="export a local diagnostics snapshot")
+    diagnostics_export_parser.add_argument("--export-dir", default="outputs/platform_registry/exports/diagnostics")
+    diagnostics_export_parser.add_argument("--overwrite", action="store_true")
+    add_registry_path(diagnostics_export_parser)
+    diagnostics_export_parser.set_defaults(func=_cmd_diagnostics_export)
+
+    scientific_constraints_parser = subparsers.add_parser(
+        "list-scientific-constraints", help="list registered scientific constraint metadata"
+    )
+    scientific_constraints_parser.add_argument("--domain")
+    scientific_constraints_parser.add_argument("--category")
+    scientific_constraints_parser.set_defaults(func=_cmd_list_scientific_constraints)
+
+    inspect_constraint_parser = subparsers.add_parser(
+        "inspect-scientific-constraint", help="inspect one scientific constraint"
+    )
+    inspect_constraint_parser.add_argument("constraint_id")
+    inspect_constraint_parser.set_defaults(func=_cmd_inspect_scientific_constraint)
+
+    knowledge_packs_parser = subparsers.add_parser("list-knowledge-packs", help="list domain-knowledge packs")
+    knowledge_packs_parser.add_argument("--domain")
+    knowledge_packs_parser.set_defaults(func=_cmd_list_knowledge_packs)
+
+    inspect_pack_parser = subparsers.add_parser("inspect-knowledge-pack", help="inspect one domain-knowledge pack")
+    inspect_pack_parser.add_argument("pack_id")
+    inspect_pack_parser.set_defaults(func=_cmd_inspect_knowledge_pack)
+
+    applicability_parser = subparsers.add_parser(
+        "check-scientific-applicability", help="check scientific constraint applicability for a small JSON config"
+    )
+    applicability_parser.add_argument("config_path")
+    applicability_parser.set_defaults(func=_cmd_check_scientific_applicability)
+
+    validate_scientific_parser = subparsers.add_parser(
+        "validate-scientific-input", help="validate small explicit scientific metadata against registered constraints"
+    )
+    validate_scientific_parser.add_argument("config_path")
+    validate_scientific_parser.set_defaults(func=_cmd_validate_scientific_input)
+
+    units_parser = subparsers.add_parser("list-unit-definitions", help="list supported unit metadata")
+    units_parser.add_argument("--dimension")
+    units_parser.set_defaults(func=_cmd_list_unit_definitions)
+
+    convert_parser = subparsers.add_parser("convert-unit", help="convert a numeric value between supported compatible units")
+    convert_parser.add_argument("--value", type=float, required=True)
+    convert_parser.add_argument("--from", dest="from_unit", required=True)
+    convert_parser.add_argument("--to", dest="to_unit", required=True)
+    convert_parser.set_defaults(func=_cmd_convert_unit)
+
+    export_scientific_parser = subparsers.add_parser(
+        "export-scientific-registry", help="export scientific registry metadata to an ignored outputs path"
+    )
+    export_scientific_parser.add_argument("--output", default="outputs/platform_science/scientific_registry.json")
+    export_scientific_parser.add_argument("--domain")
+    export_scientific_parser.add_argument("--overwrite", action="store_true")
+    export_scientific_parser.set_defaults(func=_cmd_export_scientific_registry)
+
+    preview_scientific_parser = subparsers.add_parser(
+        "preview-scientific-check", help="preview a bounded scientific check without persistence or file output"
+    )
+    preview_scientific_parser.add_argument("config_path")
+    add_registry_path(preview_scientific_parser)
+    preview_scientific_parser.set_defaults(func=_cmd_preview_scientific_check)
+
+    execute_scientific_parser = subparsers.add_parser(
+        "execute-scientific-check", help="execute a bounded scientific check with optional persistence"
+    )
+    execute_scientific_parser.add_argument("config_path")
+    add_registry_path(execute_scientific_parser)
+    persist_group = execute_scientific_parser.add_mutually_exclusive_group()
+    persist_group.add_argument("--persist", action="store_true")
+    persist_group.add_argument("--no-persist", action="store_true")
+    execute_scientific_parser.add_argument("--output-dir")
+    execute_scientific_parser.add_argument("--overwrite", action="store_true")
+    execute_scientific_parser.set_defaults(func=_cmd_execute_scientific_check)
+
+    show_scientific_execution_parser = subparsers.add_parser(
+        "show-scientific-execution", help="show one persisted scientific execution"
+    )
+    show_scientific_execution_parser.add_argument("execution_id")
+    add_registry_path(show_scientific_execution_parser)
+    show_scientific_execution_parser.set_defaults(func=_cmd_show_scientific_execution)
+
+    list_scientific_findings_parser = subparsers.add_parser(
+        "list-scientific-findings", help="list persisted scientific findings"
+    )
+    list_scientific_findings_parser.add_argument("--execution-id")
+    list_scientific_findings_parser.add_argument("--severity")
+    add_registry_path(list_scientific_findings_parser)
+    list_scientific_findings_parser.set_defaults(func=_cmd_list_scientific_findings)
+
+    scientific_claim_parser = subparsers.add_parser(
+        "evaluate-scientific-claim", help="show one persisted scientific claim evaluation"
+    )
+    scientific_claim_parser.add_argument("execution_id")
+    scientific_claim_parser.add_argument("claim_id")
+    add_registry_path(scientific_claim_parser)
+    scientific_claim_parser.set_defaults(func=_cmd_evaluate_scientific_claim)
+
+    validate_scientific_result_parser = subparsers.add_parser(
+        "validate-scientific-result", help="validate a scientific execution result JSON file"
+    )
+    validate_scientific_result_parser.add_argument("path")
+    validate_scientific_result_parser.set_defaults(func=_cmd_validate_scientific_result)
+
+    export_scientific_findings_parser = subparsers.add_parser(
+        "export-scientific-findings", help="export persisted scientific findings to local-only outputs"
+    )
+    add_registry_path(export_scientific_findings_parser)
+    export_scientific_findings_parser.add_argument("--output", default="outputs/platform_science/scientific_findings_export.json")
+    export_scientific_findings_parser.add_argument("--overwrite", action="store_true")
+    export_scientific_findings_parser.set_defaults(func=_cmd_export_scientific_findings)
+
+    scientific_registry_validate_parser = subparsers.add_parser(
+        "scientific-registry-validate", help="validate scientific execution tables in the local registry"
+    )
+    add_registry_path(scientific_registry_validate_parser)
+    scientific_registry_validate_parser.set_defaults(func=_cmd_scientific_registry_validate)
+
+    feature_candidates_parser = subparsers.add_parser(
+        "list-scientific-feature-candidates", help="list scientific feature-candidate metadata"
+    )
+    feature_candidates_parser.add_argument("--domain")
+    feature_candidates_parser.add_argument("--eligibility-status")
+    feature_candidates_parser.add_argument("--validation-status")
+    feature_candidates_parser.set_defaults(func=_cmd_list_scientific_feature_candidates)
+
+    inspect_feature_parser = subparsers.add_parser(
+        "inspect-scientific-feature-candidate", help="inspect one scientific feature candidate"
+    )
+    inspect_feature_parser.add_argument("feature_id")
+    inspect_feature_parser.set_defaults(func=_cmd_inspect_scientific_feature_candidate)
+
+    evaluate_feature_parser = subparsers.add_parser(
+        "evaluate-scientific-feature", help="evaluate metadata eligibility for one feature candidate against a persisted execution"
+    )
+    evaluate_feature_parser.add_argument("execution_id")
+    evaluate_feature_parser.add_argument("feature_id")
+    add_registry_path(evaluate_feature_parser)
+    evaluate_feature_parser.set_defaults(func=_cmd_evaluate_scientific_feature)
+
+    evaluate_trust_parser = subparsers.add_parser(
+        "evaluate-scientific-trust", help="evaluate scientific trust boundary for a persisted scientific execution"
+    )
+    evaluate_trust_parser.add_argument("execution_id")
+    evaluate_trust_parser.add_argument("--no-persist", action="store_true", help="preview trust evaluation without writing registry rows")
+    add_registry_path(evaluate_trust_parser)
+    evaluate_trust_parser.set_defaults(func=_cmd_evaluate_scientific_trust)
+
+    show_trust_parser = subparsers.add_parser("show-scientific-trust", help="show one persisted scientific trust evaluation")
+    show_trust_parser.add_argument("trust_evaluation_id")
+    add_registry_path(show_trust_parser)
+    show_trust_parser.set_defaults(func=_cmd_show_scientific_trust)
+
+    list_feature_eligibility_parser = subparsers.add_parser(
+        "list-feature-eligibility", help="list feature eligibility rows for a trust evaluation"
+    )
+    list_feature_eligibility_parser.add_argument("trust_evaluation_id")
+    add_registry_path(list_feature_eligibility_parser)
+    list_feature_eligibility_parser.set_defaults(func=_cmd_list_feature_eligibility)
+
+    claim_boundaries_parser = subparsers.add_parser(
+        "list-scientific-claim-boundaries", help="list registered or persisted scientific claim boundaries"
+    )
+    claim_boundaries_parser.add_argument("--trust-evaluation-id")
+    add_registry_path(claim_boundaries_parser)
+    claim_boundaries_parser.set_defaults(func=_cmd_list_scientific_claim_boundaries)
+
+    trust_validate_parser = subparsers.add_parser(
+        "scientific-trust-validate", help="validate scientific trust registry metadata and local tables"
+    )
+    add_registry_path(trust_validate_parser)
+    trust_validate_parser.set_defaults(func=_cmd_scientific_trust_validate)
+
+    export_trust_parser = subparsers.add_parser(
+        "export-scientific-trust", help="export persisted scientific trust summaries to local-only outputs"
+    )
+    add_registry_path(export_trust_parser)
+    export_trust_parser.add_argument("--output", default="outputs/platform_science/scientific_trust_export.json")
+    export_trust_parser.add_argument("--overwrite", action="store_true")
+    export_trust_parser.set_defaults(func=_cmd_export_scientific_trust)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

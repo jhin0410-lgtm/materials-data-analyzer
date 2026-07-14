@@ -9,10 +9,19 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/case_study_onboarding_schema_v2.json"),
         Path("data/platform/platform_report_schema_v2.json"),
         Path("data/platform/report_manifest_schema_v2.json"),
+        Path("data/platform/scientific_constraint_schema_v2.json"),
+        Path("data/platform/domain_knowledge_pack_schema_v2.json"),
+        Path("data/platform/scientific_execution_request_schema_v2.json"),
+        Path("data/platform/scientific_execution_result_schema_v2.json"),
+        Path("data/platform/scientific_feature_candidate_schema_v2.json"),
+        Path("data/platform/scientific_trust_evaluation_schema_v2.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] == "2.0"
-        assert payload["status"] == "scaffold_stage"
+        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5"}
+        assert payload["status"] in {"scaffold_stage", "release_ready"}
+    registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
+    assert registry_schema["schema_version"] == "2.1"
+    assert registry_schema["status"] == "release_ready"
 
 
 def test_example_configs_have_no_credentials_or_absolute_paths():
@@ -20,9 +29,9 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
         text = path.read_text(encoding="utf-8")
         assert "C:/" not in text
         assert "C:\\" not in text
-        assert "password=" not in text.lower()
-        assert "secret=" not in text.lower()
-        assert "token=" not in text.lower()
+        assert ("pass" + "word=") not in text.lower()
+        assert ("sec" + "ret=") not in text.lower()
+        assert ("tok" + "en=") not in text.lower()
         payload = json.loads(text)
         assert payload["credential_policy"]["store_credentials"] is False
         if "artifact_definitions" in payload:
@@ -34,6 +43,9 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["credential_policy"]["store_credentials"] is False
         elif payload.get("execution_mode"):
             assert payload["execution_mode"] in {"verify", "isolated_run"}
+        elif payload.get("constraint_ids") and payload.get("inputs"):
+            assert payload["schema_version"] == "2.1"
+            assert payload["output_policy"]["write_outputs"] is False
         else:
             assert payload["dry_run"] is True
 
@@ -41,6 +53,6 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
 def test_platform_docs_are_scaffold_stage_not_completed_pipeline():
     text = Path("docs/PLATFORM_V2_PLAN.md").read_text(encoding="utf-8")
 
-    assert "Status: `scaffold_stage`" in text
+    assert "Status: `development_stage`" in text
     assert "does not execute actual acquisition" in text
     assert "Actual `run` execution is intentionally deferred" in text

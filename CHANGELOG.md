@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+- No changes yet.
+
+## v2.1
+
+- Added a local-only SQLite run/artifact registry scaffold under
+  `outputs/platform_registry/` for run/report manifest ingestion, artifact
+  instance records, lineage, reproducibility status, run comparison,
+  validation, and export.
+- Added registry CLI commands and optional `--register-run` support for
+  dry-run, controlled verify execution, and read-only report generation.
+- Kept registry operations metadata-only: no acquisition execution, model
+  training, raw data reads, scientific recomputation, canonical output
+  overwrite, network access, or arbitrary execution.
+- Added bounded scientific execution closeout with scientific trust-boundary
+  evaluation, constraint-role classification, feature-candidate metadata
+  registry, claim-boundary persistence, schema v4 registry tables, and
+  deterministic scientific registry snapshots.
+- Added CLI commands for scientific trust evaluation, feature-candidate
+  inspection, feature eligibility, claim boundaries, trust export, and
+  scientific trust validation.
+- Documented that scientific execution supports bounded consistency evidence
+  and feature-candidate metadata only; it does not perform feature generation,
+  model training, phase identification, SHAP, DFT/FEM/CFD, or production
+  scientific decisions.
+
 ## v2.0
 
 - Added an additive platform core with explicit plugin, adapter, artifact,

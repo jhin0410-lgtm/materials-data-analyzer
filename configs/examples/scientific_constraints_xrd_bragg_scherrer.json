@@ -1,0 +1,44 @@
+{
+  "schema_version": "2.1",
+  "config_id": "scientific_constraints_xrd_bragg_scherrer",
+  "domain": "xrd",
+  "dry_run": true,
+  "constraint_ids": [
+    "xrd.bragg.geometry",
+    "xrd.scherrer.preconditions",
+    "xrd.crystallite_size.positive"
+  ],
+  "variables": {
+    "two_theta": {
+      "value": 44.7,
+      "unit": "degree"
+    },
+    "wavelength": {
+      "value": 1.5406,
+      "unit": "angstrom"
+    },
+    "fwhm": {
+      "value": 0.006,
+      "unit": "rad"
+    },
+    "shape_factor": {
+      "value": 0.9
+    },
+    "crystallite_size": {
+      "value": 24.0,
+      "unit": "nm"
+    }
+  },
+  "metadata": {
+    "instrumental_broadening_corrected": false,
+    "semantic_availability": {
+      "two_theta": true,
+      "wavelength": true,
+      "fwhm": true,
+      "crystallite_size": true
+    }
+  },
+  "credential_policy": {
+    "store_credentials": false
+  }
+}

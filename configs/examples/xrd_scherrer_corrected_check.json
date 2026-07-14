@@ -1,0 +1,69 @@
+{
+  "schema_version": "2.1",
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "execution_id": "xrd_scherrer_corrected_check",
+  "knowledge_pack_id": "xrd_crystallography_basic_v1",
+  "constraint_ids": [
+    "xrd.scherrer.preconditions",
+    "xrd.crystallite_size.positive"
+  ],
+  "inputs": [
+    {
+      "variable_id": "two_theta",
+      "value": 44.7,
+      "unit": "degree",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "wavelength",
+      "value": 1.5406,
+      "unit": "angstrom",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "fwhm",
+      "value": 0.00314159,
+      "unit": "rad",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "instrumental_broadening",
+      "value": 0.001,
+      "unit": "rad",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "shape_factor",
+      "value": 0.9,
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    },
+    {
+      "variable_id": "crystallite_size",
+      "value": 50,
+      "unit": "nm",
+      "source": "synthetic_fixture",
+      "semantic_status": "known"
+    }
+  ],
+  "metadata": {
+    "expected_broad_result_status": "conditionally_consistent",
+    "instrumental_broadening_corrected": true,
+    "strain_broadening_separated": true
+  },
+  "requested_claim_ids": [
+    "crystallite_size_estimated",
+    "phase_identification_supported"
+  ],
+  "persist_findings": false,
+  "strict_mode": false,
+  "output_policy": {
+    "write_outputs": false
+  }
+}

@@ -13,6 +13,15 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
 - [Platform Execution](PLATFORM_EXECUTION.md): v2.0.3 controlled verify runtime, allowlist, side-effect guard, manifest lifecycle, and CLI exit codes.
 - [Platform Reporting](PLATFORM_REPORTING.md): v2.0.5 read-only JSON/Markdown platform reports from registries and compact artifacts.
+- [Platform Run Registry](PLATFORM_RUN_REGISTRY.md): v2.1 local SQLite manifest/artifact registry, lineage, reproducibility index, diagnostics tables, and CLI.
+- [Platform Diagnostics](PLATFORM_DIAGNOSTICS.md): v2.1.2 registry policy diagnostics, evidence-gap analysis, registered claim decisions, and CLI.
+- [Scientific Constraints](SCIENTIFIC_CONSTRAINTS.md): v2.1 unit-aware scientific constraint registry, safe evaluator boundary, XRD example, and CLI.
+- [Scientific Execution](SCIENTIFIC_EXECUTION.md): v2.1 bounded scalar/small-list scientific execution, finding persistence, trust closeout, and local-only outputs.
+- [Scientific Trust Boundary](SCIENTIFIC_TRUST_BOUNDARY.md): v2.1.5 evidence levels, constraint roles, claim matrix, and domain-specific scientific boundaries.
+- [Scientific Feature Candidates](SCIENTIFIC_FEATURE_CANDIDATES.md): v2.1.5 metadata-only physics-aware feature candidate registry and v2.2 builder boundary.
+- [XRD Physics Validation](XRD_PHYSICS_VALIDATION.md): Bragg and Scherrer execution boundary, units, claim limits, and non-goals.
+- [Domain Knowledge Packs](DOMAIN_KNOWLEDGE_PACKS.md): v2.1.4 metadata packs for materials, battery, manufacturing, reliability, and XRD.
+- [Physics-Aware Roadmap](PHYSICS_AWARE_ROADMAP.md): staged path for future physics-aware metadata and descriptors without overclaiming.
 - [Testing Guide](../TESTING.md): current test-running notes.
 
 ## Active Specifications
@@ -30,7 +39,10 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
 - [Platform v2 Plan](PLATFORM_V2_PLAN.md): configuration-driven platform scaffold roadmap.
+- [Platform v2.1 Plan](PLATFORM_V2_1_PLAN.md): local persistent registry and bounded scientific execution roadmap.
+- [Platform v2.1 Closeout](PLATFORM_V2_1_CLOSEOUT.md): v2.1.1-v2.1.5 summary, current boundaries, release-readiness checklist, and v2.2 roadmap.
 - [Platform v2 Closeout](PLATFORM_V2_CLOSEOUT.md): v2.0.1-v2.0.5 scaffold summary, current execution boundary, and v2.1 roadmap.
+- [v2.1.0 Release Notes](releases/V2_1_0.md): persistent registry, bounded scientific execution, scientific trust boundary, and feature-eligibility release notes.
 - [v2.0.0 Release Notes](releases/V2_0_0.md): platform core, controlled execution, onboarding metadata, and read-only reporting release notes.
 - [v1.5.0 Release Notes](releases/V1_5_0.md): Backblaze reliability validation and trust-boundary release notes.
 - [Project Audit](audits/PROJECT_AUDIT.md): earlier project inventory.

@@ -1,0 +1,51 @@
+{
+  "schema_version": "2.1",
+  "config_id": "scientific_constraints_battery_basic",
+  "domain": "battery",
+  "dry_run": true,
+  "constraint_ids": [
+    "battery.capacity.non_negative",
+    "battery.coulombic_efficiency.bounds",
+    "battery.cycle_index.non_decreasing",
+    "battery.temperature.arrhenius_domain"
+  ],
+  "variables": {
+    "capacity": {
+      "values": [
+        2.1,
+        2.08,
+        2.05
+      ],
+      "unit": "Ah"
+    },
+    "coulombic_efficiency": {
+      "values": [
+        0.995,
+        1.001
+      ],
+      "unit": "fraction"
+    },
+    "cycle_index": {
+      "values": [
+        1,
+        2,
+        3
+      ]
+    },
+    "temperature": {
+      "value": 25.0,
+      "unit": "degC"
+    }
+  },
+  "metadata": {
+    "semantic_availability": {
+      "capacity": true,
+      "coulombic_efficiency": true,
+      "cycle_index": true,
+      "temperature": true
+    }
+  },
+  "credential_policy": {
+    "store_credentials": false
+  }
+}

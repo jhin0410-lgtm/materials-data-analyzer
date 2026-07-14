@@ -1,0 +1,57 @@
+{
+  "schema_version": "2.1",
+  "status": "scaffold_stage",
+  "description": "Metadata contract for registered scientific constraints. Equations are display-only; evaluators must be code-registered.",
+  "required_fields": [
+    "constraint_id",
+    "name",
+    "domain",
+    "category",
+    "description",
+    "evaluation_role",
+    "status"
+  ],
+  "allowed_categories": [
+    "domain_constraint",
+    "conservation_constraint",
+    "dimensional_constraint",
+    "monotonic_constraint",
+    "constitutive_relation",
+    "empirical_engineering_law",
+    "thermodynamic_constraint",
+    "kinetic_constraint",
+    "geometric_structural_constraint",
+    "measurement_constraint",
+    "physics_inspired_feature",
+    "hybrid_residual_model_contract"
+  ],
+  "allowed_evaluation_roles": [
+    "metadata_only",
+    "unit_check",
+    "range_check",
+    "consistency_check",
+    "derived_feature",
+    "model_constraint",
+    "post_prediction_check"
+  ],
+  "v2_1_3_executable_roles": [
+    "metadata_only",
+    "unit_check",
+    "range_check",
+    "consistency_check"
+  ],
+  "allowed_statuses": [
+    "metadata_only",
+    "validation_ready",
+    "feature_candidate",
+    "model_constraint_candidate",
+    "deprecated_candidate"
+  ],
+  "security_policy": {
+    "equation_display_executable": false,
+    "user_supplied_callable_allowed": false,
+    "arbitrary_import_allowed": false,
+    "raw_data_read_allowed": false,
+    "model_training_allowed": false
+  }
+}

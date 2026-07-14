@@ -1,0 +1,44 @@
+{
+  "schema_version": "2.1.5",
+  "status": "release_ready",
+  "description": "Schema for scientific execution trust-boundary evaluations built from persisted scientific execution records.",
+  "required_fields": [
+    "evaluation_id",
+    "execution_id",
+    "knowledge_pack_id",
+    "applicability_status",
+    "execution_status",
+    "evidence_level",
+    "unit_status",
+    "assumption_status",
+    "validity_status",
+    "uncertainty_status",
+    "feature_eligibility",
+    "model_constraint_eligibility",
+    "allowed_claims",
+    "prohibited_claims",
+    "source_execution_hash"
+  ],
+  "allowed_evidence_levels": [
+    "metadata_registered",
+    "applicability_checked",
+    "consistency_checked",
+    "bounded_quantity_estimated",
+    "feature_candidate",
+    "model_constraint_candidate",
+    "independently_validated",
+    "production_validated"
+  ],
+  "claim_boundary_policy": {
+    "independently_validated_default": false,
+    "production_validated_default": false,
+    "physics_informed_feature_used_requires_model_input_evidence": true,
+    "physics_constrained_model_requires_constraint_execution_evidence": true
+  },
+  "security_policy": {
+    "scientific_recomputation_allowed": false,
+    "feature_value_generation_allowed": false,
+    "model_training_allowed": false,
+    "raw_data_read_allowed": false
+  }
+}

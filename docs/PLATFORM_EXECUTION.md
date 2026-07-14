@@ -1,6 +1,6 @@
 # Platform Execution
 
-Status: `scaffold_stage` for v2.0.5.
+Status: `development_stage` for v2.1.2.
 
 v2.0.3 introduces controlled adapter execution for one narrow case:
 `reliability_trust_closeout` in `verify` mode. It verifies existing tracked
@@ -86,6 +86,10 @@ input/output checksums, produced local files, side-effect status, and claim
 boundary. They do not store credentials, usernames, hostnames, or absolute
 paths.
 
+v2.1.1 can optionally ingest terminal manifests into the local run registry
+with `--register-run`. Registration records metadata only and never changes
+the adapter's execution permission or scientific result.
+
 ## Side-Effect Guard
 
 The runtime snapshots protected compact artifact hashes and repository file
@@ -104,6 +108,7 @@ Only files under `outputs/platform_runs/<run_id>/` are allowed.
 python -m src.cli list-executable-adapters
 python -m src.cli show-execution-policy reliability_trust_closeout
 python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify
+python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify --register-run
 python -m src.cli verify-run outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
 ```
 
@@ -120,6 +125,7 @@ Exit codes:
 | 7 | verification mismatch |
 | 8 | runtime failure |
 | 9 | overwrite/path policy violation |
+| 10 | registry conflict or validation failure |
 
 ## Limitations
 
@@ -134,3 +140,7 @@ boundary. Passing onboarding validation never grants runtime permission.
 v2.0.5 platform reporting also does not change this execution boundary. Report
 generation is a read-only local summary of registries and tracked compact
 artifacts, not an adapter execution mode.
+
+v2.1 registry ingestion and diagnostics also do not change this execution
+boundary. They are local metadata and policy-intelligence layers, not an
+execution engine.

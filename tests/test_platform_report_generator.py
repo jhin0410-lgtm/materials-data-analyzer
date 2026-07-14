@@ -10,6 +10,14 @@ from src.platform_core.report_generator import (
     load_report_manifest,
     validate_report_config,
 )
+from src.platform_core.run_registry import store_scientific_trust_evaluation
+from src.platform_core.scientific_execution import (
+    ScientificExecutionRequest,
+    execute_scientific_request,
+    get_scientific_execution,
+    persist_scientific_execution,
+)
+from src.platform_core.scientific_trust import evaluate_scientific_trust
 
 
 def _config(output_dir="outputs/platform_reports/test_platform_report_generator"):
@@ -93,3 +101,36 @@ def test_generated_report_contains_no_local_only_source_artifacts():
     assert "analysis_ready" not in joined
     assert "classification_predictions" not in joined
     assert "data/raw" not in joined
+
+
+def test_report_can_include_stored_scientific_trust_without_recomputing():
+    registry_path = "outputs/platform_registry/test_report_scientific_trust.sqlite3"
+    registry_file = Path(registry_path)
+    if registry_file.exists():
+        registry_file.unlink()
+    request = ScientificExecutionRequest.from_config(
+        {
+            "execution_id": "report_trust_bragg",
+            "knowledge_pack_id": "xrd_crystallography_basic_v1",
+            "constraint_ids": ["xrd.bragg.geometry"],
+            "inputs": [
+                {"variable_id": "two_theta", "value": 44.7, "unit": "degree"},
+                {"variable_id": "wavelength", "value": 1.5406, "unit": "angstrom"},
+            ],
+            "requested_claim_ids": ["dimensionally_consistent"],
+            "persist_findings": True,
+        }
+    )
+    result = execute_scientific_request(request)
+    persist_scientific_execution(request, result, registry_path=registry_path)
+    execution = get_scientific_execution("report_trust_bragg", registry_path=registry_path)
+    store_scientific_trust_evaluation(evaluate_scientific_trust(execution).to_dict(), registry_path=registry_path)
+
+    config = _config("outputs/platform_reports/test_scientific_trust_report")
+    config["include_scientific_trust"] = True
+    config["registry_path"] = registry_path
+    report = generate_report(config, write=False).report
+
+    assert report.scientific_recomputation_performed is False
+    assert report.scientific_trust_summary["status"] == "available"
+    assert report.scientific_trust_summary["evaluation_count"] >= 1

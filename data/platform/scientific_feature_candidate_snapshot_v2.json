@@ -1,0 +1,467 @@
+{
+  "feature_registry_version": "scientific_feature_registry_v2_1_5",
+  "features": [
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "baseline is defined without future/test leakage"
+      ],
+      "definition_summary": "Capacity divided by a predeclared or train-derived baseline.",
+      "domain": "battery",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "battery.capacity_retention",
+      "feature_version": "1",
+      "knowledge_pack_id": "battery_degradation_basic_v1",
+      "leakage_risk": "none",
+      "name": "Capacity-retention candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {
+        "baseline_capacity": "Ah",
+        "capacity": "Ah"
+      },
+      "required_variables": [
+        "capacity",
+        "baseline_capacity"
+      ],
+      "source_constraint_ids": [
+        "battery.capacity.non_negative"
+      ],
+      "validation_status": "bounded_builder_candidate",
+      "validity_conditions": [
+        "baseline is positive"
+      ]
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "integration method is consistent"
+      ],
+      "definition_summary": "Deviation of coulombic efficiency from a documented reference value.",
+      "domain": "battery",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "battery.coulombic_efficiency_deviation",
+      "feature_version": "1",
+      "knowledge_pack_id": "battery_degradation_basic_v1",
+      "leakage_risk": "none",
+      "name": "Coulombic-efficiency deviation candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {
+        "coulombic_efficiency": "fraction"
+      },
+      "required_variables": [
+        "coulombic_efficiency"
+      ],
+      "source_constraint_ids": [
+        "battery.coulombic_efficiency.bounds"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "uses only observations up to prediction origin"
+      ],
+      "definition_summary": "Prior-window resistance slope candidate when resistance semantics are available.",
+      "domain": "battery",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "battery.resistance_growth_rate",
+      "feature_version": "1",
+      "knowledge_pack_id": "battery_degradation_basic_v1",
+      "leakage_risk": "requires_prediction_cutoff",
+      "name": "Resistance-growth-rate candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {},
+      "required_variables": [
+        "resistance",
+        "cycle_index"
+      ],
+      "source_constraint_ids": [
+        "battery.cycle_index.non_decreasing"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "mechanism evidence is unavailable by default"
+      ],
+      "definition_summary": "Temperature exposure metadata candidate, not an Arrhenius mechanism proof.",
+      "domain": "battery",
+      "eligibility_status": "diagnostic_only",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "battery.temperature_exposure_summary",
+      "feature_version": "1",
+      "knowledge_pack_id": "battery_degradation_basic_v1",
+      "leakage_risk": "none",
+      "name": "Temperature-exposure summary candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {
+        "temperature": "K"
+      },
+      "required_variables": [
+        "temperature"
+      ],
+      "source_constraint_ids": [
+        "battery.temperature.arrhenius_domain"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [
+        "process topology and semantic flow variables are required"
+      ],
+      "assumptions": [],
+      "definition_summary": "Mass-balance residual candidate when in/out flow topology and units are known.",
+      "domain": "manufacturing",
+      "eligibility_status": "unavailable_missing_variable",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "manufacturing.mass_balance_residual_candidate",
+      "feature_version": "1",
+      "knowledge_pack_id": "manufacturing_process_basic_v1",
+      "leakage_risk": "none",
+      "name": "Mass-balance residual candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {},
+      "required_variables": [
+        "flow_rate"
+      ],
+      "source_constraint_ids": [
+        "manufacturing.flow.non_negative"
+      ],
+      "validation_status": "validation_required",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [
+        "sensor semantics and equipment limits are required"
+      ],
+      "assumptions": [],
+      "definition_summary": "Distance to a known equipment/process-window boundary when semantics are explicit.",
+      "domain": "manufacturing",
+      "eligibility_status": "diagnostic_only",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "manufacturing.process_window_distance",
+      "feature_version": "1",
+      "knowledge_pack_id": "manufacturing_process_basic_v1",
+      "leakage_risk": "none",
+      "name": "Process-window distance candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {},
+      "required_variables": [
+        "process_value",
+        "equipment_range"
+      ],
+      "source_constraint_ids": [
+        "manufacturing.process_window.closed_interval"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "atomic-radius table is fixed and documented"
+      ],
+      "definition_summary": "Composition-weighted radius mismatch descriptor candidate.",
+      "domain": "materials",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "materials.atomic_radius_mismatch",
+      "feature_version": "1",
+      "knowledge_pack_id": "materials_basic_v1",
+      "leakage_risk": "none",
+      "name": "Atomic-radius mismatch candidate",
+      "output_unit": "angstrom",
+      "prediction_time_available": true,
+      "required_units": {
+        "atomic_radius": "angstrom",
+        "composition_fraction": "fraction"
+      },
+      "required_variables": [
+        "composition_fraction",
+        "atomic_radius"
+      ],
+      "source_constraint_ids": [
+        "materials.composition_fraction.non_negative",
+        "materials.composition_fraction.sum_to_one"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [
+        "element property source and provenance are required"
+      ],
+      "assumptions": [
+        "composition fractions are prediction-time available and normalized"
+      ],
+      "definition_summary": "Weighted average of a vetted element property over composition fractions.",
+      "domain": "materials",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "materials.composition_weighted_mean",
+      "feature_version": "1",
+      "knowledge_pack_id": "materials_basic_v1",
+      "leakage_risk": "none",
+      "name": "Composition-weighted property mean",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {
+        "composition_fraction": "fraction"
+      },
+      "required_variables": [
+        "composition_fraction",
+        "element_property"
+      ],
+      "source_constraint_ids": [
+        "materials.composition_fraction.non_negative",
+        "materials.composition_fraction.sum_to_one"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": [
+        "element property values are finite"
+      ]
+    },
+    {
+      "applicability_requirements": [
+        "element property source and provenance are required"
+      ],
+      "assumptions": [
+        "not a thermodynamic stability claim"
+      ],
+      "definition_summary": "Weighted variance of a vetted element property over composition fractions.",
+      "domain": "materials",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "materials.composition_weighted_variance",
+      "feature_version": "1",
+      "knowledge_pack_id": "materials_basic_v1",
+      "leakage_risk": "none",
+      "name": "Composition-weighted property variance",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {
+        "composition_fraction": "fraction"
+      },
+      "required_variables": [
+        "composition_fraction",
+        "element_property"
+      ],
+      "source_constraint_ids": [
+        "materials.composition_fraction.non_negative",
+        "materials.composition_fraction.sum_to_one"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "ideal mixing approximation only"
+      ],
+      "definition_summary": "Ideal configurational entropy candidate from composition fractions.",
+      "domain": "materials",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "materials.configurational_mixing_entropy",
+      "feature_version": "1",
+      "knowledge_pack_id": "materials_basic_v1",
+      "leakage_risk": "none",
+      "name": "Configurational mixing entropy candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {
+        "composition_fraction": "fraction"
+      },
+      "required_variables": [
+        "composition_fraction"
+      ],
+      "source_constraint_ids": [
+        "materials.composition_fraction.non_negative",
+        "materials.composition_fraction.sum_to_one"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": [
+        "all fractions are non-negative and sum to one"
+      ]
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "electronegativity scale is fixed and documented"
+      ],
+      "definition_summary": "Composition-based electronegativity spread descriptor candidate.",
+      "domain": "materials",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "materials.electronegativity_mismatch",
+      "feature_version": "1",
+      "knowledge_pack_id": "materials_basic_v1",
+      "leakage_risk": "none",
+      "name": "Electronegativity mismatch candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {
+        "composition_fraction": "fraction"
+      },
+      "required_variables": [
+        "composition_fraction",
+        "electronegativity"
+      ],
+      "source_constraint_ids": [
+        "materials.composition_fraction.non_negative",
+        "materials.composition_fraction.sum_to_one"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "does not use final lifetime or future observation end"
+      ],
+      "definition_summary": "Prior-known cumulative exposure or age feature candidate.",
+      "domain": "reliability",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "reliability.cumulative_exposure",
+      "feature_version": "1",
+      "knowledge_pack_id": "reliability_degradation_basic_v1",
+      "leakage_risk": "requires_prediction_cutoff",
+      "name": "Cumulative-exposure candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {},
+      "required_variables": [
+        "cumulative_exposure"
+      ],
+      "source_constraint_ids": [
+        "reliability.cumulative_exposure.non_decreasing"
+      ],
+      "validation_status": "metadata_only",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "rolling window uses only past observations"
+      ],
+      "definition_summary": "Prior-window degradation slope candidate with explicit indicator semantics.",
+      "domain": "reliability",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": null,
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "reliability.degradation_slope",
+      "feature_version": "1",
+      "knowledge_pack_id": "reliability_degradation_basic_v1",
+      "leakage_risk": "requires_prediction_cutoff",
+      "name": "Degradation-slope candidate",
+      "output_unit": null,
+      "prediction_time_available": true,
+      "required_units": {},
+      "required_variables": [
+        "degradation_indicator",
+        "observation_timestamp"
+      ],
+      "source_constraint_ids": [
+        "reliability.degradation_indicator.non_negative"
+      ],
+      "validation_status": "validation_required",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "input is two-theta, not theta",
+        "order is supplied or n=1 default is accepted"
+      ],
+      "definition_summary": "d-spacing estimate from Bragg relation for supplied peak metadata.",
+      "domain": "xrd",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": "check_bragg_geometry",
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "xrd.bragg_d_spacing",
+      "feature_version": "1",
+      "knowledge_pack_id": "xrd_crystallography_basic_v1",
+      "leakage_risk": "none",
+      "name": "Bragg d-spacing candidate",
+      "output_unit": "angstrom",
+      "prediction_time_available": true,
+      "required_units": {
+        "two_theta": "degree",
+        "wavelength": "angstrom"
+      },
+      "required_variables": [
+        "two_theta",
+        "wavelength"
+      ],
+      "source_constraint_ids": [
+        "xrd.bragg.geometry"
+      ],
+      "validation_status": "bounded_builder_candidate",
+      "validity_conditions": []
+    },
+    {
+      "applicability_requirements": [],
+      "assumptions": [
+        "instrumental and strain broadening limitations are documented"
+      ],
+      "definition_summary": "Bounded crystallite-size estimate; not particle size.",
+      "domain": "xrd",
+      "eligibility_status": "eligible_with_metadata_requirement",
+      "evaluator_or_builder_id": "check_scherrer_preconditions",
+      "expected_claim": "physics_informed_feature_available",
+      "feature_id": "xrd.scherrer_crystallite_size",
+      "feature_version": "1",
+      "knowledge_pack_id": "xrd_crystallography_basic_v1",
+      "leakage_risk": "none",
+      "name": "Scherrer crystallite-size candidate",
+      "output_unit": "nm",
+      "prediction_time_available": true,
+      "required_units": {
+        "fwhm": "rad",
+        "two_theta": "degree",
+        "wavelength": "angstrom"
+      },
+      "required_variables": [
+        "two_theta",
+        "wavelength",
+        "fwhm"
+      ],
+      "source_constraint_ids": [
+        "xrd.scherrer.preconditions"
+      ],
+      "validation_status": "bounded_builder_candidate",
+      "validity_conditions": [
+        "FWHM is positive and in radians"
+      ]
+    }
+  ],
+  "schema_version": "2.1.5",
+  "snapshot_type": "scientific_feature_candidate_snapshot",
+  "timestamp_policy": "deterministic_no_timestamp"
+}

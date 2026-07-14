@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.1.5",
+  "status": "release_ready",
+  "description": "Metadata schema for physics-aware feature candidates. Records are eligibility metadata only; they do not generate feature values.",
+  "required_fields": [
+    "feature_id",
+    "domain",
+    "knowledge_pack_id",
+    "source_constraint_ids",
+    "required_variables",
+    "definition_summary",
+    "prediction_time_available",
+    "leakage_risk",
+    "eligibility_status",
+    "validation_status"
+  ],
+  "allowed_eligibility_statuses": [
+    "eligible_bounded",
+    "eligible_with_metadata_requirement",
+    "diagnostic_only",
+    "unavailable_missing_variable",
+    "unavailable_missing_unit",
+    "blocked_leakage_risk",
+    "blocked_invalid_assumption",
+    "blocked_unstable_definition",
+    "blocked_claim_overreach"
+  ],
+  "allowed_validation_statuses": [
+    "metadata_only",
+    "bounded_builder_candidate",
+    "validation_required",
+    "blocked",
+    "deprecated_candidate"
+  ],
+  "security_policy": {
+    "feature_value_generation_allowed": false,
+    "arbitrary_equation_execution_allowed": false,
+    "model_training_allowed": false,
+    "raw_data_read_allowed": false
+  }
+}

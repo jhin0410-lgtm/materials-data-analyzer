@@ -1,0 +1,305 @@
+{
+  "schema_version": "2.1",
+  "schema_name": "platform_registry_schema_v2",
+  "status": "release_ready",
+  "storage_backend": "sqlite3",
+  "default_registry_path": "outputs/platform_registry/platform_registry.sqlite3",
+  "local_only": true,
+  "database_schema_version": 4,
+  "description": "Logical schema for the local persistent platform run and artifact registry. The SQLite DDL lives in src/platform_core/run_registry.py.",
+  "tables": {
+    "runs": {
+      "primary_key": "run_id",
+      "fields": [
+        "run_id",
+        "manifest_kind",
+        "manifest_sha256",
+        "pipeline_id",
+        "plugin_id",
+        "adapter_id",
+        "case_study_id",
+        "stage",
+        "config_sha256",
+        "code_commit",
+        "status",
+        "execution_mode",
+        "dry_run",
+        "started_at",
+        "completed_at",
+        "duration_seconds",
+        "manifest_relative_path",
+        "verification_status",
+        "side_effect_status",
+        "claim_boundary_ref",
+        "created_at"
+      ]
+    },
+    "artifacts": {
+      "primary_key": "artifact_record_id",
+      "fields": [
+        "artifact_record_id",
+        "artifact_id",
+        "run_id",
+        "role",
+        "relative_path",
+        "artifact_type",
+        "format",
+        "checksum_sha256",
+        "size_bytes",
+        "tracked_policy",
+        "local_only",
+        "producer",
+        "provenance_status",
+        "created_at"
+      ],
+      "role_enum": [
+        "input",
+        "output"
+      ]
+    },
+    "lineage": {
+      "primary_key": [
+        "parent_artifact_record_id",
+        "child_artifact_record_id",
+        "relationship"
+      ],
+      "fields": [
+        "parent_artifact_record_id",
+        "child_artifact_record_id",
+        "relationship",
+        "run_id"
+      ]
+    },
+    "warnings": {
+      "primary_key": "warning_id",
+      "fields": [
+        "warning_id",
+        "run_id",
+        "warning_code",
+        "severity",
+        "message"
+      ]
+    },
+    "diagnostic_evaluations": {
+      "primary_key": "evaluation_id",
+      "fields": [
+        "evaluation_id",
+        "run_id",
+        "evaluated_at",
+        "rule_set_version",
+        "overall_status",
+        "promotion_status",
+        "finding_count",
+        "blocker_count",
+        "source_manifest_hash"
+      ],
+      "overall_status_enum": [
+        "passed",
+        "warning",
+        "blocked"
+      ],
+      "promotion_status_enum": [
+        "missing_evidence",
+        "blocked_by_policy",
+        "diagnostic_only",
+        "eligible_for_further_validation"
+      ]
+    },
+    "diagnostic_findings": {
+      "primary_key": "finding_id",
+      "fields": [
+        "finding_id",
+        "evaluation_id",
+        "rule_id",
+        "category",
+        "severity",
+        "status",
+        "message",
+        "remediation_code",
+        "claim_impact",
+        "evidence_refs_json"
+      ],
+      "severity_enum": [
+        "info",
+        "warning",
+        "error",
+        "blocker"
+      ],
+      "status_enum": [
+        "satisfied",
+        "partially_satisfied",
+        "violated",
+        "unavailable",
+        "not_applicable"
+      ]
+    },
+    "evidence_gaps": {
+      "primary_key": "gap_id",
+      "fields": [
+        "gap_id",
+        "evaluation_id",
+        "gap_code",
+        "required_for",
+        "current_status",
+        "impact",
+        "remediation_code",
+        "priority"
+      ]
+    },
+    "claim_evaluations": {
+      "primary_key": "claim_evaluation_id",
+      "fields": [
+        "claim_evaluation_id",
+        "evaluation_id",
+        "claim_id",
+        "status",
+        "supporting_evidence_json",
+        "conflicting_evidence_json",
+        "reason_code"
+      ]
+    },
+    "scientific_executions": {
+      "primary_key": "execution_id",
+      "fields": [
+        "execution_id",
+        "run_id",
+        "knowledge_pack_id",
+        "request_hash",
+        "status",
+        "started_at",
+        "completed_at",
+        "finding_count",
+        "blocker_count",
+        "rule_registry_version",
+        "code_commit",
+        "knowledge_pack_version"
+      ]
+    },
+    "scientific_findings": {
+      "primary_key": "finding_id",
+      "fields": [
+        "finding_id",
+        "execution_id",
+        "constraint_id",
+        "evaluator_id",
+        "status",
+        "severity",
+        "message_code",
+        "claim_impact",
+        "normalized_values_json",
+        "assumptions_json",
+        "evidence_refs_json"
+      ]
+    },
+    "scientific_claim_evaluations": {
+      "primary_key": "claim_eval_id",
+      "fields": [
+        "claim_eval_id",
+        "execution_id",
+        "claim_id",
+        "status",
+        "support_refs_json",
+        "conflict_refs_json",
+        "reason_code"
+      ]
+    },
+    "scientific_unit_conversions": {
+      "primary_key": "conversion_id",
+      "fields": [
+        "conversion_id",
+        "execution_id",
+        "variable_id",
+        "original_value",
+        "original_unit",
+        "normalized_value",
+        "normalized_unit",
+        "conversion_status"
+      ]
+    },
+    "scientific_trust_evaluations": {
+      "primary_key": "trust_evaluation_id",
+      "fields": [
+        "trust_evaluation_id",
+        "execution_id",
+        "trust_policy_version",
+        "overall_status",
+        "evidence_level",
+        "feature_eligible_count",
+        "model_constraint_eligible_count",
+        "blocker_count",
+        "source_execution_hash",
+        "created_at"
+      ]
+    },
+    "scientific_constraint_eligibility": {
+      "primary_key": "eligibility_id",
+      "fields": [
+        "eligibility_id",
+        "trust_evaluation_id",
+        "constraint_id",
+        "role",
+        "eligibility_status",
+        "reason_codes_json",
+        "remediation_codes_json"
+      ]
+    },
+    "scientific_feature_eligibility": {
+      "primary_key": "feature_eligibility_id",
+      "fields": [
+        "feature_eligibility_id",
+        "trust_evaluation_id",
+        "feature_id",
+        "eligibility_status",
+        "prediction_time_available",
+        "leakage_status",
+        "assumption_status",
+        "reason_codes_json"
+      ]
+    },
+    "scientific_claim_boundaries": {
+      "primary_key": "boundary_id",
+      "fields": [
+        "boundary_id",
+        "trust_evaluation_id",
+        "claim_id",
+        "status",
+        "support_refs_json",
+        "conflict_refs_json",
+        "reason_code"
+      ]
+    },
+    "registry_metadata": {
+      "primary_key": "metadata_id",
+      "fields": [
+        "schema_version",
+        "created_at",
+        "updated_at"
+      ]
+    }
+  },
+  "reproducibility_statuses": [
+    "reproducible_verified",
+    "reproducible_partial",
+    "unverifiable_missing_input",
+    "unverifiable_checksum_mismatch",
+    "unverifiable_code_commit",
+    "unverifiable_config",
+    "blocked_policy_violation"
+  ],
+  "run_comparison_statuses": [
+    "identical_metadata",
+    "reproducible_equivalent",
+    "configuration_changed",
+    "inputs_changed",
+    "code_changed",
+    "outputs_changed",
+    "incomparable"
+  ],
+  "security_rules": [
+    "Registry paths must be repository-relative and under outputs/platform_registry.",
+    "Stored manifest and artifact paths must be relative.",
+    "Credentials, usernames, hostnames, raw rows, and environment dumps are not stored.",
+    "Values are written through parameterized sqlite3 queries.",
+    "Registry operations do not execute adapters, subprocesses, network calls, acquisition, or model training."
+  ]
+}

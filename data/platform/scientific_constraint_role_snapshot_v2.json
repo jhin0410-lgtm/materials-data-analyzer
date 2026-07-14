@@ -1,0 +1,271 @@
+{
+  "roles": [
+    {
+      "category": "domain_constraint",
+      "constraint_id": "battery.capacity.non_negative",
+      "constraint_status": "validation_ready",
+      "domain": "battery",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "measurement_constraint",
+      "constraint_id": "battery.coulombic_efficiency.bounds",
+      "constraint_status": "validation_ready",
+      "domain": "battery",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "monotonic_constraint",
+      "constraint_id": "battery.cycle_index.non_decreasing",
+      "constraint_status": "validation_ready",
+      "domain": "battery",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "kinetic_constraint",
+      "constraint_id": "battery.temperature.arrhenius_domain",
+      "constraint_status": "validation_ready",
+      "domain": "battery",
+      "eligibility_status": "metadata_only",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "documentation_only"
+    },
+    {
+      "category": "kinetic_constraint",
+      "constraint_id": "battery.temperature.arrhenius_domain",
+      "constraint_status": "validation_ready",
+      "domain": "battery",
+      "eligibility_status": "blocked_invalid_assumption",
+      "reason_codes": [
+        "mechanism_or_monotonicity_not_universal"
+      ],
+      "remediation_codes": [
+        "document_mechanism_and_exception_scope"
+      ],
+      "role": "model_constraint_candidate"
+    },
+    {
+      "category": "domain_constraint",
+      "constraint_id": "manufacturing.flow.non_negative",
+      "constraint_status": "validation_ready",
+      "domain": "manufacturing",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "domain_constraint",
+      "constraint_id": "manufacturing.process_window.closed_interval",
+      "constraint_status": "metadata_only",
+      "domain": "manufacturing",
+      "eligibility_status": "metadata_only",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "documentation_only"
+    },
+    {
+      "category": "domain_constraint",
+      "constraint_id": "materials.composition_fraction.non_negative",
+      "constraint_status": "validation_ready",
+      "domain": "materials",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "conservation_constraint",
+      "constraint_id": "materials.composition_fraction.sum_to_one",
+      "constraint_status": "validation_ready",
+      "domain": "materials",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "post_prediction_check"
+    },
+    {
+      "category": "conservation_constraint",
+      "constraint_id": "materials.composition_fraction.sum_to_one",
+      "constraint_status": "validation_ready",
+      "domain": "materials",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "thermodynamic_constraint",
+      "constraint_id": "materials.energy_above_hull.non_negative_tolerance",
+      "constraint_status": "validation_ready",
+      "domain": "materials",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "diagnostic_only"
+    },
+    {
+      "category": "thermodynamic_constraint",
+      "constraint_id": "materials.energy_above_hull.non_negative_tolerance",
+      "constraint_status": "validation_ready",
+      "domain": "materials",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "domain_constraint",
+      "constraint_id": "materials.oxidation_state.charge_balance_metadata",
+      "constraint_status": "metadata_only",
+      "domain": "materials",
+      "eligibility_status": "metadata_only",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "documentation_only"
+    },
+    {
+      "category": "monotonic_constraint",
+      "constraint_id": "reliability.cumulative_exposure.non_decreasing",
+      "constraint_status": "validation_ready",
+      "domain": "reliability",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "domain_constraint",
+      "constraint_id": "reliability.degradation_indicator.non_negative",
+      "constraint_status": "validation_ready",
+      "domain": "reliability",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "measurement_constraint",
+      "constraint_id": "reliability.post_event.feature_prohibition",
+      "constraint_status": "metadata_only",
+      "domain": "reliability",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "post_prediction_check"
+    },
+    {
+      "category": "measurement_constraint",
+      "constraint_id": "reliability.post_event.feature_prohibition",
+      "constraint_status": "metadata_only",
+      "domain": "reliability",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "geometric_structural_constraint",
+      "constraint_id": "xrd.bragg.geometry",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "requires_execution_evidence",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "bounded_quantity_estimated"
+    },
+    {
+      "category": "geometric_structural_constraint",
+      "constraint_id": "xrd.bragg.geometry",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "metadata_candidate",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "derived_feature_candidate"
+    },
+    {
+      "category": "geometric_structural_constraint",
+      "constraint_id": "xrd.bragg.geometry",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "domain_constraint",
+      "constraint_id": "xrd.crystallite_size.positive",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "post_prediction_check"
+    },
+    {
+      "category": "domain_constraint",
+      "constraint_id": "xrd.crystallite_size.positive",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "empirical_engineering_law",
+      "constraint_id": "xrd.scherrer.preconditions",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "requires_execution_evidence",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "bounded_quantity_estimated"
+    },
+    {
+      "category": "empirical_engineering_law",
+      "constraint_id": "xrd.scherrer.preconditions",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "metadata_candidate",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "derived_feature_candidate"
+    },
+    {
+      "category": "measurement_constraint",
+      "constraint_id": "xrd.two_theta.valid_range",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    },
+    {
+      "category": "measurement_constraint",
+      "constraint_id": "xrd.wavelength.positive",
+      "constraint_status": "validation_ready",
+      "domain": "xrd",
+      "eligibility_status": "eligible_metadata",
+      "reason_codes": [],
+      "remediation_codes": [],
+      "role": "validation_only"
+    }
+  ],
+  "schema_version": "2.1.5",
+  "snapshot_type": "scientific_constraint_role_snapshot",
+  "timestamp_policy": "deterministic_no_timestamp"
+}

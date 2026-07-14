@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `scaffold_stage` for v2.0.5.
+Status: `release_ready` for v2.1.5.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -23,6 +23,16 @@ changing output schemas, or replacing `src/process_data.py`.
   and onboarding readiness without forcing old scripts into one abstraction.
 - Report read-only: platform reports summarize registries and tracked compact
   artifacts without recomputing scientific results.
+- Persistent local registry: v2.1.1 can ingest run/report manifests into a
+  local SQLite metadata index without rerunning scientific workflows.
+- Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
+  gaps, claim decisions, and evidence graphs from persisted metadata only.
+- Scientific metadata first: v2.1 adds bounded scientific execution on top of
+  unit-aware constraints, domain-knowledge packs, applicability checks, and
+  XRD Bragg/Scherrer examples without raw-data reads or model training.
+- Trust boundaries before features: v2.1.5 classifies scientific evidence
+  levels, constraint roles, feature-candidate eligibility, and prohibited
+  physics claims before any feature builder or model integration.
 
 ## Component Boundaries
 
@@ -59,6 +69,26 @@ In code:
 - `src/platform_core/reports.py`: platform report data model
 - `src/platform_core/report_extractors.py`: explicit compact-artifact extractors
 - `src/platform_core/report_generator.py`: JSON/Markdown report renderer and local-only writer
+- `src/platform_core/run_registry.py`: local SQLite run/artifact registry
+- `src/platform_core/registry_service.py`: service wrapper for registry CLI operations
+- `src/platform_core/diagnostic_rules.py`: static diagnostics rule definitions
+- `src/platform_core/diagnostic_service.py`: run-registry diagnostic orchestration
+- `src/platform_core/claim_diagnostics.py`: registered machine-readable claim decisions
+- `src/platform_core/evidence_graph.py`: in-memory evidence graph summaries
+- `src/platform_core/units.py`: small unit/dimension registry
+- `src/platform_core/scientific_constraints.py`: scientific constraint data model
+- `src/platform_core/scientific_evaluators.py`: code-registered safe evaluator functions
+- `src/platform_core/scientific_constraint_registry.py`: explicit scientific constraint registry
+- `src/platform_core/domain_knowledge.py`: domain-knowledge pack registry
+- `src/platform_core/scientific_applicability.py`: small JSON applicability and validation checks
+- `src/platform_core/scientific_execution.py`: bounded scientific execution,
+  unit normalization, finding persistence, and local-only result writing
+- `src/platform_core/scientific_feature_candidates.py`: metadata model for
+  physics-aware feature candidates
+- `src/platform_core/scientific_feature_registry.py`: explicit feature-candidate
+  registry and validation
+- `src/platform_core/scientific_trust.py`: scientific trust-boundary and
+  feature-eligibility evaluation from stored execution evidence
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/cli.py`: unified CLI scaffold
 
@@ -159,6 +189,44 @@ when requested with `--write-manifest`. Manifests are local-only and ignored by
 Git.
 v2.0.3 also writes terminal execution manifests for approved verify runs.
 
+## Persistent Run Registry
+
+v2.1.1 adds a local-only SQLite registry under `outputs/platform_registry/`.
+It can ingest run manifests and platform report manifests, store artifact
+instances and lineage, compute metadata-only reproducibility status, compare
+runs, validate registry integrity, and export local JSON/CSV summaries.
+
+The registry is not a workflow scheduler and does not execute acquisition,
+model training, raw-data reads, trust analyzers, or scientific recomputation.
+See [`PLATFORM_RUN_REGISTRY.md`](PLATFORM_RUN_REGISTRY.md).
+
+## Registry Diagnostics
+
+v2.1.2 adds deterministic diagnostics over persisted registry metadata. The
+diagnostic layer connects runs to validation policies, trust policies,
+artifact policy, reproducibility status, and registered claim IDs. It records
+findings, evidence gaps, claim evaluations, and evidence graphs in local
+SQLite tables without rerunning the underlying science.
+
+See [`PLATFORM_DIAGNOSTICS.md`](PLATFORM_DIAGNOSTICS.md).
+
+## Scientific Constraint And Trust Registry
+
+v2.1 adds bounded execution for registered evaluator IDs and explicit
+scalar/small-list inputs. The first explicit examples are XRD Bragg/Scherrer
+metadata checks. Equations are display-only and are never parsed from config.
+v2.1.5 adds scientific trust evaluation over stored execution evidence:
+constraint roles, evidence levels, feature-candidate eligibility, and claim
+boundaries are recorded without generating feature values or training models.
+
+See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
+[`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
+[`SCIENTIFIC_TRUST_BOUNDARY.md`](SCIENTIFIC_TRUST_BOUNDARY.md),
+[`SCIENTIFIC_FEATURE_CANDIDATES.md`](SCIENTIFIC_FEATURE_CANDIDATES.md),
+[`XRD_PHYSICS_VALIDATION.md`](XRD_PHYSICS_VALIDATION.md),
+[`DOMAIN_KNOWLEDGE_PACKS.md`](DOMAIN_KNOWLEDGE_PACKS.md), and
+[`PHYSICS_AWARE_ROADMAP.md`](PHYSICS_AWARE_ROADMAP.md).
+
 ## Unified CLI
 
 The scaffold is available with:
@@ -188,7 +256,26 @@ python -m src.cli generate-report --config configs/examples/platform_report_all_
 python -m src.cli validate-report outputs/platform_reports/platform_v2_all_case_studies
 python -m src.cli inspect-report outputs/platform_reports/platform_v2_all_case_studies
 python -m src.cli list-report-sources
+python -m src.cli registry-init
+python -m src.cli registry-ingest outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
+python -m src.cli registry-list-runs
+python -m src.cli registry-reproducibility reliability-trust-verify-run
+python -m src.cli registry-export --overwrite
+python -m src.cli diagnose-run reliability-trust-verify-run
+python -m src.cli show-diagnostics reliability-trust-verify-run
+python -m src.cli evaluate-claim reliability-trust-verify-run production_deployment
 python -m src.cli show-policy reliability_asset_time_aware
+python -m src.cli list-scientific-constraints
+python -m src.cli inspect-scientific-constraint xrd.scherrer.preconditions
+python -m src.cli list-knowledge-packs
+python -m src.cli validate-scientific-input configs/examples/scientific_constraints_xrd_bragg_scherrer.json
+python -m src.cli convert-unit --value 25 --from degC --to K
+python -m src.cli export-scientific-registry --output outputs/platform_science/scientific_registry.json --overwrite
+python -m src.cli preview-scientific-check configs/examples/xrd_bragg_consistent_check.json
+python -m src.cli execute-scientific-check configs/examples/xrd_scherrer_uncorrected_check.json --persist
+python -m src.cli evaluate-scientific-trust xrd_scherrer_uncorrected_check
+python -m src.cli list-scientific-feature-candidates
+python -m src.cli scientific-trust-validate
 python -m src.cli show-version
 ```
 
