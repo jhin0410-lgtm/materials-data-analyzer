@@ -29,6 +29,19 @@ from .platform_core.execution_runtime import (
     VerificationMismatchError,
     execute_adapter_runtime,
 )
+from .platform_core.diagnostic_service import (
+    DiagnosticSchemaError,
+    UnsupportedRuleSet,
+    compare_diagnostic_evaluations,
+    diagnose_run,
+    diagnostic_summary_exit_status,
+    diagnostics_validate,
+    evaluate_claim,
+    export_diagnostics,
+    list_diagnostic_findings,
+    list_evidence_gaps,
+    show_diagnostics,
+)
 from .platform_core.manifests import (
     build_run_manifest,
     default_manifest_output,
@@ -68,6 +81,12 @@ EXIT_VERIFICATION_MISMATCH = 7
 EXIT_RUNTIME_FAILURE = 8
 EXIT_PATH_POLICY = 9
 EXIT_REGISTRY = 10
+EXIT_DIAGNOSTIC_WARNING = 10
+EXIT_DIAGNOSTIC_BLOCKER = 11
+EXIT_DIAGNOSTIC_RUN_NOT_FOUND = 12
+EXIT_DIAGNOSTIC_POLICY_MISSING = 13
+EXIT_DIAGNOSTIC_SCHEMA = 14
+EXIT_DIAGNOSTIC_RULESET = 15
 
 
 def _registries() -> tuple[Any, Any, Any, Any, Any, Any]:
@@ -128,6 +147,31 @@ def _registry_error_code(exc: Exception) -> int:
 
 def _emit_registry_error(args: argparse.Namespace, status: str, exc: Exception) -> int:
     code = _registry_error_code(exc)
+    payload = {"status": status, "exit_code": code, "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"{status}: {exc}", file=sys.stderr)
+    return code
+
+
+def _diagnostic_error_code(exc: Exception) -> int:
+    if isinstance(exc, UnsupportedRuleSet):
+        return EXIT_DIAGNOSTIC_RULESET
+    if isinstance(exc, DiagnosticSchemaError):
+        return EXIT_DIAGNOSTIC_SCHEMA
+    if isinstance(exc, KeyError):
+        message = str(exc)
+        if "run_id" in message or "no diagnostics" in message:
+            return EXIT_DIAGNOSTIC_RUN_NOT_FOUND
+        return EXIT_DIAGNOSTIC_POLICY_MISSING
+    if isinstance(exc, RunRegistryError):
+        return EXIT_DIAGNOSTIC_SCHEMA
+    return EXIT_RUNTIME_FAILURE
+
+
+def _emit_diagnostic_error(args: argparse.Namespace, status: str, exc: Exception) -> int:
+    code = _diagnostic_error_code(exc)
     payload = {"status": status, "exit_code": code, "error": str(exc)}
     if args.json:
         _emit_json(payload)
@@ -1171,6 +1215,191 @@ def _cmd_registry_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_diagnose_run(args: argparse.Namespace) -> int:
+    try:
+        report = diagnose_run(
+            args.run_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            rule_set=args.rule_set,
+            persist=not args.no_persist,
+            check_files=bool(args.check_files),
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "diagnose_run_failed", exc)
+    payload = report.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        evaluation = payload["evaluation"]
+        _emit_lines(
+            [
+                f"run_id: {evaluation['run_id']}",
+                f"evaluation_id: {evaluation['evaluation_id']}",
+                f"overall_status: {evaluation['overall_status']}",
+                f"promotion_status: {evaluation['promotion_status']}",
+                f"findings: {evaluation['finding_count']}",
+                f"blockers: {evaluation['blocker_count']}",
+                f"evidence_gaps: {len(payload['evidence_gaps'])}",
+            ]
+        )
+    return diagnostic_summary_exit_status(report)
+
+
+def _cmd_show_diagnostics(args: argparse.Namespace) -> int:
+    try:
+        payload = show_diagnostics(args.run_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "show_diagnostics_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        evaluation = payload["evaluation"]
+        _emit_lines(
+            [
+                f"run_id: {evaluation['run_id']}",
+                f"evaluation_id: {evaluation['evaluation_id']}",
+                f"overall_status: {evaluation['overall_status']}",
+                f"promotion_status: {evaluation['promotion_status']}",
+                f"findings: {len(payload['findings'])}",
+                f"evidence_gaps: {len(payload['evidence_gaps'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_findings(args: argparse.Namespace) -> int:
+    try:
+        payload = list_diagnostic_findings(
+            run_id=args.run_id,
+            severity=args.severity,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "list_findings_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{item['run_id']}\t{item['rule_id']}\t{item['severity']}\t{item['status']}\t{item['claim_impact']}"
+                for item in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_list_evidence_gaps(args: argparse.Namespace) -> int:
+    try:
+        payload = list_evidence_gaps(args.run_id, repo_root=Path.cwd(), registry_path=args.registry_path)
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "list_evidence_gaps_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{item['gap_code']}\t{item['priority']}\t{item['current_status']}\t{item['impact']}"
+                for item in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_evaluate_claim(args: argparse.Namespace) -> int:
+    try:
+        payload = evaluate_claim(
+            args.run_id,
+            args.claim_id,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            rule_set=args.rule_set,
+            persist=not args.no_persist,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "evaluate_claim_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"claim_id: {payload['claim_id']}",
+                f"status: {payload['status']}",
+                f"reason_code: {payload['reason_code']}",
+            ]
+        )
+    return 0 if payload["status"] == "supported" else EXIT_DIAGNOSTIC_WARNING
+
+
+def _cmd_compare_diagnostics(args: argparse.Namespace) -> int:
+    try:
+        payload = compare_diagnostic_evaluations(
+            args.run_a,
+            args.run_b,
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "compare_diagnostics_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"run_a: {payload['run_a']}",
+                f"run_b: {payload['run_b']}",
+                f"promotion_status_change: {payload['promotion_status_change'][0]} -> {payload['promotion_status_change'][1]}",
+                f"newly_violated_rules: {', '.join(payload['newly_violated_rules']) if payload['newly_violated_rules'] else 'none'}",
+                f"new_gaps: {', '.join(payload['new_gaps']) if payload['new_gaps'] else 'none'}",
+            ]
+        )
+    return 0
+
+
+def _cmd_diagnostics_validate(args: argparse.Namespace) -> int:
+    try:
+        payload = diagnostics_validate(repo_root=Path.cwd(), registry_path=args.registry_path)
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "diagnostics_validate_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"registry_path: {payload['registry_path']}",
+                *[f"error: {error}" for error in payload["errors"]],
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_DIAGNOSTIC_SCHEMA
+
+
+def _cmd_diagnostics_export(args: argparse.Namespace) -> int:
+    try:
+        payload = export_diagnostics(
+            repo_root=Path.cwd(),
+            registry_path=args.registry_path,
+            export_dir=args.export_dir,
+            overwrite=args.overwrite,
+        )
+    except Exception as exc:
+        return _emit_diagnostic_error(args, "diagnostics_export_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"json_path: {payload['json_path']}",
+                f"csv_path: {payload['csv_path']}",
+                f"evaluation_count: {payload['evaluation_count']}",
+                f"finding_count: {payload['finding_count']}",
+            ]
+        )
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -1367,6 +1596,54 @@ def build_parser() -> argparse.ArgumentParser:
     registry_export_parser.add_argument("--overwrite", action="store_true")
     add_registry_path(registry_export_parser)
     registry_export_parser.set_defaults(func=_cmd_registry_export)
+
+    diagnose_run_parser = subparsers.add_parser("diagnose-run", help="evaluate deterministic policy diagnostics for one run")
+    diagnose_run_parser.add_argument("run_id")
+    diagnose_run_parser.add_argument("--rule-set", default="diagnostic_rules_v1")
+    diagnose_run_parser.add_argument("--no-persist", action="store_true", help="do not store the diagnostic evaluation")
+    diagnose_run_parser.add_argument("--check-files", action="store_true", help="verify tracked artifact checksums when files exist")
+    add_registry_path(diagnose_run_parser)
+    diagnose_run_parser.set_defaults(func=_cmd_diagnose_run)
+
+    show_diagnostics_parser = subparsers.add_parser("show-diagnostics", help="show the latest persisted diagnostics for one run")
+    show_diagnostics_parser.add_argument("run_id")
+    add_registry_path(show_diagnostics_parser)
+    show_diagnostics_parser.set_defaults(func=_cmd_show_diagnostics)
+
+    findings_parser = subparsers.add_parser("list-findings", help="list persisted diagnostic findings")
+    findings_parser.add_argument("--run-id")
+    findings_parser.add_argument("--severity", choices=["info", "warning", "error", "blocker"])
+    add_registry_path(findings_parser)
+    findings_parser.set_defaults(func=_cmd_list_findings)
+
+    gaps_parser = subparsers.add_parser("list-evidence-gaps", help="list evidence gaps for one diagnosed run")
+    gaps_parser.add_argument("run_id")
+    add_registry_path(gaps_parser)
+    gaps_parser.set_defaults(func=_cmd_list_evidence_gaps)
+
+    claim_parser = subparsers.add_parser("evaluate-claim", help="evaluate one registered claim against persisted run evidence")
+    claim_parser.add_argument("run_id")
+    claim_parser.add_argument("claim_id")
+    claim_parser.add_argument("--rule-set", default="diagnostic_rules_v1")
+    claim_parser.add_argument("--no-persist", action="store_true")
+    add_registry_path(claim_parser)
+    claim_parser.set_defaults(func=_cmd_evaluate_claim)
+
+    compare_diagnostics_parser = subparsers.add_parser("compare-diagnostics", help="compare latest diagnostic evaluations for two runs")
+    compare_diagnostics_parser.add_argument("run_a")
+    compare_diagnostics_parser.add_argument("run_b")
+    add_registry_path(compare_diagnostics_parser)
+    compare_diagnostics_parser.set_defaults(func=_cmd_compare_diagnostics)
+
+    diagnostics_validate_parser = subparsers.add_parser("diagnostics-validate", help="validate diagnostic registry tables")
+    add_registry_path(diagnostics_validate_parser)
+    diagnostics_validate_parser.set_defaults(func=_cmd_diagnostics_validate)
+
+    diagnostics_export_parser = subparsers.add_parser("diagnostics-export", help="export a local diagnostics snapshot")
+    diagnostics_export_parser.add_argument("--export-dir", default="outputs/platform_registry/exports/diagnostics")
+    diagnostics_export_parser.add_argument("--overwrite", action="store_true")
+    add_registry_path(diagnostics_export_parser)
+    diagnostics_export_parser.set_defaults(func=_cmd_diagnostics_export)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

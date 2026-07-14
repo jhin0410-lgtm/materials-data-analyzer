@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `development_stage` for v2.1.1.
+Status: `development_stage` for v2.1.2.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -25,6 +25,8 @@ changing output schemas, or replacing `src/process_data.py`.
   artifacts without recomputing scientific results.
 - Persistent local registry: v2.1.1 can ingest run/report manifests into a
   local SQLite metadata index without rerunning scientific workflows.
+- Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
+  gaps, claim decisions, and evidence graphs from persisted metadata only.
 
 ## Component Boundaries
 
@@ -63,6 +65,10 @@ In code:
 - `src/platform_core/report_generator.py`: JSON/Markdown report renderer and local-only writer
 - `src/platform_core/run_registry.py`: local SQLite run/artifact registry
 - `src/platform_core/registry_service.py`: service wrapper for registry CLI operations
+- `src/platform_core/diagnostic_rules.py`: static diagnostics rule definitions
+- `src/platform_core/diagnostic_service.py`: run-registry diagnostic orchestration
+- `src/platform_core/claim_diagnostics.py`: registered machine-readable claim decisions
+- `src/platform_core/evidence_graph.py`: in-memory evidence graph summaries
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/cli.py`: unified CLI scaffold
 
@@ -174,6 +180,16 @@ The registry is not a workflow scheduler and does not execute acquisition,
 model training, raw-data reads, trust analyzers, or scientific recomputation.
 See [`PLATFORM_RUN_REGISTRY.md`](PLATFORM_RUN_REGISTRY.md).
 
+## Registry Diagnostics
+
+v2.1.2 adds deterministic diagnostics over persisted registry metadata. The
+diagnostic layer connects runs to validation policies, trust policies,
+artifact policy, reproducibility status, and registered claim IDs. It records
+findings, evidence gaps, claim evaluations, and evidence graphs in local
+SQLite tables without rerunning the underlying science.
+
+See [`PLATFORM_DIAGNOSTICS.md`](PLATFORM_DIAGNOSTICS.md).
+
 ## Unified CLI
 
 The scaffold is available with:
@@ -208,6 +224,9 @@ python -m src.cli registry-ingest outputs/platform_runs/reliability-trust-verify
 python -m src.cli registry-list-runs
 python -m src.cli registry-reproducibility reliability-trust-verify-run
 python -m src.cli registry-export --overwrite
+python -m src.cli diagnose-run reliability-trust-verify-run
+python -m src.cli show-diagnostics reliability-trust-verify-run
+python -m src.cli evaluate-claim reliability-trust-verify-run production_deployment
 python -m src.cli show-policy reliability_asset_time_aware
 python -m src.cli show-version
 ```

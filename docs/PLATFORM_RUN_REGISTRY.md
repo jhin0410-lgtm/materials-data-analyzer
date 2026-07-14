@@ -1,10 +1,11 @@
 # Platform Run Registry
 
-Status: `development_stage` for v2.1.1.
+Status: `development_stage` for v2.1.2.
 
 The platform run registry is a local-only SQLite metadata index for run
 manifests, report manifests, artifact instances, lineage, and reproducibility
-checks. It extends the v2.0 manifest/report scaffold without executing
+checks. v2.1.2 adds policy diagnostic and evidence-gap tables. The registry
+extends the v2.0 manifest/report scaffold without executing
 acquisition, model training, raw-data reads, or scientific recomputation.
 
 ## Purpose
@@ -18,6 +19,8 @@ The registry answers operational questions about platform metadata:
 - Can a run be treated as reproducibility-verified from metadata?
 - Are two runs metadata-equivalent, or did config, inputs, code, or outputs
   change?
+- Which policy diagnostics, evidence gaps, and registered claim decisions were
+  recorded for a run?
 
 It does not store raw rows, model binaries, credentials, host inventory,
 environment secrets, usernames, or absolute local paths.
@@ -48,11 +51,16 @@ Tables:
 - `artifacts`: input/output artifact instances declared by a run
 - `lineage`: input-to-output artifact relationships within a run
 - `warnings`: warnings and errors imported from the manifest
+- `diagnostic_evaluations`: deterministic policy diagnostic evaluation records
+- `diagnostic_findings`: rule-level provenance, validation, trust, claim, and
+  execution findings
+- `evidence_gaps`: machine-readable missing-evidence or policy-gap records
+- `claim_evaluations`: registered claim support/prohibition decisions
 - `registry_metadata`: schema version and timestamps
 
-The initial database schema version is `1`. Newer unsupported schema versions
-are rejected. Migration support is intentionally minimal until the registry has
-more production history.
+The current database schema version is `2`. Existing schema-version-1 local
+registries are migrated in place by adding diagnostics tables; newer
+unsupported schema versions are rejected.
 
 ## Manifest Ingestion
 
@@ -122,7 +130,18 @@ Comparison statuses:
 - `outputs_changed`
 - `incomparable`
 
-Numeric metric comparison is intentionally out of scope for v2.1.1.
+Numeric metric comparison is intentionally out of scope for v2.1.2.
+
+## Policy Diagnostics
+
+v2.1.2 diagnostics connect persisted runs to the validation and trust policy
+registries. They evaluate static, code-registered rules for provenance,
+artifact policy, validation hierarchy, train-only preprocessing, trust policy,
+production/calibration claim boundaries, and side-effect status.
+
+Diagnostics do not execute adapters, import user-provided module paths, read
+raw data, recompute metrics, train models, or call network APIs. See
+[`PLATFORM_DIAGNOSTICS.md`](PLATFORM_DIAGNOSTICS.md).
 
 ## CLI Usage
 
@@ -158,6 +177,17 @@ Validate and export:
 ```powershell
 python -m src.cli registry-validate
 python -m src.cli registry-export --overwrite
+```
+
+Evaluate diagnostics:
+
+```powershell
+python -m src.cli diagnose-run reliability-trust-verify-run
+python -m src.cli show-diagnostics reliability-trust-verify-run
+python -m src.cli list-findings --run-id reliability-trust-verify-run
+python -m src.cli list-evidence-gaps reliability-trust-verify-run
+python -m src.cli evaluate-claim reliability-trust-verify-run production_deployment
+python -m src.cli diagnostics-validate
 ```
 
 Existing commands can opt into registration:
@@ -198,6 +228,7 @@ The current export writes:
 
 - `registry_snapshot.json`
 - `runs.csv`
+- optional diagnostics exports under `outputs/platform_registry/exports/diagnostics/`
 
 Exports are deterministic enough for local inspection but remain ignored
 regenerable artifacts.

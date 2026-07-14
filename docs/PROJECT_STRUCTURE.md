@@ -81,6 +81,8 @@ models, explicit compact-artifact extractors, registry snapshots, and
 JSON/Markdown report generation under `outputs/platform_reports/`. v2.1.1 adds
 a local-only SQLite run/artifact registry under `outputs/platform_registry/`
 for manifest ingestion, lineage, reproducibility status, and run comparison.
+v2.1.2 adds registry diagnostics, evidence-gap analysis, registered claim
+evaluation, and evidence-graph summaries from persisted metadata only.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -191,7 +193,9 @@ outputs/
 `data/processed/` may contain curated case-study summary tables. `outputs/` contains regenerable analyzer run outputs and should generally stay local. See [`OUTPUTS_POLICY.md`](OUTPUTS_POLICY.md) for the repository-level outputs policy.
 Platform report outputs are generated under `outputs/platform_reports/` and are
 local-only. Platform registry databases and exports are generated under
-`outputs/platform_registry/` and are also local-only.
+`outputs/platform_registry/` and are also local-only. Registry diagnostic
+tables and exports are metadata-only local artifacts under the same ignored
+path.
 
 For Materials Project, compact tracked candidates include query manifests,
 property inventories, quality summaries, screening summaries, descriptor

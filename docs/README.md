@@ -13,7 +13,8 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
 - [Platform Execution](PLATFORM_EXECUTION.md): v2.0.3 controlled verify runtime, allowlist, side-effect guard, manifest lifecycle, and CLI exit codes.
 - [Platform Reporting](PLATFORM_REPORTING.md): v2.0.5 read-only JSON/Markdown platform reports from registries and compact artifacts.
-- [Platform Run Registry](PLATFORM_RUN_REGISTRY.md): v2.1.1 local SQLite manifest/artifact registry, lineage, reproducibility index, and CLI.
+- [Platform Run Registry](PLATFORM_RUN_REGISTRY.md): v2.1 local SQLite manifest/artifact registry, lineage, reproducibility index, diagnostics tables, and CLI.
+- [Platform Diagnostics](PLATFORM_DIAGNOSTICS.md): v2.1.2 registry policy diagnostics, evidence-gap analysis, registered claim decisions, and CLI.
 - [Testing Guide](../TESTING.md): current test-running notes.
 
 ## Active Specifications

@@ -21,7 +21,7 @@ from .manifests import validate_run_manifest
 from .report_generator import validate_report_manifest
 
 
-REGISTRY_SCHEMA_VERSION = 1
+REGISTRY_SCHEMA_VERSION = 2
 DEFAULT_REGISTRY_PATH = "outputs/platform_registry/platform_registry.sqlite3"
 DEFAULT_EXPORT_DIR = "outputs/platform_registry/exports"
 
@@ -249,8 +249,56 @@ def _initialize_schema(connection: sqlite3.Connection) -> None:
             message TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS diagnostic_evaluations (
+            evaluation_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+            evaluated_at TEXT NOT NULL,
+            rule_set_version TEXT NOT NULL,
+            overall_status TEXT NOT NULL,
+            promotion_status TEXT NOT NULL,
+            finding_count INTEGER NOT NULL,
+            blocker_count INTEGER NOT NULL,
+            source_manifest_hash TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS diagnostic_findings (
+            finding_id TEXT PRIMARY KEY,
+            evaluation_id TEXT NOT NULL REFERENCES diagnostic_evaluations(evaluation_id) ON DELETE CASCADE,
+            rule_id TEXT NOT NULL,
+            category TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            status TEXT NOT NULL,
+            message TEXT NOT NULL,
+            remediation_code TEXT NOT NULL,
+            claim_impact TEXT NOT NULL,
+            evidence_refs_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS evidence_gaps (
+            gap_id TEXT PRIMARY KEY,
+            evaluation_id TEXT NOT NULL REFERENCES diagnostic_evaluations(evaluation_id) ON DELETE CASCADE,
+            gap_code TEXT NOT NULL,
+            required_for TEXT NOT NULL,
+            current_status TEXT NOT NULL,
+            impact TEXT NOT NULL,
+            remediation_code TEXT NOT NULL,
+            priority TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS claim_evaluations (
+            claim_evaluation_id TEXT PRIMARY KEY,
+            evaluation_id TEXT NOT NULL REFERENCES diagnostic_evaluations(evaluation_id) ON DELETE CASCADE,
+            claim_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            supporting_evidence_json TEXT NOT NULL,
+            conflicting_evidence_json TEXT NOT NULL,
+            reason_code TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_artifacts_run_role ON artifacts(run_id, role, artifact_id);
         CREATE INDEX IF NOT EXISTS idx_runs_plugin_stage ON runs(plugin_id, stage, run_id);
+        CREATE INDEX IF NOT EXISTS idx_diag_eval_run ON diagnostic_evaluations(run_id, evaluated_at);
+        CREATE INDEX IF NOT EXISTS idx_diag_findings_eval ON diagnostic_findings(evaluation_id, severity, status);
         """
     )
     row = connection.execute("SELECT schema_version FROM registry_metadata WHERE metadata_id = 1").fetchone()
@@ -273,7 +321,13 @@ def _initialize_schema(connection: sqlite3.Connection) -> None:
 
 
 def _migrate_schema(connection: sqlite3.Connection, current_version: int, target_version: int) -> None:
-    if current_version == 0 and target_version == 1:
+    if current_version == 0 and target_version in {1, 2}:
+        connection.execute(
+            "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
+            (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
+        )
+        return
+    if current_version == 1 and target_version == 2:
         connection.execute(
             "UPDATE registry_metadata SET schema_version = ?, updated_at = ? WHERE metadata_id = 1",
             (REGISTRY_SCHEMA_VERSION, utc_now_iso()),
@@ -1020,4 +1074,246 @@ def export_registry_snapshot(
         "csv_path": csv_path.relative_to(root).as_posix(),
         "run_count": len(snapshot["runs"]),
         "artifact_count": len(snapshot["artifacts"]),
+    }
+
+
+def store_diagnostic_evaluation(
+    evaluation: dict[str, Any],
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> dict[str, Any]:
+    assert_no_sensitive_strings(evaluation)
+    path = initialize_registry(repo_root, registry_path)
+    metadata = evaluation["evaluation"]
+    findings = evaluation.get("findings", [])
+    gaps = evaluation.get("evidence_gaps", [])
+    claims = evaluation.get("claim_evaluations", [])
+    with _connect(path) as connection:
+        _initialize_schema(connection)
+        existing = connection.execute(
+            "SELECT source_manifest_hash FROM diagnostic_evaluations WHERE evaluation_id = ?",
+            (metadata["evaluation_id"],),
+        ).fetchone()
+        if existing is not None:
+            if existing["source_manifest_hash"] == metadata["source_manifest_hash"]:
+                return {
+                    "status": "idempotent",
+                    "evaluation_id": metadata["evaluation_id"],
+                    "run_id": metadata["run_id"],
+                }
+            raise RegistryConflictError(
+                f"evaluation_id already registered with different source metadata: {metadata['evaluation_id']}"
+            )
+        with connection:
+            connection.execute(
+                """
+                INSERT INTO diagnostic_evaluations(
+                    evaluation_id, run_id, evaluated_at, rule_set_version, overall_status,
+                    promotion_status, finding_count, blocker_count, source_manifest_hash
+                )
+                VALUES (
+                    :evaluation_id, :run_id, :evaluated_at, :rule_set_version, :overall_status,
+                    :promotion_status, :finding_count, :blocker_count, :source_manifest_hash
+                )
+                """,
+                metadata,
+            )
+            for finding in findings:
+                connection.execute(
+                    """
+                    INSERT INTO diagnostic_findings(
+                        finding_id, evaluation_id, rule_id, category, severity, status,
+                        message, remediation_code, claim_impact, evidence_refs_json
+                    )
+                    VALUES (
+                        :finding_id, :evaluation_id, :rule_id, :category, :severity, :status,
+                        :message, :remediation_code, :claim_impact, :evidence_refs_json
+                    )
+                    """,
+                    finding,
+                )
+            for gap in gaps:
+                connection.execute(
+                    """
+                    INSERT INTO evidence_gaps(
+                        gap_id, evaluation_id, gap_code, required_for, current_status,
+                        impact, remediation_code, priority
+                    )
+                    VALUES (
+                        :gap_id, :evaluation_id, :gap_code, :required_for, :current_status,
+                        :impact, :remediation_code, :priority
+                    )
+                    """,
+                    gap,
+                )
+            for claim in claims:
+                connection.execute(
+                    """
+                    INSERT INTO claim_evaluations(
+                        claim_evaluation_id, evaluation_id, claim_id, status,
+                        supporting_evidence_json, conflicting_evidence_json, reason_code
+                    )
+                    VALUES (
+                        :claim_evaluation_id, :evaluation_id, :claim_id, :status,
+                        :supporting_evidence_json, :conflicting_evidence_json, :reason_code
+                    )
+                    """,
+                    claim,
+                )
+    return {
+        "status": "stored",
+        "evaluation_id": metadata["evaluation_id"],
+        "run_id": metadata["run_id"],
+        "finding_count": len(findings),
+        "gap_count": len(gaps),
+        "claim_evaluation_count": len(claims),
+    }
+
+
+def latest_diagnostic_evaluation(
+    run_id: str,
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> dict[str, Any]:
+    path = initialize_registry(repo_root, registry_path)
+    with _connect(path) as connection:
+        row = connection.execute(
+            """
+            SELECT * FROM diagnostic_evaluations
+            WHERE run_id = ?
+            ORDER BY evaluated_at DESC, evaluation_id DESC
+            LIMIT 1
+            """,
+            (run_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"no diagnostics for run_id: {run_id}")
+        return _diagnostic_payload(connection, row["evaluation_id"])
+
+
+def _diagnostic_payload(connection: sqlite3.Connection, evaluation_id: str) -> dict[str, Any]:
+    evaluation = connection.execute(
+        "SELECT * FROM diagnostic_evaluations WHERE evaluation_id = ?",
+        (evaluation_id,),
+    ).fetchone()
+    if evaluation is None:
+        raise KeyError(f"unknown evaluation_id: {evaluation_id}")
+    findings = _dicts(
+        connection.execute(
+            "SELECT * FROM diagnostic_findings WHERE evaluation_id = ? ORDER BY severity, rule_id, finding_id",
+            (evaluation_id,),
+        )
+    )
+    gaps = _dicts(
+        connection.execute(
+            "SELECT * FROM evidence_gaps WHERE evaluation_id = ? ORDER BY priority, gap_code, gap_id",
+            (evaluation_id,),
+        )
+    )
+    claims = _dicts(
+        connection.execute(
+            "SELECT * FROM claim_evaluations WHERE evaluation_id = ? ORDER BY claim_id",
+            (evaluation_id,),
+        )
+    )
+    return {
+        "evaluation": dict(evaluation),
+        "findings": findings,
+        "evidence_gaps": gaps,
+        "claim_evaluations": claims,
+    }
+
+
+def list_diagnostic_findings(
+    *,
+    run_id: str | None = None,
+    severity: str | None = None,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> list[dict[str, Any]]:
+    path = initialize_registry(repo_root, registry_path)
+    query = """
+        SELECT f.*, e.run_id FROM diagnostic_findings f
+        JOIN diagnostic_evaluations e ON e.evaluation_id = f.evaluation_id
+    """
+    clauses: list[str] = []
+    params: list[Any] = []
+    if run_id:
+        clauses.append("e.run_id = ?")
+        params.append(run_id)
+    if severity:
+        clauses.append("f.severity = ?")
+        params.append(severity)
+    if clauses:
+        query += " WHERE " + " AND ".join(clauses)
+    query += " ORDER BY e.run_id, f.severity, f.rule_id, f.finding_id"
+    with _connect(path) as connection:
+        return _dicts(connection.execute(query, tuple(params)))
+
+
+def list_evidence_gaps(
+    run_id: str,
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> list[dict[str, Any]]:
+    payload = latest_diagnostic_evaluation(run_id, repo_root=repo_root, registry_path=registry_path)
+    return payload["evidence_gaps"]
+
+
+def get_claim_evaluation(
+    run_id: str,
+    claim_id: str,
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> dict[str, Any]:
+    payload = latest_diagnostic_evaluation(run_id, repo_root=repo_root, registry_path=registry_path)
+    for claim in payload["claim_evaluations"]:
+        if claim["claim_id"] == claim_id:
+            return claim
+    raise KeyError(f"unknown claim_id for run {run_id}: {claim_id}")
+
+
+def compare_diagnostic_evaluations(
+    run_a: str,
+    run_b: str,
+    *,
+    repo_root: str | Path = ".",
+    registry_path: str = DEFAULT_REGISTRY_PATH,
+) -> dict[str, Any]:
+    left = latest_diagnostic_evaluation(run_a, repo_root=repo_root, registry_path=registry_path)
+    right = latest_diagnostic_evaluation(run_b, repo_root=repo_root, registry_path=registry_path)
+    left_rules = {finding["rule_id"]: finding["status"] for finding in left["findings"]}
+    right_rules = {finding["rule_id"]: finding["status"] for finding in right["findings"]}
+    left_gaps = {gap["gap_code"] for gap in left["evidence_gaps"]}
+    right_gaps = {gap["gap_code"] for gap in right["evidence_gaps"]}
+    left_claims = {claim["claim_id"]: claim["status"] for claim in left["claim_evaluations"]}
+    right_claims = {claim["claim_id"]: claim["status"] for claim in right["claim_evaluations"]}
+    return {
+        "run_a": run_a,
+        "run_b": run_b,
+        "newly_satisfied_rules": sorted(
+            rule for rule, status in right_rules.items() if status == "satisfied" and left_rules.get(rule) != "satisfied"
+        ),
+        "newly_violated_rules": sorted(
+            rule for rule, status in right_rules.items() if status == "violated" and left_rules.get(rule) != "violated"
+        ),
+        "resolved_gaps": sorted(left_gaps - right_gaps),
+        "new_gaps": sorted(right_gaps - left_gaps),
+        "promotion_status_change": (
+            left["evaluation"]["promotion_status"],
+            right["evaluation"]["promotion_status"],
+        ),
+        "claim_status_change": {
+            claim: (left_claims.get(claim), right_status)
+            for claim, right_status in sorted(right_claims.items())
+            if left_claims.get(claim) != right_status
+        },
+        "reproducibility_status_change": (
+            reproducibility_status(run_a, repo_root=repo_root, registry_path=registry_path, check_files=False)["status"],
+            reproducibility_status(run_b, repo_root=repo_root, registry_path=registry_path, check_files=False)["status"],
+        ),
     }

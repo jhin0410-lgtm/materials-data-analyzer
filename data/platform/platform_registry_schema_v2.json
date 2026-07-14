@@ -5,7 +5,7 @@
   "storage_backend": "sqlite3",
   "default_registry_path": "outputs/platform_registry/platform_registry.sqlite3",
   "local_only": true,
-  "database_schema_version": 1,
+  "database_schema_version": 2,
   "description": "Logical schema for the local persistent platform run and artifact registry. The SQLite DDL lives in src/platform_core/run_registry.py.",
   "tables": {
     "runs": {
@@ -78,6 +78,84 @@
         "warning_code",
         "severity",
         "message"
+      ]
+    },
+    "diagnostic_evaluations": {
+      "primary_key": "evaluation_id",
+      "fields": [
+        "evaluation_id",
+        "run_id",
+        "evaluated_at",
+        "rule_set_version",
+        "overall_status",
+        "promotion_status",
+        "finding_count",
+        "blocker_count",
+        "source_manifest_hash"
+      ],
+      "overall_status_enum": [
+        "passed",
+        "warning",
+        "blocked"
+      ],
+      "promotion_status_enum": [
+        "missing_evidence",
+        "blocked_by_policy",
+        "diagnostic_only",
+        "eligible_for_further_validation"
+      ]
+    },
+    "diagnostic_findings": {
+      "primary_key": "finding_id",
+      "fields": [
+        "finding_id",
+        "evaluation_id",
+        "rule_id",
+        "category",
+        "severity",
+        "status",
+        "message",
+        "remediation_code",
+        "claim_impact",
+        "evidence_refs_json"
+      ],
+      "severity_enum": [
+        "info",
+        "warning",
+        "error",
+        "blocker"
+      ],
+      "status_enum": [
+        "satisfied",
+        "partially_satisfied",
+        "violated",
+        "unavailable",
+        "not_applicable"
+      ]
+    },
+    "evidence_gaps": {
+      "primary_key": "gap_id",
+      "fields": [
+        "gap_id",
+        "evaluation_id",
+        "gap_code",
+        "required_for",
+        "current_status",
+        "impact",
+        "remediation_code",
+        "priority"
+      ]
+    },
+    "claim_evaluations": {
+      "primary_key": "claim_evaluation_id",
+      "fields": [
+        "claim_evaluation_id",
+        "evaluation_id",
+        "claim_id",
+        "status",
+        "supporting_evidence_json",
+        "conflicting_evidence_json",
+        "reason_code"
       ]
     },
     "registry_metadata": {

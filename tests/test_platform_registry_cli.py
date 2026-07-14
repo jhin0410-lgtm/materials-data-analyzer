@@ -22,7 +22,7 @@ def test_registry_cli_smoke_with_dry_run_registration():
     manifest_path = f"outputs/platform_runs/test-cli-registry-{suffix}/run_manifest.json"
     init = _run_cli("--json", "registry-init", "--registry-path", registry_path)
     assert init.returncode == 0
-    assert json.loads(init.stdout)["schema_version"] == 1
+    assert json.loads(init.stdout)["schema_version"] == 2
 
     dry_run = _run_cli(
         "--json",

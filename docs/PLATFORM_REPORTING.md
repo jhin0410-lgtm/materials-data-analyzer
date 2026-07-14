@@ -1,6 +1,6 @@
 # Platform Reporting
 
-Status: `development_stage` for v2.1.1.
+Status: `development_stage` for v2.1.2.
 
 The platform report engine creates a local-only summary of v2 registry metadata
 and tracked compact case-study artifacts. It is read-only: it does not run
@@ -24,6 +24,11 @@ recomputation.
 Unknown or unavailable fields are represented explicitly as `unknown`,
 `unavailable`, or `unavailable_or_legacy` instead of being inferred.
 
+v2.1.2 adds an opt-in `registry_diagnostics_summary` field. When
+`include_registry_diagnostics` is true, the report reads already persisted
+diagnostic records from the local registry and summarizes counts/status. It
+does not automatically run diagnostics.
+
 ## Source Boundary
 
 Allowed inputs:
@@ -45,6 +50,9 @@ Prohibited inputs:
 - host absolute paths
 - arbitrary `outputs/` files
 - network sources
+
+Optional registry diagnostics input is limited to the local SQLite metadata
+registry under `outputs/platform_registry/`.
 
 ## Extraction Policy
 
@@ -119,6 +127,18 @@ With `--register-run`, the generated `report_manifest.json` is ingested into
 the local SQLite run registry under `outputs/platform_registry/`. This records
 metadata and artifact checksums only; it does not rerun report extraction or
 scientific analysis.
+
+To include stored diagnostics in the report config, set:
+
+```json
+{
+  "include_registry_diagnostics": true,
+  "registry_path": "outputs/platform_registry/platform_registry.sqlite3"
+}
+```
+
+If the registry or diagnostic tables are absent, the report records an
+explicit unavailable status rather than creating diagnostics.
 
 ## Limitations
 

@@ -16,6 +16,7 @@
     "artifact_policy_summary",
     "validation_policy_summary",
     "trust_policy_summary",
+    "registry_diagnostics_summary",
     "testing_summary",
     "security_boundaries",
     "limitations",
@@ -64,6 +65,7 @@
     "scientific_recomputation_performed must be false.",
     "Raw data, local-only analysis tables, row-level predictions, and serialized models must not be read.",
     "Credentials, absolute paths, usernames, home directories, and local host metadata must not be stored.",
-    "Report outputs are local-only and must be written under outputs/platform_reports."
+    "Report outputs are local-only and must be written under outputs/platform_reports.",
+    "Registry diagnostics are opt-in and read persisted metadata only; report generation must not run diagnose-run automatically."
   ]
 }

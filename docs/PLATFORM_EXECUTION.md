@@ -1,6 +1,6 @@
 # Platform Execution
 
-Status: `development_stage` for v2.1.1.
+Status: `development_stage` for v2.1.2.
 
 v2.0.3 introduces controlled adapter execution for one narrow case:
 `reliability_trust_closeout` in `verify` mode. It verifies existing tracked
@@ -141,5 +141,6 @@ v2.0.5 platform reporting also does not change this execution boundary. Report
 generation is a read-only local summary of registries and tracked compact
 artifacts, not an adapter execution mode.
 
-v2.1.1 registry ingestion also does not change this execution boundary. It is a
-local manifest index, not an execution engine.
+v2.1 registry ingestion and diagnostics also do not change this execution
+boundary. They are local metadata and policy-intelligence layers, not an
+execution engine.

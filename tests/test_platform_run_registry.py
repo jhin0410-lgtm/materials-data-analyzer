@@ -94,7 +94,7 @@ def test_registry_initialization_and_schema_version(tmp_path):
 
     assert path.exists()
     assert path.as_posix().endswith("outputs/platform_registry/platform_registry.sqlite3")
-    assert get_schema_version(tmp_path) == 1
+    assert get_schema_version(tmp_path) == 2
 
 
 def test_registry_rejects_absolute_and_traversal_paths(tmp_path):
@@ -185,7 +185,7 @@ def test_report_manifest_ingestion(tmp_path):
     manifest = {
         "report_id": "demo",
         "report_schema_version": "2.0",
-        "platform_version": "2.1.1-dev",
+        "platform_version": "2.1.2-dev",
         "code_commit": "b" * 40,
         "generated_formats": ["json"],
         "source_registry_snapshot": {"plugin_count": 1},

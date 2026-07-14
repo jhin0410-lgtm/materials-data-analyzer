@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -131,6 +132,15 @@ def validate_report_config(config: dict[str, Any]) -> None:
         raise ValueError("credential_policy must be an object")
     if credential_policy.get("store_credentials") is True:
         raise ValueError("report configs cannot store credentials")
+    if "include_registry_diagnostics" in config and not isinstance(config["include_registry_diagnostics"], bool):
+        raise ValueError("include_registry_diagnostics must be a boolean")
+    registry_path = config.get("registry_path")
+    if registry_path is not None:
+        if not isinstance(registry_path, str):
+            raise ValueError("registry_path must be a repository-relative path")
+        validate_relative_path(registry_path)
+        if not registry_path.replace("\\", "/").startswith("outputs/platform_registry/"):
+            raise ValueError("registry_path must be under outputs/platform_registry")
 
 
 def _validate_safe_identifier(value: str, field_name: str) -> None:
@@ -395,6 +405,45 @@ def _artifact_policy_summary(artifact_registry: ArtifactRegistry) -> dict[str, A
     }
 
 
+def _registry_diagnostics_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_registry_diagnostics") is not True:
+        return {"status": "not_requested"}
+    from .run_registry import DEFAULT_REGISTRY_PATH, resolve_registry_path
+
+    registry_path = str(config.get("registry_path") or DEFAULT_REGISTRY_PATH)
+    target = resolve_registry_path(repo_root, registry_path)
+    if not target.exists():
+        return {"status": "registry_not_found", "registry_path": registry_path}
+    with sqlite3.connect(target) as connection:
+        connection.row_factory = sqlite3.Row
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('diagnostic_evaluations', 'diagnostic_findings', 'evidence_gaps')"
+            )
+        }
+        if "diagnostic_evaluations" not in tables:
+            return {"status": "diagnostic_tables_missing", "registry_path": registry_path}
+        evaluation_count = connection.execute("SELECT COUNT(*) AS count FROM diagnostic_evaluations").fetchone()["count"]
+        finding_count = connection.execute("SELECT COUNT(*) AS count FROM diagnostic_findings").fetchone()["count"] if "diagnostic_findings" in tables else 0
+        blocker_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM diagnostic_findings WHERE severity = 'blocker' AND status = 'violated'"
+        ).fetchone()["count"] if "diagnostic_findings" in tables else 0
+        gap_count = connection.execute("SELECT COUNT(*) AS count FROM evidence_gaps").fetchone()["count"] if "evidence_gaps" in tables else 0
+        latest = connection.execute(
+            "SELECT evaluation_id, run_id, overall_status, promotion_status FROM diagnostic_evaluations ORDER BY evaluated_at DESC, evaluation_id DESC LIMIT 1"
+        ).fetchone()
+    return {
+        "status": "available",
+        "registry_path": registry_path,
+        "evaluation_count": int(evaluation_count),
+        "finding_count": int(finding_count),
+        "blocker_count": int(blocker_count),
+        "evidence_gap_count": int(gap_count),
+        "latest_evaluation": dict(latest) if latest is not None else None,
+    }
+
+
 def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = ".") -> PlatformReport:
     validate_report_config(config)
     root = Path(repo_root).resolve()
@@ -437,6 +486,7 @@ def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = "."
         artifact_policy_summary=_artifact_policy_summary(registries.artifact_registry),
         validation_policy_summary=tuple(registries.validation_registry.snapshot()),
         trust_policy_summary=tuple(registries.trust_registry.snapshot()),
+        registry_diagnostics_summary=_registry_diagnostics_summary(config, root),
         testing_summary=testing_summary,
         security_boundaries=(
             "no acquisition, normalization, feature engineering, model training, or trust rerun",
@@ -590,6 +640,9 @@ def render_report_markdown(report: PlatformReport) -> str:
             ],
         )
     )
+    lines.extend(["", "## Registry Diagnostics Summary"])
+    for key, value in sorted(report.registry_diagnostics_summary.items()):
+        lines.append(f"- `{key}`: `{value}`")
     lines.extend(["", "## Case-Study Result Summaries"])
     for case in report.case_studies:
         lines.extend(

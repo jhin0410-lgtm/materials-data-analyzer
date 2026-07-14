@@ -25,9 +25,26 @@ v2.1.1 adds a persistent local run registry:
 The registry stores metadata only. It does not store raw rows, credentials,
 model binaries, host/user identity, or environment secrets.
 
+## v2.1.2 Scope
+
+v2.1.2 adds registry intelligence and policy diagnostics:
+
+- deterministic diagnostic rules over persisted run metadata
+- evidence-gap records for missing provenance, validation, trust, or artifact
+  evidence
+- registered claim evaluation for allowed/prohibited/unsupported claims
+- lightweight evidence graph linking run, config, code, artifacts, policies,
+  and claim IDs
+- local SQLite diagnostic tables under the existing registry
+- CLI commands for diagnose/show/list/evaluate/compare/export
+- optional read-only report summary of persisted diagnostics
+
+Diagnostics do not execute acquisition, adapters, model training, trust
+scripts, raw-data reads, network calls, or scientific recomputation.
+
 ## Execution Boundary
 
-Still disabled in v2.1.1:
+Still disabled in v2.1.2:
 
 - acquisition execution
 - model training
@@ -38,6 +55,8 @@ Still disabled in v2.1.1:
 - subprocess or shell execution from config
 - network calls
 - database server dependencies
+- arbitrary diagnostic rules from user config
+- free-form AI/LLM claim interpretation
 
 `reliability_trust_closeout` remains the only controlled verify adapter.
 Registry ingestion can record its manifest but cannot broaden its permissions.
@@ -46,7 +65,7 @@ Registry ingestion can record its manifest but cannot broaden its permissions.
 
 Planned follow-up work:
 
-- v2.1.2: registry-aware report summaries and manifest history views
+- v2.1.2: registry-aware policy diagnostics and evidence-gap analysis
 - v2.1.3: explicit backfill tools for selected manifest directories
 - v2.1.4: adapter output comparison policy for isolated runs
 - v2.1.5: v2.1 closeout and release readiness audit
