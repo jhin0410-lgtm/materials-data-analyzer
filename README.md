@@ -426,6 +426,9 @@ outputs/{run_name}/reports/
 
 ## Releases
 
+- v2.0.0: Platform core, registries, controlled Reliability trust verify
+  execution, case-study onboarding metadata, and read-only platform reporting.
+  See [`docs/releases/V2_0_0.md`](docs/releases/V2_0_0.md).
 - v1.5.0: Reliability / Backblaze asset- and time-aware validation with
   trust-boundary closeout. See [`docs/releases/V1_5_0.md`](docs/releases/V1_5_0.md).
 - v1.4.0: Smart Factory / UCI SECOM time-aware validation and trust boundary.
@@ -433,6 +436,44 @@ outputs/{run_name}/reports/
 
 For a portfolio-oriented overview of the architecture and case-study arc, see
 [`docs/PORTFOLIO_OVERVIEW.md`](docs/PORTFOLIO_OVERVIEW.md).
+
+## Platform v2 Scaffold
+
+v2.0.5 continues the configuration-driven platform layer without replacing the
+existing CLI or case-study scripts. It adds explicit plugin, adapter, artifact,
+validation-policy, trust-policy, case-study, and onboarding registries plus
+dry-run, controlled verify-run manifest support, and local-only read-only
+platform reports.
+
+```powershell
+python -m src.cli list-plugins
+python -m src.cli list-adapters
+python -m src.cli list-case-studies
+python -m src.cli inspect-case-study reliability
+python -m src.cli validate-config configs/examples/reliability_trust_dry_run.json
+python -m src.cli validate-onboarding configs/examples/environmental_monitoring_onboarding.json
+python -m src.cli onboarding-plan configs/examples/environmental_monitoring_onboarding.json
+python -m src.cli dry-run configs/examples/reliability_trust_dry_run.json
+python -m src.cli dry-run configs/examples/reliability_trust_manifest_dry_run.json --write-manifest
+python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify
+python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
+python -m src.cli generate-report --config configs/examples/platform_report_all_case_studies.json
+```
+
+This layer is currently `scaffold_stage`: it can inspect metadata, validate
+configs, validate new-domain onboarding metadata, plan dry-runs, write local
+manifest-only dry-run records, and verify Reliability trust compact artifacts.
+It can also summarize registry metadata and tracked compact artifacts into
+JSON/Markdown reports under ignored `outputs/platform_reports/`. It does not
+execute acquisition, model training, trust scripts, raw-data reads,
+row-level prediction reads, scientific result recomputation, or network
+operations. See
+[`docs/PLATFORM_ARCHITECTURE.md`](docs/PLATFORM_ARCHITECTURE.md) and
+[`docs/PLATFORM_EXECUTION.md`](docs/PLATFORM_EXECUTION.md). For reporting,
+domain interface, and onboarding, see
+[`docs/PLATFORM_REPORTING.md`](docs/PLATFORM_REPORTING.md),
+[`docs/CASE_STUDY_INTERFACE.md`](docs/CASE_STUDY_INTERFACE.md) and
+[`docs/NEW_DOMAIN_ONBOARDING.md`](docs/NEW_DOMAIN_ONBOARDING.md).
 
 ## Roadmap
 

@@ -1,0 +1,151 @@
+{
+  "schema_version": "2.0",
+  "case_study_id": "environmental_monitoring",
+  "display_name": "Environmental Monitoring",
+  "domain": "environmental_sensor_monitoring",
+  "description": "Synthetic metadata-only example for onboarding a future sensor-monitoring case study without registering an executable plugin.",
+  "primary_unit": "sensor_location_timestamp",
+  "input_data_type": "longitudinal_sensor_table",
+  "time_key": "observation_timestamp",
+  "group_keys": [
+    "sensor_id",
+    "location_id"
+  ],
+  "target_or_event": "future_threshold_exceedance",
+  "target_type": "binary_future_exceedance",
+  "supported_stages": [
+    "contract",
+    "acquisition",
+    "normalization",
+    "readiness",
+    "feature_build",
+    "validation",
+    "trust",
+    "closeout"
+  ],
+  "data_contract": {
+    "source_policy": "public_or_user_supplied_sensor_table",
+    "provenance_requirements": [
+      "source URL or owner",
+      "retrieval timestamp",
+      "schema version",
+      "license or sharing scope"
+    ],
+    "required_columns": [
+      "sensor_id",
+      "location_id",
+      "observation_timestamp"
+    ]
+  },
+  "leakage_policy": {
+    "prohibited_features": [
+      "future measurements",
+      "centered rolling windows",
+      "post-exceedance maintenance action",
+      "full-series normalization",
+      "location statistics fitted on test period"
+    ],
+    "allowed_features": [
+      "current measurement",
+      "past-window aggregate",
+      "sensor age at prediction origin",
+      "training-only missingness indicators"
+    ]
+  },
+  "validation_policy": "asset_time_combined_classification",
+  "trust_policy": "reliability_asset_time_aware",
+  "artifact_definitions": [
+    {
+      "artifact_id": "environmental_monitoring_contract",
+      "stage": "contract",
+      "path": "data/case_studies/environmental_monitoring/contract.json",
+      "format": "json",
+      "tracked_policy": "tracked",
+      "local_only": false,
+      "producer": "future_user_authored_contract",
+      "consumers": [
+        "readiness",
+        "validation",
+        "trust"
+      ],
+      "provenance_required": true,
+      "checksum_required": false,
+      "required_for_dry_run": true,
+      "required_for_execution": true
+    },
+    {
+      "artifact_id": "environmental_monitoring_analysis_ready",
+      "stage": "normalization",
+      "path": "data/processed/environmental_monitoring_analysis_ready.csv",
+      "format": "csv",
+      "tracked_policy": "local_only",
+      "local_only": true,
+      "producer": "future_normalization_script",
+      "consumers": [
+        "feature_build",
+        "validation"
+      ],
+      "provenance_required": true,
+      "checksum_required": true,
+      "required_for_dry_run": false,
+      "required_for_execution": true
+    },
+    {
+      "artifact_id": "environmental_monitoring_trust_summary",
+      "stage": "trust",
+      "path": "data/processed/environmental_monitoring_trust_summary.csv",
+      "format": "csv",
+      "tracked_policy": "generated_compact",
+      "local_only": false,
+      "producer": "future_trust_analysis",
+      "consumers": [
+        "closeout",
+        "report"
+      ],
+      "provenance_required": true,
+      "checksum_required": false,
+      "required_for_dry_run": true,
+      "required_for_execution": false
+    }
+  ],
+  "local_only_patterns": [
+    "data/raw/environmental_monitoring/**",
+    "data/processed/environmental_monitoring_analysis_ready.csv",
+    "outputs/environmental_monitoring/**"
+  ],
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "resource_budget": {
+    "max_runtime_seconds": 0,
+    "max_output_bytes": 0
+  },
+  "allowed_claims": [
+    "metadata-only onboarding example",
+    "future time/location validation design"
+  ],
+  "prohibited_claims": [
+    "completed environmental analysis",
+    "production alert readiness",
+    "calibrated exceedance probability",
+    "causal pollution source attribution"
+  ],
+  "stop_conditions": [
+    "missing source provenance",
+    "time key unavailable without explanation",
+    "group key unavailable without explanation",
+    "unresolved leakage policy",
+    "unsupported production claim"
+  ],
+  "documentation": {
+    "planned_readme": "data/case_studies/environmental_monitoring/README.md",
+    "planned_case_study": "data/case_studies/environmental_monitoring/case_study.md"
+  },
+  "tests": [
+    "schema validation",
+    "time/group policy compatibility",
+    "artifact path safety",
+    "claim boundary validation"
+  ]
+}

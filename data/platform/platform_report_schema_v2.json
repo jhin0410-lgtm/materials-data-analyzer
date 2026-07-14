@@ -1,0 +1,69 @@
+{
+  "schema_version": "2.0",
+  "schema_name": "platform_report_schema_v2",
+  "status": "scaffold_stage",
+  "description": "Lightweight contract for read-only platform reports generated from registries and tracked compact artifacts.",
+  "required_fields": [
+    "report_schema_version",
+    "platform_version",
+    "platform_status",
+    "generated_formats",
+    "scientific_recomputation_performed",
+    "case_studies",
+    "registry_snapshot",
+    "maturity_matrix",
+    "execution_matrix",
+    "artifact_policy_summary",
+    "validation_policy_summary",
+    "trust_policy_summary",
+    "testing_summary",
+    "security_boundaries",
+    "limitations",
+    "technical_debt",
+    "next_roadmap",
+    "warnings"
+  ],
+  "format_enum": [
+    "json",
+    "markdown"
+  ],
+  "status_values": [
+    "complete",
+    "mapped",
+    "partial",
+    "metadata_only",
+    "unavailable",
+    "blocked",
+    "legacy"
+  ],
+  "case_study_required_fields": [
+    "case_study_id",
+    "display_name",
+    "domain",
+    "onboarding_status",
+    "plugin_status",
+    "supported_stages",
+    "mapped_stages",
+    "executable_stages",
+    "release_tag",
+    "primary_unit",
+    "target_type",
+    "validation_policy",
+    "trust_policy",
+    "representative_model_status",
+    "claim_boundary",
+    "tracked_artifact_count",
+    "local_only_artifact_count",
+    "latest_manifest_status",
+    "documentation_status",
+    "limitations",
+    "warnings"
+  ],
+  "security_rules": [
+    "Report generation is read-only with respect to canonical tracked artifacts.",
+    "scientific_recomputation_performed must be false.",
+    "Raw data, local-only analysis tables, row-level predictions, and serialized models must not be read.",
+    "Credentials, absolute paths, usernames, home directories, and local host metadata must not be stored.",
+    "Report outputs are local-only and must be written under outputs/platform_reports."
+  ]
+}

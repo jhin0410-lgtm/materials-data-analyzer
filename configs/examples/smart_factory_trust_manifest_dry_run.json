@@ -1,0 +1,40 @@
+{
+  "schema_version": "2.0",
+  "pipeline_id": "smart_factory_v1_4_trust_manifest_dry_run",
+  "case_study_id": "smart_factory",
+  "plugin_id": "smart_factory",
+  "adapter_id": "smart_factory_trust_closeout",
+  "stage": "trust",
+  "input_artifacts": [
+    "smart_factory_v1_4_classification_metrics"
+  ],
+  "tracked_outputs": [
+    "smart_factory_v1_4_trust_summary",
+    "smart_factory_v1_4_claim_boundary",
+    "smart_factory_v1_4_closeout_conclusion"
+  ],
+  "local_only_outputs": [
+    "smart_factory_v1_4_classification_predictions"
+  ],
+  "validator": "time_aware_classification",
+  "trust_policy": "smart_factory_time_aware",
+  "parameters": {
+    "network_required": false,
+    "model_training_required": false
+  },
+  "resource_budget": {
+    "max_runtime_seconds": 0
+  },
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "write_manifest": true,
+  "run_id": "smart-factory-trust-manifest-dry-run",
+  "manifest_output": "outputs/platform_runs/smart-factory-trust-manifest-dry-run/run_manifest.json",
+  "overwrite_manifest": false,
+  "stop_conditions": [
+    "missing_compact_artifact",
+    "unsupported_claim_detected"
+  ]
+}

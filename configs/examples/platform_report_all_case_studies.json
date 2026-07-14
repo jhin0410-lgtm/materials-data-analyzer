@@ -1,0 +1,29 @@
+{
+  "schema_version": "2.0",
+  "report_id": "platform_v2_all_case_studies",
+  "selected_case_studies": [
+    "battery_archive",
+    "materials_project",
+    "smart_factory",
+    "reliability"
+  ],
+  "formats": [
+    "json",
+    "markdown"
+  ],
+  "include_registry": true,
+  "include_artifacts": true,
+  "include_validation_policies": true,
+  "include_trust_policies": true,
+  "output_dir": "outputs/platform_reports/platform_v2_all_case_studies",
+  "overwrite": false,
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "testing_summary": {
+    "latest_known_full_tests": "497 passed, 1 skipped",
+    "latest_known_clean_snapshot": "497 passed, 1 skipped",
+    "source": "release_context_supplied_metadata",
+    "current_report_generation_executed_tests": false
+  }
+}

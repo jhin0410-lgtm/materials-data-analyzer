@@ -1,0 +1,231 @@
+# Platform Architecture
+
+Status: `scaffold_stage` for v2.0.5.
+
+`materials_data_analyzer` remains a CLI-first tabular engineering-data
+analysis project. The v2 platform layer adds a registry and configuration
+scaffold around the existing v1.x case studies without moving scripts,
+changing output schemas, or replacing `src/process_data.py`.
+
+## Architecture Principles
+
+- Additive first: keep existing case-study scripts and analyzer modules working.
+- Metadata before migration: register existing workflows before adapting them.
+- Explicit contracts: pipeline configs, artifacts, validation, and trust policy
+  are declared in JSON or typed metadata.
+- No hidden execution: configs cannot contain Python expressions, shell
+  commands, arbitrary imports, or credentials.
+- Manifest first: v2.0.5 plans workflows, maps selected trust adapters, writes
+  local manifests, and allows one read-only reliability trust verification
+  adapter. It does not run acquisition, model training, raw-data reads, trust
+  scripts, or network operations.
+- Domain interface first: case studies now expose common lifecycle metadata
+  and onboarding readiness without forcing old scripts into one abstraction.
+- Report read-only: platform reports summarize registries and tracked compact
+  artifacts without recomputing scientific results.
+
+## Component Boundaries
+
+```text
+Data Source
+-> Connector / access gate
+-> Loader / schema normalization
+-> Readiness and leakage audit
+-> Feature construction
+-> Validation
+-> Trust boundary
+-> Compact artifacts and case-study documentation
+```
+
+In code:
+
+- `src/platform_core/plugins.py`: plugin metadata contract
+- `src/platform_core/registry.py`: explicit plugin registry
+- `src/platform_core/adapters.py`: thin adapter metadata contract
+- `src/platform_core/adapter_registry.py`: explicit adapter registry
+- `src/platform_core/artifacts.py`: artifact registry and path policy
+- `src/platform_core/validation_registry.py`: validation policy metadata
+- `src/platform_core/trust_registry.py`: trust policy metadata
+- `src/platform_core/config.py`: lightweight JSON config validation
+- `src/platform_core/planner.py`: side-effect-free dry-run planner
+- `src/platform_core/manifests.py`: safe local dry-run manifest writer
+- `src/platform_core/execution_policy.py`: explicit execution allowlist
+- `src/platform_core/execution_runtime.py`: controlled verify runtime
+- `src/platform_core/artifact_resolver.py`: safe artifact ID resolution
+- `src/platform_core/side_effects.py`: side-effect accounting
+- `src/platform_core/case_studies.py`: generic case-study interface contract
+- `src/platform_core/case_study_registry.py`: explicit case-study registry
+- `src/platform_core/onboarding.py`: metadata-only new-domain onboarding validator
+- `src/platform_core/reports.py`: platform report data model
+- `src/platform_core/report_extractors.py`: explicit compact-artifact extractors
+- `src/platform_core/report_generator.py`: JSON/Markdown report renderer and local-only writer
+- `src/platform_core/snapshots.py`: deterministic registry snapshot helper
+- `src/cli.py`: unified CLI scaffold
+
+## Plugin Registry
+
+The initial registry contains metadata for:
+
+| Plugin | Case study | Status | Notes |
+| --- | --- | --- | --- |
+| `battery_archive` | Battery Archive | `scaffolded` | Existing cycle-data scripts remain the orchestration layer. |
+| `materials_project` | Materials Project | `dry_run_ready` | Trust adapter is mapped for manifest-only dry-runs. |
+| `smart_factory` | Smart Factory / SECOM | `dry_run_ready` | Trust adapter is mapped for manifest-only dry-runs. |
+| `reliability` | Backblaze reliability | `dry_run_ready` | Trust adapter is mapped for manifest-only dry-runs. |
+
+`scaffolded` means the platform can inspect, validate, and dry-run metadata.
+It does not mean v2 can execute the full case-study pipeline yet.
+`dry_run_ready` means a safe adapter mapping exists for manifest planning.
+Only `reliability_trust_closeout` has an additional verify-mode execution
+allowlist entry in v2.0.3.
+
+## Case-Study Interface
+
+v2.0.4 adds a domain-facing case-study registry on top of the plugin and
+adapter registries. It maps Battery Archive, Materials Project, Smart Factory,
+and Reliability to common lifecycle stages while preserving their existing
+scripts and output contracts. No case study is marked `fully_onboarded`.
+
+The interface can be inspected with:
+
+```powershell
+python -m src.cli list-case-studies
+python -m src.cli inspect-case-study reliability
+python -m src.cli list-case-study-stages reliability
+```
+
+## Adapter Registry
+
+`src/platform_core/adapter_registry.py` maps selected trust/closeout stages to
+existing script metadata through explicit adapter IDs:
+
+- `materials_project_trust_closeout`
+- `smart_factory_trust_closeout`
+- `reliability_trust_closeout`
+
+Adapters store module paths as metadata only. The unified CLI does not import
+or execute those modules in v2.0.2.
+
+## Artifact Registry
+
+Artifacts are described by ID, case study, stage, relative path, type, format,
+tracked/local-only policy, producer, consumers, provenance requirement, and
+status. The registry rejects:
+
+- duplicate artifact IDs
+- absolute paths
+- `..` path traversal
+- tracked/local-only conflicts
+- raw artifacts marked as tracked compact outputs
+
+No files are moved by the registry.
+
+## Validation Registry
+
+The initial validation policies are:
+
+- `random_reference_only`
+- `group_aware_regression`
+- `time_aware_classification`
+- `asset_time_combined_classification`
+
+The registry points to existing analyzers where appropriate. It does not
+duplicate model-fitting logic.
+
+## Trust Registry
+
+The initial trust policies are:
+
+- `materials_group_generalization`
+- `smart_factory_time_aware`
+- `reliability_asset_time_aware`
+
+Default trust policies do not contain `production_ready` and do not allow
+production claims.
+
+## Configuration Contract
+
+`data/platform/pipeline_config_schema_v2.json` defines the v2 config contract.
+The initial implementation uses lightweight validation in
+`src/platform_core/config.py` instead of adding a JSON-schema dependency.
+
+Example dry-run and manifest dry-run configs live in `configs/examples/`.
+
+## Run Manifest Contract
+
+`data/platform/run_manifest_schema_v2.json` defines the future run manifest.
+v2.0.2 can write a single local dry-run manifest under `outputs/platform_runs/`
+when requested with `--write-manifest`. Manifests are local-only and ignored by
+Git.
+v2.0.3 also writes terminal execution manifests for approved verify runs.
+
+## Unified CLI
+
+The scaffold is available with:
+
+```powershell
+python -m src.cli list-plugins
+python -m src.cli inspect-plugin reliability
+python -m src.cli list-artifacts --plugin reliability
+python -m src.cli list-adapters
+python -m src.cli inspect-adapter reliability_trust_closeout
+python -m src.cli list-case-studies
+python -m src.cli inspect-case-study reliability
+python -m src.cli list-case-study-stages reliability
+python -m src.cli validate-config configs/examples/reliability_trust_dry_run.json
+python -m src.cli validate-onboarding configs/examples/environmental_monitoring_onboarding.json
+python -m src.cli onboarding-plan configs/examples/environmental_monitoring_onboarding.json
+python -m src.cli dry-run configs/examples/reliability_trust_dry_run.json
+python -m src.cli dry-run configs/examples/reliability_trust_manifest_dry_run.json --write-manifest
+python -m src.cli list-executable-adapters
+python -m src.cli show-execution-policy reliability_trust_closeout
+python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify
+python -m src.cli verify-run outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
+python -m src.cli validate-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
+python -m src.cli show-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
+python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
+python -m src.cli generate-report --config configs/examples/platform_report_all_case_studies.json
+python -m src.cli validate-report outputs/platform_reports/platform_v2_all_case_studies
+python -m src.cli inspect-report outputs/platform_reports/platform_v2_all_case_studies
+python -m src.cli list-report-sources
+python -m src.cli show-policy reliability_asset_time_aware
+python -m src.cli show-version
+```
+
+Add `--json` before the command for deterministic JSON output.
+
+## Backward Compatibility
+
+v2.0.2 does not remove, rename, or replace:
+
+- `src/process_data.py`
+- existing scripts under `scripts/`
+- existing case-study contracts
+- processed output schemas
+- test paths
+- documentation links
+
+The platform layer is a scaffold for later executable adapters.
+
+## Security and Safety
+
+The scaffold avoids:
+
+- `eval`
+- `exec`
+- arbitrary shell execution
+- arbitrary import paths from user config
+- filesystem-wide plugin scanning
+- network calls on import or dry-run
+- credential storage
+- absolute host paths in configs or manifests
+
+## Known Technical Debt
+
+- Existing case-study scripts are not yet executable through v2 adapters.
+- Registries are explicit Python metadata, not external package discovery.
+- Dry-run reports manifest readiness, not executable pipeline readiness.
+- Artifact registry coverage is intentionally selective and should expand as
+  adapters are implemented.
+- The report engine is JSON/Markdown only and does not generate HTML, PDF, or a
+  dashboard.

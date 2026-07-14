@@ -21,6 +21,11 @@ data/raw/**
 
 # --- 설정 및 자격 증명 (민감 정보) ---
 configs/*.local.yaml
+configs/local/
+configs/private/
+configs/secrets/
+configs/*.local.json
+configs/*.secret.json
 .kaggle/
 kaggle.json
 **/kaggle.json

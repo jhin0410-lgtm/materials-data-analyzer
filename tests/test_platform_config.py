@@ -1,0 +1,148 @@
+import json
+from pathlib import Path
+
+from src.platform_core.adapter_registry import build_default_adapter_registry
+from src.platform_core.artifacts import build_default_artifact_registry
+from src.platform_core.config import load_and_validate_pipeline_config, validate_pipeline_config
+from src.platform_core.registry import build_default_plugin_registry
+from src.platform_core.trust_registry import build_default_trust_policy_registry
+from src.platform_core.validation_registry import build_default_validation_policy_registry
+
+
+def _registries():
+    plugin_registry = build_default_plugin_registry()
+    artifact_registry = build_default_artifact_registry()
+    return (
+        plugin_registry,
+        artifact_registry,
+        build_default_validation_policy_registry(),
+        build_default_trust_policy_registry(),
+        build_default_adapter_registry(plugin_registry, artifact_registry),
+    )
+
+
+def _valid_config():
+    return {
+        "schema_version": "2.0",
+        "pipeline_id": "demo",
+        "case_study_id": "reliability",
+        "plugin_id": "reliability",
+        "adapter_id": "reliability_trust_closeout",
+        "stage": "trust",
+        "input_artifacts": ["reliability_v1_5_classification_metrics"],
+        "tracked_outputs": ["reliability_v1_5_trust_summary"],
+        "local_only_outputs": ["reliability_v1_5_classification_predictions"],
+        "validator": "asset_time_combined_classification",
+        "trust_policy": "reliability_asset_time_aware",
+        "resource_budget": {"max_runtime_seconds": 0},
+        "credential_policy": {"store_credentials": False},
+        "dry_run": True,
+    }
+
+
+def test_example_configs_validate():
+    registries = _registries()
+    for path in sorted(Path("configs/examples").glob("*_dry_run.json")):
+        result = load_and_validate_pipeline_config(path, *registries)
+        assert result.valid, (path, result.errors)
+
+
+def test_config_version_and_required_fields():
+    config = _valid_config()
+    del config["plugin_id"]
+    config["schema_version"] = "1.0"
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert "missing required field: plugin_id" in result.errors
+    assert any("unsupported schema_version" in error for error in result.errors)
+
+
+def test_config_rejects_unknown_policy_and_unknown_field():
+    config = _valid_config()
+    config["validator"] = "missing_policy"
+    config["module_path"] = "not.allowed"
+    config["callable_name"] = "main"
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert "unknown validation policy: missing_policy" in result.errors
+    assert "unknown fields: callable_name, module_path" in result.errors
+
+
+def test_config_rejects_unknown_or_mismatched_adapter():
+    config = _valid_config()
+    config["adapter_id"] = "missing_adapter"
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert "unknown adapter_id: missing_adapter" in result.errors
+
+    config = _valid_config()
+    config["adapter_id"] = "materials_project_trust_closeout"
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert any("does not belong to plugin" in error for error in result.errors)
+
+
+def test_config_rejects_absolute_component_path_and_credentials():
+    config = _valid_config()
+    config["loader"] = {"relative_path": "C:/tmp/local.csv"}
+    config["credential_policy"] = {"store_credentials": True}
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert any("absolute paths" in error for error in result.errors)
+    assert "credential_policy.store_credentials must not be true" in result.errors
+
+
+def test_config_rejects_manifest_path_traversal():
+    config = _valid_config()
+    config["manifest_output"] = "../outputs/run_manifest.json"
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert any("manifest_output invalid" in error for error in result.errors)
+
+
+def test_config_cannot_elevate_execution_permissions():
+    config = _valid_config()
+    config["execution_allowed"] = True
+    config["network_allowed"] = True
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert "execution_allowed cannot be set by config" in result.errors
+    assert "network_allowed cannot be set by config" in result.errors
+
+
+def test_config_rejects_looser_resource_budget_override():
+    config = _valid_config()
+    config["execution_mode"] = "verify"
+    config["dry_run"] = False
+    config["resource_budget"] = {"max_output_bytes": 10}
+    config["resource_budget_override"] = {"max_output_bytes": 20}
+
+    result = validate_pipeline_config(config, *_registries())
+
+    assert not result.valid
+    assert any("cannot be less strict" in error for error in result.errors)
+
+
+def test_config_json_load_rejects_non_object(tmp_path):
+    path = tmp_path / "bad.json"
+    path.write_text(json.dumps(["not", "object"]), encoding="utf-8")
+
+    try:
+        load_and_validate_pipeline_config(path, *_registries())
+    except ValueError as exc:
+        assert "JSON object" in str(exc)
+    else:
+        raise AssertionError("non-object config should fail")

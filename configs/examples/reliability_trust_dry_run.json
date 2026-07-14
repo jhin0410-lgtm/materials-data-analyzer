@@ -1,0 +1,36 @@
+{
+  "schema_version": "2.0",
+  "pipeline_id": "reliability_v1_5_trust_dry_run",
+  "case_study_id": "reliability",
+  "plugin_id": "reliability",
+  "adapter_id": "reliability_trust_closeout",
+  "stage": "trust",
+  "input_artifacts": [
+    "reliability_v1_5_classification_metrics"
+  ],
+  "tracked_outputs": [
+    "reliability_v1_5_trust_summary"
+  ],
+  "local_only_outputs": [
+    "reliability_v1_5_backblaze_analysis_ready",
+    "reliability_v1_5_horizon_7d_lookback_7d_dataset",
+    "reliability_v1_5_classification_predictions"
+  ],
+  "validator": "asset_time_combined_classification",
+  "trust_policy": "reliability_asset_time_aware",
+  "parameters": {
+    "network_required": false,
+    "model_training_required": false
+  },
+  "resource_budget": {
+    "max_runtime_seconds": 0
+  },
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "stop_conditions": [
+    "missing_compact_artifact",
+    "unsupported_claim_detected"
+  ]
+}

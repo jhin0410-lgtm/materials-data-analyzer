@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.0
+
+- Added an additive platform core with explicit plugin, adapter, artifact,
+  validation-policy, trust-policy, execution-policy, and case-study registries.
+- Added lightweight JSON pipeline config validation, dry-run planning, and
+  local run-manifest writing without arbitrary imports, shell commands,
+  network access, raw-data access, or model training.
+- Added safe thin adapter metadata for selected trust stages while keeping
+  Materials Project and Smart Factory execution blocked.
+- Added controlled `verify` execution for the Reliability trust closeout only,
+  with side-effect accounting and protected compact artifact SHA checks.
+- Added a generic case-study interface and metadata-only new-domain onboarding
+  validation.
+- Added read-only JSON/Markdown platform report generation from registries and
+  tracked compact artifacts under local-only `outputs/platform_reports/`.
+- Preserved all existing v1.x scripts, output schemas, case-study docs, and raw
+  / local-only artifact policies.
+
+This release does not add acquisition orchestration, full-pipeline execution,
+model training, raw-data reads, scientific result recomputation, dashboard/UI,
+PDF reporting, production deployment, or new scientific claims.
+
 ## v1.5
 
 - Added a generic reliability/risk contract covering asset identity,

@@ -1,0 +1,28 @@
+# Example external data source configuration.
+#
+# Copy to configs/data_sources.local.yaml for local experiments. Do not commit
+# local API keys, credentials, or private dataset paths.
+
+materials_project:
+  api_key_env: MP_API_KEY
+  default_elements: [Fe, Si]
+  limit: 50
+
+kaggle:
+  credentials: "Configure outside this repository, e.g. ~/.kaggle/kaggle.json"
+  example_dataset: patrickfleith/nasa-battery-dataset
+  limit: 50
+
+htem:
+  base_url_candidates:
+    - https://htem.nrel.gov
+    - https://htem-api.nrel.gov
+    - https://htem-api.nlr.gov
+  default_elements: [Zn, Sn]
+  limit: 50
+
+battery_archive:
+  base_url_env: BATTERY_ARCHIVE_BASE_URL
+  api_key_env: BATTERY_ARCHIVE_API_KEY
+  endpoint_env: BATTERY_ARCHIVE_ENDPOINT
+  limit: 50
