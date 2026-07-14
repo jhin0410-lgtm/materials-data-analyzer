@@ -105,6 +105,9 @@ def test_generated_report_contains_no_local_only_source_artifacts():
 
 def test_report_can_include_stored_scientific_trust_without_recomputing():
     registry_path = "outputs/platform_registry/test_report_scientific_trust.sqlite3"
+    registry_file = Path(registry_path)
+    if registry_file.exists():
+        registry_file.unlink()
     request = ScientificExecutionRequest.from_config(
         {
             "execution_id": "report_trust_bragg",

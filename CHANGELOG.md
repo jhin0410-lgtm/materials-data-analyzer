@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- No changes yet.
+
+## v2.1
+
 - Added a local-only SQLite run/artifact registry scaffold under
   `outputs/platform_registry/` for run/report manifest ingestion, artifact
   instance records, lineage, reproducibility status, run comparison,

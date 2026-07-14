@@ -33,7 +33,7 @@ def test_scientific_schemas_parse_and_forbid_execution_side_effects():
 def test_v2_1_closeout_claims_are_bounded():
     conclusion = closeout_conclusion().to_dict()
 
-    assert conclusion["status"] == "feature_complete_pending_release_audit"
+    assert conclusion["status"] == "release_ready"
     assert "phase identification" not in " ".join(conclusion["allowed_claims"]).lower()
     assert any("phase identification" in claim for claim in conclusion["prohibited_claims"])
     assert any("physics-constrained model" in claim for claim in conclusion["prohibited_claims"])

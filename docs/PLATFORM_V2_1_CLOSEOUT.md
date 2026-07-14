@@ -1,10 +1,13 @@
 # Platform v2.1 Closeout
 
-Status: `feature_complete_pending_release_audit`.
+Status: `release_ready`.
 
 v2.1 extends the v2 platform scaffold with a local registry, diagnostics,
 scientific constraint metadata, bounded scientific execution, and v2.1.5 trust
 boundaries for scientific claims and feature eligibility.
+
+Release audit result: v2.1.0 is ready for merge, tagging, and GitHub Release
+publication after the final CI gate.
 
 ## Completed Scope
 

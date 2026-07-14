@@ -1,6 +1,6 @@
 # Platform v2.1 Plan
 
-Status: `feature_complete_pending_release_audit`.
+Status: `release_ready`.
 
 v2.1 continues the v2 platform scaffold by improving reproducibility metadata
 and controlled local execution bookkeeping. It does not change v1.x case-study

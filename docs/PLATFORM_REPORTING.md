@@ -1,6 +1,6 @@
 # Platform Reporting
 
-Status: `feature_complete_pending_release_audit` for v2.1.5.
+Status: `release_ready` for v2.1.5.
 
 The platform report engine creates a local-only summary of v2 registry metadata
 and tracked compact case-study artifacts. It is read-only: it does not run

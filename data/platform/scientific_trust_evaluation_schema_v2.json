@@ -1,6 +1,6 @@
 {
   "schema_version": "2.1.5",
-  "status": "feature_complete_pending_release_audit",
+  "status": "release_ready",
   "description": "Schema for scientific execution trust-boundary evaluations built from persisted scientific execution records.",
   "required_fields": [
     "evaluation_id",

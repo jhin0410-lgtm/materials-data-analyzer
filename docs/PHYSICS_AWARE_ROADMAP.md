@@ -1,6 +1,6 @@
 # Physics-Aware Roadmap
 
-Status: `feature_complete_pending_release_audit`.
+Status: `release_ready`.
 
 v2.1 adds bounded scientific execution for scalar/small-list metadata checks
 and v2.1.5 adds feature-candidate eligibility and scientific trust boundaries.

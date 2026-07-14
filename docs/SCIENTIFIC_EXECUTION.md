@@ -1,6 +1,6 @@
 # Scientific Execution
 
-Status: `feature_complete_pending_release_audit` for v2.1.5.
+Status: `release_ready` for v2.1.5.
 
 v2.1.4 adds a bounded scientific execution layer for explicit scalar and
 small-list metadata checks. It runs only code-registered evaluators and small

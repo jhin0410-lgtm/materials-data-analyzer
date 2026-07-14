@@ -529,7 +529,7 @@ def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = "."
     return PlatformReport(
         report_schema_version=REPORT_SCHEMA_VERSION,
         platform_version=PLATFORM_VERSION,
-        platform_status="v2.1_feature_complete_pending_release_audit",
+        platform_status="v2.1_release_ready",
         code_commit=_read_git_commit(root),
         generated_formats=tuple(config.get("formats", ["json", "markdown"])),
         case_studies=case_reports,

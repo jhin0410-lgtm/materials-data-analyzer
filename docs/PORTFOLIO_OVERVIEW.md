@@ -42,8 +42,10 @@ The repository keeps these responsibilities separate:
 v2.0 adds a common platform layer around those responsibilities: explicit
 registries, manifest-first dry runs, one controlled read-only Reliability trust
 verification path, metadata-only onboarding checks, and local-only
-JSON/Markdown platform reporting. It does not turn the project into an
-automatic training or production execution system.
+JSON/Markdown platform reporting. v2.1 adds persistent run/artifact lineage,
+policy diagnostics, bounded scientific execution, scientific trust boundaries,
+and metadata-only feature eligibility. It does not turn the project into an
+automatic training, physics-aware modeling, or production execution system.
 
 ## Completed Case Studies
 
@@ -71,6 +73,8 @@ representative model is selected.
 - Rare-event metrics, top-risk diagnostics, and threshold boundary reporting
 - Deterministic compact artifacts that can be tested in clean clones without
   raw data
+- Persistent local registry metadata for lineage, diagnostics, scientific
+  findings, trust boundaries, and feature-candidate eligibility
 
 ## Scientific Rigor
 
@@ -103,10 +107,11 @@ or license-sensitive source files.
 ## Testing and CI
 
 The project has a broad pytest suite covering core analyzers, loaders,
-connectors, feature engineering, validation utilities, scripts, and
-case-study artifact contracts. The v2.0 release audit passed 516 tests with 1
-existing skip locally, through direct pytest, and in a clean tracked snapshot;
-GitHub Actions validates the release branch on Python 3.11.
+connectors, feature engineering, validation utilities, scripts, platform
+registries, scientific execution, and case-study artifact contracts. The v2.1
+release audit passed 594 tests with 2 existing skips locally, through direct
+pytest, and in a clean tracked snapshot; GitHub Actions validates the release
+branch on Python 3.11.
 
 ## Skills Demonstrated
 
@@ -135,14 +140,13 @@ GitHub Actions validates the release branch on Python 3.11.
 
 ## Next-Generation Roadmap
 
-v2.1 should build on the platform structure rather than stronger claims:
+v2.2 should build on the platform structure rather than stronger claims:
 
-- approved read-only adapters
-- selected safe report and verification orchestration
-- run history and manifest indexing
-- artifact promotion review workflows
-- broader case-study adapter coverage
-- optional report template improvements
+- bounded Materials composition feature builders with leakage-aware validation
+- XRD characterization feature adapters for d-spacing and crystallite-size
+  estimates without phase-identification claims
+- baseline-vs-feature comparisons under group/time validation
+- explicit model-input evidence before any physics-aware predictive claim
 
 Physics-aware materials modeling and more advanced explainability should remain
 later v2.x work and should only be applied to models that clear the relevant

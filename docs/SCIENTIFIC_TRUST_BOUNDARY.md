@@ -1,6 +1,6 @@
 # Scientific Trust Boundary
 
-Status: `feature_complete_pending_release_audit` for v2.1.5.
+Status: `release_ready` for v2.1.5.
 
 v2.1 scientific execution supports bounded scalar and small-list consistency
 checks through registered evaluators only. A successful execution records

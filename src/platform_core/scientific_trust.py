@@ -567,8 +567,8 @@ def evaluate_scientific_trust(
 
 def closeout_conclusion() -> ScientificCloseoutConclusion:
     return ScientificCloseoutConclusion(
-        status="feature_complete_pending_release_audit",
-        release_readiness="release_ready_after_ci",
+        status="release_ready",
+        release_readiness="release_ready",
         summary=(
             "v2.1 scientific execution is bounded to explicit registry-based checks; "
             "feature candidates and model constraints remain metadata eligibility records until v2.2."

@@ -1,7 +1,7 @@
 {
   "schema_version": "2.1",
   "schema_name": "platform_registry_schema_v2",
-  "status": "feature_complete_pending_release_audit",
+  "status": "release_ready",
   "storage_backend": "sqlite3",
   "default_registry_path": "outputs/platform_registry/platform_registry.sqlite3",
   "local_only": true,

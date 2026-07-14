@@ -90,7 +90,8 @@ XRD Bragg/Scherrer consistency checks, scientific finding persistence, and
 local-only outputs under `outputs/platform_science/`. v2.1.5 adds scientific
 trust-boundary evaluation, constraint-role classification, metadata-only
 feature-candidate registries, deterministic snapshots in `data/platform/`, and
-SQLite schema `4` trust tables. These additions do not
+SQLite schema `4` trust tables. v2.1.0 is release-ready as a metadata and
+bounded-execution trust layer. These additions do not
 execute arbitrary equations, read raw data, train models, or run physics
 simulators.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace

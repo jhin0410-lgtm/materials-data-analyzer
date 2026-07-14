@@ -42,6 +42,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform v2.1 Plan](PLATFORM_V2_1_PLAN.md): local persistent registry and bounded scientific execution roadmap.
 - [Platform v2.1 Closeout](PLATFORM_V2_1_CLOSEOUT.md): v2.1.1-v2.1.5 summary, current boundaries, release-readiness checklist, and v2.2 roadmap.
 - [Platform v2 Closeout](PLATFORM_V2_CLOSEOUT.md): v2.0.1-v2.0.5 scaffold summary, current execution boundary, and v2.1 roadmap.
+- [v2.1.0 Release Notes](releases/V2_1_0.md): persistent registry, bounded scientific execution, scientific trust boundary, and feature-eligibility release notes.
 - [v2.0.0 Release Notes](releases/V2_0_0.md): platform core, controlled execution, onboarding metadata, and read-only reporting release notes.
 - [v1.5.0 Release Notes](releases/V1_5_0.md): Backblaze reliability validation and trust-boundary release notes.
 - [Project Audit](audits/PROJECT_AUDIT.md): earlier project inventory.

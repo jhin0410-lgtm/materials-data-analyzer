@@ -1,6 +1,6 @@
 {
   "schema_version": "2.1.5",
-  "status": "feature_complete_pending_release_audit",
+  "status": "release_ready",
   "description": "Metadata schema for physics-aware feature candidates. Records are eligibility metadata only; they do not generate feature values.",
   "required_fields": [
     "feature_id",

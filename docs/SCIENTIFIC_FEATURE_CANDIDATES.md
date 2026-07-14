@@ -1,6 +1,6 @@
 # Scientific Feature Candidates
 
-Status: `feature_complete_pending_release_audit` for v2.1.5.
+Status: `release_ready` for v2.1.5.
 
 The scientific feature registry stores metadata for possible physics-aware
 features. It does not calculate feature values, create feature tables, train

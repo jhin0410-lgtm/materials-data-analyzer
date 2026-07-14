@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `feature_complete_pending_release_audit` for v2.1.5.
+Status: `release_ready` for v2.1.5.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
