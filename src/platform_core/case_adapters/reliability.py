@@ -169,6 +169,7 @@ def _field_value_map(frame: pd.DataFrame) -> dict[str, str]:
 
 
 def _write_json_atomic(payload: dict[str, Any], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(f".{path.name}.tmp")
     try:
         temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

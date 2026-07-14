@@ -1,6 +1,6 @@
 # Platform v2 Closeout
 
-Status: `feature_complete_pending_release_audit`.
+Status: `release_ready`.
 
 v2 turns repeated v1.x case-study patterns into an additive platform scaffold:
 explicit registries, manifest-first planning, controlled execution boundaries,
@@ -53,6 +53,8 @@ delete or move existing workflow files.
   predictions, or generated outputs.
 - Report engine marks `scientific_recomputation_performed = false`.
 - Generated reports remain local-only and ignored by Git.
+- v2.0 release audit validation: `516 passed, 1 skipped` locally, through
+  direct pytest, and in a clean tracked snapshot.
 
 ## v2.1 Roadmap
 

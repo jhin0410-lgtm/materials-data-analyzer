@@ -426,6 +426,9 @@ outputs/{run_name}/reports/
 
 ## Releases
 
+- v2.0.0: Platform core, registries, controlled Reliability trust verify
+  execution, case-study onboarding metadata, and read-only platform reporting.
+  See [`docs/releases/V2_0_0.md`](docs/releases/V2_0_0.md).
 - v1.5.0: Reliability / Backblaze asset- and time-aware validation with
   trust-boundary closeout. See [`docs/releases/V1_5_0.md`](docs/releases/V1_5_0.md).
 - v1.4.0: Smart Factory / UCI SECOM time-aware validation and trust boundary.

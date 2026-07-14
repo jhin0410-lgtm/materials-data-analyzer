@@ -97,6 +97,7 @@ def test_reliability_verify_runtime_writes_local_reports_only(tmp_path):
     registries = _registries()
     validation = validate_pipeline_config(_config(), *registries[:5])
     _, plan = build_dry_run_plan(_config(), *registries[:5], repo_root=tmp_path)
+    assert not (tmp_path / "outputs" / "platform_runs" / "test-reliability-verify" / "artifacts").exists()
 
     manifest, result = execute_adapter_runtime(
         config=_config(),

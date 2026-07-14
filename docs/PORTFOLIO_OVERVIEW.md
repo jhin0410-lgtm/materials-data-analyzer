@@ -39,6 +39,12 @@ The repository keeps these responsibilities separate:
 - `data/processed/`: compact tracked summaries and local-only generated tables
 - `outputs/`: regenerable local run outputs
 
+v2.0 adds a common platform layer around those responsibilities: explicit
+registries, manifest-first dry runs, one controlled read-only Reliability trust
+verification path, metadata-only onboarding checks, and local-only
+JSON/Markdown platform reporting. It does not turn the project into an
+automatic training or production execution system.
+
 ## Completed Case Studies
 
 | Release | Case study | Dataset | Focus | Result boundary |
@@ -98,8 +104,9 @@ or license-sensitive source files.
 
 The project has a broad pytest suite covering core analyzers, loaders,
 connectors, feature engineering, validation utilities, scripts, and
-case-study artifact contracts. The v1.5 release gate passed 402 tests locally,
-in a clean tracked snapshot, and in GitHub Actions.
+case-study artifact contracts. The v2.0 release audit passed 516 tests with 1
+existing skip locally, through direct pytest, and in a clean tracked snapshot;
+GitHub Actions validates the release branch on Python 3.11.
 
 ## Skills Demonstrated
 
@@ -128,15 +135,14 @@ in a clean tracked snapshot, and in GitHub Actions.
 
 ## Next-Generation Roadmap
 
-v2.0 should focus on platform structure rather than stronger claims:
+v2.1 should build on the platform structure rather than stronger claims:
 
-- configuration-driven case-study pipelines
-- generic artifact registry
-- generic split and validation registry
-- trust policy registry
-- case-study plugin structure
-- unified CLI entry points
-- optional report generation improvements
+- approved read-only adapters
+- selected safe report and verification orchestration
+- run history and manifest indexing
+- artifact promotion review workflows
+- broader case-study adapter coverage
+- optional report template improvements
 
 Physics-aware materials modeling and more advanced explainability should remain
 later v2.x work and should only be applied to models that clear the relevant

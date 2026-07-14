@@ -31,6 +31,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
 - [Platform v2 Plan](PLATFORM_V2_PLAN.md): configuration-driven platform scaffold roadmap.
 - [Platform v2 Closeout](PLATFORM_V2_CLOSEOUT.md): v2.0.1-v2.0.5 scaffold summary, current execution boundary, and v2.1 roadmap.
+- [v2.0.0 Release Notes](releases/V2_0_0.md): platform core, controlled execution, onboarding metadata, and read-only reporting release notes.
 - [v1.5.0 Release Notes](releases/V1_5_0.md): Backblaze reliability validation and trust-boundary release notes.
 - [Project Audit](audits/PROJECT_AUDIT.md): earlier project inventory.
 - [Commit Boundary Review](audits/COMMIT_BOUNDARY_REVIEW.md): guidance on what should and should not be committed.
