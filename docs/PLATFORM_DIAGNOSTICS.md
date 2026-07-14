@@ -1,6 +1,6 @@
 # Platform Diagnostics
 
-Status: `development_stage` for v2.1.2.
+Status: `development_stage` for v2.1.3.
 
 Platform diagnostics add a deterministic policy-intelligence layer on top of
 the local run registry. They inspect persisted run metadata, artifact records,
@@ -21,6 +21,10 @@ Diagnostics answer metadata questions such as:
 - Which evidence gaps would narrow or block a claim?
 
 Diagnostics are a registry-governance layer, not a scientific scoring layer.
+v2.1.3 adds a separate scientific constraint scaffold for unit, dimension,
+applicability, and claim-boundary metadata. Those findings can be represented
+in an evidence graph, but they still do not read raw data or recompute
+case-study results.
 
 ## Data Model
 
@@ -63,6 +67,10 @@ binaries.
 
 The graph is serialized into diagnostic reports for inspection. It is not a
 database graph engine and has no external dependency.
+
+`build_scientific_evidence_graph` adds metadata-only nodes for scientific
+constraints, domain-knowledge packs, variables, units, and scientific findings.
+It does not infer mechanisms or execute equations.
 
 ## CLI
 

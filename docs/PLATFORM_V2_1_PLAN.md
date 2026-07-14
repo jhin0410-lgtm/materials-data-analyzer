@@ -61,13 +61,32 @@ Still disabled in v2.1.2:
 `reliability_trust_closeout` remains the only controlled verify adapter.
 Registry ingestion can record its manifest but cannot broaden its permissions.
 
+## v2.1.3 Scope
+
+v2.1.3 adds a scientific constraint and domain-knowledge scaffold:
+
+- unit and dimension registry with simple compatible conversions
+- scientific constraint metadata contract
+- code-registered evaluator IDs for small range/unit/consistency checks
+- domain-knowledge packs for materials, battery, manufacturing, reliability,
+  and XRD
+- XRD Bragg and Scherrer metadata examples
+- applicability checks for small JSON metadata configs
+- scientific evidence-graph helper and registered scientific claim IDs
+- CLI commands for list, inspect, validate, unit conversion, and local-only
+  registry export
+
+It does not execute equations from config, read raw datasets, train models,
+perform DFT/FEM/CFD, or claim physical validity without explicit evidence.
+
 ## Registry Roadmap
 
 Planned follow-up work:
 
 - v2.1.2: registry-aware policy diagnostics and evidence-gap analysis
-- v2.1.3: explicit backfill tools for selected manifest directories
-- v2.1.4: adapter output comparison policy for isolated runs
+- v2.1.3: scientific constraint and domain-knowledge metadata scaffold
+- v2.1.4: connect scientific applicability findings to registry diagnostics
+  and platform reports
 - v2.1.5: v2.1 closeout and release readiness audit
 
 ## Non-Goals

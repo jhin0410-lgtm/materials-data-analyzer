@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .platform_core.adapter_registry import build_default_adapter_registry
-from .platform_core.artifacts import build_default_artifact_registry
+from .platform_core.artifacts import build_default_artifact_registry, validate_relative_path
 from .platform_core.case_study_adapter import build_case_study_stage_plan
 from .platform_core.case_study_registry import build_default_case_study_registry
 from .platform_core.config import load_and_validate_pipeline_config, load_json_config
@@ -67,6 +67,15 @@ from .platform_core.run_registry import (
     RunRegistryError,
     UnsupportedRegistryVersion,
 )
+from .platform_core.domain_knowledge import build_default_domain_knowledge_registry
+from .platform_core.scientific_applicability import (
+    check_scientific_applicability,
+    load_scientific_config,
+    validate_scientific_input,
+)
+from .platform_core.scientific_constraint_registry import build_default_scientific_constraint_registry
+from .platform_core.scientific_evaluators import build_default_evaluator_registry
+from .platform_core.units import build_default_unit_registry
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
 from .platform_core.version import PLATFORM_VERSION
@@ -121,6 +130,14 @@ def _case_study_registries() -> tuple[Any, Any, Any, Any, Any, Any, Any]:
         execution_policy_registry,
         case_study_registry,
     )
+
+
+def _scientific_registries() -> tuple[Any, Any, Any, Any]:
+    unit_registry = build_default_unit_registry()
+    evaluator_registry = build_default_evaluator_registry()
+    constraint_registry = build_default_scientific_constraint_registry(evaluator_registry, unit_registry)
+    knowledge_registry = build_default_domain_knowledge_registry()
+    return unit_registry, evaluator_registry, constraint_registry, knowledge_registry
 
 
 def _emit_json(payload: object) -> None:
@@ -1400,6 +1417,219 @@ def _cmd_diagnostics_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list_scientific_constraints(args: argparse.Namespace) -> int:
+    _, _, constraint_registry, _ = _scientific_registries()
+    constraints = constraint_registry.snapshot(args.domain, args.category)
+    if args.json:
+        _emit_json(constraints)
+    else:
+        _emit_lines(
+            [
+                f"{constraint['constraint_id']}\t{constraint['domain']}\t{constraint['category']}\t{constraint['status']}"
+                for constraint in constraints
+            ]
+        )
+    return 0
+
+
+def _cmd_inspect_scientific_constraint(args: argparse.Namespace) -> int:
+    _, _, constraint_registry, _ = _scientific_registries()
+    try:
+        constraint = constraint_registry.get(args.constraint_id).to_dict()
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(constraint)
+    else:
+        _emit_lines(
+            [
+                f"constraint_id: {constraint['constraint_id']}",
+                f"domain: {constraint['domain']}",
+                f"category: {constraint['category']}",
+                f"evaluator_id: {constraint['evaluator_id']}",
+                f"evaluation_role: {constraint['evaluation_role']}",
+                f"status: {constraint['status']}",
+                f"description: {constraint['description']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_list_knowledge_packs(args: argparse.Namespace) -> int:
+    _, _, _, knowledge_registry = _scientific_registries()
+    packs = knowledge_registry.snapshot(args.domain)
+    if args.json:
+        _emit_json(packs)
+    else:
+        _emit_lines([f"{pack['pack_id']}\t{pack['domain']}\t{pack['status']}" for pack in packs])
+    return 0
+
+
+def _cmd_inspect_knowledge_pack(args: argparse.Namespace) -> int:
+    _, _, _, knowledge_registry = _scientific_registries()
+    try:
+        pack = knowledge_registry.get(args.pack_id).to_dict()
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(pack)
+    else:
+        _emit_lines(
+            [
+                f"pack_id: {pack['pack_id']}",
+                f"domain: {pack['domain']}",
+                f"status: {pack['status']}",
+                f"constraints: {', '.join(pack['constraint_ids'])}",
+                f"description: {pack['description']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_check_scientific_applicability(args: argparse.Namespace) -> int:
+    _, evaluator_registry, constraint_registry, _ = _scientific_registries()
+    try:
+        config = load_scientific_config(args.config_path)
+        result = check_scientific_applicability(
+            config,
+            constraint_registry=constraint_registry,
+            evaluator_registry=evaluator_registry,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        payload = {"valid": False, "status": "invalid_config", "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = result.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"status: {payload['status']}",
+                *[f"{item['constraint_id']}: {item['status']}" for item in payload["applicability"]],
+            ]
+        )
+    return 0 if result.valid else EXIT_INVALID_CONFIG
+
+
+def _cmd_validate_scientific_input(args: argparse.Namespace) -> int:
+    unit_registry, evaluator_registry, constraint_registry, _ = _scientific_registries()
+    try:
+        config = load_scientific_config(args.config_path)
+        result = validate_scientific_input(
+            config,
+            constraint_registry=constraint_registry,
+            evaluator_registry=evaluator_registry,
+            unit_registry=unit_registry,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        payload = {"valid": False, "status": "invalid_config", "errors": [str(exc)]}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = result.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"status: {payload['status']}",
+                f"findings: {len(payload['findings'])}",
+                *[f"{finding['constraint_id']}: {finding['status']}" for finding in payload["findings"]],
+            ]
+        )
+    return 0 if result.valid else EXIT_INVALID_CONFIG
+
+
+def _cmd_list_unit_definitions(args: argparse.Namespace) -> int:
+    unit_registry, _, _, _ = _scientific_registries()
+    units = unit_registry.snapshot(args.dimension)
+    if args.json:
+        _emit_json(units)
+    else:
+        _emit_lines([f"{unit['unit_id']}\t{unit['dimension']}\tbase={unit['base_unit']}" for unit in units])
+    return 0
+
+
+def _cmd_convert_unit(args: argparse.Namespace) -> int:
+    unit_registry, _, _, _ = _scientific_registries()
+    try:
+        converted = unit_registry.convert_value(args.value, args.from_unit, args.to_unit)
+    except (KeyError, ValueError) as exc:
+        payload = {"status": "conversion_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"conversion_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = {"status": "converted", "value": args.value, "from_unit": args.from_unit, "to_unit": args.to_unit, "converted_value": converted}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(converted)
+    return 0
+
+
+def _resolve_scientific_export_output(repo_root: Path, output: str) -> Path:
+    validate_relative_path(output)
+    normalized = output.replace("\\", "/")
+    if not normalized.startswith("outputs/"):
+        raise ValueError("scientific registry export must be under outputs/")
+    root = repo_root.resolve()
+    target = (root / output).resolve()
+    if root != target and root not in target.parents:
+        raise ValueError("scientific registry export must stay inside repository root")
+    return target
+
+
+def _cmd_export_scientific_registry(args: argparse.Namespace) -> int:
+    unit_registry, evaluator_registry, constraint_registry, knowledge_registry = _scientific_registries()
+    payload = {
+        "schema_version": "2.1",
+        "platform_version": PLATFORM_VERSION,
+        "status": "scaffold_stage",
+        "units": unit_registry.snapshot(),
+        "evaluators": evaluator_registry.snapshot(),
+        "constraints": constraint_registry.snapshot(args.domain),
+        "knowledge_packs": knowledge_registry.snapshot(args.domain),
+    }
+    try:
+        target = _resolve_scientific_export_output(Path.cwd(), args.output)
+        if target.exists() and not args.overwrite:
+            raise FileExistsError(f"output already exists: {args.output}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        temp.replace(target)
+    except (OSError, ValueError, FileExistsError) as exc:
+        result = {"status": "export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {
+        "status": "exported",
+        "output": target.relative_to(Path.cwd()).as_posix(),
+        "constraint_count": len(payload["constraints"]),
+        "knowledge_pack_count": len(payload["knowledge_packs"]),
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"output: {result['output']}", f"constraint_count: {result['constraint_count']}"])
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -1644,6 +1874,57 @@ def build_parser() -> argparse.ArgumentParser:
     diagnostics_export_parser.add_argument("--overwrite", action="store_true")
     add_registry_path(diagnostics_export_parser)
     diagnostics_export_parser.set_defaults(func=_cmd_diagnostics_export)
+
+    scientific_constraints_parser = subparsers.add_parser(
+        "list-scientific-constraints", help="list registered scientific constraint metadata"
+    )
+    scientific_constraints_parser.add_argument("--domain")
+    scientific_constraints_parser.add_argument("--category")
+    scientific_constraints_parser.set_defaults(func=_cmd_list_scientific_constraints)
+
+    inspect_constraint_parser = subparsers.add_parser(
+        "inspect-scientific-constraint", help="inspect one scientific constraint"
+    )
+    inspect_constraint_parser.add_argument("constraint_id")
+    inspect_constraint_parser.set_defaults(func=_cmd_inspect_scientific_constraint)
+
+    knowledge_packs_parser = subparsers.add_parser("list-knowledge-packs", help="list domain-knowledge packs")
+    knowledge_packs_parser.add_argument("--domain")
+    knowledge_packs_parser.set_defaults(func=_cmd_list_knowledge_packs)
+
+    inspect_pack_parser = subparsers.add_parser("inspect-knowledge-pack", help="inspect one domain-knowledge pack")
+    inspect_pack_parser.add_argument("pack_id")
+    inspect_pack_parser.set_defaults(func=_cmd_inspect_knowledge_pack)
+
+    applicability_parser = subparsers.add_parser(
+        "check-scientific-applicability", help="check scientific constraint applicability for a small JSON config"
+    )
+    applicability_parser.add_argument("config_path")
+    applicability_parser.set_defaults(func=_cmd_check_scientific_applicability)
+
+    validate_scientific_parser = subparsers.add_parser(
+        "validate-scientific-input", help="validate small explicit scientific metadata against registered constraints"
+    )
+    validate_scientific_parser.add_argument("config_path")
+    validate_scientific_parser.set_defaults(func=_cmd_validate_scientific_input)
+
+    units_parser = subparsers.add_parser("list-unit-definitions", help="list supported unit metadata")
+    units_parser.add_argument("--dimension")
+    units_parser.set_defaults(func=_cmd_list_unit_definitions)
+
+    convert_parser = subparsers.add_parser("convert-unit", help="convert a numeric value between supported compatible units")
+    convert_parser.add_argument("--value", type=float, required=True)
+    convert_parser.add_argument("--from", dest="from_unit", required=True)
+    convert_parser.add_argument("--to", dest="to_unit", required=True)
+    convert_parser.set_defaults(func=_cmd_convert_unit)
+
+    export_scientific_parser = subparsers.add_parser(
+        "export-scientific-registry", help="export scientific registry metadata to an ignored outputs path"
+    )
+    export_scientific_parser.add_argument("--output", default="outputs/platform_science/scientific_registry.json")
+    export_scientific_parser.add_argument("--domain")
+    export_scientific_parser.add_argument("--overwrite", action="store_true")
+    export_scientific_parser.set_defaults(func=_cmd_export_scientific_registry)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

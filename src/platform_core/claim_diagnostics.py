@@ -18,6 +18,16 @@ CLAIM_ALIASES = {
     "representative_model_selected": "representative model selected",
     "rul_prediction": "RUL prediction",
     "survival_probability": "survival probability",
+    "physically_consistent_input": "physically consistent input",
+    "dimensionally_consistent": "dimensionally consistent",
+    "conservation_respected": "conservation respected",
+    "physics_informed_feature_used": "physics-informed feature used",
+    "physics_constrained_model": "physics-constrained model",
+    "hybrid_physics_ml": "hybrid physics ML",
+    "thermodynamic_consistency": "thermodynamic consistency",
+    "degradation_mechanism_supported": "degradation mechanism supported",
+    "crystallite_size_estimated": "crystallite size estimated",
+    "phase_identification_supported": "phase identification supported",
 }
 
 
@@ -59,6 +69,28 @@ def evaluate_claim_id(
             "unsupported",
             conflicting_evidence=("missing:representative_model_selected",),
             reason_code="representative_model_not_selected",
+        )
+    if claim_id in {
+        "physically_consistent_input",
+        "dimensionally_consistent",
+        "conservation_respected",
+        "thermodynamic_consistency",
+        "degradation_mechanism_supported",
+        "crystallite_size_estimated",
+        "phase_identification_supported",
+    } and f"scientific_evidence:{claim_id}" not in evidence:
+        return ClaimEvaluation(
+            claim_id,
+            "unsupported",
+            conflicting_evidence=(f"missing:scientific_evidence:{claim_id}",),
+            reason_code="missing_scientific_constraint_evidence",
+        )
+    if claim_id in {"physics_constrained_model", "hybrid_physics_ml", "physics_informed_feature_used"} and "model_scientific_constraint_evidence" not in evidence:
+        return ClaimEvaluation(
+            claim_id,
+            "unsupported",
+            conflicting_evidence=("missing:model_scientific_constraint_evidence",),
+            reason_code="missing_model_scientific_constraint_evidence",
         )
     if claim_text in allowed or any(claim_text in item or item in claim_text for item in allowed):
         return ClaimEvaluation(

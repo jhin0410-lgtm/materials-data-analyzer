@@ -63,3 +63,48 @@ def build_evidence_graph(
         else:
             graph.add_edge(run_id, node_id, "requires")
     return graph.to_dict()
+
+
+def build_scientific_evidence_graph(
+    *,
+    constraints: list[dict[str, Any]],
+    knowledge_packs: list[dict[str, Any]],
+    findings: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build a small graph for scientific metadata contracts.
+
+    This helper is intentionally metadata-only. It does not evaluate equations,
+    read datasets, or infer physical mechanisms.
+    """
+
+    graph = EvidenceGraph()
+    graph.add_node("scientific_registry", "scientific_registry")
+    for pack in knowledge_packs:
+        pack_id = str(pack["pack_id"])
+        graph.add_node(f"knowledge_pack:{pack_id}", "domain_knowledge_pack", domain=pack.get("domain"), status=pack.get("status"))
+        graph.add_edge("scientific_registry", f"knowledge_pack:{pack_id}", "contains")
+        for constraint_id in pack.get("constraint_ids", []):
+            graph.add_edge(f"knowledge_pack:{pack_id}", f"constraint:{constraint_id}", "references")
+    for constraint in constraints:
+        constraint_id = str(constraint["constraint_id"])
+        graph.add_node(
+            f"constraint:{constraint_id}",
+            "scientific_constraint",
+            domain=constraint.get("domain"),
+            category=constraint.get("category"),
+            status=constraint.get("status"),
+            evaluator_id=constraint.get("evaluator_id"),
+        )
+        graph.add_edge("scientific_registry", f"constraint:{constraint_id}", "contains")
+        for variable in constraint.get("required_variables", []):
+            variable_id = str(variable["name"])
+            graph.add_node(f"variable:{variable_id}", "scientific_variable", dimension=variable.get("dimension"), expected_unit=variable.get("expected_unit"))
+            graph.add_edge(f"constraint:{constraint_id}", f"variable:{variable_id}", "requires")
+        for unit in constraint.get("expected_units", {}).values():
+            graph.add_node(f"unit:{unit}", "unit")
+            graph.add_edge(f"constraint:{constraint_id}", f"unit:{unit}", "expects_unit")
+    for finding in findings or []:
+        finding_id = str(finding["finding_id"])
+        graph.add_node(f"scientific_finding:{finding_id}", "scientific_finding", status=finding.get("status"), severity=finding.get("severity"), category=finding.get("category"))
+        graph.add_edge(f"scientific_finding:{finding_id}", f"constraint:{finding['constraint_id']}", "evaluates")
+    return graph.to_dict()

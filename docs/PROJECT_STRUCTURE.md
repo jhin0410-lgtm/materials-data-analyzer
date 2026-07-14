@@ -82,7 +82,11 @@ JSON/Markdown report generation under `outputs/platform_reports/`. v2.1.1 adds
 a local-only SQLite run/artifact registry under `outputs/platform_registry/`
 for manifest ingestion, lineage, reproducibility status, and run comparison.
 v2.1.2 adds registry diagnostics, evidence-gap analysis, registered claim
-evaluation, and evidence-graph summaries from persisted metadata only.
+evaluation, and evidence-graph summaries from persisted metadata only. v2.1.3
+adds unit definitions, scientific constraint metadata, code-registered safe
+evaluators, domain-knowledge packs, scientific applicability checks, and
+XRD Bragg/Scherrer metadata examples. These additions do not execute arbitrary
+equations, read raw data, train models, or run physics simulators.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 

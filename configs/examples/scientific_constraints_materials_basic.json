@@ -1,0 +1,34 @@
+{
+  "schema_version": "2.1",
+  "config_id": "scientific_constraints_materials_basic",
+  "domain": "materials",
+  "dry_run": true,
+  "constraint_ids": [
+    "materials.composition_fraction.non_negative",
+    "materials.composition_fraction.sum_to_one",
+    "materials.energy_above_hull.non_negative_tolerance"
+  ],
+  "variables": {
+    "composition_fraction": {
+      "values": [
+        0.5,
+        0.3,
+        0.2
+      ],
+      "unit": "fraction"
+    },
+    "energy_above_hull_ev_atom": {
+      "value": -0.0000002,
+      "unit": "eV"
+    }
+  },
+  "metadata": {
+    "semantic_availability": {
+      "composition_fraction": true,
+      "energy_above_hull_ev_atom": true
+    }
+  },
+  "credential_policy": {
+    "store_credentials": false
+  }
+}

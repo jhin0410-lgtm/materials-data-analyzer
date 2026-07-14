@@ -61,6 +61,8 @@ The simulation workflow is a data-driven screening aid. It uses observed target-
   or time dependence can inflate results.
 - Preserve weak, negative, or limited results instead of tuning them away.
 - State what each result can and cannot support before making claims.
+- Treat scientific constraints as explicit metadata contracts before using
+  them as features, diagnostics, or model constraints.
 
 ## What This Project Is Not
 
@@ -214,6 +216,25 @@ powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 
 The tracked test suite is designed to run without local raw datasets, Backblaze
 archives, row-level predictions, or generated `outputs/` folders.
+
+### Platform Scientific Constraint Scaffold
+
+The v2 platform layer includes a metadata-only scientific constraint registry.
+It can list unit-aware constraints, inspect domain-knowledge packs, validate
+small explicit JSON metadata, and export a local-only registry snapshot. It
+does not execute equations, read raw datasets, train models, or run physics
+simulation.
+
+```powershell
+python -m src.cli list-scientific-constraints
+python -m src.cli inspect-scientific-constraint xrd.scherrer.preconditions
+python -m src.cli list-knowledge-packs
+python -m src.cli validate-scientific-input configs/examples/scientific_constraints_xrd_bragg_scherrer.json
+python -m src.cli convert-unit --value 25 --from degC --to K
+```
+
+See [`docs/SCIENTIFIC_CONSTRAINTS.md`](docs/SCIENTIFIC_CONSTRAINTS.md) and
+[`docs/DOMAIN_KNOWLEDGE_PACKS.md`](docs/DOMAIN_KNOWLEDGE_PACKS.md).
 
 ## Real-Data Case Studies
 

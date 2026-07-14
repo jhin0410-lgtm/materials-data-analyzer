@@ -9,9 +9,11 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/case_study_onboarding_schema_v2.json"),
         Path("data/platform/platform_report_schema_v2.json"),
         Path("data/platform/report_manifest_schema_v2.json"),
+        Path("data/platform/scientific_constraint_schema_v2.json"),
+        Path("data/platform/domain_knowledge_pack_schema_v2.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] == "2.0"
+        assert payload["schema_version"] in {"2.0", "2.1"}
         assert payload["status"] == "scaffold_stage"
     registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
     assert registry_schema["schema_version"] == "2.1"

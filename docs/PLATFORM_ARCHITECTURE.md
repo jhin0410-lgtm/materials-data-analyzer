@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `development_stage` for v2.1.2.
+Status: `development_stage` for v2.1.3.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -27,6 +27,9 @@ changing output schemas, or replacing `src/process_data.py`.
   local SQLite metadata index without rerunning scientific workflows.
 - Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
   gaps, claim decisions, and evidence graphs from persisted metadata only.
+- Scientific metadata first: v2.1.3 adds unit-aware scientific constraints,
+  domain-knowledge packs, applicability checks, and XRD Bragg/Scherrer
+  examples without running physics solvers or model training.
 
 ## Component Boundaries
 
@@ -69,6 +72,12 @@ In code:
 - `src/platform_core/diagnostic_service.py`: run-registry diagnostic orchestration
 - `src/platform_core/claim_diagnostics.py`: registered machine-readable claim decisions
 - `src/platform_core/evidence_graph.py`: in-memory evidence graph summaries
+- `src/platform_core/units.py`: small unit/dimension registry
+- `src/platform_core/scientific_constraints.py`: scientific constraint data model
+- `src/platform_core/scientific_evaluators.py`: code-registered safe evaluator functions
+- `src/platform_core/scientific_constraint_registry.py`: explicit scientific constraint registry
+- `src/platform_core/domain_knowledge.py`: domain-knowledge pack registry
+- `src/platform_core/scientific_applicability.py`: small JSON applicability and validation checks
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/cli.py`: unified CLI scaffold
 
@@ -190,6 +199,17 @@ SQLite tables without rerunning the underlying science.
 
 See [`PLATFORM_DIAGNOSTICS.md`](PLATFORM_DIAGNOSTICS.md).
 
+## Scientific Constraint Registry
+
+v2.1.3 adds metadata contracts for units, dimensions, assumptions,
+applicability, conservative consistency checks, and claim boundaries. The first
+explicit example is XRD Bragg/Scherrer metadata. Equations are display-only and
+only registered evaluator IDs can run.
+
+See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
+[`DOMAIN_KNOWLEDGE_PACKS.md`](DOMAIN_KNOWLEDGE_PACKS.md), and
+[`PHYSICS_AWARE_ROADMAP.md`](PHYSICS_AWARE_ROADMAP.md).
+
 ## Unified CLI
 
 The scaffold is available with:
@@ -228,6 +248,12 @@ python -m src.cli diagnose-run reliability-trust-verify-run
 python -m src.cli show-diagnostics reliability-trust-verify-run
 python -m src.cli evaluate-claim reliability-trust-verify-run production_deployment
 python -m src.cli show-policy reliability_asset_time_aware
+python -m src.cli list-scientific-constraints
+python -m src.cli inspect-scientific-constraint xrd.scherrer.preconditions
+python -m src.cli list-knowledge-packs
+python -m src.cli validate-scientific-input configs/examples/scientific_constraints_xrd_bragg_scherrer.json
+python -m src.cli convert-unit --value 25 --from degC --to K
+python -m src.cli export-scientific-registry --output outputs/platform_science/scientific_registry.json --overwrite
 python -m src.cli show-version
 ```
 

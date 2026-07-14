@@ -15,6 +15,9 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform Reporting](PLATFORM_REPORTING.md): v2.0.5 read-only JSON/Markdown platform reports from registries and compact artifacts.
 - [Platform Run Registry](PLATFORM_RUN_REGISTRY.md): v2.1 local SQLite manifest/artifact registry, lineage, reproducibility index, diagnostics tables, and CLI.
 - [Platform Diagnostics](PLATFORM_DIAGNOSTICS.md): v2.1.2 registry policy diagnostics, evidence-gap analysis, registered claim decisions, and CLI.
+- [Scientific Constraints](SCIENTIFIC_CONSTRAINTS.md): v2.1.3 unit-aware scientific constraint registry, safe evaluator boundary, XRD example, and CLI.
+- [Domain Knowledge Packs](DOMAIN_KNOWLEDGE_PACKS.md): v2.1.3 metadata packs for materials, battery, manufacturing, reliability, and XRD.
+- [Physics-Aware Roadmap](PHYSICS_AWARE_ROADMAP.md): staged path for future physics-aware metadata and descriptors without overclaiming.
 - [Testing Guide](../TESTING.md): current test-running notes.
 
 ## Active Specifications
