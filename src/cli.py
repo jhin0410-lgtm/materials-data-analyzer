@@ -44,6 +44,16 @@ from .platform_core.report_generator import (
     load_report_json,
     load_report_manifest,
 )
+from .platform_core.registry_service import RegistryService
+from .platform_core.run_registry import (
+    DEFAULT_EXPORT_DIR,
+    DEFAULT_REGISTRY_PATH,
+    RegistryConflictError,
+    RegistryPathError,
+    RegistryValidationError,
+    RunRegistryError,
+    UnsupportedRegistryVersion,
+)
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
 from .platform_core.version import PLATFORM_VERSION
@@ -57,6 +67,7 @@ EXIT_SIDE_EFFECT = 6
 EXIT_VERIFICATION_MISMATCH = 7
 EXIT_RUNTIME_FAILURE = 8
 EXIT_PATH_POLICY = 9
+EXIT_REGISTRY = 10
 
 
 def _registries() -> tuple[Any, Any, Any, Any, Any, Any]:
@@ -99,6 +110,30 @@ def _emit_json(payload: object) -> None:
 
 def _emit_lines(lines: list[str]) -> None:
     print("\n".join(lines))
+
+
+def _registry_service(args: argparse.Namespace) -> RegistryService:
+    return RegistryService(Path.cwd(), getattr(args, "registry_path", None) or DEFAULT_REGISTRY_PATH)
+
+
+def _registry_error_code(exc: Exception) -> int:
+    if isinstance(exc, (RegistryPathError, FileExistsError)):
+        return EXIT_PATH_POLICY
+    if isinstance(exc, (RegistryConflictError, RegistryValidationError, UnsupportedRegistryVersion)):
+        return EXIT_REGISTRY
+    if isinstance(exc, RunRegistryError):
+        return EXIT_REGISTRY
+    return EXIT_RUNTIME_FAILURE
+
+
+def _emit_registry_error(args: argparse.Namespace, status: str, exc: Exception) -> int:
+    code = _registry_error_code(exc)
+    payload = {"status": status, "exit_code": code, "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"{status}: {exc}", file=sys.stderr)
+    return code
 
 
 def _cmd_list_plugins(args: argparse.Namespace) -> int:
@@ -443,6 +478,8 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
     )
     manifest_path = config.get("manifest_output") if isinstance(config.get("manifest_output"), str) else None
     manifest = None
+    written_manifest_path: Path | None = None
+    registry_result = None
     if args.write_manifest:
         try:
             manifest = build_run_manifest(
@@ -460,6 +497,7 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
                 manifest_output=manifest_path,
                 overwrite=bool(args.overwrite or config.get("overwrite_manifest") is True),
             )
+            written_manifest_path = written_path
             manifest_path = str(written_path.relative_to(Path.cwd()))
         except (OSError, ValueError) as exc:
             payload = {
@@ -472,10 +510,23 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
             else:
                 print(f"manifest_error: {exc}", file=sys.stderr)
             return EXIT_PATH_POLICY
+    if args.register_run:
+        if written_manifest_path is None:
+            payload = {"status": "registry_failed", "error": "--register-run requires --write-manifest"}
+            if args.json:
+                _emit_json(payload)
+            else:
+                print("registry_failed: --register-run requires --write-manifest", file=sys.stderr)
+            return EXIT_REGISTRY
+        try:
+            registry_result = _registry_service(args).ingest(written_manifest_path)
+        except Exception as exc:
+            return _emit_registry_error(args, "registry_failed", exc)
     payload = {
         "config_validation": validation.to_dict(),
         "dry_run_plan": plan.to_dict(),
         "manifest_path": manifest_path,
+        "registry_result": registry_result,
     }
     if manifest is not None:
         payload["run_manifest"] = manifest
@@ -495,6 +546,7 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
                 f"adapter_id: {plan.adapter_id}",
                 f"execution_allowed: {plan.execution_allowed}",
                 f"manifest_path: {manifest_path or 'none'}",
+                f"registry_status: {registry_result['status'] if registry_result else 'not_requested'}",
             ]
         )
     return 0 if validation.valid else EXIT_INVALID_CONFIG
@@ -643,7 +695,18 @@ def _cmd_execute(args: argparse.Namespace) -> int:
         else:
             print(f"execution_failed: {exc}", file=sys.stderr)
         return code
-    payload = {"status": manifest["status"], "manifest": manifest, "result": result.to_dict() if result else None}
+    registry_result = None
+    if args.register_run:
+        try:
+            registry_result = _registry_service(args).ingest(Path(str(manifest["output_directory"])) / "run_manifest.json")
+        except Exception as exc:
+            return _emit_registry_error(args, "registry_failed", exc)
+    payload = {
+        "status": manifest["status"],
+        "manifest": manifest,
+        "result": result.to_dict() if result else None,
+        "registry_result": registry_result,
+    }
     if args.json:
         _emit_json(payload)
     else:
@@ -655,6 +718,7 @@ def _cmd_execute(args: argparse.Namespace) -> int:
                 f"execution_mode: {manifest['execution_mode']}",
                 f"side_effect_status: {manifest['side_effect_status']}",
                 f"produced_artifacts: {', '.join(manifest['produced_artifacts']) if manifest['produced_artifacts'] else 'none'}",
+                f"registry_status: {registry_result['status'] if registry_result else 'not_requested'}",
             ]
         )
     return 0
@@ -794,6 +858,13 @@ def _cmd_generate_report(args: argparse.Namespace) -> int:
             print(f"report_generation_failed: {exc}", file=sys.stderr)
         return EXIT_PATH_POLICY if isinstance(exc, (ValueError, FileExistsError)) else EXIT_INVALID_CONFIG
     payload = result.summary()
+    registry_result = None
+    if args.register_run:
+        try:
+            registry_result = _registry_service(args).ingest(Path(str(result.output_dir)) / "report_manifest.json")
+        except Exception as exc:
+            return _emit_registry_error(args, "registry_failed", exc)
+        payload["registry_result"] = registry_result
     if args.json:
         _emit_json(payload)
     else:
@@ -804,6 +875,7 @@ def _cmd_generate_report(args: argparse.Namespace) -> int:
                 f"output_dir: {payload['output_dir']}",
                 f"written_files: {', '.join(payload['written_files'])}",
                 f"scientific_recomputation_performed: {payload['scientific_recomputation_performed']}",
+                f"registry_status: {registry_result['status'] if registry_result else 'not_requested'}",
             ]
         )
     return 0
@@ -906,6 +978,199 @@ def _cmd_list_report_sources(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_registry_init(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).initialize()
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_init_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"registry_path: {payload['registry_path']}",
+                f"schema_version: {payload['schema_version']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_ingest(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).ingest(args.manifest_path)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_ingest_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"run_id: {payload['run_id']}",
+                f"manifest_kind: {payload['manifest_kind']}",
+                f"artifact_records: {payload['artifact_records']}",
+                f"lineage_records: {payload['lineage_records']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_list_runs(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).list_runs()
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_list_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"{run['run_id']}\t{run['plugin_id']}\t{run['stage']}\t{run['status']}\t{run['manifest_kind']}"
+                for run in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_show_run(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).get_run(args.run_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_show_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        run = payload["run"]
+        _emit_lines(
+            [
+                f"run_id: {run['run_id']}",
+                f"plugin_id: {run['plugin_id']}",
+                f"adapter_id: {run['adapter_id']}",
+                f"stage: {run['stage']}",
+                f"status: {run['status']}",
+                f"artifact_records: {len(payload['artifacts'])}",
+                f"warnings: {len(payload['warnings'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_list_artifacts(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).list_artifacts(args.run_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_artifacts_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                (
+                    f"{artifact['artifact_record_id']}\t{artifact['run_id']}\t{artifact['role']}\t"
+                    f"{artifact['artifact_id']}\t{artifact['relative_path']}"
+                )
+                for artifact in payload
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_lineage(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).lineage(args.artifact_record_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_lineage_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        artifact = payload["artifact"]
+        _emit_lines(
+            [
+                f"artifact_record_id: {artifact['artifact_record_id']}",
+                f"artifact_id: {artifact['artifact_id']}",
+                f"parents: {len(payload['parents'])}",
+                f"children: {len(payload['children'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_reproducibility(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).reproducibility(args.run_id)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_reproducibility_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"run_id: {payload['run_id']}",
+                f"status: {payload['status']}",
+                f"reasons: {', '.join(payload['reasons']) if payload['reasons'] else 'none'}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_compare_runs(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).compare(args.run_a, args.run_b)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_compare_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"run_a: {payload['run_a']}",
+                f"run_b: {payload['run_b']}",
+                f"status: {payload['status']}",
+                f"reasons: {', '.join(payload['reasons']) if payload['reasons'] else 'none'}",
+            ]
+        )
+    return 0
+
+
+def _cmd_registry_validate(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).validate()
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_validate_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"schema_version: {payload['schema_version']}",
+                *[f"error: {error}" for error in payload["errors"]],
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_REGISTRY
+
+
+def _cmd_registry_export(args: argparse.Namespace) -> int:
+    try:
+        payload = _registry_service(args).export(args.export_dir, overwrite=args.overwrite)
+    except Exception as exc:
+        return _emit_registry_error(args, "registry_export_failed", exc)
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"json_path: {payload['json_path']}",
+                f"csv_path: {payload['csv_path']}",
+                f"run_count: {payload['run_count']}",
+                f"artifact_count: {payload['artifact_count']}",
+            ]
+        )
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -919,6 +1184,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="materials_data_analyzer v2 platform scaffold")
     parser.add_argument("--json", action="store_true", help="emit JSON output")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    def add_registry_path(subparser: argparse.ArgumentParser) -> None:
+        subparser.add_argument(
+            "--registry-path",
+            default=DEFAULT_REGISTRY_PATH,
+            help="repository-relative SQLite registry path under outputs/platform_registry",
+        )
 
     subparsers.add_parser("list-plugins", help="list registered case-study plugins").set_defaults(func=_cmd_list_plugins)
 
@@ -979,6 +1251,8 @@ def build_parser() -> argparse.ArgumentParser:
     dry_run_parser.add_argument("--write-manifest", action="store_true", help="write a local dry-run manifest")
     dry_run_parser.add_argument("--manifest-out", help="relative output path for the run manifest")
     dry_run_parser.add_argument("--overwrite", action="store_true", help="allow replacing an existing manifest")
+    dry_run_parser.add_argument("--register-run", action="store_true", help="ingest the written manifest into the local registry")
+    add_registry_path(dry_run_parser)
     dry_run_parser.set_defaults(func=_cmd_dry_run)
 
     execute_parser = subparsers.add_parser("execute", help="execute an approved adapter in controlled mode")
@@ -988,6 +1262,8 @@ def build_parser() -> argparse.ArgumentParser:
     execute_parser.add_argument("--run-id")
     execute_parser.add_argument("--output-dir")
     execute_parser.add_argument("--overwrite", action="store_true")
+    execute_parser.add_argument("--register-run", action="store_true", help="ingest the terminal manifest into the local registry")
+    add_registry_path(execute_parser)
     execute_parser.set_defaults(func=_cmd_execute)
 
     verify_run_parser = subparsers.add_parser("verify-run", help="verify a terminal run manifest")
@@ -1019,6 +1295,8 @@ def build_parser() -> argparse.ArgumentParser:
     generate_report_parser.add_argument("--output-dir", help="repository-relative outputs/platform_reports directory")
     generate_report_parser.add_argument("--report-id", help="override report_id")
     generate_report_parser.add_argument("--overwrite", action="store_true", help="allow replacing an existing report")
+    generate_report_parser.add_argument("--register-run", action="store_true", help="ingest the report manifest into the local registry")
+    add_registry_path(generate_report_parser)
     generate_report_parser.set_defaults(func=_cmd_generate_report)
 
     preview_report_parser = subparsers.add_parser("preview-report", help="preview a platform report without writing files")
@@ -1040,6 +1318,55 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list-report-sources", help="list tracked compact artifacts used by platform reports").set_defaults(
         func=_cmd_list_report_sources
     )
+
+    registry_init_parser = subparsers.add_parser("registry-init", help="initialize the local platform registry")
+    add_registry_path(registry_init_parser)
+    registry_init_parser.set_defaults(func=_cmd_registry_init)
+
+    registry_ingest_parser = subparsers.add_parser("registry-ingest", help="ingest one run or report manifest")
+    registry_ingest_parser.add_argument("manifest_path")
+    add_registry_path(registry_ingest_parser)
+    registry_ingest_parser.set_defaults(func=_cmd_registry_ingest)
+
+    registry_list_runs_parser = subparsers.add_parser("registry-list-runs", help="list persisted run records")
+    add_registry_path(registry_list_runs_parser)
+    registry_list_runs_parser.set_defaults(func=_cmd_registry_list_runs)
+
+    registry_show_run_parser = subparsers.add_parser("registry-show-run", help="show one persisted run record")
+    registry_show_run_parser.add_argument("run_id")
+    add_registry_path(registry_show_run_parser)
+    registry_show_run_parser.set_defaults(func=_cmd_registry_show_run)
+
+    registry_list_artifacts_parser = subparsers.add_parser("registry-list-artifacts", help="list persisted artifact records")
+    registry_list_artifacts_parser.add_argument("--run-id")
+    add_registry_path(registry_list_artifacts_parser)
+    registry_list_artifacts_parser.set_defaults(func=_cmd_registry_list_artifacts)
+
+    registry_lineage_parser = subparsers.add_parser("registry-lineage", help="show lineage for one artifact record")
+    registry_lineage_parser.add_argument("artifact_record_id")
+    add_registry_path(registry_lineage_parser)
+    registry_lineage_parser.set_defaults(func=_cmd_registry_lineage)
+
+    registry_repro_parser = subparsers.add_parser("registry-reproducibility", help="assess one run's metadata reproducibility")
+    registry_repro_parser.add_argument("run_id")
+    add_registry_path(registry_repro_parser)
+    registry_repro_parser.set_defaults(func=_cmd_registry_reproducibility)
+
+    registry_compare_parser = subparsers.add_parser("registry-compare-runs", help="compare two persisted run records")
+    registry_compare_parser.add_argument("run_a")
+    registry_compare_parser.add_argument("run_b")
+    add_registry_path(registry_compare_parser)
+    registry_compare_parser.set_defaults(func=_cmd_registry_compare_runs)
+
+    registry_validate_parser = subparsers.add_parser("registry-validate", help="validate registry integrity")
+    add_registry_path(registry_validate_parser)
+    registry_validate_parser.set_defaults(func=_cmd_registry_validate)
+
+    registry_export_parser = subparsers.add_parser("registry-export", help="export a local registry snapshot")
+    registry_export_parser.add_argument("--export-dir", default=DEFAULT_EXPORT_DIR)
+    registry_export_parser.add_argument("--overwrite", action="store_true")
+    add_registry_path(registry_export_parser)
+    registry_export_parser.set_defaults(func=_cmd_registry_export)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

@@ -13,6 +13,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
 - [Platform Execution](PLATFORM_EXECUTION.md): v2.0.3 controlled verify runtime, allowlist, side-effect guard, manifest lifecycle, and CLI exit codes.
 - [Platform Reporting](PLATFORM_REPORTING.md): v2.0.5 read-only JSON/Markdown platform reports from registries and compact artifacts.
+- [Platform Run Registry](PLATFORM_RUN_REGISTRY.md): v2.1.1 local SQLite manifest/artifact registry, lineage, reproducibility index, and CLI.
 - [Testing Guide](../TESTING.md): current test-running notes.
 
 ## Active Specifications
@@ -30,6 +31,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
 - [Platform v2 Plan](PLATFORM_V2_PLAN.md): configuration-driven platform scaffold roadmap.
+- [Platform v2.1 Plan](PLATFORM_V2_1_PLAN.md): local persistent registry roadmap.
 - [Platform v2 Closeout](PLATFORM_V2_CLOSEOUT.md): v2.0.1-v2.0.5 scaffold summary, current execution boundary, and v2.1 roadmap.
 - [v2.0.0 Release Notes](releases/V2_0_0.md): platform core, controlled execution, onboarding metadata, and read-only reporting release notes.
 - [v1.5.0 Release Notes](releases/V1_5_0.md): Backblaze reliability validation and trust-boundary release notes.

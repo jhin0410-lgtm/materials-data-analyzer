@@ -1,6 +1,6 @@
 # Platform Architecture
 
-Status: `scaffold_stage` for v2.0.5.
+Status: `development_stage` for v2.1.1.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -23,6 +23,8 @@ changing output schemas, or replacing `src/process_data.py`.
   and onboarding readiness without forcing old scripts into one abstraction.
 - Report read-only: platform reports summarize registries and tracked compact
   artifacts without recomputing scientific results.
+- Persistent local registry: v2.1.1 can ingest run/report manifests into a
+  local SQLite metadata index without rerunning scientific workflows.
 
 ## Component Boundaries
 
@@ -59,6 +61,8 @@ In code:
 - `src/platform_core/reports.py`: platform report data model
 - `src/platform_core/report_extractors.py`: explicit compact-artifact extractors
 - `src/platform_core/report_generator.py`: JSON/Markdown report renderer and local-only writer
+- `src/platform_core/run_registry.py`: local SQLite run/artifact registry
+- `src/platform_core/registry_service.py`: service wrapper for registry CLI operations
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/cli.py`: unified CLI scaffold
 
@@ -159,6 +163,17 @@ when requested with `--write-manifest`. Manifests are local-only and ignored by
 Git.
 v2.0.3 also writes terminal execution manifests for approved verify runs.
 
+## Persistent Run Registry
+
+v2.1.1 adds a local-only SQLite registry under `outputs/platform_registry/`.
+It can ingest run manifests and platform report manifests, store artifact
+instances and lineage, compute metadata-only reproducibility status, compare
+runs, validate registry integrity, and export local JSON/CSV summaries.
+
+The registry is not a workflow scheduler and does not execute acquisition,
+model training, raw-data reads, trust analyzers, or scientific recomputation.
+See [`PLATFORM_RUN_REGISTRY.md`](PLATFORM_RUN_REGISTRY.md).
+
 ## Unified CLI
 
 The scaffold is available with:
@@ -188,6 +203,11 @@ python -m src.cli generate-report --config configs/examples/platform_report_all_
 python -m src.cli validate-report outputs/platform_reports/platform_v2_all_case_studies
 python -m src.cli inspect-report outputs/platform_reports/platform_v2_all_case_studies
 python -m src.cli list-report-sources
+python -m src.cli registry-init
+python -m src.cli registry-ingest outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
+python -m src.cli registry-list-runs
+python -m src.cli registry-reproducibility reliability-trust-verify-run
+python -m src.cli registry-export --overwrite
 python -m src.cli show-policy reliability_asset_time_aware
 python -m src.cli show-version
 ```

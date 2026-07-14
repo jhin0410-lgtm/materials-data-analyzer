@@ -1,6 +1,6 @@
 # Platform Reporting
 
-Status: `scaffold_stage` for v2.0.5.
+Status: `development_stage` for v2.1.1.
 
 The platform report engine creates a local-only summary of v2 registry metadata
 and tracked compact case-study artifacts. It is read-only: it does not run
@@ -102,6 +102,7 @@ Generate a local report:
 
 ```powershell
 python -m src.cli generate-report --config configs/examples/platform_report_all_case_studies.json
+python -m src.cli generate-report --config configs/examples/platform_report_all_case_studies.json --register-run
 ```
 
 Validate and inspect a generated report:
@@ -113,6 +114,11 @@ python -m src.cli list-report-sources
 ```
 
 Add `--json` before the command for deterministic JSON output.
+
+With `--register-run`, the generated `report_manifest.json` is ingested into
+the local SQLite run registry under `outputs/platform_registry/`. This records
+metadata and artifact checksums only; it does not rerun report extraction or
+scientific analysis.
 
 ## Limitations
 

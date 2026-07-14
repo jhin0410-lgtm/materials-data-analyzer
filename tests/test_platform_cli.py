@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from src.platform_core.version import PLATFORM_VERSION
+
 
 def _run_cli(*args):
     return subprocess.run(
@@ -127,4 +129,4 @@ def test_cli_show_policy_and_version():
     assert policy.returncode == 0
     assert json.loads(policy.stdout)["policy_type"] == "trust"
     assert version.returncode == 0
-    assert json.loads(version.stdout)["platform_version"] == "2.0.5-dev"
+    assert json.loads(version.stdout)["platform_version"] == PLATFORM_VERSION

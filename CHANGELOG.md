@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Added a local-only SQLite run/artifact registry scaffold under
+  `outputs/platform_registry/` for run/report manifest ingestion, artifact
+  instance records, lineage, reproducibility status, run comparison,
+  validation, and export.
+- Added registry CLI commands and optional `--register-run` support for
+  dry-run, controlled verify execution, and read-only report generation.
+- Kept registry operations metadata-only: no acquisition execution, model
+  training, raw data reads, scientific recomputation, canonical output
+  overwrite, network access, or arbitrary execution.
+
 ## v2.0
 
 - Added an additive platform core with explicit plugin, adapter, artifact,

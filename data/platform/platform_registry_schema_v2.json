@@ -1,0 +1,117 @@
+{
+  "schema_version": "2.1",
+  "schema_name": "platform_registry_schema_v2",
+  "status": "development_stage",
+  "storage_backend": "sqlite3",
+  "default_registry_path": "outputs/platform_registry/platform_registry.sqlite3",
+  "local_only": true,
+  "database_schema_version": 1,
+  "description": "Logical schema for the local persistent platform run and artifact registry. The SQLite DDL lives in src/platform_core/run_registry.py.",
+  "tables": {
+    "runs": {
+      "primary_key": "run_id",
+      "fields": [
+        "run_id",
+        "manifest_kind",
+        "manifest_sha256",
+        "pipeline_id",
+        "plugin_id",
+        "adapter_id",
+        "case_study_id",
+        "stage",
+        "config_sha256",
+        "code_commit",
+        "status",
+        "execution_mode",
+        "dry_run",
+        "started_at",
+        "completed_at",
+        "duration_seconds",
+        "manifest_relative_path",
+        "verification_status",
+        "side_effect_status",
+        "claim_boundary_ref",
+        "created_at"
+      ]
+    },
+    "artifacts": {
+      "primary_key": "artifact_record_id",
+      "fields": [
+        "artifact_record_id",
+        "artifact_id",
+        "run_id",
+        "role",
+        "relative_path",
+        "artifact_type",
+        "format",
+        "checksum_sha256",
+        "size_bytes",
+        "tracked_policy",
+        "local_only",
+        "producer",
+        "provenance_status",
+        "created_at"
+      ],
+      "role_enum": [
+        "input",
+        "output"
+      ]
+    },
+    "lineage": {
+      "primary_key": [
+        "parent_artifact_record_id",
+        "child_artifact_record_id",
+        "relationship"
+      ],
+      "fields": [
+        "parent_artifact_record_id",
+        "child_artifact_record_id",
+        "relationship",
+        "run_id"
+      ]
+    },
+    "warnings": {
+      "primary_key": "warning_id",
+      "fields": [
+        "warning_id",
+        "run_id",
+        "warning_code",
+        "severity",
+        "message"
+      ]
+    },
+    "registry_metadata": {
+      "primary_key": "metadata_id",
+      "fields": [
+        "schema_version",
+        "created_at",
+        "updated_at"
+      ]
+    }
+  },
+  "reproducibility_statuses": [
+    "reproducible_verified",
+    "reproducible_partial",
+    "unverifiable_missing_input",
+    "unverifiable_checksum_mismatch",
+    "unverifiable_code_commit",
+    "unverifiable_config",
+    "blocked_policy_violation"
+  ],
+  "run_comparison_statuses": [
+    "identical_metadata",
+    "reproducible_equivalent",
+    "configuration_changed",
+    "inputs_changed",
+    "code_changed",
+    "outputs_changed",
+    "incomparable"
+  ],
+  "security_rules": [
+    "Registry paths must be repository-relative and under outputs/platform_registry.",
+    "Stored manifest and artifact paths must be relative.",
+    "Credentials, usernames, hostnames, raw rows, and environment dumps are not stored.",
+    "Values are written through parameterized sqlite3 queries.",
+    "Registry operations do not execute adapters, subprocesses, network calls, acquisition, or model training."
+  ]
+}

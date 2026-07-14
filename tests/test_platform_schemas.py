@@ -13,6 +13,9 @@ def test_platform_schema_json_files_parse():
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["schema_version"] == "2.0"
         assert payload["status"] == "scaffold_stage"
+    registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
+    assert registry_schema["schema_version"] == "2.1"
+    assert registry_schema["status"] == "development_stage"
 
 
 def test_example_configs_have_no_credentials_or_absolute_paths():
@@ -41,6 +44,6 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
 def test_platform_docs_are_scaffold_stage_not_completed_pipeline():
     text = Path("docs/PLATFORM_V2_PLAN.md").read_text(encoding="utf-8")
 
-    assert "Status: `scaffold_stage`" in text
+    assert "Status: `development_stage`" in text
     assert "does not execute actual acquisition" in text
     assert "Actual `run` execution is intentionally deferred" in text
