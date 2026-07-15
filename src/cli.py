@@ -103,6 +103,17 @@ from .platform_core.units import build_default_unit_registry
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
 from .platform_core.version import PLATFORM_VERSION
+from .analyzers.materials_physics_features import (
+    build_request_from_config as build_materials_feature_request_from_config,
+    comparison_request_from_config as build_materials_comparison_request_from_config,
+    feature_definitions as materials_feature_definitions,
+    get_feature_definition as get_materials_feature_definition,
+    load_json as load_materials_json,
+    render_predictive_value_report,
+    run_feature_build,
+    run_predictive_comparison,
+    validate_feature_artifact,
+)
 
 
 EXIT_INVALID_CONFIG = 2
@@ -2137,6 +2148,182 @@ def _cmd_export_scientific_trust(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list_materials_feature_builders(args: argparse.Namespace) -> int:
+    payload = materials_feature_definitions().to_dict(orient="records")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row['feature_id']}\t{row['role']}\t{row['unit']}" for row in payload])
+    return 0
+
+
+def _cmd_inspect_materials_feature_builder(args: argparse.Namespace) -> int:
+    try:
+        payload = get_materials_feature_definition(args.feature_id)
+    except KeyError as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"feature_id: {payload['feature_id']}",
+                f"column_name: {payload['column_name']}",
+                f"role: {payload['role']}",
+                f"unit: {payload['unit']}",
+                f"formula: {payload['formula']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_build_materials_physics_features(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_json(args.config_path)
+        request = build_materials_feature_request_from_config(config)
+        payload = run_feature_build(request)
+    except (OSError, ValueError, RuntimeError, FileExistsError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_feature_build_failed", "error": str(exc)})
+        else:
+            print(f"materials_feature_build_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload.get('run_stage')}",
+                f"feature_rows: {payload.get('feature_rows')}",
+                f"generated_rows: {payload.get('generated_rows')}",
+                f"feature_matrix: {payload['local_outputs']['feature_matrix']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_materials_feature_artifact(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_feature_artifact(args.path)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"row_count: {payload['row_count']}",
+                f"generated_rows: {payload['generated_rows']}",
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_run_materials_feature_comparison(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_json(args.config_path)
+        request = build_materials_comparison_request_from_config(config)
+        payload = run_predictive_comparison(request)
+    except (OSError, ValueError, RuntimeError, FileExistsError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_feature_comparison_failed", "error": str(exc)})
+        else:
+            print(f"materials_feature_comparison_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['decision_status']}",
+                f"matched_rows: {payload['rows']['matched_rows']}",
+                f"local_manifest: {payload['local_outputs']['local_manifest']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_materials_feature_comparison(args: argparse.Namespace) -> int:
+    candidate = Path(args.result)
+    if not candidate.exists():
+        if args.result == "latest":
+            candidate = Path("data/processed/materials_physics_v2_2_predictive_value_decision.json")
+        else:
+            candidate = Path("outputs/materials_physics_v2_2") / args.result / "materials_physics_v2_2_comparison_manifest.json"
+    try:
+        payload = load_materials_json(candidate)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"schema_version: {payload.get('schema_version')}",
+                f"status: {payload.get('predictive_value_status', payload.get('decision_status', 'unavailable'))}",
+                f"matched_rows: {payload.get('matched_rows', payload.get('rows', {}).get('matched_rows', 'unavailable'))}",
+            ]
+        )
+    return 0
+
+
+def _cmd_export_materials_feature_summary(args: argparse.Namespace) -> int:
+    try:
+        decision = load_materials_json(args.decision)
+        summary = json.loads(Path(args.summary).read_text(encoding="utf-8")) if args.summary.endswith(".json") else None
+        if summary is None:
+            import pandas as pd
+
+            summary_df = pd.read_csv(args.summary)
+            report = render_predictive_value_report(decision, summary_df)
+            payload: dict[str, Any] = {
+                "schema_version": decision.get("schema_version"),
+                "decision": decision,
+                "summary_row_count": int(len(summary_df)),
+            }
+        else:
+            report = json.dumps(summary, indent=2, sort_keys=True)
+            payload = {"schema_version": decision.get("schema_version"), "decision": decision, "summary": summary}
+        output = Path(args.output)
+        validate_relative_path(output.as_posix())
+        if not output.as_posix().startswith("outputs/"):
+            raise ValueError("materials feature summary export must be under outputs/")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if args.markdown_output:
+            markdown_output = Path(args.markdown_output)
+            validate_relative_path(markdown_output.as_posix())
+            if not markdown_output.as_posix().startswith("outputs/"):
+                raise ValueError("materials feature markdown export must be under outputs/")
+            markdown_output.parent.mkdir(parents=True, exist_ok=True)
+            markdown_output.write_text(report, encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "export_failed", "error": str(exc)})
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {"status": "exported", "output": output.as_posix()}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: exported", f"output: {output.as_posix()}"])
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -2557,6 +2744,65 @@ def build_parser() -> argparse.ArgumentParser:
     export_trust_parser.add_argument("--output", default="outputs/platform_science/scientific_trust_export.json")
     export_trust_parser.add_argument("--overwrite", action="store_true")
     export_trust_parser.set_defaults(func=_cmd_export_scientific_trust)
+
+    subparsers.add_parser(
+        "list-materials-feature-builders",
+        help="list registered Materials v2.2 physics feature builders",
+    ).set_defaults(func=_cmd_list_materials_feature_builders)
+
+    inspect_materials_feature_parser = subparsers.add_parser(
+        "inspect-materials-feature-builder",
+        help="inspect one registered Materials v2.2 feature builder",
+    )
+    inspect_materials_feature_parser.add_argument("feature_id")
+    inspect_materials_feature_parser.set_defaults(func=_cmd_inspect_materials_feature_builder)
+
+    build_materials_features_parser = subparsers.add_parser(
+        "build-materials-physics-features",
+        help="build local-only Materials v2.2 physics feature matrix from an existing local source CSV",
+    )
+    build_materials_features_parser.add_argument("config_path")
+    build_materials_features_parser.set_defaults(func=_cmd_build_materials_physics_features)
+
+    validate_materials_features_parser = subparsers.add_parser(
+        "validate-materials-feature-artifact",
+        help="validate a Materials v2.2 feature matrix artifact",
+    )
+    validate_materials_features_parser.add_argument("path")
+    validate_materials_features_parser.set_defaults(func=_cmd_validate_materials_feature_artifact)
+
+    compare_materials_features_parser = subparsers.add_parser(
+        "run-materials-feature-comparison",
+        help="run matched baseline/physics feature-set comparison for Materials v2.2",
+    )
+    compare_materials_features_parser.add_argument("config_path")
+    compare_materials_features_parser.set_defaults(func=_cmd_run_materials_feature_comparison)
+
+    show_materials_comparison_parser = subparsers.add_parser(
+        "show-materials-feature-comparison",
+        help="show a Materials v2.2 predictive-value decision or comparison manifest",
+    )
+    show_materials_comparison_parser.add_argument("result")
+    show_materials_comparison_parser.set_defaults(func=_cmd_show_materials_feature_comparison)
+
+    export_materials_summary_parser = subparsers.add_parser(
+        "export-materials-feature-summary",
+        help="export Materials v2.2 predictive summary to local-only outputs",
+    )
+    export_materials_summary_parser.add_argument(
+        "--decision",
+        default="data/processed/materials_physics_v2_2_predictive_value_decision.json",
+    )
+    export_materials_summary_parser.add_argument(
+        "--summary",
+        default="data/processed/materials_physics_v2_2_predictive_comparison_summary.csv",
+    )
+    export_materials_summary_parser.add_argument(
+        "--output",
+        default="outputs/materials_physics_v2_2/materials_feature_summary_export.json",
+    )
+    export_materials_summary_parser.add_argument("--markdown-output")
+    export_materials_summary_parser.set_defaults(func=_cmd_export_materials_feature_summary)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

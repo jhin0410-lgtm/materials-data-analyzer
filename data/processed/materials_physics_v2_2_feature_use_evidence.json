@@ -1,0 +1,22 @@
+{
+  "case_study_id": "materials_project",
+  "comparison_evidence": {
+    "combined_primary_mae_improvement_median": 0.0016323245336746436,
+    "matched_rows": 36,
+    "primary_splits": [
+      "chemical_system_group",
+      "reduced_formula_group"
+    ]
+  },
+  "feature_build_status": "success",
+  "feature_matrix": "outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv",
+  "hybrid_physics_ml": false,
+  "physics_constrained_model": false,
+  "physics_informed_feature_available": true,
+  "physics_informed_feature_used": true,
+  "predictive_value_status": "inconclusive_low_sample",
+  "schema_version": "2.2.1",
+  "source_artifact": "data/processed/materials_project_v1_3_acquired.csv",
+  "source_sha256": "7a47cc968d667dcc0c56712842ea764386b10dcd2a7e61ff89771c6e09ba3941",
+  "usage_note": "Feature build and matched predictive comparison completed; claim remains bounded."
+}

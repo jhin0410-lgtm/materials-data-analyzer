@@ -218,6 +218,9 @@ metadata checks. Equations are display-only and are never parsed from config.
 v2.1.5 adds scientific trust evaluation over stored execution evidence:
 constraint roles, evidence levels, feature-candidate eligibility, and claim
 boundaries are recorded without generating feature values or training models.
+v2.2.1 adds bounded Materials composition feature builders plus matched
+predictive-value validation for those features; the current decision is
+`performance_degraded`, not a physics-constrained model claim.
 
 See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
 [`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
@@ -275,6 +278,9 @@ python -m src.cli preview-scientific-check configs/examples/xrd_bragg_consistent
 python -m src.cli execute-scientific-check configs/examples/xrd_scherrer_uncorrected_check.json --persist
 python -m src.cli evaluate-scientific-trust xrd_scherrer_uncorrected_check
 python -m src.cli list-scientific-feature-candidates
+python -m src.cli list-materials-feature-builders
+python -m src.cli build-materials-physics-features configs/examples/materials_physics_feature_build.json
+python -m src.cli run-materials-feature-comparison configs/examples/materials_physics_predictive_comparison.json
 python -m src.cli scientific-trust-validate
 python -m src.cli show-version
 ```

@@ -60,6 +60,13 @@ Prohibited without further evidence:
 - degradation mechanism confirmation
 - production scientific decision
 
+v2.2.1 adds a narrow Materials exception for the claim
+`physics_informed_feature_used`: selected composition-derived feature builders
+were generated and included in matched validation. The resulting predictive
+decision was `performance_degraded`, so this does not authorize
+`physics_constrained_model`, `hybrid_physics_ml`, SHAP explanation, DFT
+replacement, or discovery claims.
+
 ## Domain Boundaries
 
 XRD Bragg checks can estimate d-spacing from supplied wavelength/order and

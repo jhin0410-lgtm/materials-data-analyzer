@@ -335,18 +335,26 @@ Fe/Si-containing multinary calculated-property table. It demonstrates:
 - Group-aware baseline validation by reduced formula and chemical system
 - Applicability-domain, error-structure, and claim-boundary diagnostics
 - Conservative release closeout with weak/limited predictive results preserved
+- v2.2 bounded composition physics-feature builders and matched
+  predictive-value validation, currently recorded as `performance_degraded`
 
 This case study does not claim novel materials discovery, direct DFT execution,
 synthesis feasibility, experimental validation, or generalizable model
 performance. The v1.3 conclusion is that composition-only prediction remained
 weak, group-aware generalization was limited, and observed-property descriptive
-screening remains reproducible. Reproduction commands and interpretation notes
+screening remains reproducible. The v2.2 feature-builder follow-up generated
+838/838 physics feature rows with complete property coverage, but matched
+group-aware validation did not improve over the baseline, so it is recorded as
+`performance_degraded` rather than a physics-aware model success.
+Reproduction commands and interpretation notes
 live in:
 
 - [`data/case_studies/materials_project/README.md`](data/case_studies/materials_project/README.md)
 - [`data/case_studies/materials_project/source.md`](data/case_studies/materials_project/source.md)
 - [`data/case_studies/materials_project/screening_methodology.md`](data/case_studies/materials_project/screening_methodology.md)
 - [`data/case_studies/materials_project/case_study.md`](data/case_studies/materials_project/case_study.md)
+- [`docs/MATERIALS_PHYSICS_FEATURES.md`](docs/MATERIALS_PHYSICS_FEATURES.md)
+- [`docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md`](docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md)
 
 ### Smart Factory / UCI SECOM
 
@@ -595,6 +603,16 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   production scientific decisions.
 - See [`docs/PLATFORM_V2_1_CLOSEOUT.md`](docs/PLATFORM_V2_1_CLOSEOUT.md) and
   [`docs/releases/V2_1_0.md`](docs/releases/V2_1_0.md).
+
+### v2.2 In Progress: Materials Physics Feature Validation
+
+- Selected Materials composition feature builders are implemented with
+  documented pymatgen property provenance and local-only row-level outputs.
+- Matched predictive-value validation uses the existing v1.3 split/model
+  policy; the current result is `performance_degraded`, not a successful
+  physics-aware model.
+- See [`docs/MATERIALS_PHYSICS_FEATURES.md`](docs/MATERIALS_PHYSICS_FEATURES.md)
+  and [`docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md`](docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md).
 
 ### Later
 

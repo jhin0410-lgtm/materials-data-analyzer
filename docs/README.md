@@ -19,6 +19,8 @@ This directory collects project references, specifications, audits, policies, ca
 - [Scientific Execution](SCIENTIFIC_EXECUTION.md): v2.1 bounded scalar/small-list scientific execution, finding persistence, trust closeout, and local-only outputs.
 - [Scientific Trust Boundary](SCIENTIFIC_TRUST_BOUNDARY.md): v2.1.5 evidence levels, constraint roles, claim matrix, and domain-specific scientific boundaries.
 - [Scientific Feature Candidates](SCIENTIFIC_FEATURE_CANDIDATES.md): v2.1.5 metadata-only physics-aware feature candidate registry and v2.2 builder boundary.
+- [Materials Physics Features](MATERIALS_PHYSICS_FEATURES.md): v2.2 bounded Materials composition feature builders, property provenance, coverage policy, and CLI.
+- [Materials Predictive-Value Validation](MATERIALS_PREDICTIVE_VALUE_VALIDATION.md): v2.2 matched baseline/physics feature-set comparison and claim boundary.
 - [XRD Physics Validation](XRD_PHYSICS_VALIDATION.md): Bragg and Scherrer execution boundary, units, claim limits, and non-goals.
 - [Domain Knowledge Packs](DOMAIN_KNOWLEDGE_PACKS.md): v2.1.4 metadata packs for materials, battery, manufacturing, reliability, and XRD.
 - [Physics-Aware Roadmap](PHYSICS_AWARE_ROADMAP.md): staged path for future physics-aware metadata and descriptors without overclaiming.
@@ -36,6 +38,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [v1.0 Release Readiness Audit](V1_0_RELEASE_READINESS_AUDIT.md): release-readiness review.
 - [Battery Archive Data Audit](BATTERY_ARCHIVE_DATA_AUDIT.md): raw zip inventory and case-study feasibility review.
 - [Materials Project Data Audit](MATERIALS_PROJECT_DATA_AUDIT.md): local 50-row pilot audit, schema/quality follow-up, and descriptive screening notes.
+- [Materials v2.2 Data Audit](MATERIALS_V2_2_DATA_AUDIT.md): existing v1.3 local artifact gate for bounded physics feature construction.
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
 - [Platform v2 Plan](PLATFORM_V2_PLAN.md): configuration-driven platform scaffold roadmap.

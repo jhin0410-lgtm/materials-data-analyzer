@@ -1,10 +1,12 @@
 # Physics-Aware Roadmap
 
-Status: `release_ready`.
+Status: `v2.2.1 implemented`.
 
 v2.1 adds bounded scientific execution for scalar/small-list metadata checks
 and v2.1.5 adds feature-candidate eligibility and scientific trust boundaries.
-This is physics-aware governance, not a physics-aware modeling release.
+v2.2.1 adds the first bounded Materials composition feature builders and a
+matched predictive-value validation. The result is negative/limited:
+`performance_degraded` versus the matched v1.3 group-aware baseline.
 
 ## Current Foundation
 
@@ -19,14 +21,16 @@ This is physics-aware governance, not a physics-aware modeling release.
 - metadata-only scientific feature-candidate registry
 - registered scientific claim IDs
 - CLI list/inspect/validate/execute/export commands
+- bounded Materials composition feature builders with property-source metadata
+- matched Materials predictive-value validation with explicit claim boundary
 
 ## Future Sequence
 
 1. v2.1.4: execute bounded scientific checks and persist findings locally.
 2. v2.1.5: classify constraint roles, feature eligibility, and claim
    boundaries without generating features.
-3. v2.2: allow approved constraints to annotate feature builders and validation
-   reports without executing arbitrary equations.
+3. v2.2.1: build selected Materials composition features and validate their
+   predictive value against matched v1.3 baselines without arbitrary equations.
 4. Later v2.x: add optional scientific descriptors only after contracts,
    provenance, applicability, and trust boundaries are in place.
 

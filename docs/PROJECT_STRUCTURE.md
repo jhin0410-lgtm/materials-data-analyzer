@@ -45,6 +45,12 @@ trust-boundary diagnostics used by the Materials Project case study. They are
 baseline diagnostic utilities, not AutoML, candidate recommendation, or
 calibrated uncertainty engines.
 
+`src/analyzers/materials_physics_features.py` provides bounded v2.2 Materials
+composition feature builders and matched feature-set predictive-value
+comparison utilities. It uses existing local Materials v1.3 artifacts, does
+not acquire data, does not tune models, and records `performance_degraded`
+when the physics feature set fails to improve group-aware validation.
+
 `src/analyzers/process_quality_readiness.py` provides generic schema,
 timestamp, identifier, target, leakage, SPC, and group/time validation
 readiness checks for process-quality and Smart Factory case studies. It does
@@ -211,10 +217,13 @@ path.
 For Materials Project, compact tracked candidates include query manifests,
 property inventories, quality summaries, screening summaries, descriptor
 inventories, model-comparison summaries, applicability summaries,
-error-structure summaries, claim-boundary summaries, and trust conclusions.
+error-structure summaries, claim-boundary summaries, trust conclusions, and
+v2.2 physics-feature definition, property-source, coverage, predictive-value,
+and claim-boundary summaries.
 Local-only artifacts include source/acquired CSVs, normalized CSVs,
 analysis-ready descriptor tables, full row-level screening results, row-level
-validation predictions, and row-level trust diagnostics.
+validation predictions, row-level trust diagnostics, v2.2 feature matrices,
+v2.2 split assignments, and v2.2 row-level comparison predictions.
 
 For Smart Factory v1.4, compact tracked artifacts include acquisition,
 readiness, feature-quality, temporal, classification-metric, eligibility,

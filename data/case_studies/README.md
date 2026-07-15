@@ -69,6 +69,8 @@ This folder documents:
   validation
 - Applicability-domain diagnostics, error-structure summaries, and
   conservative claim-boundary closeout
+- v2.2 bounded composition physics-feature builders and matched
+  predictive-value validation, currently concluding `performance_degraded`
 
 Key files:
 
@@ -78,6 +80,8 @@ data/case_studies/materials_project/source.md
 data/case_studies/materials_project/screening_methodology.md
 data/case_studies/materials_project/case_study.md
 docs/MATERIALS_PROJECT_V1_3_PLAN.md
+docs/MATERIALS_PHYSICS_FEATURES.md
+docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md
 ```
 
 ### `smart_factory/`

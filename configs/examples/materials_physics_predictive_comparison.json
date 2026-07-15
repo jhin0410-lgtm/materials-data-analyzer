@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.2.1",
+  "case_study_id": "materials_project",
+  "stage": "validation",
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "feature_matrix_path": "outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv",
+  "analysis_ready_path": "data/processed/materials_project_v1_3_analysis_ready.csv",
+  "descriptor_inventory_path": "data/processed/materials_project_v1_3_descriptor_inventory.csv",
+  "ambiguity_summary_path": "data/processed/materials_project_v1_3_composition_ambiguity_summary.csv",
+  "validation_spec_path": "data/case_studies/materials_project/validation_spec_v1_3.json",
+  "output_dir": "outputs/materials_physics_v2_2",
+  "tracked_metric_summary_path": "data/processed/materials_physics_v2_2_predictive_comparison_summary.csv",
+  "tracked_decision_path": "data/processed/materials_physics_v2_2_predictive_value_decision.json",
+  "tracked_report_summary_path": "data/processed/materials_physics_v2_2_report_summary.md",
+  "overwrite": true
+}

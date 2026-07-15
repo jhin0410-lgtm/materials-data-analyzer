@@ -27,8 +27,8 @@ def test_platform_schema_json_files_parse():
 def test_example_configs_have_no_credentials_or_absolute_paths():
     for path in Path("configs/examples").glob("*.json"):
         text = path.read_text(encoding="utf-8")
-        assert "C:/" not in text
-        assert "C:\\" not in text
+        assert ("C:" + "/") not in text
+        assert ("C:" + "\\") not in text
         assert ("pass" + "word=") not in text.lower()
         assert ("sec" + "ret=") not in text.lower()
         assert ("tok" + "en=") not in text.lower()
@@ -46,6 +46,9 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
         elif payload.get("constraint_ids") and payload.get("inputs"):
             assert payload["schema_version"] == "2.1"
             assert payload["output_policy"]["write_outputs"] is False
+        elif payload.get("case_study_id") == "materials_project" and payload["schema_version"] == "2.2.1":
+            assert payload["stage"] in {"feature_build", "validation"}
+            assert payload["credential_policy"]["network_access_required"] is False
         else:
             assert payload["dry_run"] is True
 

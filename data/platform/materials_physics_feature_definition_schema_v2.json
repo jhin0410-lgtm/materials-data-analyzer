@@ -1,0 +1,35 @@
+{
+  "schema_version": "2.2.1",
+  "schema_name": "materials_physics_feature_definition_schema_v2",
+  "required_fields": [
+    "feature_id",
+    "column_name",
+    "role",
+    "formula",
+    "unit",
+    "property_source",
+    "definition_version",
+    "interpretation_limit"
+  ],
+  "allowed_roles": [
+    "physics_informed_feature",
+    "control_composition_feature",
+    "quality_metadata"
+  ],
+  "path_policy": {
+    "absolute_paths_allowed": false,
+    "credentials_allowed": false
+  },
+  "claim_boundary": {
+    "allowed": [
+      "physics_informed_feature_available",
+      "physics_informed_feature_used"
+    ],
+    "prohibited": [
+      "physics_constrained_model",
+      "hybrid_physics_ml",
+      "DFT replacement",
+      "new material discovery"
+    ]
+  }
+}

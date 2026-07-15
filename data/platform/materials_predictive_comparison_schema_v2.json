@@ -1,0 +1,42 @@
+{
+  "schema_version": "2.2.1",
+  "schema_name": "materials_predictive_comparison_schema_v2",
+  "required_fields": [
+    "schema_version",
+    "record_type",
+    "feature_set_id",
+    "split_strategy",
+    "model_variant",
+    "metric",
+    "median",
+    "valid_split_count",
+    "status"
+  ],
+  "feature_set_ids": [
+    "original_baseline_full",
+    "matched_baseline",
+    "physics_only",
+    "combined_baseline_physics"
+  ],
+  "split_strategy_policy": {
+    "random": "optimistic_reference_only",
+    "reduced_formula_group": "primary_group_aware",
+    "chemical_system_group": "primary_group_aware"
+  },
+  "decision_statuses": [
+    "predictive_value_supported",
+    "predictive_value_limited",
+    "random_only_improvement",
+    "no_material_improvement",
+    "performance_degraded",
+    "inconclusive_low_sample",
+    "blocked_data_provenance",
+    "blocked_feature_coverage",
+    "blocked_leakage_risk"
+  ],
+  "path_policy": {
+    "absolute_paths_allowed": false,
+    "credentials_allowed": false,
+    "row_level_predictions_tracked": false
+  }
+}

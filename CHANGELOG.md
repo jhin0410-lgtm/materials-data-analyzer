@@ -2,7 +2,16 @@
 
 ## Unreleased
 
-- No changes yet.
+- Added v2.2.1 bounded Materials composition physics feature builders using
+  documented pymatgen property provenance.
+- Added matched Materials predictive-value validation comparing original,
+  matched baseline, physics-only, and combined feature sets under the existing
+  v1.3 split/model policy.
+- Recorded the current Materials v2.2 result as `performance_degraded` rather
+  than a physics-aware model success; SHAP, DFT replacement, hybrid
+  physics/ML, and new-material discovery claims remain prohibited.
+- Added Materials v2.2 CLI commands, example configs, compact tracked summary
+  artifacts, local-only row-level outputs, and documentation.
 
 ## v2.1
 

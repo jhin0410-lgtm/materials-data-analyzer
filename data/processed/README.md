@@ -75,6 +75,13 @@ materials_project_v1_3_applicability_summary.csv
 materials_project_v1_3_error_structure_summary.csv
 materials_project_v1_3_claim_boundary.csv
 materials_project_v1_3_trust_conclusion.csv
+materials_physics_v2_2_feature_definitions.csv
+materials_physics_v2_2_property_source_metadata.json
+materials_physics_v2_2_feature_coverage_summary.csv
+materials_physics_v2_2_feature_use_evidence.json
+materials_physics_v2_2_predictive_comparison_summary.csv
+materials_physics_v2_2_predictive_value_decision.json
+materials_physics_v2_2_report_summary.md
 ```
 
 The local source, normalized table, analysis-ready descriptor table, full
@@ -89,6 +96,8 @@ materials_project_v1_3_acquired.csv
 materials_project_v1_3_analysis_ready.csv
 materials_project_v1_3_validation_predictions.csv
 materials_project_v1_3_trust_diagnostics.csv
+outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv
+outputs/materials_physics_v2_2/materials_physics_v2_2_predictions.csv
 ```
 
 ## Smart Factory v1.4 Case Study Summaries
