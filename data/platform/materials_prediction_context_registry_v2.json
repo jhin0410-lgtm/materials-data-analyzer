@@ -1,0 +1,50 @@
+{
+  "case_study_id": "materials_project",
+  "contexts": [
+    {
+      "allowed_inputs": [
+        "formula_or_composition",
+        "elemental_property_metadata",
+        "composition_derived_descriptors"
+      ],
+      "availability_timing": "before_relaxed_structure_is_known",
+      "claim_boundary": "composition physics descriptors were evaluated and predictive improvement was not supported",
+      "context_id": "composition_only_pre_structure",
+      "current_decision": "performance_degraded",
+      "prohibited_inputs": [
+        "relaxed_crystal_structure",
+        "structural_geometry",
+        "current_api_energy_values",
+        "DFT_target_aliases"
+      ],
+      "representative_model_selected": false
+    },
+    {
+      "allowed_inputs": [
+        "validated_CrystalStructureEntity",
+        "registered_Tier_1_structure_descriptors",
+        "source_provided_symmetry_category",
+        "known_relaxed_structure_context"
+      ],
+      "availability_timing": "after_a_relaxed_or_known_crystal_structure_is_available",
+      "claim_boundary": "structure descriptors gave limited evidence in one primary group split only",
+      "context_id": "known_structure_post_relaxation",
+      "current_decision": "structure_predictive_value_limited",
+      "prohibited_inputs": [
+        "current_api_energy_above_hull_as_label",
+        "graph_model_evidence",
+        "GNN_evidence",
+        "DFT_replacement_claim"
+      ],
+      "representative_model_selected": false
+    }
+  ],
+  "cross_context_policy": {
+    "hide_structure_availability_timing": false,
+    "merge_results_into_single_model_claim": false,
+    "use_known_structure_result_as_pre_structure_screening_claim": false
+  },
+  "registry_id": "materials_prediction_context_registry_v2",
+  "schema_version": "2.2.6",
+  "status": "release_ready"
+}

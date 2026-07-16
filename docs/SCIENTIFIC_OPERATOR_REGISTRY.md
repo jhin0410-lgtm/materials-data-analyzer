@@ -32,3 +32,9 @@ v2.2.5 evaluates selected structure descriptors in a bounded known-structure
 comparison and records `structure_predictive_value_limited`. It does not add
 arbitrary operator execution, use graph artifacts as model inputs, or change
 the v2.2.1 `performance_degraded` conclusion.
+
+## v2.2.6 Closeout
+
+The closeout reads operator snapshots and compact result artifacts only. It
+does not register a new execution-capable operator, import arbitrary callables,
+regenerate descriptors, rebuild graphs, or rerun predictive comparisons.

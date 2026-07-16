@@ -66,6 +66,13 @@ graph artifacts out of model inputs, and records the actual
 `structure_predictive_value_limited` decision without selecting a
 representative model.
 
+`src/platform_core/v2_2_trust_closeout.py` provides the v2.2.6 read-only
+Materials scientific closeout aggregator. It reads tracked compact artifacts
+from v2.2.1 through v2.2.5, exports capability/evidence/claim/context/
+uncertainty summaries, validates result preservation, and evaluates release
+readiness. It does not call APIs, regenerate descriptors, load structure or
+graph bodies, train models, or recompute predictions.
+
 `src/analyzers/process_quality_readiness.py` provides generic schema,
 timestamp, identifier, target, leakage, SPC, and group/time validation
 readiness checks for process-quality and Smart Factory case studies. It does
@@ -114,9 +121,11 @@ feature-candidate registries, deterministic snapshots in `data/platform/`, and
 SQLite schema `4` trust tables. v2.1.0 is release-ready as a metadata and
 bounded-execution trust layer. v2.2.2 adds JSON-safe scientific entity,
 relation, quantity, unit-backend, uncertainty, schema-evolution, and
-compatibility-adapter foundations. These additions do not
-execute arbitrary equations, read raw data, train models, or run physics
-simulators.
+compatibility-adapter foundations. v2.2.6 adds a Materials scientific evidence
+closeout and capability matrix with `release_ready` status while preserving
+`performance_degraded`, `structure_predictive_value_limited`, and
+`representative_model_selected = false`. These additions do not execute
+arbitrary equations, read raw data, train models, or run physics simulators.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -242,7 +251,10 @@ existing 838-row Materials Project dataset. v2.2.4 adds compact tracked
 structure-enrichment, snapshot-alignment, descriptor-definition,
 descriptor-coverage, graph-eligibility, and operator summaries. v2.2.5 adds
 compact tracked known-structure cohort, feature-set, paired-metric,
-uncertainty, predictive-value, feature-use, and report summaries. Row-level MP
+uncertainty, predictive-value, feature-use, and report summaries. v2.2.6 adds
+compact tracked capability, evidence, claim, context, uncertainty, closeout
+decision, and closeout summary artifacts, plus platform-level capability and
+prediction-context registries. Row-level MP
 structure chunks, converted structure entities, descriptor rows, graph JSONL,
 alignment tables, known-structure matched cohorts, row-level predictions,
 split assignments, and plots remain local-only under

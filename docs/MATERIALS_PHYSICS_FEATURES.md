@@ -103,3 +103,10 @@ Prohibited claims remain:
 - new materials discovery
 - causal mechanism
 - SHAP or feature-importance explanation
+
+## v2.2.6 Closeout
+
+The v2.2 closeout fixes this result as `performance_degraded` for the
+composition-only pre-structure context. The feature builders remain available
+and documented, but predictive value is not supported and no representative
+Materials model is selected.

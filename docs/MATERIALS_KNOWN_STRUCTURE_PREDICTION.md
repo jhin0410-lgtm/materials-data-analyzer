@@ -58,3 +58,10 @@ These files are local-only. Tracked outputs are compact summaries in
 
 v2.2.5 does not run MP acquisition, model tuning, SHAP, GNN training, DFT
 calculation, graph embeddings, or target migration.
+
+## v2.2.6 Closeout
+
+The v2.2 closeout preserves the known-structure decision as
+`structure_predictive_value_limited`. It adds machine-readable capability,
+claim, prediction-context, uncertainty, lineage, and release-readiness
+summaries without rerunning the comparison or changing any metric.

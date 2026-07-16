@@ -47,3 +47,10 @@ The result is a bounded known-structure descriptor comparison. It is not:
 
 The v2.2.1 composition-feature conclusion remains preserved as
 `performance_degraded`.
+
+## v2.2.6 Closeout
+
+The closeout promotes no model. `structure_predictive_value_limited` remains
+the canonical status, graph artifacts remain representation-only, and the
+current Materials Project target remains audit-only rather than a replacement
+label.

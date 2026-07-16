@@ -30,6 +30,10 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials Known-Structure Prediction](MATERIALS_KNOWN_STRUCTURE_PREDICTION.md): v2.2.5 fixed known-structure feature-set comparison and local/tracked outputs.
 - [Materials Structure Predictive Value](MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md): v2.2.5 paired structure-descriptor predictive-value decision and representative-model boundary.
 - [Materials Predictive Uncertainty](MATERIALS_PREDICTIVE_UNCERTAINTY.md): split-conformal residual interval diagnostics and uncertainty claim limits.
+- [Platform v2.2 Closeout](PLATFORM_V2_2_CLOSEOUT.md): v2.2 scientific evidence closeout, capability matrix, claim matrix, artifact lineage, and release-readiness verdict.
+- [Materials v2.2 Scientific Evidence](MATERIALS_V2_2_SCIENTIFIC_EVIDENCE.md): composition, known-structure descriptor, graph-artifact, and representative-model evidence levels.
+- [Materials v2.2 Claim Boundaries](MATERIALS_V2_2_CLAIM_BOUNDARIES.md): allowed, limited, unsupported, and prohibited Materials v2.2 scientific claims.
+- [Materials v2.2 Uncertainty Boundaries](MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md): source uncertainty, numerical tolerance, prediction interval, split variation, and model-form limitations.
 - [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
 - [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
 - [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.

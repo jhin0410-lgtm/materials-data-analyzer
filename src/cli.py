@@ -176,6 +176,18 @@ from .analyzers.materials_structure_prediction import (
     validate_known_structure_cohort,
     validate_known_structure_result,
 )
+from .platform_core.v2_2_trust_closeout import (
+    build_capability_matrix as build_v2_2_capability_matrix,
+    build_claim_matrix as build_v2_2_claim_matrix,
+    build_evidence_summary as build_v2_2_evidence_summary,
+    build_prediction_context_registry as build_v2_2_prediction_contexts,
+    build_uncertainty_boundary as build_v2_2_uncertainty_boundary,
+    evaluate_release_readiness as evaluate_v2_2_release_readiness,
+    export_closeout_outputs as export_v2_2_closeout_outputs,
+    render_closeout_summary as render_v2_2_closeout_summary,
+    validate_artifact_lineage as validate_v2_2_artifact_lineage,
+    validate_result_preservation as validate_v2_2_result_preservation,
+)
 
 
 EXIT_INVALID_CONFIG = 2
@@ -3397,6 +3409,193 @@ def _cmd_show_materials_prediction_uncertainty(args: argparse.Namespace) -> int:
     return 0
 
 
+def _emit_v2_2_payload(args: argparse.Namespace, payload: dict[str, Any], lines: list[str]) -> int:
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(lines)
+    return 0
+
+
+def _cmd_audit_v2_2_scientific_evidence(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_evidence_summary()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_evidence_audit_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_evidence_audit_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"composition_feature_rows: {payload['key_counts']['composition_feature_rows']}",
+            f"known_structure_cohort_rows: {payload['key_counts']['known_structure_cohort_rows']}",
+            f"graph_artifacts: {payload['key_counts']['graph_artifact_count']}",
+        ],
+    )
+
+
+def _cmd_show_v2_2_capability_matrix(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_capability_matrix()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_capability_matrix_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_capability_matrix_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"capability_count: {len(payload['capabilities'])}",
+            f"composition_decision: {payload['source_decisions']['composition']}",
+            f"structure_decision: {payload['source_decisions']['structure']}",
+        ],
+    )
+
+
+def _cmd_show_v2_2_claim_matrix(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_claim_matrix()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_claim_matrix_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_claim_matrix_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    prohibited = sum(1 for claim in payload["claims"] if claim["status"] == "prohibited")
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [f"status: {payload['status']}", f"claim_count: {len(payload['claims'])}", f"prohibited_claims: {prohibited}"],
+    )
+
+
+def _cmd_show_v2_2_prediction_contexts(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_prediction_contexts()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_prediction_contexts_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_prediction_contexts_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            "contexts: " + ",".join(context["context_id"] for context in payload["contexts"]),
+        ],
+    )
+
+
+def _cmd_show_v2_2_uncertainty_boundaries(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_uncertainty_boundary()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_uncertainty_boundary_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_uncertainty_boundary_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"uncertainty_records: {len(payload['uncertainty_records'])}",
+            f"prediction_interval_unit: {payload['prediction_interval_diagnostics']['target_unit']}",
+        ],
+    )
+
+
+def _cmd_validate_v2_2_artifact_lineage(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_v2_2_artifact_lineage()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"valid: {str(payload['valid']).lower()}",
+            f"lineage_status: {payload['lineage_status']}",
+            f"input_artifact_count: {payload['input_artifact_count']}",
+        ],
+    )
+
+
+def _cmd_validate_v2_2_result_preservation(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_v2_2_result_preservation()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"valid: {str(payload['valid']).lower()}",
+            f"checks: {len(payload['checks'])}",
+            f"v2_2_1_decision_sha: {payload['canonical_checksums']['materials_physics_v2_2_predictive_value_decision']}",
+        ],
+    )
+
+
+def _cmd_export_v2_2_closeout_summary(args: argparse.Namespace) -> int:
+    try:
+        payload = export_v2_2_closeout_outputs()
+        payload["summary_preview"] = render_v2_2_closeout_summary().splitlines()[0]
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_closeout_export_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_closeout_export_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"release_readiness: {payload['release_readiness']}",
+            f"outputs: {len(payload['outputs'])}",
+        ],
+    )
+
+
+def _cmd_evaluate_v2_2_release_readiness(args: argparse.Namespace) -> int:
+    try:
+        payload = evaluate_v2_2_release_readiness()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_release_readiness_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_release_readiness_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"release_readiness: {payload['release_readiness']}",
+            f"representative_model_selected: {str(payload['representative_model_selected']).lower()}",
+            f"no_new_scientific_result: {str(payload['no_new_scientific_result']).lower()}",
+        ],
+    )
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -4129,6 +4328,51 @@ def build_parser() -> argparse.ArgumentParser:
     )
     known_structure_uncertainty_parser.add_argument("result")
     known_structure_uncertainty_parser.set_defaults(func=_cmd_show_materials_prediction_uncertainty)
+
+    subparsers.add_parser(
+        "audit-v2-2-scientific-evidence",
+        help="audit v2.2 Materials scientific evidence from tracked compact artifacts",
+    ).set_defaults(func=_cmd_audit_v2_2_scientific_evidence)
+
+    subparsers.add_parser(
+        "show-v2-2-capability-matrix",
+        help="show the v2.2 Materials capability matrix",
+    ).set_defaults(func=_cmd_show_v2_2_capability_matrix)
+
+    subparsers.add_parser(
+        "show-v2-2-claim-matrix",
+        help="show the v2.2 Materials claim matrix",
+    ).set_defaults(func=_cmd_show_v2_2_claim_matrix)
+
+    subparsers.add_parser(
+        "show-v2-2-prediction-contexts",
+        help="show v2.2 Materials prediction-context boundaries",
+    ).set_defaults(func=_cmd_show_v2_2_prediction_contexts)
+
+    subparsers.add_parser(
+        "show-v2-2-uncertainty-boundaries",
+        help="show v2.2 Materials uncertainty boundaries",
+    ).set_defaults(func=_cmd_show_v2_2_uncertainty_boundaries)
+
+    subparsers.add_parser(
+        "validate-v2-2-artifact-lineage",
+        help="validate v2.2 Materials compact artifact lineage",
+    ).set_defaults(func=_cmd_validate_v2_2_artifact_lineage)
+
+    subparsers.add_parser(
+        "validate-v2-2-result-preservation",
+        help="validate that v2.2.1/v2.2.4/v2.2.5 decisions remain preserved",
+    ).set_defaults(func=_cmd_validate_v2_2_result_preservation)
+
+    subparsers.add_parser(
+        "export-v2-2-closeout-summary",
+        help="export tracked v2.2 Materials closeout summary artifacts",
+    ).set_defaults(func=_cmd_export_v2_2_closeout_summary)
+
+    subparsers.add_parser(
+        "evaluate-v2-2-release-readiness",
+        help="evaluate v2.2 Materials release readiness from compact closeout artifacts",
+    ).set_defaults(func=_cmd_evaluate_v2_2_release_readiness)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

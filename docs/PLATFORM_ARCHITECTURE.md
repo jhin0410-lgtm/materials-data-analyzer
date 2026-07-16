@@ -1,6 +1,7 @@
 # Platform Architecture
 
-Status: `release_ready` for v2.1.5.
+Status: `release_ready` for v2.1.5 platform trust boundaries and v2.2.6
+Materials scientific evidence closeout.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -23,6 +24,9 @@ changing output schemas, or replacing `src/process_data.py`.
   and onboarding readiness without forcing old scripts into one abstraction.
 - Report read-only: platform reports summarize registries and tracked compact
   artifacts without recomputing scientific results.
+- Scientific evidence closeout read-only: v2.2.6 aggregates Materials
+  capability, claim, uncertainty, and release-readiness states from tracked
+  compact artifacts only.
 - Persistent local registry: v2.1.1 can ingest run/report manifests into a
   local SQLite metadata index without rerunning scientific workflows.
 - Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
@@ -92,6 +96,10 @@ In code:
 - `src/platform_core/materials_project_structure_enrichment.py`: bounded
   existing-ID Materials Project structure enrichment, snapshot alignment, and
   local-only structure cache orchestration
+- `src/platform_core/v2_2_trust_closeout.py`: Materials v2.2 read-only
+  scientific evidence closeout, capability matrix, claim matrix,
+  uncertainty-boundary summary, lineage validation, and release-readiness
+  evaluation
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/analyzers/materials_structure_features.py`: deterministic structure
   descriptor summaries and periodic radius-graph artifact construction

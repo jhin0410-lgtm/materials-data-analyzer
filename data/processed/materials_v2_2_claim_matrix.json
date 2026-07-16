@@ -1,0 +1,379 @@
+{
+  "case_study_id": "materials_project",
+  "claims": [
+    {
+      "claim_id": "materials_project_scope_audited",
+      "conflicting_evidence": [],
+      "context": "materials_project",
+      "limitations": [
+        "Fe/Si-containing multinary subset, not binary-only."
+      ],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_acquisition_scope_summary.json"
+      ]
+    },
+    {
+      "claim_id": "composition_physics_features_generated",
+      "conflicting_evidence": [],
+      "context": "composition_only_pre_structure",
+      "limitations": [],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_feature_definitions.csv"
+      ]
+    },
+    {
+      "claim_id": "composition_physics_features_used",
+      "conflicting_evidence": [],
+      "context": "composition_only_pre_structure",
+      "limitations": [
+        "Predictive value was not supported."
+      ],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "composition_group_evaluation_completed",
+      "conflicting_evidence": [],
+      "context": "composition_only_pre_structure",
+      "limitations": [],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "crystal_structures_acquired",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [
+        "Existing 838 IDs only; current snapshot."
+      ],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json"
+      ]
+    },
+    {
+      "claim_id": "crystal_structure_entities_generated",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json"
+      ]
+    },
+    {
+      "claim_id": "structure_integrity_validated",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json"
+      ]
+    },
+    {
+      "claim_id": "structure_descriptors_generated",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_descriptor_coverage_summary.csv"
+      ]
+    },
+    {
+      "claim_id": "structure_descriptors_used",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [
+        "Predictive value was limited."
+      ],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "known_structure_group_evaluation_completed",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "prediction_intervals_evaluated",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [
+        "Prediction intervals are not source or DFT uncertainty."
+      ],
+      "prohibited_interpretations": [
+        "calibrated_physical_uncertainty"
+      ],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_prediction_uncertainty_summary.csv"
+      ]
+    },
+    {
+      "claim_id": "periodic_graph_artifacts_generated",
+      "conflicting_evidence": [],
+      "context": "known_structure_post_relaxation",
+      "limitations": [
+        "Representation artifact only."
+      ],
+      "prohibited_interpretations": [
+        "GNN_evidence",
+        "graph_model_used"
+      ],
+      "status": "supported",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_graph_eligibility_summary.csv"
+      ]
+    },
+    {
+      "claim_id": "scientific_units_and_provenance_recorded",
+      "conflicting_evidence": [],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [],
+      "status": "supported",
+      "supporting_artifacts": [
+        "docs/SCIENTIFIC_QUANTITIES_AND_UNCERTAINTY.md"
+      ]
+    },
+    {
+      "claim_id": "structured_uncertainty_supported",
+      "conflicting_evidence": [],
+      "context": "cross_context",
+      "limitations": [
+        "Source uncertainty remains unavailable."
+      ],
+      "prohibited_interpretations": [
+        "zero_uncertainty"
+      ],
+      "status": "supported_with_limits",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_prediction_uncertainty_summary.csv"
+      ]
+    },
+    {
+      "claim_id": "structure_predictive_value_supported",
+      "conflicting_evidence": [
+        "Improvement in one primary group split only."
+      ],
+      "context": "known_structure_post_relaxation",
+      "limitations": [
+        "Do not promote limited evidence to supported."
+      ],
+      "prohibited_interpretations": [
+        "general_structure_model_success"
+      ],
+      "status": "limited_only",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "composition_physics_predictive_value_supported",
+      "conflicting_evidence": [
+        "Decision is performance_degraded."
+      ],
+      "context": "composition_only_pre_structure",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "physics_feature_success"
+      ],
+      "status": "unsupported",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "representative_materials_model",
+      "conflicting_evidence": [
+        "representative_model_selected is false."
+      ],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "general_materials_project_model"
+      ],
+      "status": "unsupported",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "graph_model_used",
+      "conflicting_evidence": [
+        "Graph artifacts were not model inputs."
+      ],
+      "context": "known_structure_post_relaxation",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "graph_model_evidence"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_graph_eligibility_summary.csv"
+      ]
+    },
+    {
+      "claim_id": "gnn_model_validated",
+      "conflicting_evidence": [
+        "No GNN was run."
+      ],
+      "context": "known_structure_post_relaxation",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "GNN_validation"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_graph_eligibility_summary.csv"
+      ]
+    },
+    {
+      "claim_id": "physics_constrained_model",
+      "conflicting_evidence": [
+        "No physics constraint or loss was used."
+      ],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "physics_constrained_success"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "hybrid_physics_ml",
+      "conflicting_evidence": [
+        "Feature augmentation is not hybrid physics-ML."
+      ],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "hybrid_physics_ml_success"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "pre_structure_stability_screening_validated",
+      "conflicting_evidence": [
+        "Composition result degraded; known-structure context is separate."
+      ],
+      "context": "composition_only_pre_structure",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "pre_structure_screening_success"
+      ],
+      "status": "unsupported",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "phase_stability_guaranteed",
+      "conflicting_evidence": [
+        "Prediction task does not guarantee phase stability."
+      ],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "stability_oracle"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "synthesizability_predicted",
+      "conflicting_evidence": [
+        "No synthesis labels or validation exist."
+      ],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "synthesis_feasibility"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "DFT_replacement",
+      "conflicting_evidence": [
+        "No DFT calculation or replacement validation exists."
+      ],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "DFT_replacement"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "causal_structure_property_mechanism",
+      "conflicting_evidence": [
+        "Predictive comparison does not establish mechanism."
+      ],
+      "context": "known_structure_post_relaxation",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "causal_mechanism"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "claim_id": "production_scientific_decision",
+      "conflicting_evidence": [
+        "No external validation or operational threshold exists."
+      ],
+      "context": "cross_context",
+      "limitations": [],
+      "prohibited_interpretations": [
+        "production_decision"
+      ],
+      "status": "prohibited",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    }
+  ],
+  "schema_version": "2.2.6",
+  "status": "release_ready"
+}

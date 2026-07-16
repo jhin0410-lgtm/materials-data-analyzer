@@ -1,6 +1,6 @@
 # Physics-Aware Roadmap
 
-Status: `v2.2.5 known-structure predictive comparison complete`.
+Status: `v2.2.6 scientific trust closeout release_ready`.
 
 v2.1 adds bounded scientific execution for scalar/small-list metadata checks
 and v2.1.5 adds feature-candidate eligibility and scientific trust boundaries.
@@ -30,6 +30,11 @@ snapshot-aligned 838-row cohort. The result is
 structure-descriptor improvement, no representative model was selected, and no
 GNN, SHAP, DFT replacement, or hybrid physics-ML claim is made.
 
+v2.2.6 closes the cycle with machine-readable capability, evidence, claim,
+prediction-context, uncertainty, and release-readiness summaries. It preserves
+the negative and limited conclusions instead of rerunning models or promoting
+them into representative-model claims.
+
 ## Current Foundation
 
 - unit and dimension registry
@@ -53,6 +58,8 @@ GNN, SHAP, DFT replacement, or hybrid physics-ML claim is made.
   structure descriptor candidates, and periodic graph artifact pilot
 - bounded known-structure post-relaxation comparison with prediction-interval
   diagnostics and explicit claim boundary
+- v2.2 scientific evidence closeout with `release_ready` status, no
+  representative model, and graph artifacts kept as representation-only
 
 ## Future Sequence
 
@@ -71,7 +78,9 @@ GNN, SHAP, DFT replacement, or hybrid physics-ML claim is made.
    descriptors and graph artifacts without training.
 7. v2.2.5: run the fixed known-structure comparison and preserve the limited
    result without selecting a representative model.
-8. Later v2.x: use only stronger evidence, cleaner external validation, or
+8. v2.2.6: close capability, claim, prediction-context, uncertainty, and
+   release-readiness evidence without adding features or models.
+9. Later v2.x: use only stronger evidence, cleaner external validation, or
    clearer task separation before adding graph models or richer structure-aware
    learning.
 

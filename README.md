@@ -273,7 +273,7 @@ Tabular Engineering Data Analysis & Virtual Experiment Screening Platform.
 | --- | --- | --- | --- | --- |
 | Kaggle NASA Li-ion Battery | Capacity-retention analysis | Random split vs `battery_id` group split | Stronger within-battery interpolation than unseen-battery generalization | v0.8 |
 | Battery Archive | Cycle-level capacity retention and threshold proxies | Data quality, observed censoring, reliability group summaries | Descriptive cycle-data case study; no forecasting/RUL claim | v1.1 |
-| Materials Project | Computed-property screening and composition-only validation | Group-aware chemical-system validation and applicability domain | Descriptive screening reproducible; predictive validation weak | v1.2 / v1.3 |
+| Materials Project | Computed-property screening, composition features, and known-structure descriptors | Group-aware chemical-system/reduced-formula validation and scientific claim closeout | Descriptive screening reproducible; v2.2 `performance_degraded` / `structure_predictive_value_limited`; no representative model | v1.2 / v1.3 / v2.2 |
 | Smart Factory / UCI SECOM | Process-quality failure classification | Time-aware validation and random-split gap | Diagnostic-only; no production model selected | v1.4.0 |
 | Reliability / Backblaze | 7-day drive failure-risk ranking | Asset-disjoint, time-aware, combined asset/time validation | Diagnostic-only; no representative model selected | v1.5.0 |
 
@@ -365,6 +365,10 @@ live in:
 - [`docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md`](docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md)
 - [`docs/MATERIALS_KNOWN_STRUCTURE_PREDICTION.md`](docs/MATERIALS_KNOWN_STRUCTURE_PREDICTION.md)
 - [`docs/MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md`](docs/MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md)
+- [`docs/PLATFORM_V2_2_CLOSEOUT.md`](docs/PLATFORM_V2_2_CLOSEOUT.md)
+- [`docs/MATERIALS_V2_2_SCIENTIFIC_EVIDENCE.md`](docs/MATERIALS_V2_2_SCIENTIFIC_EVIDENCE.md)
+- [`docs/MATERIALS_V2_2_CLAIM_BOUNDARIES.md`](docs/MATERIALS_V2_2_CLAIM_BOUNDARIES.md)
+- [`docs/MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md`](docs/MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md)
 
 ### Smart Factory / UCI SECOM
 
@@ -426,6 +430,12 @@ study can be complete even when no representative model is selected. The
 Backblaze v1.5 release is an example: top-risk concentration exists, but
 repeated daily origins, resource-limited training, uncertain censoring, and
 missing external validation keep the result inside a diagnostic boundary.
+
+The Materials v2.2 closeout applies the same discipline to scientific features:
+composition-derived features remain `performance_degraded`, known-structure
+descriptors remain `structure_predictive_value_limited`, graph artifacts remain
+representation-only, prediction intervals are not DFT uncertainty, and no
+representative Materials model is selected.
 
 ## Optional Connectors
 

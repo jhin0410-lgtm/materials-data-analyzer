@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Added v2.2.6 Materials scientific trust closeout artifacts: capability
+  matrix, prediction-context registry, evidence summary, claim matrix,
+  uncertainty boundary, artifact-lineage validation, and release-readiness
+  decision.
+- Recorded v2.2 release readiness while preserving the actual negative and
+  limited outcomes: v2.2.1 remains `performance_degraded`, v2.2.5 remains
+  `structure_predictive_value_limited`, no representative model is selected,
+  and graph artifacts remain representation-only.
+- Added read-only CLI commands for v2.2 evidence audit, claim/context/uncertainty
+  inspection, result-preservation validation, closeout export, and release
+  readiness evaluation without API calls, descriptor regeneration, graph loading,
+  or model execution.
 - Added v2.2.5 known-structure post-relaxation predictive comparison for the
   existing snapshot-aligned 838-row Materials Project cohort, preserving the
   original v1.3 `energy_above_hull` target and treating current API target

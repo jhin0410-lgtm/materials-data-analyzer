@@ -29,3 +29,10 @@ They are not:
 The mean empirical coverage in the compact v2.2.5 summary is approximately
 0.899 across evaluated feature-set, split, and model combinations, but this is
 an internal validation diagnostic for the current cohort only.
+
+## v2.2.6 Closeout
+
+The closeout records prediction intervals as `prediction_interval_evaluated`
+with target unit `eV/atom`. Source uncertainty remains `unavailable`, numerical
+tolerance remains a validation device, and no DFT or physical ground-truth
+uncertainty interval is claimed.

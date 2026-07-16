@@ -47,3 +47,9 @@ Tracked outputs contain only compact eligibility and size summaries.
 The graph artifact preserves periodic geometry and construction metadata. It
 does not create graph tensors, graph embeddings, a graph neural network,
 structure-aware model evidence, or a feature-importance explanation.
+
+## v2.2.6 Closeout
+
+The capability matrix records periodic graphs as `artifact_generated` only.
+They were not model inputs, not group-evaluated, and not used as evidence for a
+GNN, graph embedding, or graph-model claim.

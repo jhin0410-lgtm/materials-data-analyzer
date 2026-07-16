@@ -49,3 +49,10 @@ primary group split only, and no representative model was selected.
 
 This does not change the v2.2.1 composition-only result, which remains
 `performance_degraded`.
+
+## v2.2.6 Closeout
+
+`data/platform/materials_prediction_context_registry_v2.json` now records both
+contexts in machine-readable form. It explicitly prohibits merging the
+known-structure result into a pre-structure screening claim or hiding structure
+availability timing.

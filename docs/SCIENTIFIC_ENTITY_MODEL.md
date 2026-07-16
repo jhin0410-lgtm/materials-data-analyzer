@@ -57,3 +57,10 @@ replacement claim.
 v2.2.5 uses Tier-1 descriptor columns derived from the structure entities for a
 bounded known-structure comparison. It does not persist live objects, use graph
 entities as model inputs, or select a representative structure-aware model.
+
+## v2.2.6 Closeout
+
+The closeout records `CrystalStructureEntity` as executed representation
+evidence, structure descriptors as limited predictive evidence, and
+`GraphEntity` artifacts as representation-only. Entity availability is not
+treated as proof of predictive value, DFT replacement, or GNN readiness.

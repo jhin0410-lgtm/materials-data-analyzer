@@ -50,3 +50,10 @@ These descriptors are candidates and diagnostics. v2.2.5 evaluates them in
 the known-structure context and records `structure_predictive_value_limited`.
 They are not a physics-constrained model, not graph-model evidence, and not a
 revision of the v2.2.1 composition-feature result.
+
+## v2.2.6 Closeout
+
+The v2.2 closeout records structure descriptors as `predictive_value_limited`
+for the known-structure post-relaxation context. They are generated, used, and
+group-evaluated, but they do not become validated general-purpose Materials
+features or evidence for a representative model.

@@ -101,6 +101,13 @@ materials_v2_2_5_prediction_uncertainty_summary.csv
 materials_v2_2_5_predictive_value_decision.json
 materials_v2_2_5_feature_use_evidence.json
 materials_v2_2_5_report_summary.md
+materials_v2_2_capability_matrix.json
+materials_v2_2_evidence_summary.json
+materials_v2_2_claim_matrix.json
+materials_v2_2_uncertainty_boundary.json
+materials_v2_2_prediction_contexts.json
+materials_v2_2_closeout_decision.json
+materials_v2_2_closeout_summary.md
 ```
 
 The local source, normalized table, analysis-ready descriptor table, full
@@ -128,6 +135,9 @@ executed bounded existing-ID enrichment without storing row-level material IDs,
 targets, structures, or API responses. The v2.2.5 compact tracked files
 summarize the known-structure comparison without storing row-level
 predictions, material IDs, feature matrices, split assignments, or plots.
+The v2.2.6 compact tracked files summarize capability, evidence, claim,
+prediction-context, uncertainty, artifact-lineage, and release-readiness
+boundaries without rerunning models or storing row-level payloads.
 
 ## Smart Factory v1.4 Case Study Summaries
 

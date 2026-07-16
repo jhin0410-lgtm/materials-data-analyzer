@@ -92,3 +92,12 @@ Arrhenius acceleration, or monotonic capacity loss.
 Manufacturing and reliability checks require explicit variable semantics.
 Anonymous sensor columns and SMART attributes are not assigned physical
 mechanisms by default.
+
+## v2.2.6 Materials Closeout
+
+The Materials v2.2 closeout applies these trust rules to composition features,
+known-structure descriptors, prediction intervals, and graph artifacts. The
+release-readiness verdict is `release_ready` for evidence and claim-boundary
+consistency, while the scientific model conclusion remains conservative:
+`performance_degraded` for composition features, `structure_predictive_value_limited`
+for known-structure descriptors, and no representative model.

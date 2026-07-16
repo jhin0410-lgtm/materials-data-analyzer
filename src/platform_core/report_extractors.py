@@ -8,6 +8,7 @@ they do not recompute scientific metrics.
 from __future__ import annotations
 
 import csv
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -62,6 +63,25 @@ def _read_rows(
             context.warning("artifact_schema_mismatch", f"{artifact_id} missing columns: {', '.join(missing)}")
             return []
         return [dict(row) for row in reader]
+
+
+def _read_json(
+    resolver: ArtifactResolver,
+    context: _ExtractionContext,
+    artifact_id: str,
+) -> dict[str, Any]:
+    try:
+        resolved = resolver.resolve(artifact_id, require_exists=True, allow_local_only=False, allow_raw=False)
+    except (FileNotFoundError, PermissionError, ValueError, KeyError) as exc:
+        context.warning("artifact_unavailable", f"{artifact_id}: {exc}")
+        return {}
+    context.artifacts.append(resolved)
+    with resolved.path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        context.warning("artifact_schema_mismatch", f"{artifact_id} is not a JSON object")
+        return {}
+    return payload
 
 
 def _field_value_map(rows: list[dict[str, str]], *, field_column: str = "field", value_column: str = "value") -> dict[str, str]:
@@ -168,6 +188,7 @@ def extract_materials_project_results(resolver: ArtifactResolver) -> ExtractedCa
             ("claim", "status"),
         )
     )
+    v2_2_closeout = _read_json(resolver, context, "materials_v2_2_closeout_decision")
     key_results = {
         "rows": acquisition.get("total_rows", "unavailable"),
         "columns": acquisition.get("columns", "unavailable"),
@@ -175,14 +196,20 @@ def extract_materials_project_results(resolver: ArtifactResolver) -> ExtractedCa
         "representative_model_decision": trust.get("representative_model_decision", "none_selected"),
         "model_eligibility": trust.get("model_eligibility", "unavailable"),
         "trust_status": trust.get("trust_status", trust.get("closeout_status", "diagnostic_only")),
+        "v2_2_release_readiness": v2_2_closeout.get("release_readiness", "unavailable"),
+        "v2_2_composition_decision": v2_2_closeout.get("composition_decision", "unavailable"),
+        "v2_2_known_structure_decision": v2_2_closeout.get("known_structure_decision", "unavailable"),
+        "v2_2_representative_model": "none"
+        if v2_2_closeout.get("representative_model_selected") is False
+        else "unavailable",
     }
     return ExtractedCaseStudyResults(
         case_study_id="materials_project",
         purpose="Calculated-property screening and group-aware validation",
         dataset_source="Materials Project pilot dataset with reconstructed provenance boundary",
-        analysis_task="energy-above-hull descriptive screening and group-aware validation",
-        validation_type="group-aware regression validation with random split as optimistic reference",
-        trust_result=key_results["trust_status"],
+        analysis_task="energy-above-hull descriptive screening, group-aware validation, and v2.2 scientific evidence closeout",
+        validation_type="group-aware regression validation with random split as optimistic reference; v2.2 separates composition-only and known-structure contexts",
+        trust_result=v2_2_closeout.get("release_readiness", key_results["trust_status"]),
         representative_model_status=key_results["representative_model_decision"],
         claim_boundary=claims,
         key_compact_results=key_results,
