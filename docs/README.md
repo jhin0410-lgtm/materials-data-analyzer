@@ -19,6 +19,8 @@ This directory collects project references, specifications, audits, policies, ca
 - [Scientific Execution](SCIENTIFIC_EXECUTION.md): v2.1 bounded scalar/small-list scientific execution, finding persistence, trust closeout, and local-only outputs.
 - [Scientific Entity Model](SCIENTIFIC_ENTITY_MODEL.md): v2.2.2 JSON-safe entity records, runtime/persistence separation, and initial entity types.
 - [Scientific Quantities and Uncertainty](SCIENTIFIC_QUANTITIES_AND_UNCERTAINTY.md): structured quantities, original/canonical units, and bounded uncertainty semantics.
+- [Crystal Structure Entity Adapter](CRYSTAL_STRUCTURE_ENTITY_ADAPTER.md): v2.2.3 Materials Project structure-to-entity mapping, validation boundary, quantity mapping, and uncertainty policy.
+- [Scientific Operator Registry](SCIENTIFIC_OPERATOR_REGISTRY.md): v2.2.3 selected metadata-only scientific operators and execution boundary.
 - [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
 - [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
 - [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.
@@ -44,6 +46,8 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Archive Data Audit](BATTERY_ARCHIVE_DATA_AUDIT.md): raw zip inventory and case-study feasibility review.
 - [Materials Project Data Audit](MATERIALS_PROJECT_DATA_AUDIT.md): local 50-row pilot audit, schema/quality follow-up, and descriptive screening notes.
 - [Materials v2.2 Data Audit](MATERIALS_V2_2_DATA_AUDIT.md): existing v1.3 local artifact gate for bounded physics feature construction.
+- [Materials Project Acquisition Scope Audit](MATERIALS_PROJECT_ACQUISITION_SCOPE_AUDIT.md): v2.2.3 exact 838-row lineage, Fe/Si-containing multinary scope, and structure coverage audit.
+- [Materials Project Acquisition and Structure](MATERIALS_PROJECT_ACQUISITION_AND_STRUCTURE.md): v2.2.3 existing-ID structure enrichment boundary and local-only structure policy.
 - [Scientific Entity Architecture Audit](SCIENTIFIC_ENTITY_ARCHITECTURE_AUDIT.md): dict/DataFrame, runtime object, serialized record, registry-row, and artifact representation audit for v2.2.2.
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.

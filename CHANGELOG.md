@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Added v2.2.3 Materials Project acquisition-scope audit documenting the exact
+  838-row Fe/Si-containing multinary query result, row-count lineage, target
+  unit, element distribution, and structure coverage boundary.
+- Added Materials Project summary/target/structure adapters for JSON-safe
+  composition, quantity, and crystal-structure entity conversion using small
+  loaded payloads only.
+- Added a selected scientific operator registry for MP entity conversion,
+  crystal-structure integrity checks, composition/structure consistency, and
+  descriptive geometry summaries without arbitrary callable execution.
+- Recorded that full MP structure bodies are not currently acquired, structure
+  enrichment is local-only future work, uncertainty is `unavailable` rather
+  than zero, and the v2.2.1 `performance_degraded` conclusion is unchanged.
 - Added v2.2.2 scientific entity, relation, quantity, unit-backend,
   uncertainty, and schema-evolution foundations as JSON-safe metadata records.
 - Added Bragg structured uncertainty propagation and Scherrer uncertainty

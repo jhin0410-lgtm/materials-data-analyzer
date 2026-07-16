@@ -32,3 +32,11 @@ registry stores compact metadata and artifact references, not live objects.
 The entity layer is not a simulator, structure acquisition tool, GNN feature
 generator, or model runner. Graph and trajectory entities are metadata contracts
 for future work only.
+
+## v2.2.3 Materials Project Structure Adapter
+
+`CrystalStructureEntity` now has a concrete synthetic/adapter contract for
+Materials Project structure payloads. Runtime MP or pymatgen-like objects may
+be read inside the adapter, but persisted records contain only JSON-safe
+lattice matrices, sites, composition metadata, quantity fields, provenance
+references, and checksums. Row-level real MP structures remain local-only.

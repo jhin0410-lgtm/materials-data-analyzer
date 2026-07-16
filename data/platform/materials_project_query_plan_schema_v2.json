@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.2.3",
+  "schema_id": "materials_project_query_plan_schema_v2",
+  "status": "release_ready",
+  "required_fields": [
+    "query_plan_id",
+    "query_plan_version",
+    "endpoint",
+    "collection",
+    "filters",
+    "requested_fields",
+    "credential_source",
+    "network_required",
+    "dry_run"
+  ],
+  "path_policy": "relative_paths_only",
+  "credential_policy": "no_api_key_values",
+  "execution_policy": "config_is_plan_only_no_python_expression"
+}

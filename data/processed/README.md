@@ -82,6 +82,10 @@ materials_physics_v2_2_feature_use_evidence.json
 materials_physics_v2_2_predictive_comparison_summary.csv
 materials_physics_v2_2_predictive_value_decision.json
 materials_physics_v2_2_report_summary.md
+materials_project_v2_2_acquisition_scope_summary.json
+materials_project_v2_2_structure_coverage_summary.csv
+materials_project_v2_2_structure_adapter_summary.json
+materials_project_v2_2_operator_snapshot.json
 ```
 
 The local source, normalized table, analysis-ready descriptor table, full
@@ -98,7 +102,12 @@ materials_project_v1_3_validation_predictions.csv
 materials_project_v1_3_trust_diagnostics.csv
 outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv
 outputs/materials_physics_v2_2/materials_physics_v2_2_predictions.csv
+outputs/materials_project_structure_v2_2/
 ```
+
+Row-level Materials Project structure payloads, converted structure entities,
+and cache chunks remain local-only until a bounded existing-ID enrichment is
+explicitly executed and reviewed.
 
 ## Smart Factory v1.4 Case Study Summaries
 

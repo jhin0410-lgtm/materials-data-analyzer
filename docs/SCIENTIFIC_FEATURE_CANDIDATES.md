@@ -88,3 +88,10 @@ and schema-evolution contracts around feature candidates. This makes the
 relationship between value, provenance, relation, and future operator metadata
 explicit. It does not add new feature values, rerun the v2.2.1 comparison, or
 upgrade `performance_degraded` into positive predictive evidence.
+
+## v2.2.3 Structure Operator Boundary
+
+v2.2.3 adds descriptive crystal-structure geometry operators for metadata
+validation and future enrichment planning. These summaries are not registered
+as predictive feature artifacts and do not change the v2.2.1 Materials
+`performance_degraded` result.

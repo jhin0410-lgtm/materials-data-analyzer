@@ -1,5 +1,18 @@
 # Materials v2.2 Data Audit
 
+## v2.2.3 Acquisition-Scope Follow-up
+
+The v1.3 Materials Project dataset is now documented as an exact 838-row
+Fe/Si-containing query result and modeling subset, not as the entire Materials
+Project universe and not as a binary Fe-Si-only dataset. The observed scope is
+13 binary rows, 299 ternary rows, and 526 quaternary-plus rows across 67 unique
+elements and 167 chemical systems.
+
+Full structure bodies were not requested in the v1.3 summary acquisition, so
+structure coverage remains `unavailable_no_local_api_data` until a future
+existing-ID enrichment is explicitly executed. This follow-up does not change
+the v2.2.1 `performance_degraded` predictive-value conclusion.
+
 Status: `implemented_bounded`.
 
 This audit documents the data gate used for v2.2 Materials physics-aware

@@ -21,9 +21,13 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/scientific_relation_schema_v2.json"),
         Path("data/platform/graph_entity_schema_v2.json"),
         Path("data/platform/trajectory_entity_schema_v2.json"),
+        Path("data/platform/materials_project_query_plan_schema_v2.json"),
+        Path("data/platform/materials_project_acquisition_manifest_schema_v2.json"),
+        Path("data/platform/materials_project_structure_summary_schema_v2.json"),
+        Path("data/platform/scientific_operator_registry_schema_v2.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2"}
+        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3"}
         assert payload["status"] in {"scaffold_stage", "release_ready"}
     registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
     assert registry_schema["schema_version"] == "2.1"
@@ -57,6 +61,9 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["credential_policy"]["network_access_required"] is False
         elif payload.get("schema_version") == "2.2.2" or payload.get("operator_id", "").endswith("_v2_2"):
             assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["dry_run"] is True
+        elif payload.get("schema_version") == "2.2.3":
+            assert payload["credential_policy"]["store_credentials"] is False
             assert payload["dry_run"] is True
         else:
             assert payload["dry_run"] is True

@@ -221,7 +221,11 @@ property inventories, quality summaries, screening summaries, descriptor
 inventories, model-comparison summaries, applicability summaries,
 error-structure summaries, claim-boundary summaries, trust conclusions, and
 v2.2 physics-feature definition, property-source, coverage, predictive-value,
-and claim-boundary summaries.
+and claim-boundary summaries. v2.2.3 adds compact tracked acquisition-scope,
+structure-coverage, structure-adapter, and selected-operator summaries for the
+existing 838-row Materials Project dataset. Row-level MP structures and
+converted structure entities remain local-only until a bounded existing-ID
+enrichment is explicitly executed.
 Local-only artifacts include source/acquired CSVs, normalized CSVs,
 analysis-ready descriptor tables, full row-level screening results, row-level
 validation predictions, row-level trust diagnostics, v2.2 feature matrices,

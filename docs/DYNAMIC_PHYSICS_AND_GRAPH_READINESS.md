@@ -20,6 +20,12 @@ node/edge records, periodic-edge metadata, graph construction operator refs, and
 source checksums. The phrase GNN-ready means schema readiness only, not model
 readiness or predictive validity.
 
+For v2.2.3, crystal structures can be assessed as
+`graph_adapter_candidate`, `blocked_disorder`, `blocked_missing_lattice`,
+`blocked_missing_sites`, or `blocked_unknown_semantics`. This is graph
+construction contract eligibility only; no neighbor policy is selected and no
+graph is built.
+
 ## Non-goals
 
 No DFT, FEM, CFD, differential equation solver, graph model, GNN training,

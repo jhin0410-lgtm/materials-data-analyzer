@@ -1,0 +1,75 @@
+{
+  "schema_version": "2.2.3",
+  "conversion_id": "synthetic_mp_structure_entity_conversion",
+  "mode": "synthetic_adapter_check",
+  "material_id": "mp-synthetic-fesi",
+  "summary": {
+    "material_id": "mp-synthetic-fesi",
+    "formula_pretty": "FeSi",
+    "composition_reduced": {
+      "Fe": 1.0,
+      "Si": 1.0
+    },
+    "energy_above_hull": 0.0,
+    "density": 5.2,
+    "symmetry": {
+      "crystal_system": "cubic",
+      "number": 221
+    }
+  },
+  "structure": {
+    "lattice": {
+      "matrix": [
+        [
+          2.8,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          2.8,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.8
+        ]
+      ]
+    },
+    "sites": [
+      {
+        "species": [
+          {
+            "element": "Fe",
+            "occu": 1.0
+          }
+        ],
+        "abc": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "species": [
+          {
+            "element": "Si",
+            "occu": 1.0
+          }
+        ],
+        "abc": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      }
+    ]
+  },
+  "network_required": false,
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  }
+}

@@ -81,6 +81,20 @@ from .platform_core.scientific_applicability import (
 from .platform_core.scientific_constraint_registry import build_default_scientific_constraint_registry
 from .platform_core.scientific_evaluators import build_default_evaluator_registry
 from .platform_core.entity_serialization import deserialize_entity_record, serialize_entity, validate_record
+from .platform_core.materials_project_acquisition import (
+    audit_current_materials_scope,
+    preview_existing_id_enrichment,
+    write_scope_audit_outputs,
+)
+from .platform_core.materials_project_adapters import (
+    MaterialsProjectStructureAdapter,
+    MaterialsProjectSummaryAdapter,
+    MaterialsProjectTargetAdapter,
+    assess_crystal_graph_eligibility,
+    composition_structure_consistency,
+    crystal_basic_geometry_summary,
+    validate_crystal_structure_entity as validate_crystal_structure_entity_payload,
+)
 from .platform_core.quantities import quantity_from_payload, validate_quantity_payload
 from .platform_core.schema_evolution import build_default_migration_registry
 from .platform_core.scientific_entities import (
@@ -101,6 +115,7 @@ from .platform_core.scientific_execution import (
     write_scientific_outputs,
 )
 from .platform_core.scientific_relations import default_scientific_relations
+from .platform_core.scientific_operator_registry import build_default_scientific_operator_registry
 from .platform_core.scientific_feature_registry import build_default_scientific_feature_registry
 from .platform_core.scientific_trust import (
     CLAIM_BOUNDARY_IDS,
@@ -1760,6 +1775,290 @@ def _cmd_inspect_scientific_relation(args: argparse.Namespace) -> int:
     return EXIT_INVALID_CONFIG
 
 
+def _scientific_entity_from_payload(payload: dict[str, Any]) -> ScientificEntity:
+    if "record" in payload and "checksum_sha256" in payload:
+        return deserialize_entity_record(payload)
+    return ScientificEntity(
+        entity_id=str(payload["entity_id"]),
+        entity_type=str(payload["entity_type"]),
+        schema_id=str(payload["schema_id"]),
+        schema_version=str(payload["schema_version"]),
+        domain=str(payload["domain"]),
+        attributes=payload.get("attributes", {}),
+        quantity_fields=payload.get("quantity_fields", {}),
+        provenance_refs=tuple(str(item) for item in payload.get("provenance_refs", ())),
+        artifact_refs=tuple(str(item) for item in payload.get("artifact_refs", ())),
+        created_by=str(payload.get("created_by", "cli")),
+        validation_status=str(payload.get("validation_status", "valid")),
+    )
+
+
+def _cmd_audit_materials_project_scope(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        if config.get("mode") != "audit_existing":
+            raise ValueError("audit-materials-project-scope only supports mode=audit_existing")
+        payload = write_scope_audit_outputs(Path.cwd())
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        result = {"status": "scope_audit_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"scope_audit_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"lineage_verdict: {payload['lineage_verdict']}",
+                f"dataset_scope_verdict: {payload['dataset_scope_verdict']}",
+                f"row_count: {payload['row_count']}",
+                f"unique_material_id_count: {payload['unique_material_id_count']}",
+                f"fe_si_binary_only: {str(payload['fe_si_binary_only']).lower()}",
+                f"structure_enrichment_status: {payload['actual_structure_enrichment_status']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_preview_mp_structure_enrichment(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        if config.get("execute") is True:
+            raise ValueError("preview command refuses execute=true")
+        material_ids = [str(item) for item in config.get("material_ids", ())]
+        if not material_ids:
+            scope = audit_current_materials_scope(Path.cwd())
+            material_ids = []
+            requested = scope.get("unique_material_id_count", 0)
+        else:
+            requested = len(material_ids)
+        result = preview_existing_id_enrichment(
+            material_ids,
+            max_records=int(config.get("max_records", max(1, requested))),
+            execute=False,
+        ).to_dict()
+        result["requested_material_ids_from_config"] = requested
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        result = {"status": "preview_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"preview_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"requested_count: {result['requested_count']}"])
+    return 0
+
+
+def _cmd_enrich_mp_structures(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        if not args.execute:
+            result = preview_existing_id_enrichment(
+                [str(item) for item in config.get("material_ids", ())],
+                max_records=int(config.get("max_records", 100)),
+                execute=False,
+            ).to_dict()
+        else:
+            result = {
+                "status": "blocked_execution_not_implemented_in_platform_core",
+                "reason": "Actual MP API enrichment must live in a credential-gated script layer and is not run by v2.2.3 CLI.",
+                "network_called": False,
+                "raw_structure_tracked": False,
+            }
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        result = {"status": "enrichment_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"enrichment_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", "network_called: false"])
+    return 0 if result["status"] != "blocked_execution_not_implemented_in_platform_core" else EXIT_EXECUTION_DISABLED
+
+
+def _cmd_validate_mp_structure_cache(args: argparse.Namespace) -> int:
+    path = Path(args.path)
+    if path.is_absolute() or ".." in path.parts:
+        payload = {"valid": False, "status": "invalid_path", "errors": ["path must be repository-relative"]}
+    elif not path.exists():
+        payload = {"valid": False, "status": "missing_cache", "errors": [f"missing:{path.as_posix()}"]}
+    else:
+        jsonl_count = len(list(path.rglob("*.jsonl"))) if path.is_dir() else int(path.suffix == ".jsonl")
+        payload = {
+            "valid": True,
+            "status": "cache_inspected",
+            "jsonl_file_count": jsonl_count,
+            "local_only_policy": True,
+        }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {payload['status']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_convert_mp_structures_to_entities(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        summary = config["summary"]
+        structure = config["structure"]
+        composition_entity = MaterialsProjectSummaryAdapter().to_composition_entity(summary)
+        composition_record = serialize_entity(composition_entity)
+        structure_entity = MaterialsProjectStructureAdapter().to_crystal_structure_entity(
+            material_id=str(config["material_id"]),
+            structure=structure,
+            summary_row=summary,
+            parent_composition_ref=None,
+        )
+        target_quantity = MaterialsProjectTargetAdapter().to_quantity(summary)
+        payload = {
+            "status": "converted_synthetic_structure",
+            "composition_entity": composition_record,
+            "structure_entity": serialize_entity(structure_entity),
+            "target_quantity": target_quantity.to_dict(),
+            "runtime_object_persisted": False,
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "conversion_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"conversion_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"composition_entity_id: {payload['composition_entity']['entity_id']}",
+                f"structure_entity_id: {payload['structure_entity']['entity_id']}",
+            ]
+        )
+    return 0
+
+
+def _load_entity_records(path: str) -> list[ScientificEntity]:
+    payload_path = Path(path)
+    if payload_path.suffix == ".jsonl":
+        entities = []
+        for line in payload_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                entities.append(_scientific_entity_from_payload(json.loads(line)))
+        return entities
+    payload = _load_small_json(path)
+    if isinstance(payload.get("entities"), list):
+        return [_scientific_entity_from_payload(item) for item in payload["entities"]]
+    return [_scientific_entity_from_payload(payload)]
+
+
+def _cmd_summarize_crystal_structure_entities(args: argparse.Namespace) -> int:
+    try:
+        entities = _load_entity_records(args.path)
+        crystal_entities = [entity for entity in entities if entity.entity_type == "CrystalStructureEntity"]
+        statuses = [validate_crystal_structure_entity_payload(entity)["status"] for entity in crystal_entities]
+        payload = {
+            "entity_count": len(crystal_entities),
+            "status_counts": {status: statuses.count(status) for status in sorted(set(statuses))},
+            "graph_candidate_count": sum(
+                1 for entity in crystal_entities if assess_crystal_graph_eligibility(entity)["status"] == "graph_adapter_candidate"
+            ),
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "summary_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"summary_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"entity_count: {payload['entity_count']}", f"graph_candidate_count: {payload['graph_candidate_count']}"])
+    return 0
+
+
+def _cmd_validate_crystal_structure_entity(args: argparse.Namespace) -> int:
+    try:
+        entity = _load_entity_records(args.path)[0]
+        if entity.entity_type != "CrystalStructureEntity":
+            raise ValueError("entity is not CrystalStructureEntity")
+        payload = validate_crystal_structure_entity_payload(entity)
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "invalid", "errors": [str(exc)]}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", *[f"finding: {item}" for item in payload.get("findings", [])]])
+    return 0 if payload.get("status") in {"valid", "valid_with_warnings"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_list_scientific_operators(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_operator_registry()
+    payload = registry.snapshot()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{item['operator_id']}\t{item['status']}\t{','.join(item['output_types'])}" for item in payload])
+    return 0
+
+
+def _cmd_inspect_scientific_operator(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_operator_registry()
+    try:
+        payload = registry.get(args.operator_id).to_dict()
+    except KeyError as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {args.operator_id}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"operator_id: {payload['operator_id']}",
+                f"status: {payload['status']}",
+                f"network_policy: {payload['network_policy']}",
+                f"side_effect_policy: {payload['side_effect_policy']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_scientific_operator_registry(args: argparse.Namespace) -> int:
+    payload = build_default_scientific_operator_registry().validate()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"operator_count: {payload['operator_count']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_assess_crystal_graph_eligibility(args: argparse.Namespace) -> int:
+    try:
+        entity = _load_entity_records(args.path)[0]
+        if entity.entity_type != "CrystalStructureEntity":
+            raise ValueError("entity is not CrystalStructureEntity")
+        payload = assess_crystal_graph_eligibility(entity)
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "blocked_unknown_semantics", "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"graph_constructed: {str(payload.get('graph_constructed', False)).lower()}"])
+    return 0 if payload.get("status") in {"graph_adapter_candidate", "blocked_disorder"} else EXIT_INVALID_CONFIG
+
+
 def _cmd_validate_scientific_quantity(args: argparse.Namespace) -> int:
     try:
         payload = _load_small_json(args.path)
@@ -2865,6 +3164,73 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_relation_parser = subparsers.add_parser("inspect-scientific-relation", help="inspect one scientific relation")
     inspect_relation_parser.add_argument("relation_id")
     inspect_relation_parser.set_defaults(func=_cmd_inspect_scientific_relation)
+
+    mp_scope_parser = subparsers.add_parser(
+        "audit-materials-project-scope",
+        help="audit existing tracked Materials Project acquisition scope without network access",
+    )
+    mp_scope_parser.add_argument("config")
+    mp_scope_parser.set_defaults(func=_cmd_audit_materials_project_scope)
+
+    mp_preview_parser = subparsers.add_parser(
+        "preview-mp-structure-enrichment",
+        help="preview bounded existing-ID Materials Project structure enrichment without network access",
+    )
+    mp_preview_parser.add_argument("config")
+    mp_preview_parser.set_defaults(func=_cmd_preview_mp_structure_enrichment)
+
+    mp_enrich_parser = subparsers.add_parser(
+        "enrich-mp-structures",
+        help="blocked scaffold for explicit future MP structure enrichment",
+    )
+    mp_enrich_parser.add_argument("config")
+    mp_enrich_parser.add_argument("--execute", action="store_true")
+    mp_enrich_parser.set_defaults(func=_cmd_enrich_mp_structures)
+
+    mp_cache_parser = subparsers.add_parser("validate-mp-structure-cache", help="validate local-only MP structure cache shape")
+    mp_cache_parser.add_argument("path")
+    mp_cache_parser.set_defaults(func=_cmd_validate_mp_structure_cache)
+
+    mp_convert_parser = subparsers.add_parser(
+        "convert-mp-structures-to-entities",
+        help="convert a small synthetic MP structure payload to JSON-safe entity records",
+    )
+    mp_convert_parser.add_argument("config")
+    mp_convert_parser.set_defaults(func=_cmd_convert_mp_structures_to_entities)
+
+    structure_summary_parser = subparsers.add_parser(
+        "summarize-crystal-structure-entities",
+        help="summarize crystal structure entity records without graph construction",
+    )
+    structure_summary_parser.add_argument("path")
+    structure_summary_parser.set_defaults(func=_cmd_summarize_crystal_structure_entities)
+
+    structure_validate_parser = subparsers.add_parser(
+        "validate-crystal-structure-entity",
+        help="run basic integrity checks for one crystal structure entity",
+    )
+    structure_validate_parser.add_argument("path")
+    structure_validate_parser.set_defaults(func=_cmd_validate_crystal_structure_entity)
+
+    operators_parser = subparsers.add_parser("list-scientific-operators", help="list selected scientific operators")
+    operators_parser.set_defaults(func=_cmd_list_scientific_operators)
+
+    inspect_operator_parser = subparsers.add_parser("inspect-scientific-operator", help="inspect one selected scientific operator")
+    inspect_operator_parser.add_argument("operator_id")
+    inspect_operator_parser.set_defaults(func=_cmd_inspect_scientific_operator)
+
+    operator_validate_parser = subparsers.add_parser(
+        "validate-scientific-operator-registry",
+        help="validate selected scientific operator registry metadata",
+    )
+    operator_validate_parser.set_defaults(func=_cmd_validate_scientific_operator_registry)
+
+    graph_eligibility_parser = subparsers.add_parser(
+        "assess-crystal-graph-eligibility",
+        help="assess graph-construction contract eligibility without constructing a graph",
+    )
+    graph_eligibility_parser.add_argument("path")
+    graph_eligibility_parser.set_defaults(func=_cmd_assess_crystal_graph_eligibility)
 
     validate_quantity_parser = subparsers.add_parser("validate-scientific-quantity", help="validate a scientific quantity JSON record")
     validate_quantity_parser.add_argument("path")

@@ -22,6 +22,12 @@ scientific uncertainty interval.
 Classification scores without calibration evidence are not reported as
 calibrated confidence or operational probability.
 
+For Materials Project v2.2.3, lattice, density, volume, and
+energy-above-hull values are mapped with original and canonical units when
+possible. Source uncertainty is recorded as `unavailable` with reason
+`source_does_not_provide_uncertainty`; zero uncertainty and invented confidence
+scores are prohibited.
+
 ## Bragg Pilot
 
 The Bragg uncertainty pilot computes d-spacing and first-order independent

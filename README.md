@@ -617,6 +617,9 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   unit-backend, schema-evolution, and graph/trajectory metadata foundations.
   These are JSON-safe contracts, not live-object persistence, simulator
   execution, GNN execution, or new predictive evidence.
+- v2.2.3 audits the exact 838-row Materials Project acquisition scope and adds
+  structure-entity adapter/operator metadata; full structures remain local-only
+  future enrichment and the `performance_degraded` result is unchanged.
 
 ### Later
 

@@ -1,0 +1,10 @@
+{
+  "actual_structure_enrichment_status": "unavailable_no_local_api_data",
+  "adapter_status": "implemented_with_synthetic_and_future_enrichment_inputs",
+  "composition_consistency_status": "not_run_no_local_structure_data",
+  "runtime_object_persistence": false,
+  "schema_version": "2.2.3",
+  "structure_entity_count": 0,
+  "structure_integrity_status": "not_run_no_local_structure_data",
+  "uncertainty_policy": "source_uncertainty_unavailable_not_zero"
+}

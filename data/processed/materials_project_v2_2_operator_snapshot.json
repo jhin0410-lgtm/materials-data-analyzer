@@ -1,0 +1,180 @@
+{
+  "broader_expansion_plans": [
+    {
+      "bias_risk": "inherits v1.3 Fe/Si-containing query bias",
+      "execution_status": "planned_not_executed",
+      "plan_id": "existing_838_material_id_structure_enrichment",
+      "priority": "highest",
+      "scope": "Existing 838 material IDs only",
+      "storage_policy": "local_only_structures_tracked_compact_summaries"
+    },
+    {
+      "bias_risk": "query and target availability may bias chemistry distribution",
+      "execution_status": "plan_only",
+      "plan_id": "same_target_broader_query_universe",
+      "priority": "future",
+      "scope": "Broader Materials Project query for documents with energy_above_hull and explicit target provenance",
+      "storage_policy": "requires separate access gate and size review"
+    },
+    {
+      "bias_risk": "structure availability and quality filters may shrink/shift the dataset",
+      "execution_status": "plan_only",
+      "plan_id": "structure_aware_curated_subset",
+      "priority": "future",
+      "scope": "Target available, structure available, provenance valid, bounded quality filters",
+      "storage_policy": "local structures plus compact tracked coverage summaries"
+    }
+  ],
+  "execution_boundary": {
+    "arbitrary_import_allowed": false,
+    "model_training_allowed": false,
+    "network_execution_allowed": false,
+    "structure_predictive_feature_claim_allowed": false
+  },
+  "operator_count": 6,
+  "operators": [
+    {
+      "bounded_input_policy": "small_inline_or_artifact_backed_json_safe_records",
+      "description": "Compare summary composition and structure-derived composition without making phase claims.",
+      "deterministic": true,
+      "input_entity_types": [
+        "MaterialCompositionEntity",
+        "CrystalStructureEntity"
+      ],
+      "network_policy": "no_network",
+      "operator_id": "composition_structure_consistency_check_v1",
+      "operator_version": "1",
+      "output_types": [
+        "ConsistencyFinding"
+      ],
+      "provenance_policy": "record_input_checksums_and_schema_versions",
+      "required_fields": [
+        "stoichiometric_amounts",
+        "structure_derived_composition"
+      ],
+      "side_effect_policy": "none",
+      "status": "validation_ready",
+      "uncertainty_policy": "unavailable_if_source_not_provided"
+    },
+    {
+      "bounded_input_policy": "small_inline_or_artifact_backed_json_safe_records",
+      "description": "Compute descriptive lattice geometry summary; not a predictive feature artifact.",
+      "deterministic": true,
+      "input_entity_types": [
+        "CrystalStructureEntity"
+      ],
+      "network_policy": "no_network",
+      "operator_id": "crystal_basic_geometry_summary_v1",
+      "operator_version": "1",
+      "output_types": [
+        "GeometrySummary"
+      ],
+      "provenance_policy": "record_input_checksums_and_schema_versions",
+      "required_fields": [
+        "lattice.matrix",
+        "sites"
+      ],
+      "side_effect_policy": "none",
+      "status": "validation_ready",
+      "uncertainty_policy": "unavailable_if_source_not_provided"
+    },
+    {
+      "bounded_input_policy": "small_inline_or_artifact_backed_json_safe_records",
+      "description": "Validate basic crystal structure payload shape, finite values, species, and occupancy metadata.",
+      "deterministic": true,
+      "input_entity_types": [
+        "CrystalStructureEntity"
+      ],
+      "network_policy": "no_network",
+      "operator_id": "crystal_structure_integrity_check_v1",
+      "operator_version": "1",
+      "output_types": [
+        "IntegrityFinding"
+      ],
+      "provenance_policy": "record_input_checksums_and_schema_versions",
+      "required_fields": [
+        "lattice.matrix",
+        "sites"
+      ],
+      "side_effect_policy": "none",
+      "status": "validation_ready",
+      "uncertainty_policy": "unavailable_if_source_not_provided"
+    },
+    {
+      "bounded_input_policy": "small_inline_or_artifact_backed_json_safe_records",
+      "description": "Convert a runtime MP/pymatgen structure into a JSON-safe crystal structure entity.",
+      "deterministic": true,
+      "input_entity_types": [
+        "MaterialsProjectStructureDoc"
+      ],
+      "network_policy": "no_network",
+      "operator_id": "mp_structure_to_crystal_entity_v1",
+      "operator_version": "1",
+      "output_types": [
+        "CrystalStructureEntity"
+      ],
+      "provenance_policy": "record_input_checksums_and_schema_versions",
+      "required_fields": [
+        "material_id",
+        "structure.lattice",
+        "structure.sites"
+      ],
+      "side_effect_policy": "none",
+      "status": "adapter_available",
+      "uncertainty_policy": "unavailable_if_source_not_provided"
+    },
+    {
+      "bounded_input_policy": "small_inline_or_artifact_backed_json_safe_records",
+      "description": "Convert Materials Project summary metadata into a JSON-safe composition entity.",
+      "deterministic": true,
+      "input_entity_types": [
+        "MaterialsProjectSummaryDoc"
+      ],
+      "network_policy": "no_network",
+      "operator_id": "mp_summary_to_composition_entity_v1",
+      "operator_version": "1",
+      "output_types": [
+        "MaterialCompositionEntity"
+      ],
+      "provenance_policy": "record_input_checksums_and_schema_versions",
+      "required_fields": [
+        "material_id",
+        "formula_pretty",
+        "composition_reduced"
+      ],
+      "side_effect_policy": "none",
+      "status": "adapter_available",
+      "uncertainty_policy": "unavailable_if_source_not_provided"
+    },
+    {
+      "bounded_input_policy": "small_inline_or_artifact_backed_json_safe_records",
+      "description": "Convert the current target property into a scientific quantity with unavailable uncertainty.",
+      "deterministic": true,
+      "input_entity_types": [
+        "MaterialsProjectSummaryDoc"
+      ],
+      "network_policy": "no_network",
+      "operator_id": "mp_target_to_quantity_v1",
+      "operator_version": "1",
+      "output_types": [
+        "ScientificQuantity"
+      ],
+      "provenance_policy": "record_input_checksums_and_schema_versions",
+      "required_fields": [
+        "material_id",
+        "energy_above_hull"
+      ],
+      "side_effect_policy": "none",
+      "status": "adapter_available",
+      "uncertainty_policy": "unavailable_if_source_not_provided"
+    }
+  ],
+  "registry_version": "2.2.3",
+  "schema_version": "2.2.3",
+  "validation": {
+    "errors": [],
+    "operator_count": 6,
+    "registry_version": "2.2.3",
+    "valid": true
+  }
+}

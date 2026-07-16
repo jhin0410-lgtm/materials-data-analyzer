@@ -1,0 +1,30 @@
+{
+  "schema_version": "2.2.3",
+  "query_plan_id": "materials_project_existing_id_structure_preview",
+  "mode": "enrich_existing_ids",
+  "material_ids": [
+    "mp-aaaaaarh",
+    "mp-aaaaabhn"
+  ],
+  "requested_fields": [
+    "material_id",
+    "formula_pretty",
+    "composition",
+    "composition_reduced",
+    "chemsys",
+    "nelements",
+    "structure",
+    "symmetry",
+    "density",
+    "volume",
+    "energy_above_hull"
+  ],
+  "max_records": 2,
+  "execute": false,
+  "network_required": true,
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": true
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "2.2.3",
+  "schema_id": "scientific_operator_registry_schema_v2",
+  "status": "release_ready",
+  "required_fields": [
+    "operator_id",
+    "operator_version",
+    "input_entity_types",
+    "output_types",
+    "required_fields",
+    "side_effect_policy",
+    "network_policy",
+    "uncertainty_policy",
+    "provenance_policy",
+    "deterministic",
+    "bounded_input_policy",
+    "status"
+  ],
+  "security_policy": {
+    "arbitrary_import_allowed": false,
+    "config_callable_allowed": false,
+    "filesystem_scanning_allowed": false,
+    "network_default": "no_network"
+  }
+}

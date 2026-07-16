@@ -227,6 +227,12 @@ uncertainty, schema-evolution, and compatibility-adapter foundations. Runtime
 objects remain separate from persisted records: registries store compact
 metadata, checksums, schema refs, and artifact refs, not live Python objects.
 
+v2.2.3 applies that boundary to Materials Project structure metadata. MP
+summary rows can be adapted to composition entities and target quantities, and
+small loaded structure mappings can be converted to `CrystalStructureEntity`
+records. The selected operator registry is metadata-only and does not execute
+arbitrary callables, acquisition, graph construction, or model training.
+
 See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
 [`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
 [`SCIENTIFIC_TRUST_BOUNDARY.md`](SCIENTIFIC_TRUST_BOUNDARY.md),

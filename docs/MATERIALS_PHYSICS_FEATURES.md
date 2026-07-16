@@ -82,6 +82,11 @@ v2.2.2 can represent formula parsing output as an optional
 This is a metadata foundation only; it does not change the v2.2.1 numerical
 features or the `performance_degraded` conclusion.
 
+v2.2.3 audits the 838-row Materials Project scope and adds a
+`CrystalStructureEntity` adapter and selected structure metadata operators.
+These do not create a structure-aware predictive comparison and do not change
+the existing feature-use conclusion.
+
 Allowed claim:
 
 - `physics_informed_feature_available`

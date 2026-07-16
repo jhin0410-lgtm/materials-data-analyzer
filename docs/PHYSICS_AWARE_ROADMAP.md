@@ -1,6 +1,6 @@
 # Physics-Aware Roadmap
 
-Status: `v2.2.2 foundation implemented`.
+Status: `v2.2.3 acquisition-scope and structure-adapter foundation implemented`.
 
 v2.1 adds bounded scientific execution for scalar/small-list metadata checks
 and v2.1.5 adds feature-candidate eligibility and scientific trust boundaries.
@@ -12,6 +12,11 @@ v2.2.2 adds the entity, quantity, unit-backend, relation, uncertainty, schema
 evolution, and graph/trajectory readiness foundation needed before richer
 physics-aware extensions. It does not add simulators, GNNs, new acquisition, or
 new predictive claims.
+
+v2.2.3 audits the existing 838-row Materials Project acquisition scope,
+documents that it is Fe/Si-containing and multinary, adds structure entity
+adapters and selected operator metadata, and preserves the v2.2.1
+`performance_degraded` conclusion.
 
 ## Current Foundation
 
@@ -30,6 +35,8 @@ new predictive claims.
 - matched Materials predictive-value validation with explicit claim boundary
 - JSON-safe scientific entity, quantity, relation, uncertainty, and schema
   evolution contracts
+- Materials Project acquisition-scope audit, structure entity adapter, and
+  selected scientific operator registry
 
 ## Future Sequence
 
@@ -40,7 +47,10 @@ new predictive claims.
    predictive value against matched v1.3 baselines without arbitrary equations.
 4. v2.2.2: add entity, quantity, uncertainty, schema-evolution, and graph /
    trajectory metadata foundations without simulators or new model claims.
-5. Later v2.x: add optional scientific descriptors only after contracts,
+5. v2.2.3: audit Materials Project acquisition scope and add structure
+   adapter/operator metadata without full structure acquisition or model
+   retraining.
+6. Later v2.x: add optional scientific descriptors only after contracts,
    provenance, applicability, and trust boundaries are in place.
 
 ## Explicitly Deferred
