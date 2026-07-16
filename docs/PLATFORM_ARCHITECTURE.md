@@ -89,7 +89,12 @@ In code:
   registry and validation
 - `src/platform_core/scientific_trust.py`: scientific trust-boundary and
   feature-eligibility evaluation from stored execution evidence
+- `src/platform_core/materials_project_structure_enrichment.py`: bounded
+  existing-ID Materials Project structure enrichment, snapshot alignment, and
+  local-only structure cache orchestration
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
+- `src/analyzers/materials_structure_features.py`: deterministic structure
+  descriptor summaries and periodic radius-graph artifact construction
 - `src/cli.py`: unified CLI scaffold
 
 ## Plugin Registry

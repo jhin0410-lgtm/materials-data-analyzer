@@ -11,8 +11,11 @@ def test_default_operator_registry_has_selected_operators_only():
     operator_ids = {item["operator_id"] for item in snapshot}
 
     assert registry.validate()["valid"] is True
-    assert len(snapshot) == 6
+    assert len(snapshot) == 9
     assert "mp_structure_to_crystal_entity_v1" in operator_ids
+    assert "crystal_structure_to_descriptor_summary_v1" in operator_ids
+    assert "crystal_structure_to_radius_graph_v1" in operator_ids
+    assert "structure_snapshot_alignment_check_v1" in operator_ids
     assert all(item["network_policy"] == "no_network" for item in snapshot)
     assert all("callable" not in item for item in snapshot)
 

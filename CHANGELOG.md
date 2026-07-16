@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Added v2.2.4 controlled Materials Project structure enrichment for the
+  existing 838 material IDs only, with explicit `--execute` gating, chunked
+  local-only API cache, and credential-safe output policy.
+- Added snapshot-alignment auditing between the original v1.3
+  `energy_above_hull` target and current API values without overwriting the
+  original target; the actual bounded run returned 838 structures with 257
+  exact target matches, 581 within numeric tolerance, and 0 target drifts.
+- Added actual `CrystalStructureEntity` conversion coverage for 838 current MP
+  structures, Tier-1 known-structure descriptor candidates, deterministic
+  periodic radius-graph artifacts, and compact tracked coverage summaries.
+- Documented the prediction-context boundary: composition-only pre-structure
+  screening remains separate from known-structure post-relaxation analysis, and
+  the v2.2.1 `performance_degraded` conclusion remains unchanged.
+- Kept structure-aware prediction, GNN execution, DFT replacement, SHAP, target
+  overwrite, and hybrid physics-ML claims out of scope.
 - Added v2.2.3 Materials Project acquisition-scope audit documenting the exact
   838-row Fe/Si-containing multinary query result, row-count lineage, target
   unit, element distribution, and structure coverage boundary.

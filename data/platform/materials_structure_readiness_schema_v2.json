@@ -1,0 +1,13 @@
+{
+  "case_study_id": "materials_project",
+  "required_fields": [
+    "requested_unique_material_ids",
+    "api_returned_ids",
+    "structure_available",
+    "snapshot_aligned_count",
+    "structure_prediction_readiness"
+  ],
+  "schema_id": "materials_structure_readiness_schema_v2",
+  "schema_version": "2.2.4",
+  "status": "release_ready"
+}

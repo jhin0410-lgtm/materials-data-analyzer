@@ -1,6 +1,6 @@
 # Dynamic Physics and Graph Readiness
 
-Status: `schema_readiness_only`
+Status: `v2.2.4_graph_artifact_pilot_complete`
 
 v2.2.2 defines metadata contracts for future dynamic simulation and graph
 representation. It does not implement a solver, simulator, graph neural network,
@@ -20,11 +20,14 @@ node/edge records, periodic-edge metadata, graph construction operator refs, and
 source checksums. The phrase GNN-ready means schema readiness only, not model
 readiness or predictive validity.
 
-For v2.2.3, crystal structures can be assessed as
-`graph_adapter_candidate`, `blocked_disorder`, `blocked_missing_lattice`,
-`blocked_missing_sites`, or `blocked_unknown_semantics`. This is graph
-construction contract eligibility only; no neighbor policy is selected and no
-graph is built.
+For v2.2.4, the existing 838 Materials Project structure entities were assessed
+as graph candidates and 838 deterministic periodic radius-graph artifacts were
+generated locally. The graph artifacts have unique checksums, exclude target
+values, and record `gnn_execution=false`.
+
+This remains representation readiness only. A graph artifact is not evidence
+that a GNN, graph tensor, graph embedding, or structure-aware predictive model
+is valid.
 
 ## Non-goals
 

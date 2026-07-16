@@ -1,6 +1,6 @@
 # Physics-Aware Roadmap
 
-Status: `v2.2.3 acquisition-scope and structure-adapter foundation implemented`.
+Status: `v2.2.4 controlled structure enrichment and graph artifact pilot complete`.
 
 v2.1 adds bounded scientific execution for scalar/small-list metadata checks
 and v2.1.5 adds feature-candidate eligibility and scientific trust boundaries.
@@ -17,6 +17,12 @@ v2.2.3 audits the existing 838-row Materials Project acquisition scope,
 documents that it is Fe/Si-containing and multinary, adds structure entity
 adapters and selected operator metadata, and preserves the v2.2.1
 `performance_degraded` conclusion.
+
+v2.2.4 executes bounded current Materials Project structure enrichment for the
+same 838 material IDs, audits target snapshot alignment, converts 838 valid
+structures to JSON-safe entities, builds Tier-1 descriptor candidates, and
+generates 838 deterministic periodic graph artifacts. It still does not train a
+structure-aware model or alter the v2.2.1 conclusion.
 
 ## Current Foundation
 
@@ -37,6 +43,8 @@ adapters and selected operator metadata, and preserves the v2.2.1
   evolution contracts
 - Materials Project acquisition-scope audit, structure entity adapter, and
   selected scientific operator registry
+- bounded Materials Project structure enrichment, snapshot-alignment audit,
+  structure descriptor candidates, and periodic graph artifact pilot
 
 ## Future Sequence
 
@@ -50,8 +58,12 @@ adapters and selected operator metadata, and preserves the v2.2.1
 5. v2.2.3: audit Materials Project acquisition scope and add structure
    adapter/operator metadata without full structure acquisition or model
    retraining.
-6. Later v2.x: add optional scientific descriptors only after contracts,
-   provenance, applicability, and trust boundaries are in place.
+6. v2.2.4: enrich the existing 838 material IDs with current structures,
+   build JSON-safe entities, audit snapshot alignment, and pilot deterministic
+   descriptors and graph artifacts without training.
+7. Later v2.x: run a structure-aware comparison only after the
+   known-structure prediction context, leakage boundary, and cohort rules are
+   fixed.
 
 ## Explicitly Deferred
 

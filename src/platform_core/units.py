@@ -30,7 +30,10 @@ SUPPORTED_DIMENSIONS = (
     "angle",
     "volume",
     "volume_per_site",
+    "volume_per_atom",
     "density",
+    "count",
+    "category",
 )
 
 
@@ -150,8 +153,12 @@ def build_default_unit_registry() -> UnitRegistry:
     add("degree", "angle", 0.017453292519943295, base="rad")
     add("angstrom^3", "volume", 1.0, base="angstrom^3")
     add("angstrom^3/site", "volume_per_site", 1.0, base="angstrom^3/site")
+    add("angstrom^3/atom", "volume_per_atom", 1.0, base="angstrom^3/atom")
     add("g/cm^3", "density", 1.0, base="g/cm^3")
     add("fraction", "dimensionless", 1.0, base="fraction")
+    add("unitless", "dimensionless", 1.0, base="unitless")
+    add("count", "count", 1.0, base="count")
+    add("category", "category", 1.0, base="category")
     add("percent", "dimensionless", 0.01, base="fraction")
 
     return registry

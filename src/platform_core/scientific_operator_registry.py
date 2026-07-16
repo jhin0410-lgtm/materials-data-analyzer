@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-OPERATOR_REGISTRY_VERSION = "2.2.3"
+OPERATOR_REGISTRY_VERSION = "2.2.4"
 ALLOWED_OPERATOR_STATUSES = ("registered", "metadata_only", "adapter_available", "validation_ready")
 
 
@@ -170,6 +170,30 @@ def build_default_scientific_operator_registry() -> ScientificOperatorRegistry:
             ("GeometrySummary",),
             ("lattice.matrix", "sites"),
             "Compute descriptive lattice geometry summary; not a predictive feature artifact.",
+            status="validation_ready",
+        ),
+        _op(
+            "crystal_structure_to_descriptor_summary_v1",
+            ("CrystalStructureEntity",),
+            ("StructureDescriptorSummary",),
+            ("lattice.matrix", "sites", "symmetry"),
+            "Build deterministic Tier-1 structure descriptor candidates without target access.",
+            status="validation_ready",
+        ),
+        _op(
+            "crystal_structure_to_radius_graph_v1",
+            ("CrystalStructureEntity",),
+            ("GraphEntity",),
+            ("lattice.matrix", "sites.fractional_coordinates", "sites.species"),
+            "Build a deterministic periodic radius graph artifact; not a GNN execution.",
+            status="validation_ready",
+        ),
+        _op(
+            "structure_snapshot_alignment_check_v1",
+            ("MaterialsProjectSummaryDoc", "MaterialsProjectStructureDoc"),
+            ("SnapshotAlignmentFinding",),
+            ("material_id", "energy_above_hull"),
+            "Compare original v1.3 target with current API value without overwriting the original target.",
             status="validation_ready",
         ),
     ):

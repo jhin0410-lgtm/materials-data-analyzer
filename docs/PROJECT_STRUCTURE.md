@@ -51,6 +51,14 @@ comparison utilities. It uses existing local Materials v1.3 artifacts, does
 not acquire data, does not tune models, and records `performance_degraded`
 when the physics feature set fails to improve group-aware validation.
 
+`src/platform_core/materials_project_structure_enrichment.py` and
+`src/analyzers/materials_structure_features.py` provide the v2.2.4 bounded
+existing-ID Materials Project structure enrichment, snapshot-alignment audit,
+JSON-safe structure entity conversion, Tier-1 structure descriptor candidates,
+and periodic radius-graph artifact pilot. They keep API chunks, row-level
+structures, descriptor tables, and graph JSONL under ignored local outputs and
+do not train models or claim structure-aware predictive improvement.
+
 `src/analyzers/process_quality_readiness.py` provides generic schema,
 timestamp, identifier, target, leakage, SPC, and group/time validation
 readiness checks for process-quality and Smart Factory case studies. It does
@@ -223,13 +231,17 @@ error-structure summaries, claim-boundary summaries, trust conclusions, and
 v2.2 physics-feature definition, property-source, coverage, predictive-value,
 and claim-boundary summaries. v2.2.3 adds compact tracked acquisition-scope,
 structure-coverage, structure-adapter, and selected-operator summaries for the
-existing 838-row Materials Project dataset. Row-level MP structures and
-converted structure entities remain local-only until a bounded existing-ID
-enrichment is explicitly executed.
+existing 838-row Materials Project dataset. v2.2.4 adds compact tracked
+structure-enrichment, snapshot-alignment, descriptor-definition,
+descriptor-coverage, graph-eligibility, and operator summaries. Row-level MP
+structure chunks, converted structure entities, descriptor rows, graph JSONL,
+and alignment tables remain local-only under
+`outputs/materials_project_structure_v2_2/`.
 Local-only artifacts include source/acquired CSVs, normalized CSVs,
 analysis-ready descriptor tables, full row-level screening results, row-level
 validation predictions, row-level trust diagnostics, v2.2 feature matrices,
-v2.2 split assignments, and v2.2 row-level comparison predictions.
+v2.2 split assignments, v2.2 row-level comparison predictions, and v2.2.4
+structure enrichment caches.
 
 For Smart Factory v1.4, compact tracked artifacts include acquisition,
 readiness, feature-quality, temporal, classification-metric, eligibility,

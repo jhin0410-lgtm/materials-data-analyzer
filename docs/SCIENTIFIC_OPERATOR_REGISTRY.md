@@ -1,6 +1,6 @@
 # Scientific Operator Registry
 
-Status: `v2.2.3_complete`
+Status: `v2.2.4_complete`
 
 The selected scientific operator registry is an explicit metadata registry. It stores operator contracts, not arbitrary Python callables. It does not import config-supplied modules, scan the filesystem, call the network, train models, or execute acquisition.
 
@@ -12,13 +12,21 @@ The selected scientific operator registry is an explicit metadata registry. It s
 - `crystal_structure_integrity_check_v1`
 - `composition_structure_consistency_check_v1`
 - `crystal_basic_geometry_summary_v1`
+- `crystal_structure_to_descriptor_summary_v1`
+- `crystal_structure_to_radius_graph_v1`
+- `structure_snapshot_alignment_check_v1`
 
 Each operator records input entity types, output types, required fields, side-effect policy, network policy, uncertainty policy, provenance policy, determinism, and bounded input policy.
 
 ## Execution Boundary
 
-The registry supports inspection and validation. It does not make a generic execution engine and does not allow arbitrary callable references. Current adapter behavior is limited to small synthetic or already-loaded runtime mappings.
+The registry supports inspection and validation. It does not make a generic
+execution engine and does not allow arbitrary callable references. Current
+adapter behavior is limited to bounded, already-loaded runtime mappings and
+local-only artifact construction.
 
 ## Claim Boundary
 
-Geometry summaries are descriptive metadata. They are not tracked as predictive feature artifacts in v2.2.3, and they do not change the v2.2.1 `performance_degraded` conclusion.
+Geometry and graph summaries are descriptive metadata or candidate artifacts.
+They are not validated predictive features in v2.2.4, and they do not change
+the v2.2.1 `performance_degraded` conclusion.

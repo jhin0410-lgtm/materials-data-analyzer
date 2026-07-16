@@ -86,6 +86,13 @@ materials_project_v2_2_acquisition_scope_summary.json
 materials_project_v2_2_structure_coverage_summary.csv
 materials_project_v2_2_structure_adapter_summary.json
 materials_project_v2_2_operator_snapshot.json
+materials_project_v2_2_4_structure_enrichment_summary.json
+materials_project_v2_2_4_snapshot_alignment_summary.csv
+materials_project_v2_2_4_structure_coverage_summary.csv
+materials_project_v2_2_4_descriptor_definition_snapshot.csv
+materials_project_v2_2_4_descriptor_coverage_summary.csv
+materials_project_v2_2_4_graph_eligibility_summary.csv
+materials_project_v2_2_4_operator_snapshot.json
 ```
 
 The local source, normalized table, analysis-ready descriptor table, full
@@ -106,8 +113,10 @@ outputs/materials_project_structure_v2_2/
 ```
 
 Row-level Materials Project structure payloads, converted structure entities,
-and cache chunks remain local-only until a bounded existing-ID enrichment is
-explicitly executed and reviewed.
+cache chunks, descriptor tables, graph JSONL, and snapshot-alignment row tables
+remain local-only. The v2.2.4 compact tracked files above summarize the
+executed bounded existing-ID enrichment without storing row-level material IDs,
+targets, structures, or API responses.
 
 ## Smart Factory v1.4 Case Study Summaries
 

@@ -40,3 +40,14 @@ Materials Project structure payloads. Runtime MP or pymatgen-like objects may
 be read inside the adapter, but persisted records contain only JSON-safe
 lattice matrices, sites, composition metadata, quantity fields, provenance
 references, and checksums. Row-level real MP structures remain local-only.
+
+## v2.2.4 Structure and Graph Artifacts
+
+The existing 838 Materials Project material IDs were enriched with current MP
+structures and converted into 838 valid `CrystalStructureEntity` records. A
+deterministic periodic radius-graph artifact was generated for each valid
+entity as a local-only `GraphEntity` JSONL.
+
+These records demonstrate representation and lineage readiness. They do not
+make a graph neural network claim, a structure-aware model claim, or a DFT
+replacement claim.

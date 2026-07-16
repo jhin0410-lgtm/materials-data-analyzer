@@ -13,7 +13,19 @@ def test_preview_performs_no_network_and_reports_preview_only():
     assert result["output_policy"] == "local_only"
 
 
-def test_execute_flag_is_blocked_by_unified_cli():
+def test_execute_flag_requires_bounded_existing_id_policy(tmp_path):
+    config_path = tmp_path / "broad_query.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "2.2.4",
+                "mode": "expand_query_universe",
+                "requested_fields": ["material_id", "structure"],
+                "max_records": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
     result = subprocess.run(
         [
             sys.executable,
@@ -21,7 +33,7 @@ def test_execute_flag_is_blocked_by_unified_cli():
             "src.cli",
             "--json",
             "enrich-mp-structures",
-            "configs/examples/materials_project_structure_enrichment_preview.json",
+            str(config_path),
             "--execute",
         ],
         check=False,
@@ -31,8 +43,8 @@ def test_execute_flag_is_blocked_by_unified_cli():
 
     assert result.returncode != 0
     payload = json.loads(result.stdout)
-    assert payload["status"] == "blocked_execution_not_implemented_in_platform_core"
-    assert payload["network_called"] is False
+    assert payload["status"] == "enrichment_failed"
+    assert "only enrich_existing_ids mode is allowed" in payload["error"]
 
 
 def test_scope_audit_cli_has_no_credential_value():

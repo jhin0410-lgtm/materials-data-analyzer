@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from .platform_core.adapter_registry import build_default_adapter_registry
 from .platform_core.artifacts import build_default_artifact_registry, validate_relative_path
 from .platform_core.case_study_adapter import build_case_study_stage_plan
@@ -86,6 +88,17 @@ from .platform_core.materials_project_acquisition import (
     preview_existing_id_enrichment,
     write_scope_audit_outputs,
 )
+from .platform_core.materials_project_structure_enrichment import (
+    compact_snapshot_alignment_summary,
+    convert_structure_docs_to_entities,
+    load_existing_material_rows,
+    load_structure_docs,
+    plan_existing_id_structure_enrichment,
+    preview_structure_enrichment,
+    run_structure_enrichment,
+    snapshot_alignment_rows,
+    summarize_v2_2_4_readiness,
+)
 from .platform_core.materials_project_adapters import (
     MaterialsProjectStructureAdapter,
     MaterialsProjectSummaryAdapter,
@@ -94,6 +107,17 @@ from .platform_core.materials_project_adapters import (
     composition_structure_consistency,
     crystal_basic_geometry_summary,
     validate_crystal_structure_entity as validate_crystal_structure_entity_payload,
+)
+from .analyzers.materials_structure_features import (
+    RadiusGraphConfig,
+    build_radius_graph,
+    build_structure_descriptor_table,
+    descriptor_coverage_summary,
+    graph_eligibility_summary,
+    load_structure_entities,
+    structure_descriptor_definitions,
+    write_graph_jsonl,
+    write_structure_descriptors,
 )
 from .platform_core.quantities import quantity_from_payload, validate_quantity_payload
 from .platform_core.schema_evolution import build_default_migration_registry
@@ -1692,7 +1716,7 @@ def _cmd_validate_scientific_entity(args: argparse.Namespace) -> int:
             result = validate_record(payload)
         else:
             result = validate_entity_payload(payload).to_dict()
-    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError, RuntimeError, RegistryValidationError) as exc:
         result = {"valid": False, "errors": [str(exc)], "validation_status": "invalid"}
     if args.json:
         _emit_json(result)
@@ -1827,19 +1851,7 @@ def _cmd_preview_mp_structure_enrichment(args: argparse.Namespace) -> int:
         config = _load_small_json(args.config)
         if config.get("execute") is True:
             raise ValueError("preview command refuses execute=true")
-        material_ids = [str(item) for item in config.get("material_ids", ())]
-        if not material_ids:
-            scope = audit_current_materials_scope(Path.cwd())
-            material_ids = []
-            requested = scope.get("unique_material_id_count", 0)
-        else:
-            requested = len(material_ids)
-        result = preview_existing_id_enrichment(
-            material_ids,
-            max_records=int(config.get("max_records", max(1, requested))),
-            execute=False,
-        ).to_dict()
-        result["requested_material_ids_from_config"] = requested
+        result = preview_structure_enrichment(config, root=Path.cwd())
     except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
         result = {"status": "preview_failed", "error": str(exc)}
         if args.json:
@@ -1850,26 +1862,19 @@ def _cmd_preview_mp_structure_enrichment(args: argparse.Namespace) -> int:
     if args.json:
         _emit_json(result)
     else:
-        _emit_lines([f"status: {result['status']}", f"requested_count: {result['requested_count']}"])
+        _emit_lines(
+            [
+                f"status: {result['status']}",
+                f"requested_count: {result.get('requested_count', result.get('query_plan', {}).get('material_id_count', 0))}",
+            ]
+        )
     return 0
 
 
 def _cmd_enrich_mp_structures(args: argparse.Namespace) -> int:
     try:
         config = _load_small_json(args.config)
-        if not args.execute:
-            result = preview_existing_id_enrichment(
-                [str(item) for item in config.get("material_ids", ())],
-                max_records=int(config.get("max_records", 100)),
-                execute=False,
-            ).to_dict()
-        else:
-            result = {
-                "status": "blocked_execution_not_implemented_in_platform_core",
-                "reason": "Actual MP API enrichment must live in a credential-gated script layer and is not run by v2.2.3 CLI.",
-                "network_called": False,
-                "raw_structure_tracked": False,
-            }
+        result = run_structure_enrichment(config, root=Path.cwd(), execute=bool(args.execute))
     except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
         result = {"status": "enrichment_failed", "error": str(exc)}
         if args.json:
@@ -1880,8 +1885,8 @@ def _cmd_enrich_mp_structures(args: argparse.Namespace) -> int:
     if args.json:
         _emit_json(result)
     else:
-        _emit_lines([f"status: {result['status']}", "network_called: false"])
-    return 0 if result["status"] != "blocked_execution_not_implemented_in_platform_core" else EXIT_EXECUTION_DISABLED
+        _emit_lines([f"status: {result['status']}", f"network_called: {str(result.get('network_called', False)).lower()}"])
+    return 0 if result["status"] not in {"failed", "enrichment_failed"} else EXIT_RUNTIME_FAILURE
 
 
 def _cmd_validate_mp_structure_cache(args: argparse.Namespace) -> int:
@@ -1908,24 +1913,34 @@ def _cmd_validate_mp_structure_cache(args: argparse.Namespace) -> int:
 def _cmd_convert_mp_structures_to_entities(args: argparse.Namespace) -> int:
     try:
         config = _load_small_json(args.config)
-        summary = config["summary"]
-        structure = config["structure"]
-        composition_entity = MaterialsProjectSummaryAdapter().to_composition_entity(summary)
-        composition_record = serialize_entity(composition_entity)
-        structure_entity = MaterialsProjectStructureAdapter().to_crystal_structure_entity(
-            material_id=str(config["material_id"]),
-            structure=structure,
-            summary_row=summary,
-            parent_composition_ref=None,
-        )
-        target_quantity = MaterialsProjectTargetAdapter().to_quantity(summary)
-        payload = {
-            "status": "converted_synthetic_structure",
-            "composition_entity": composition_record,
-            "structure_entity": serialize_entity(structure_entity),
-            "target_quantity": target_quantity.to_dict(),
-            "runtime_object_persisted": False,
-        }
+        if "structure_docs_path" in config:
+            docs = load_structure_docs(config["structure_docs_path"])
+            existing = load_existing_material_rows(Path.cwd())
+            output = Path(config.get("output", "outputs/materials_project_structure_v2_2/entities/crystal_structure_entities.jsonl"))
+            if output.is_absolute() or ".." in output.parts:
+                raise ValueError("output must be repository-relative")
+            payload = convert_structure_docs_to_entities(docs, existing, output_path=output)
+            payload["output"] = output.as_posix()
+            payload["runtime_object_persisted"] = False
+        else:
+            summary = config["summary"]
+            structure = config["structure"]
+            composition_entity = MaterialsProjectSummaryAdapter().to_composition_entity(summary)
+            composition_record = serialize_entity(composition_entity)
+            structure_entity = MaterialsProjectStructureAdapter().to_crystal_structure_entity(
+                material_id=str(config["material_id"]),
+                structure=structure,
+                summary_row=summary,
+                parent_composition_ref=None,
+            )
+            target_quantity = MaterialsProjectTargetAdapter().to_quantity(summary)
+            payload = {
+                "status": "converted_synthetic_structure",
+                "composition_entity": composition_record,
+                "structure_entity": serialize_entity(structure_entity),
+                "target_quantity": target_quantity.to_dict(),
+                "runtime_object_persisted": False,
+            }
     except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
         payload = {"status": "conversion_failed", "error": str(exc)}
         if args.json:
@@ -1939,8 +1954,7 @@ def _cmd_convert_mp_structures_to_entities(args: argparse.Namespace) -> int:
         _emit_lines(
             [
                 f"status: {payload['status']}",
-                f"composition_entity_id: {payload['composition_entity']['entity_id']}",
-                f"structure_entity_id: {payload['structure_entity']['entity_id']}",
+                f"entity_count: {payload.get('entity_count', 1)}",
             ]
         )
     return 0
@@ -2057,6 +2071,303 @@ def _cmd_assess_crystal_graph_eligibility(args: argparse.Namespace) -> int:
     else:
         _emit_lines([f"status: {payload['status']}", f"graph_constructed: {str(payload.get('graph_constructed', False)).lower()}"])
     return 0 if payload.get("status") in {"graph_adapter_candidate", "blocked_disorder"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_resume_mp_structure_enrichment(args: argparse.Namespace) -> int:
+    try:
+        manifest = _load_small_json(args.manifest)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "resume_inspected",
+            "execute": bool(args.execute),
+            "previous_status": manifest.get("status"),
+            "network_called": False,
+            "resume_execution_supported": False,
+            "reason": "v2.2.4 resume validates manifest state only; rerun enrich-mp-structures for bounded acquisition.",
+        }
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "resume_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"resume_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"network_called: {str(payload['network_called']).lower()}"])
+    return 0
+
+
+def _cmd_audit_mp_snapshot_alignment(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        docs = load_structure_docs(config["structure_docs_path"])
+        existing = load_existing_material_rows(Path.cwd())
+        rows = snapshot_alignment_rows(existing, docs)
+        summary = compact_snapshot_alignment_summary(rows)
+        output = config.get("output")
+        if output:
+            out_path = Path(output)
+            if out_path.is_absolute() or ".." in out_path.parts:
+                raise ValueError("output must be repository-relative")
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(rows).to_csv(out_path, index=False)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "snapshot_alignment_completed",
+            "row_count": len(rows),
+            "summary": summary,
+            "original_target_overwritten": False,
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "snapshot_alignment_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"snapshot_alignment_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"row_count: {payload['row_count']}"])
+    return 0
+
+
+def _cmd_validate_crystal_structure_entities(args: argparse.Namespace) -> int:
+    try:
+        entities = load_structure_entities(args.path)
+        statuses = [validate_crystal_structure_entity_payload(entity)["status"] for entity in entities]
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "validated",
+            "entity_count": len(entities),
+            "status_counts": {status: statuses.count(status) for status in sorted(set(statuses))},
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "validation_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"validation_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"entity_count: {payload['entity_count']}"])
+    return 0
+
+
+def _cmd_build_materials_structure_descriptors(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        entities_path = Path(config["entities_path"])
+        if entities_path.is_absolute() or ".." in entities_path.parts:
+            raise ValueError("entities_path must be repository-relative")
+        entities = load_structure_entities(entities_path)
+        graph_config = RadiusGraphConfig(**config.get("radius_graph", {}))
+        table = build_structure_descriptor_table(entities, graph_config=graph_config)
+        output = Path(config.get("output", "outputs/materials_project_structure_v2_2/descriptors/structure_descriptors.csv"))
+        if output.is_absolute() or ".." in output.parts:
+            raise ValueError("output must be repository-relative")
+        write_structure_descriptors(output, table)
+        coverage = descriptor_coverage_summary(table)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "descriptors_written",
+            "entity_count": len(entities),
+            "descriptor_count": len(structure_descriptor_definitions()),
+            "descriptor_eligible_entities": int(len(table)),
+            "output": output.as_posix(),
+            "coverage": coverage,
+            "target_accessed": False,
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "descriptor_build_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"descriptor_build_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"descriptor_eligible_entities: {payload['descriptor_eligible_entities']}"])
+    return 0
+
+
+def _cmd_validate_materials_structure_descriptors(args: argparse.Namespace) -> int:
+    try:
+        table = pd.read_csv(args.path)
+        forbidden = sorted(set(table.columns) & {"energy_above_hull", "target", "prediction", "material_id_encoded"})
+        payload = {
+            "schema_version": "2.2.4",
+            "valid": not forbidden,
+            "status": "valid" if not forbidden else "invalid_forbidden_fields",
+            "row_count": int(len(table)),
+            "column_count": int(len(table.columns)),
+            "forbidden_fields": forbidden,
+        }
+    except (OSError, ValueError) as exc:
+        payload = {"valid": False, "status": "descriptor_validation_failed", "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {payload['status']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_build_crystal_graph_artifacts(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        entities_path = Path(config["entities_path"])
+        if entities_path.is_absolute() or ".." in entities_path.parts:
+            raise ValueError("entities_path must be repository-relative")
+        entities = load_structure_entities(entities_path)
+        graph_config = RadiusGraphConfig(**config.get("radius_graph", {}))
+        graphs = [build_radius_graph(entity, graph_config) for entity in entities]
+        output = Path(config.get("output", "outputs/materials_project_structure_v2_2/graphs/periodic_graphs.jsonl"))
+        if output.is_absolute() or ".." in output.parts:
+            raise ValueError("output must be repository-relative")
+        count = write_graph_jsonl(output, graphs)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "graphs_written",
+            "graph_count": count,
+            "output": output.as_posix(),
+            "summary": graph_eligibility_summary(entities, graphs),
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "graph_build_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"graph_build_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"graph_count: {payload['graph_count']}"])
+    return 0
+
+
+def _cmd_validate_crystal_graph_artifacts(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.path)
+        graphs = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        valid = all(graph.get("graph_construction_metadata", {}).get("target_values_included") is False for graph in graphs)
+        valid = valid and all(graph.get("graph_construction_metadata", {}).get("gnn_input_ready") is False for graph in graphs)
+        payload = {
+            "schema_version": "2.2.4",
+            "valid": valid,
+            "status": "valid" if valid else "invalid",
+            "graph_count": len(graphs),
+            "checksums_unique": len({graph.get("checksum_sha256") for graph in graphs}) == len(graphs),
+        }
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        payload = {"valid": False, "status": "graph_validation_failed", "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {payload['status']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_summarize_structure_readiness(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        requested_count = int(config.get("requested_count", 0))
+        docs = load_structure_docs(config["structure_docs_path"]) if config.get("structure_docs_path") else []
+        existing = load_existing_material_rows(Path.cwd()) if docs else pd.DataFrame(columns=["material_id"])
+        alignment = snapshot_alignment_rows(existing, docs) if docs else []
+        entity_summary = config.get("entity_summary")
+        descriptor_summary = config.get("descriptor_summary")
+        graph_summary = config.get("graph_summary")
+        if entity_summary is None and config.get("entities_path"):
+            entities_path = Path(config["entities_path"])
+            if entities_path.is_absolute() or ".." in entities_path.parts:
+                raise ValueError("entities_path must be repository-relative")
+            if entities_path.exists():
+                entities = load_structure_entities(entities_path)
+                statuses = [validate_crystal_structure_entity_payload(entity)["status"] for entity in entities]
+                entity_summary = {
+                    "integrity_status_counts": {status: statuses.count(status) for status in sorted(set(statuses))}
+                }
+        if descriptor_summary is None and config.get("descriptors_path"):
+            descriptors_path = Path(config["descriptors_path"])
+            if descriptors_path.is_absolute() or ".." in descriptors_path.parts:
+                raise ValueError("descriptors_path must be repository-relative")
+            if descriptors_path.exists():
+                descriptor_table = pd.read_csv(descriptors_path)
+                descriptor_summary = {"descriptor_eligible_entities": int(len(descriptor_table))}
+        if graph_summary is None and config.get("graphs_path"):
+            graphs_path = Path(config["graphs_path"])
+            if graphs_path.is_absolute() or ".." in graphs_path.parts:
+                raise ValueError("graphs_path must be repository-relative")
+            if graphs_path.exists():
+                graphs = [
+                    json.loads(line)
+                    for line in graphs_path.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+                graph_summary = {
+                    "graph_eligible_entities": sum(
+                        1
+                        for graph in graphs
+                        if graph.get("graph_construction_metadata", {}).get("target_values_included") is False
+                        and graph.get("graph_construction_metadata", {}).get("gnn_input_ready") is False
+                    )
+                }
+        payload = summarize_v2_2_4_readiness(
+            requested_count=requested_count or len(docs),
+            docs=docs,
+            alignment_rows=alignment,
+            entity_summary=entity_summary,
+            descriptor_summary=descriptor_summary,
+            graph_summary=graph_summary,
+        )
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "readiness_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"readiness_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"readiness: {payload['structure_prediction_readiness']}"])
+    return 0
+
+
+def _cmd_export_structure_readiness_summary(args: argparse.Namespace) -> int:
+    try:
+        scope = audit_current_materials_scope(Path.cwd())
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "exported_without_local_structure_data",
+            "requested_unique_material_ids": scope["unique_material_id_count"],
+            "structure_prediction_readiness": "blocked_no_api_data",
+            "model_training_run": False,
+            "predictive_claim_made": False,
+        }
+        output = Path(args.output)
+        if output.is_absolute() or ".." in output.parts:
+            raise ValueError("output must be repository-relative")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"output: {output.as_posix()}"])
+    return 0
 
 
 def _cmd_validate_scientific_quantity(args: argparse.Namespace) -> int:
@@ -3181,11 +3492,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     mp_enrich_parser = subparsers.add_parser(
         "enrich-mp-structures",
-        help="blocked scaffold for explicit future MP structure enrichment",
+        help="run bounded existing-ID MP structure enrichment only with --execute",
     )
     mp_enrich_parser.add_argument("config")
     mp_enrich_parser.add_argument("--execute", action="store_true")
     mp_enrich_parser.set_defaults(func=_cmd_enrich_mp_structures)
+
+    mp_resume_parser = subparsers.add_parser(
+        "resume-mp-structure-enrichment",
+        help="inspect a local MP structure enrichment manifest for resumability",
+    )
+    mp_resume_parser.add_argument("manifest")
+    mp_resume_parser.add_argument("--execute", action="store_true")
+    mp_resume_parser.set_defaults(func=_cmd_resume_mp_structure_enrichment)
+
+    mp_alignment_parser = subparsers.add_parser(
+        "audit-mp-snapshot-alignment",
+        help="compare original v1.3 target with current API target values from local-only structure docs",
+    )
+    mp_alignment_parser.add_argument("config")
+    mp_alignment_parser.set_defaults(func=_cmd_audit_mp_snapshot_alignment)
 
     mp_cache_parser = subparsers.add_parser("validate-mp-structure-cache", help="validate local-only MP structure cache shape")
     mp_cache_parser.add_argument("path")
@@ -3231,6 +3557,58 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_eligibility_parser.add_argument("path")
     graph_eligibility_parser.set_defaults(func=_cmd_assess_crystal_graph_eligibility)
+
+    structures_validate_parser = subparsers.add_parser(
+        "validate-crystal-structure-entities",
+        help="validate one or more crystal structure entity records",
+    )
+    structures_validate_parser.add_argument("path")
+    structures_validate_parser.set_defaults(func=_cmd_validate_crystal_structure_entities)
+
+    structure_descriptor_parser = subparsers.add_parser(
+        "build-materials-structure-descriptors",
+        help="build deterministic local-only structure descriptor candidates from CrystalStructureEntity records",
+    )
+    structure_descriptor_parser.add_argument("config")
+    structure_descriptor_parser.set_defaults(func=_cmd_build_materials_structure_descriptors)
+
+    structure_descriptor_validate_parser = subparsers.add_parser(
+        "validate-materials-structure-descriptors",
+        help="validate structure descriptor artifact boundaries",
+    )
+    structure_descriptor_validate_parser.add_argument("path")
+    structure_descriptor_validate_parser.set_defaults(func=_cmd_validate_materials_structure_descriptors)
+
+    graph_build_parser = subparsers.add_parser(
+        "build-crystal-graph-artifacts",
+        help="build deterministic local-only periodic radius graph artifacts",
+    )
+    graph_build_parser.add_argument("config")
+    graph_build_parser.set_defaults(func=_cmd_build_crystal_graph_artifacts)
+
+    graph_validate_parser = subparsers.add_parser(
+        "validate-crystal-graph-artifacts",
+        help="validate periodic graph artifact boundaries",
+    )
+    graph_validate_parser.add_argument("path")
+    graph_validate_parser.set_defaults(func=_cmd_validate_crystal_graph_artifacts)
+
+    readiness_parser = subparsers.add_parser(
+        "summarize-structure-readiness",
+        help="summarize structure-aware prediction readiness without training a model",
+    )
+    readiness_parser.add_argument("config")
+    readiness_parser.set_defaults(func=_cmd_summarize_structure_readiness)
+
+    readiness_export_parser = subparsers.add_parser(
+        "export-structure-readiness-summary",
+        help="export a local-only structure readiness summary scaffold",
+    )
+    readiness_export_parser.add_argument(
+        "--output",
+        default="outputs/materials_project_structure_v2_2/reports/structure_readiness_summary.json",
+    )
+    readiness_export_parser.set_defaults(func=_cmd_export_structure_readiness_summary)
 
     validate_quantity_parser = subparsers.add_parser("validate-scientific-quantity", help="validate a scientific quantity JSON record")
     validate_quantity_parser.add_argument("path")

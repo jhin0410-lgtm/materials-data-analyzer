@@ -1,0 +1,14 @@
+{
+  "case_study_id": "materials_project",
+  "required_fields": [
+    "graph_id",
+    "source_entity_id",
+    "nodes",
+    "edges",
+    "graph_construction_metadata",
+    "checksum_sha256"
+  ],
+  "schema_id": "crystal_graph_artifact_schema_v2",
+  "schema_version": "2.2.4",
+  "status": "release_ready"
+}
