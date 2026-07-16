@@ -1,0 +1,37 @@
+{
+  "analysis_ready_rows": 838,
+  "cohort_rows": 838,
+  "current_target_used_as_target": false,
+  "exact_match_rows": 257,
+  "feature_sets": {
+    "known_structure_baseline_plus_structure_v1": {
+      "feature_count": 70
+    },
+    "known_structure_composition_baseline_v1": {
+      "feature_count": 60
+    },
+    "known_structure_composition_physics_v1": {
+      "feature_count": 69
+    },
+    "known_structure_full_combined_v1": {
+      "feature_count": 79
+    },
+    "known_structure_structure_only_v1": {
+      "feature_count": 10
+    }
+  },
+  "forbidden_feature_audit": {
+    "current_target_used": false,
+    "forbidden_feature_columns": [],
+    "graph_artifact_loaded_as_feature": false,
+    "original_target_source_only": true
+  },
+  "graph_artifact_used_as_feature": false,
+  "original_target_overwritten": false,
+  "prediction_context": "known_structure_post_relaxation",
+  "schema_version": "2.2.5",
+  "snapshot_aligned_rows": 838,
+  "target_source": "original_v1_3_energy_above_hull",
+  "v2_2_4_decision_status": "structure_prediction_ready_with_restrictions",
+  "within_tolerance_rows": 581
+}

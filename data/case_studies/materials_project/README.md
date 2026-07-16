@@ -13,6 +13,7 @@ local Materials Project-derived CSV
 -> exact-provenance acquisition and descriptor validation
 -> group-aware baseline validation and trust-boundary closeout
 -> bounded physics-feature construction and matched predictive-value validation
+-> controlled known-structure enrichment and bounded structure-descriptor comparison
 -> compact case-study summary
 ```
 
@@ -45,6 +46,10 @@ DFT simulation workflow, or claim of new materials discovery.
   v2.2 builder definitions, property source, coverage, and CLI.
 - [Materials predictive-value validation](../../../docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md):
   v2.2 matched baseline/physics comparison and claim boundary.
+- [Materials known-structure prediction](../../../docs/MATERIALS_KNOWN_STRUCTURE_PREDICTION.md):
+  v2.2.5 snapshot-aligned known-structure comparison and local/tracked outputs.
+- [Materials structure predictive value](../../../docs/MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md):
+  v2.2.5 paired structure-descriptor decision and representative-model boundary.
 
 ## Configuration Files
 
@@ -98,6 +103,15 @@ python -m src.cli build-materials-physics-features configs/examples/materials_ph
 python -m src.cli run-materials-feature-comparison configs/examples/materials_physics_predictive_comparison.json
 ```
 
+v2.2.5 known-structure follow-up uses the v2.2.4 local-only structure cache and
+descriptor artifacts:
+
+```powershell
+python -m src.cli preview-materials-known-structure-comparison configs/examples/materials_known_structure_prediction_preview.json
+python -m src.cli run-materials-known-structure-comparison configs/examples/materials_known_structure_predictive_comparison.json
+python -m src.cli validate-materials-known-structure-result data/processed/materials_v2_2_5_predictive_value_decision.json
+```
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 ```
@@ -129,6 +143,14 @@ Tracked compact artifacts:
 - `data/processed/materials_physics_v2_2_predictive_comparison_summary.csv`
 - `data/processed/materials_physics_v2_2_predictive_value_decision.json`
 - `data/processed/materials_physics_v2_2_report_summary.md`
+- `data/processed/materials_v2_2_5_known_structure_cohort_summary.json`
+- `data/processed/materials_v2_2_5_feature_set_snapshot.csv`
+- `data/processed/materials_v2_2_5_predictive_comparison_summary.csv`
+- `data/processed/materials_v2_2_5_paired_metric_summary.csv`
+- `data/processed/materials_v2_2_5_prediction_uncertainty_summary.csv`
+- `data/processed/materials_v2_2_5_predictive_value_decision.json`
+- `data/processed/materials_v2_2_5_feature_use_evidence.json`
+- `data/processed/materials_v2_2_5_report_summary.md`
 - source, methodology, and case-study docs
 
 Local-only artifacts:
@@ -142,6 +164,8 @@ Local-only artifacts:
 - `data/processed/materials_project_v1_3_trust_diagnostics.csv`
 - `outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv`
 - `outputs/materials_physics_v2_2/materials_physics_v2_2_predictions.csv`
+- `outputs/materials_project_structure_v2_2/`
+- `outputs/materials_structure_prediction_v2_2/`
 - raw Materials Project API responses
 
 ## Current Pilot Limitations
@@ -175,3 +199,14 @@ with complete property coverage, but the matched group-aware comparison
 concluded `performance_degraded`. This records actual feature use without
 claiming a physics-constrained model, hybrid physics/ML, DFT replacement,
 SHAP explanation, or new-material discovery.
+
+## v2.2.5 Follow-Up
+
+v2.2.5 runs a known-structure post-relaxation comparison on the 838
+snapshot-aligned rows from v2.2.4. The original v1.3 `energy_above_hull`
+target remains the source of truth; current API target values are audit-only.
+
+The decision is `structure_predictive_value_limited`: structure descriptors
+improved one primary group split only, so no representative known-structure
+model is selected. Graph artifacts remain deterministic local artifacts and
+are not GNN evidence or model inputs.

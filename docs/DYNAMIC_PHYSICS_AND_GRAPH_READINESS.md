@@ -29,6 +29,10 @@ This remains representation readiness only. A graph artifact is not evidence
 that a GNN, graph tensor, graph embedding, or structure-aware predictive model
 is valid.
 
+v2.2.5 keeps that boundary: known-structure predictive comparison uses Tier-1
+descriptor columns only. The periodic graph artifacts remain local evidence of
+deterministic representation, not model inputs.
+
 ## Non-goals
 
 No DFT, FEM, CFD, differential equation solver, graph model, GNN training,

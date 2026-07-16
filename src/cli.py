@@ -165,6 +165,17 @@ from .analyzers.materials_physics_features import (
     run_predictive_comparison,
     validate_feature_artifact,
 )
+from .analyzers.materials_structure_prediction import (
+    DEFAULT_OUTPUT_DIR as MATERIALS_STRUCTURE_PREDICTION_OUTPUT_DIR,
+    build_known_structure_cohort,
+    load_json as load_materials_structure_json,
+    preview_known_structure_comparison,
+    render_report_summary as render_known_structure_report_summary,
+    request_from_config as build_known_structure_request_from_config,
+    run_known_structure_comparison,
+    validate_known_structure_cohort,
+    validate_known_structure_result,
+)
 
 
 EXIT_INVALID_CONFIG = 2
@@ -3156,6 +3167,236 @@ def _cmd_export_materials_feature_summary(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_preview_materials_known_structure_comparison(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_structure_json(args.config_path)
+        request = build_known_structure_request_from_config(config)
+        payload = preview_known_structure_comparison(request)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_known_structure_preview_failed", "error": str(exc)})
+        else:
+            print(f"materials_known_structure_preview_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"prediction_context: {payload['prediction_context']}",
+                f"feature_sets: {len(payload['feature_sets'])}",
+                f"missing_inputs: {len(payload['missing_inputs'])}",
+            ]
+        )
+    return 0 if payload["status"] == "ready_for_local_comparison" else EXIT_MISSING_ARTIFACT
+
+
+def _cmd_build_materials_known_structure_cohort(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_structure_json(args.config_path)
+        request = build_known_structure_request_from_config(config)
+        cohort, summary = build_known_structure_cohort(request)
+        output = Path(config.get("cohort_output", (MATERIALS_STRUCTURE_PREDICTION_OUTPUT_DIR / "cohort" / "matched_cohort.csv").as_posix()))
+        validate_relative_path(output.as_posix())
+        if not output.as_posix().startswith("outputs/"):
+            raise ValueError("known-structure cohort output must be under outputs/")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        cohort.to_csv(output, index=False, lineterminator="\n")
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_known_structure_cohort_failed", "error": str(exc)})
+        else:
+            print(f"materials_known_structure_cohort_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    payload = {
+        "schema_version": summary["schema_version"],
+        "status": "cohort_built",
+        "cohort_output": output.as_posix(),
+        "cohort_rows": summary["cohort_rows"],
+        "snapshot_aligned_rows": summary["snapshot_aligned_rows"],
+        "target_source": summary["target_source"],
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: cohort_built", f"cohort_rows: {summary['cohort_rows']}", f"cohort_output: {output.as_posix()}"])
+    return 0
+
+
+def _cmd_validate_materials_known_structure_cohort(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_known_structure_cohort(args.path)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"row_count: {payload['row_count']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_run_materials_known_structure_comparison(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_structure_json(args.config_path)
+        request = build_known_structure_request_from_config(config)
+        payload = run_known_structure_comparison(request)
+    except (OSError, ValueError, RuntimeError, FileExistsError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_known_structure_comparison_failed", "error": str(exc)})
+        else:
+            print(f"materials_known_structure_comparison_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['decision_status']}",
+                f"cohort_rows: {payload['cohort_rows']}",
+                f"manifest: {payload['local_outputs']['manifest']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_materials_known_structure_comparison(args: argparse.Namespace) -> int:
+    candidate = Path(args.result)
+    if not candidate.exists():
+        if args.result == "latest":
+            candidate = Path("data/processed/materials_v2_2_5_predictive_value_decision.json")
+        else:
+            candidate = MATERIALS_STRUCTURE_PREDICTION_OUTPUT_DIR / args.result / "comparison" / "comparison_manifest.json"
+    try:
+        payload = load_materials_structure_json(candidate)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"schema_version: {payload.get('schema_version')}",
+                f"status: {payload.get('structure_predictive_value_status', payload.get('decision_status', 'unavailable'))}",
+                f"cohort_rows: {payload.get('cohort_rows', 'unavailable')}",
+                f"representative_model: {payload.get('representative_model', 'unavailable')}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_materials_known_structure_result(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_known_structure_result(args.path)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"errors: {','.join(payload['errors'])}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_export_materials_known_structure_summary(args: argparse.Namespace) -> int:
+    try:
+        decision = load_materials_structure_json(args.decision)
+        output = Path(args.output)
+        validate_relative_path(output.as_posix())
+        if not output.as_posix().startswith("outputs/"):
+            raise ValueError("known-structure summary export must be under outputs/")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": decision.get("schema_version"),
+            "decision": decision,
+            "summary_markdown": render_known_structure_report_summary(decision),
+        }
+        output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "export_failed", "error": str(exc)})
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    if args.json:
+        _emit_json({"status": "exported", "output": output.as_posix()})
+    else:
+        _emit_lines([f"status: exported", f"output: {output.as_posix()}"])
+    return 0
+
+
+def _cmd_evaluate_materials_structure_predictive_claim(args: argparse.Namespace) -> int:
+    try:
+        decision = load_materials_structure_json(args.result)
+        claims = decision.get("claim_boundary", {})
+        payload = {
+            "schema_version": decision.get("schema_version"),
+            "status": decision.get("structure_predictive_value_status"),
+            "representative_model_selected": decision.get("representative_model_selected"),
+            "allowed_claims": [
+                "known_structure_post_relaxation_comparison_completed",
+                "group_aware_structure_descriptor_evaluation",
+                "prediction_interval_diagnostic_evaluated",
+            ],
+            "prohibited_claims": [key for key, value in claims.items() if value is False],
+        }
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "claim_evaluation_failed", "error": str(exc)})
+        else:
+            print(f"claim_evaluation_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"representative_model_selected: {str(payload['representative_model_selected']).lower()}",
+                f"prohibited_claims: {len(payload['prohibited_claims'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_materials_prediction_uncertainty(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result)
+        if path.suffix.lower() == ".json":
+            payload = load_materials_structure_json(path)
+        else:
+            table = pd.read_csv(path)
+            payload = {
+                "schema_version": "2.2.5",
+                "row_count": int(len(table)),
+                "uncertainty_statuses": sorted(set(table.get("uncertainty_status", pd.Series(dtype=str)).astype(str))),
+                "mean_empirical_coverage": float(pd.to_numeric(table.get("empirical_coverage_mean"), errors="coerce").mean()),
+                "interpretation": "prediction_interval_diagnostic_not_dft_uncertainty",
+            }
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "uncertainty_summary_failed", "error": str(exc)})
+        else:
+            print(f"uncertainty_summary_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"schema_version: {payload.get('schema_version')}", f"row_count: {payload.get('row_count', 'unavailable')}"])
+    return 0
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -3818,6 +4059,76 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export_materials_summary_parser.add_argument("--markdown-output")
     export_materials_summary_parser.set_defaults(func=_cmd_export_materials_feature_summary)
+
+    known_structure_preview_parser = subparsers.add_parser(
+        "preview-materials-known-structure-comparison",
+        help="preview known-structure predictive comparison inputs without running models",
+    )
+    known_structure_preview_parser.add_argument("config_path")
+    known_structure_preview_parser.set_defaults(func=_cmd_preview_materials_known_structure_comparison)
+
+    known_structure_cohort_parser = subparsers.add_parser(
+        "build-materials-known-structure-cohort",
+        help="build the local-only matched known-structure cohort",
+    )
+    known_structure_cohort_parser.add_argument("config_path")
+    known_structure_cohort_parser.set_defaults(func=_cmd_build_materials_known_structure_cohort)
+
+    known_structure_validate_cohort_parser = subparsers.add_parser(
+        "validate-materials-known-structure-cohort",
+        help="validate a local-only known-structure cohort artifact",
+    )
+    known_structure_validate_cohort_parser.add_argument("path")
+    known_structure_validate_cohort_parser.set_defaults(func=_cmd_validate_materials_known_structure_cohort)
+
+    known_structure_run_parser = subparsers.add_parser(
+        "run-materials-known-structure-comparison",
+        help="run fixed known-structure Materials predictive comparison",
+    )
+    known_structure_run_parser.add_argument("config_path")
+    known_structure_run_parser.set_defaults(func=_cmd_run_materials_known_structure_comparison)
+
+    known_structure_show_parser = subparsers.add_parser(
+        "show-materials-known-structure-comparison",
+        help="show a known-structure predictive decision or manifest",
+    )
+    known_structure_show_parser.add_argument("result")
+    known_structure_show_parser.set_defaults(func=_cmd_show_materials_known_structure_comparison)
+
+    known_structure_validate_result_parser = subparsers.add_parser(
+        "validate-materials-known-structure-result",
+        help="validate a known-structure predictive decision artifact",
+    )
+    known_structure_validate_result_parser.add_argument("path")
+    known_structure_validate_result_parser.set_defaults(func=_cmd_validate_materials_known_structure_result)
+
+    known_structure_export_parser = subparsers.add_parser(
+        "export-materials-known-structure-summary",
+        help="export known-structure summary to local-only outputs",
+    )
+    known_structure_export_parser.add_argument(
+        "--decision",
+        default="data/processed/materials_v2_2_5_predictive_value_decision.json",
+    )
+    known_structure_export_parser.add_argument(
+        "--output",
+        default="outputs/materials_structure_prediction_v2_2/reports/known_structure_summary_export.json",
+    )
+    known_structure_export_parser.set_defaults(func=_cmd_export_materials_known_structure_summary)
+
+    known_structure_claim_parser = subparsers.add_parser(
+        "evaluate-materials-structure-predictive-claim",
+        help="evaluate known-structure predictive claim boundaries",
+    )
+    known_structure_claim_parser.add_argument("result")
+    known_structure_claim_parser.set_defaults(func=_cmd_evaluate_materials_structure_predictive_claim)
+
+    known_structure_uncertainty_parser = subparsers.add_parser(
+        "show-materials-prediction-uncertainty",
+        help="show known-structure prediction interval diagnostics",
+    )
+    known_structure_uncertainty_parser.add_argument("result")
+    known_structure_uncertainty_parser.set_defaults(func=_cmd_show_materials_prediction_uncertainty)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

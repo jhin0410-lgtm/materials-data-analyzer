@@ -1,6 +1,6 @@
 # Scientific Operator Registry
 
-Status: `v2.2.4_complete`
+Status: `v2.2.5_complete`
 
 The selected scientific operator registry is an explicit metadata registry. It stores operator contracts, not arbitrary Python callables. It does not import config-supplied modules, scan the filesystem, call the network, train models, or execute acquisition.
 
@@ -28,5 +28,7 @@ local-only artifact construction.
 ## Claim Boundary
 
 Geometry and graph summaries are descriptive metadata or candidate artifacts.
-They are not validated predictive features in v2.2.4, and they do not change
+v2.2.5 evaluates selected structure descriptors in a bounded known-structure
+comparison and records `structure_predictive_value_limited`. It does not add
+arbitrary operator execution, use graph artifacts as model inputs, or change
 the v2.2.1 `performance_degraded` conclusion.

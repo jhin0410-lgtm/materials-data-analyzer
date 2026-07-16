@@ -1,0 +1,30 @@
+{
+  "schema_id": "materials_known_structure_prediction_schema_v2",
+  "schema_version": "2.2.5",
+  "case_study_id": "materials_project",
+  "status": "release_ready",
+  "required_fields": [
+    "schema_version",
+    "case_study_id",
+    "stage",
+    "credential_policy",
+    "prediction_context",
+    "target_source"
+  ],
+  "allowed_stages": [
+    "known_structure_prediction_preview",
+    "known_structure_predictive_comparison",
+    "known_structure_prediction_uncertainty"
+  ],
+  "prediction_context": "known_structure_post_relaxation",
+  "target_policy": "original_v1_3_energy_above_hull_only",
+  "network_policy": "not_required",
+  "prohibited_inputs": [
+    "current_energy_above_hull_as_target",
+    "graph_artifact_as_model_input",
+    "material_id_as_feature",
+    "formation_energy_per_atom",
+    "energy_per_atom",
+    "is_stable"
+  ]
+}

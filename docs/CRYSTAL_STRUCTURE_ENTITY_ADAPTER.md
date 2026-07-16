@@ -1,6 +1,6 @@
 # Crystal Structure Entity Adapter
 
-Status: `v2.2.4_complete`
+Status: `v2.2.5_complete`
 
 The Materials Project structure adapter converts a small runtime structure mapping, or an object exposing `as_dict()`, into a JSON-safe `CrystalStructureEntity`. Runtime objects are not persisted.
 
@@ -59,6 +59,13 @@ under the reduced-composition consistency policy.
 The persisted row-level entity JSONL remains local-only under
 `outputs/materials_project_structure_v2_2/entities/`. Tracked artifacts contain
 only compact counts and status summaries.
+
+## v2.2.5 Use
+
+v2.2.5 uses descriptors derived from these entities in the
+`known_structure_post_relaxation` context. The result is
+`structure_predictive_value_limited`, so entity conversion is treated as valid
+data preparation, not proof of a representative structure-aware model.
 
 ## Uncertainty
 

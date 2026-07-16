@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Added v2.2.5 known-structure post-relaxation predictive comparison for the
+  existing snapshot-aligned 838-row Materials Project cohort, preserving the
+  original v1.3 `energy_above_hull` target and treating current API target
+  values as audit-only metadata.
+- Added fixed feature-set comparisons across composition baseline,
+  composition physics, structure-only, baseline-plus-structure, and full
+  combined descriptors under random, reduced-formula group, and chemical-system
+  group splits.
+- Recorded the actual known-structure decision as
+  `structure_predictive_value_limited`: structure descriptors improved one
+  primary group split only, no representative model was selected, and graph
+  artifacts were not used as model inputs.
+- Added split-conformal residual prediction-interval diagnostics for the
+  known-structure comparison while explicitly excluding DFT uncertainty,
+  calibrated probability, GNN, SHAP, target overwrite, and hybrid physics-ML
+  claims.
 - Added v2.2.4 controlled Materials Project structure enrichment for the
   existing 838 material IDs only, with explicit `--execute` gating, chunked
   local-only API cache, and credential-safe output policy.

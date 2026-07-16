@@ -1,6 +1,6 @@
 # Materials Structure Enrichment
 
-Status: `v2.2.4_complete`
+Status: `v2.2.5_complete`
 
 v2.2.4 executes a controlled Materials Project enrichment for the existing
 v1.3/v2.2 838 material IDs only. It does not expand the query universe, run a
@@ -52,5 +52,8 @@ target with a current structure snapshot after an explicit drift audit.
 ## Claim Boundary
 
 The enrichment demonstrates bounded structure availability and conversion. It
-does not demonstrate structure-aware predictive improvement, phase stability
-model quality, DFT replacement, or new-material discovery.
+does not by itself demonstrate structure-aware predictive improvement, phase
+stability model quality, DFT replacement, or new-material discovery.
+
+v2.2.5 evaluates derived structure descriptors and records
+`structure_predictive_value_limited`, with no representative model selected.

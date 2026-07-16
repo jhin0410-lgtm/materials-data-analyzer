@@ -1,0 +1,23 @@
+{
+  "schema_version": "2.2.5",
+  "case_study_id": "materials_project",
+  "stage": "known_structure_predictive_comparison",
+  "dry_run": false,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "prediction_context": "known_structure_post_relaxation",
+  "target_source": "original_v1_3_energy_above_hull",
+  "analysis_ready_path": "data/processed/materials_project_v1_3_analysis_ready.csv",
+  "validation_spec_path": "data/case_studies/materials_project/validation_spec_v1_3.json",
+  "physics_feature_matrix_path": "outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv",
+  "structure_descriptor_path": "outputs/materials_project_structure_v2_2/descriptors/structure_descriptors.csv",
+  "snapshot_alignment_path": "outputs/materials_project_structure_v2_2/validation/snapshot_alignment.csv",
+  "v2_2_4_summary_path": "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json",
+  "output_dir": "outputs/materials_structure_prediction_v2_2",
+  "confidence_level": 0.9,
+  "random_state": 42,
+  "exact_match_sensitivity": true,
+  "overwrite": true
+}

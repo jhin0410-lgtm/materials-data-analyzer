@@ -19,13 +19,17 @@ This directory collects project references, specifications, audits, policies, ca
 - [Scientific Execution](SCIENTIFIC_EXECUTION.md): v2.1 bounded scalar/small-list scientific execution, finding persistence, trust closeout, and local-only outputs.
 - [Scientific Entity Model](SCIENTIFIC_ENTITY_MODEL.md): v2.2.2 JSON-safe entity records, runtime/persistence separation, and initial entity types.
 - [Materials Prediction Contexts](MATERIALS_PREDICTION_CONTEXTS.md): separation between composition-only pre-structure screening and known-structure post-relaxation analysis.
+- [Materials Known-Structure Prediction Context](MATERIALS_KNOWN_STRUCTURE_PREDICTION_CONTEXT.md): v2.2.5 known-structure post-relaxation claim boundary and target-source separation.
 - [Scientific Quantities and Uncertainty](SCIENTIFIC_QUANTITIES_AND_UNCERTAINTY.md): structured quantities, original/canonical units, and bounded uncertainty semantics.
 - [Crystal Structure Entity Adapter](CRYSTAL_STRUCTURE_ENTITY_ADAPTER.md): Materials Project structure-to-entity mapping, actual v2.2.4 conversion coverage, validation boundary, quantity mapping, and uncertainty policy.
 - [Scientific Operator Registry](SCIENTIFIC_OPERATOR_REGISTRY.md): v2.2.4 selected metadata-only scientific operators for entity conversion, descriptors, graph artifacts, and execution boundary.
 - [Materials Structure Enrichment](MATERIALS_STRUCTURE_ENRICHMENT.md): v2.2.4 existing-ID structure acquisition, snapshot alignment, conversion coverage, and local-only policy.
 - [Materials Structure Descriptors](MATERIALS_STRUCTURE_DESCRIPTORS.md): Tier-1 known-structure descriptor definitions, coverage, and invariance boundary.
 - [Periodic Crystal Graph Artifacts](PERIODIC_CRYSTAL_GRAPH_ARTIFACTS.md): deterministic periodic graph artifact pilot and GNN/non-goal boundary.
-- [Materials Structure Prediction Readiness](MATERIALS_STRUCTURE_PREDICTION_READINESS.md): v2.2.5 readiness decision and restrictions for future structure-aware comparison.
+- [Materials Structure Prediction Readiness](MATERIALS_STRUCTURE_PREDICTION_READINESS.md): v2.2.4 readiness and v2.2.5 limited known-structure comparison outcome.
+- [Materials Known-Structure Prediction](MATERIALS_KNOWN_STRUCTURE_PREDICTION.md): v2.2.5 fixed known-structure feature-set comparison and local/tracked outputs.
+- [Materials Structure Predictive Value](MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md): v2.2.5 paired structure-descriptor predictive-value decision and representative-model boundary.
+- [Materials Predictive Uncertainty](MATERIALS_PREDICTIVE_UNCERTAINTY.md): split-conformal residual interval diagnostics and uncertainty claim limits.
 - [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
 - [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
 - [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.

@@ -1,0 +1,12 @@
+{
+  "gnn_model": false,
+  "graph_model_used": false,
+  "original_target_source_only": true,
+  "physics_informed_feature_used": true,
+  "prediction_context": "known_structure_post_relaxation",
+  "representative_model_selected": false,
+  "schema_version": "2.2.5",
+  "structure_informed_feature_available": true,
+  "structure_informed_feature_used": true,
+  "structure_predictive_value_status": "structure_predictive_value_limited"
+}

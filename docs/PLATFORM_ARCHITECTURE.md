@@ -95,6 +95,8 @@ In code:
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/analyzers/materials_structure_features.py`: deterministic structure
   descriptor summaries and periodic radius-graph artifact construction
+- `src/analyzers/materials_structure_prediction.py`: bounded known-structure
+  post-relaxation feature-set comparison and prediction-interval diagnostics
 - `src/cli.py`: unified CLI scaffold
 
 ## Plugin Registry
@@ -238,6 +240,12 @@ small loaded structure mappings can be converted to `CrystalStructureEntity`
 records. The selected operator registry is metadata-only and does not execute
 arbitrary callables, acquisition, graph construction, or model training.
 
+v2.2.4 performs controlled existing-ID structure enrichment and periodic graph
+artifact generation under local-only outputs. v2.2.5 uses derived Tier-1
+structure descriptors for a bounded known-structure comparison and records
+`structure_predictive_value_limited`; graph artifacts remain non-model
+artifacts.
+
 See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
 [`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
 [`SCIENTIFIC_TRUST_BOUNDARY.md`](SCIENTIFIC_TRUST_BOUNDARY.md),
@@ -268,6 +276,8 @@ python -m src.cli list-executable-adapters
 python -m src.cli show-execution-policy reliability_trust_closeout
 python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify
 python -m src.cli verify-run outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
+python -m src.cli preview-materials-known-structure-comparison configs/examples/materials_known_structure_prediction_preview.json
+python -m src.cli show-materials-known-structure-comparison latest
 python -m src.cli validate-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli show-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json

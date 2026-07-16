@@ -1,0 +1,23 @@
+{
+  "schema_id": "materials_prediction_interval_schema_v2",
+  "schema_version": "2.2.5",
+  "case_study_id": "materials_project",
+  "status": "release_ready",
+  "required_fields": [
+    "schema_version",
+    "feature_set_id",
+    "split_strategy",
+    "model_variant",
+    "confidence_level",
+    "empirical_coverage_mean",
+    "mean_interval_width_mean",
+    "uncertainty_status"
+  ],
+  "uncertainty_policy": "split_conformal_residual_interval_diagnostic",
+  "not_claimed_as": [
+    "DFT_uncertainty",
+    "thermodynamic_confidence",
+    "calibrated_probability",
+    "synthesis_feasibility"
+  ]
+}

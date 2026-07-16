@@ -1,6 +1,6 @@
 # Materials Prediction Contexts
 
-Status: `v2.2.4_complete`
+Status: `v2.2.5_complete`
 
 Materials v2.2 now separates two scientific prediction contexts that should not
 be mixed.
@@ -21,7 +21,7 @@ The current conclusion is preserved:
 
 ## Known-Structure Post-Relaxation
 
-`known_structure_post_relaxation` is a separate future context. Inputs may
+`known_structure_post_relaxation` is a separate context. Inputs may
 include Materials Project relaxed structures, structure descriptors, and
 periodic graph artifacts after a structure exists.
 
@@ -37,5 +37,15 @@ Project material IDs, checks snapshot alignment, converts structures into
 JSON-safe entities, builds descriptor candidates, and writes periodic graph
 artifacts locally.
 
-It does not train a structure-aware model, rerun v2.2.1 predictive comparison,
-claim descriptor value, claim GNN evidence, or overwrite the original target.
+It does not train a structure-aware model, claim descriptor value, claim GNN
+evidence, or overwrite the original target.
+
+## v2.2.5 Boundary
+
+v2.2.5 runs the first known-structure post-relaxation comparison on the
+snapshot-aligned 838-row cohort. The result is
+`structure_predictive_value_limited`: structure descriptors improved one
+primary group split only, and no representative model was selected.
+
+This does not change the v2.2.1 composition-only result, which remains
+`performance_degraded`.

@@ -51,3 +51,9 @@ entity as a local-only `GraphEntity` JSONL.
 These records demonstrate representation and lineage readiness. They do not
 make a graph neural network claim, a structure-aware model claim, or a DFT
 replacement claim.
+
+## v2.2.5 Known-Structure Comparison
+
+v2.2.5 uses Tier-1 descriptor columns derived from the structure entities for a
+bounded known-structure comparison. It does not persist live objects, use graph
+entities as model inputs, or select a representative structure-aware model.

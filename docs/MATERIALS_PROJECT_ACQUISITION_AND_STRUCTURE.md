@@ -61,3 +61,12 @@ synthetic examples cannot be used as acquisition evidence.
 The current 838 material IDs are now enriched for structure-readiness review.
 Broader target-specific or structure-aware datasets are future plans and
 require separate bias, storage, provenance, and validation review.
+
+## v2.2.5 Use
+
+v2.2.5 uses the v2.2.4 snapshot-aligned cohort for a bounded
+known-structure post-relaxation comparison. It keeps the original v1.3 target
+as the modeling label, treats current API target values as audit-only, and
+records `structure_predictive_value_limited`. The comparison does not use
+periodic graph artifacts as model inputs and does not claim GNN evidence or
+DFT replacement.

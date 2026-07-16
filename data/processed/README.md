@@ -93,6 +93,14 @@ materials_project_v2_2_4_descriptor_definition_snapshot.csv
 materials_project_v2_2_4_descriptor_coverage_summary.csv
 materials_project_v2_2_4_graph_eligibility_summary.csv
 materials_project_v2_2_4_operator_snapshot.json
+materials_v2_2_5_known_structure_cohort_summary.json
+materials_v2_2_5_feature_set_snapshot.csv
+materials_v2_2_5_predictive_comparison_summary.csv
+materials_v2_2_5_paired_metric_summary.csv
+materials_v2_2_5_prediction_uncertainty_summary.csv
+materials_v2_2_5_predictive_value_decision.json
+materials_v2_2_5_feature_use_evidence.json
+materials_v2_2_5_report_summary.md
 ```
 
 The local source, normalized table, analysis-ready descriptor table, full
@@ -110,13 +118,16 @@ materials_project_v1_3_trust_diagnostics.csv
 outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv
 outputs/materials_physics_v2_2/materials_physics_v2_2_predictions.csv
 outputs/materials_project_structure_v2_2/
+outputs/materials_structure_prediction_v2_2/
 ```
 
 Row-level Materials Project structure payloads, converted structure entities,
 cache chunks, descriptor tables, graph JSONL, and snapshot-alignment row tables
 remain local-only. The v2.2.4 compact tracked files above summarize the
 executed bounded existing-ID enrichment without storing row-level material IDs,
-targets, structures, or API responses.
+targets, structures, or API responses. The v2.2.5 compact tracked files
+summarize the known-structure comparison without storing row-level
+predictions, material IDs, feature matrices, split assignments, or plots.
 
 ## Smart Factory v1.4 Case Study Summaries
 

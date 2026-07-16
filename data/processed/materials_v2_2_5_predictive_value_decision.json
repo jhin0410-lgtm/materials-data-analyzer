@@ -1,0 +1,39 @@
+{
+  "claim_boundary": {
+    "DFT_replacement": false,
+    "causal_structure_mechanism_proven": false,
+    "composition_only_pre_structure_claim": false,
+    "gnn_model": false,
+    "graph_model_used": false,
+    "group_aware_structure_evaluation_completed": true,
+    "hybrid_physics_ml": false,
+    "known_structure_predictive_comparison_completed": true,
+    "phase_stability_guaranteed": false,
+    "physics_constrained_model": false,
+    "predictive_interval_evaluated": true,
+    "production_scientific_decision": false,
+    "structure_informed_feature_available": true,
+    "structure_informed_feature_used": true,
+    "synthesizability_predicted": false
+  },
+  "cohort_rows": 838,
+  "decision_reason": "structure descriptors improved one primary group split only",
+  "exact_match_sensitivity_status": "valid",
+  "input_shas": {
+    "materials_physics_v2_2_feature_matrix.csv": "fe031d3d08ee02237e19eb352e2e3f244242992e281962bc04e4e8c8335be210",
+    "materials_project_v1_3_analysis_ready.csv": "d06c78f3580b6380d5a1307d76e35310dd51b85fdbaaa1e3d28a8b7b50112320",
+    "materials_project_v2_2_4_structure_enrichment_summary.json": "3eb562668272daefb3893f725717856da1706b5c71771d51cd5f2fd74583ee92",
+    "snapshot_alignment.csv": "fe31103e77cc2f3c576e8c2ddcde3a71a5555fb027048f9748038f0b290add42",
+    "structure_descriptors.csv": "34bfdfbb70c8edbdc3f32a94b312702713577723ead8ee406c404d1a3e616eab",
+    "validation_spec_v1_3.json": "81143dd2a615ced0636f99680a0742baecd16a7b96b729f5d67a79a97fb79055"
+  },
+  "prediction_context": "known_structure_post_relaxation",
+  "primary_evidence": "reduced_formula_group_and_chemical_system_group",
+  "random_split_role": "optimistic_reference_only",
+  "representative_model": "none",
+  "representative_model_selected": false,
+  "schema_version": "2.2.5",
+  "snapshot_aligned_rows": 838,
+  "structure_predictive_value_status": "structure_predictive_value_limited",
+  "target_source": "original_v1_3_energy_above_hull"
+}

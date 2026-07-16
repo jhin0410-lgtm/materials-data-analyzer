@@ -1,6 +1,6 @@
 # Physics-Aware Roadmap
 
-Status: `v2.2.4 controlled structure enrichment and graph artifact pilot complete`.
+Status: `v2.2.5 known-structure predictive comparison complete`.
 
 v2.1 adds bounded scientific execution for scalar/small-list metadata checks
 and v2.1.5 adds feature-candidate eligibility and scientific trust boundaries.
@@ -24,6 +24,12 @@ structures to JSON-safe entities, builds Tier-1 descriptor candidates, and
 generates 838 deterministic periodic graph artifacts. It still does not train a
 structure-aware model or alter the v2.2.1 conclusion.
 
+v2.2.5 runs a fixed known-structure post-relaxation comparison on the
+snapshot-aligned 838-row cohort. The result is
+`structure_predictive_value_limited`: one primary group split showed limited
+structure-descriptor improvement, no representative model was selected, and no
+GNN, SHAP, DFT replacement, or hybrid physics-ML claim is made.
+
 ## Current Foundation
 
 - unit and dimension registry
@@ -45,6 +51,8 @@ structure-aware model or alter the v2.2.1 conclusion.
   selected scientific operator registry
 - bounded Materials Project structure enrichment, snapshot-alignment audit,
   structure descriptor candidates, and periodic graph artifact pilot
+- bounded known-structure post-relaxation comparison with prediction-interval
+  diagnostics and explicit claim boundary
 
 ## Future Sequence
 
@@ -61,9 +69,11 @@ structure-aware model or alter the v2.2.1 conclusion.
 6. v2.2.4: enrich the existing 838 material IDs with current structures,
    build JSON-safe entities, audit snapshot alignment, and pilot deterministic
    descriptors and graph artifacts without training.
-7. Later v2.x: run a structure-aware comparison only after the
-   known-structure prediction context, leakage boundary, and cohort rules are
-   fixed.
+7. v2.2.5: run the fixed known-structure comparison and preserve the limited
+   result without selecting a representative model.
+8. Later v2.x: use only stronger evidence, cleaner external validation, or
+   clearer task separation before adding graph models or richer structure-aware
+   learning.
 
 ## Explicitly Deferred
 

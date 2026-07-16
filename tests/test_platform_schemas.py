@@ -29,9 +29,12 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/crystal_graph_artifact_schema_v2.json"),
         Path("data/platform/materials_snapshot_alignment_schema_v2.json"),
         Path("data/platform/materials_structure_readiness_schema_v2.json"),
+        Path("data/platform/materials_known_structure_prediction_schema_v2.json"),
+        Path("data/platform/materials_structure_predictive_decision_schema_v2.json"),
+        Path("data/platform/materials_prediction_interval_schema_v2.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4"}
+        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5"}
         assert payload["status"] in {"scaffold_stage", "release_ready"}
     registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
     assert registry_schema["schema_version"] == "2.1"
@@ -72,6 +75,9 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
         elif payload.get("schema_version") == "2.2.4":
             assert payload["credential_policy"]["store_credentials"] is False
             assert payload["dry_run"] is True
+        elif payload.get("schema_version") == "2.2.5":
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
         else:
             assert payload["dry_run"] is True
 
