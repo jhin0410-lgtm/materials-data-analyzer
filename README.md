@@ -624,7 +624,7 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
 - See [`docs/PLATFORM_V2_1_CLOSEOUT.md`](docs/PLATFORM_V2_1_CLOSEOUT.md) and
   [`docs/releases/V2_1_0.md`](docs/releases/V2_1_0.md).
 
-### v2.2 In Progress: Materials Physics and Known-Structure Validation
+### v2.2 Complete: Materials Physics and Known-Structure Evidence
 
 - Selected Materials composition feature builders are implemented with
   documented pymatgen property provenance and local-only row-level outputs.
@@ -644,6 +644,12 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
 - v2.2.5 runs a known-structure post-relaxation comparison. The result is
   `structure_predictive_value_limited`, with no representative structure-aware
   model selected and no GNN, SHAP, DFT replacement, or phase-stability claim.
+- v2.2.6 closes the Materials evidence cycle with capability/evidence/claim
+  matrices, uncertainty boundaries, artifact-lineage validation, and a
+  `release_ready` verdict for v2.2.0 while preserving the negative/limited
+  scientific results.
+- See [`docs/PLATFORM_V2_2_CLOSEOUT.md`](docs/PLATFORM_V2_2_CLOSEOUT.md) and
+  [`docs/releases/V2_2_0.md`](docs/releases/V2_2_0.md).
 
 ### Later
 

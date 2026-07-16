@@ -34,6 +34,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials v2.2 Scientific Evidence](MATERIALS_V2_2_SCIENTIFIC_EVIDENCE.md): composition, known-structure descriptor, graph-artifact, and representative-model evidence levels.
 - [Materials v2.2 Claim Boundaries](MATERIALS_V2_2_CLAIM_BOUNDARIES.md): allowed, limited, unsupported, and prohibited Materials v2.2 scientific claims.
 - [Materials v2.2 Uncertainty Boundaries](MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md): source uncertainty, numerical tolerance, prediction interval, split variation, and model-form limitations.
+- [v2.2.0 Release Notes](releases/V2_2_0.md): Materials composition features, structure entities/descriptors, graph artifacts, limited known-structure evidence, and trust-boundary release notes.
 - [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
 - [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
 - [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.

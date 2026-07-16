@@ -44,8 +44,12 @@ registries, manifest-first dry runs, one controlled read-only Reliability trust
 verification path, metadata-only onboarding checks, and local-only
 JSON/Markdown platform reporting. v2.1 adds persistent run/artifact lineage,
 policy diagnostics, bounded scientific execution, scientific trust boundaries,
-and metadata-only feature eligibility. It does not turn the project into an
-automatic training, physics-aware modeling, or production execution system.
+and metadata-only feature eligibility. v2.2 adds bounded Materials composition
+descriptors, controlled existing-ID structure enrichment, JSON-safe crystal
+structure entities, deterministic periodic graph artifacts, known-structure
+post-relaxation comparison, and a scientific evidence closeout. It does not
+turn the project into an automatic training, physics-aware modeling,
+GNN/DFT-replacement, or production execution system.
 
 ## Completed Case Studies
 
@@ -56,6 +60,7 @@ automatic training, physics-aware modeling, or production execution system.
 | v1.2 / v1.3 | Materials Project | Computed-property tables | Descriptive screening and composition-only validation | Screening reproducible; predictive validation weak |
 | v1.4 | Smart Factory / UCI SECOM | Semiconductor process data | Time-aware quality classification | Diagnostic-only; no representative production model |
 | v1.5 | Reliability / Backblaze | 2013 hard-drive daily SMART records | Asset/time-aware 7-day failure-risk ranking | Diagnostic-only; no representative model |
+| v2.2 | Materials Project | 838 Fe/Si-containing multinary MP rows | Composition features, structure descriptors, graph artifacts, and known-structure validation | Composition evidence degraded; known-structure evidence limited; no representative model |
 
 For the Backblaze v1.5 closeout, the best primary median PR-AUC is 0.0998 and
 the best combined asset/time PR-AUC is 0.1119. The reference combined top 1%
@@ -88,11 +93,14 @@ matches the intended claim:
 - asset-disjoint and combined asset/time validation for reliability data
 
 Negative or limited results are preserved. For example, the Materials Project
-composition-only model and the Smart Factory process-quality classifier both
-remain within conservative trust boundaries. The Backblaze v1.5 case study
-shows top-risk concentration but still selects no representative model because
-of repeated-origin dependence, resource-limited training, uncertain censoring,
-and lack of external validation.
+composition-only v2.2 result remains `performance_degraded`; the later
+known-structure comparison remains `structure_predictive_value_limited`; and no
+representative Materials model, graph/GNN model, physics-constrained model, or
+hybrid physics-ML claim is selected. The Smart Factory process-quality
+classifier also remains within conservative trust boundaries. The Backblaze
+v1.5 case study shows top-risk concentration but still selects no
+representative model because of repeated-origin dependence, resource-limited
+training, uncertain censoring, and lack of external validation.
 
 ## Data Governance
 
@@ -108,10 +116,10 @@ or license-sensitive source files.
 
 The project has a broad pytest suite covering core analyzers, loaders,
 connectors, feature engineering, validation utilities, scripts, platform
-registries, scientific execution, and case-study artifact contracts. The v2.1
-release audit passed 594 tests with 2 existing skips locally, through direct
-pytest, and in a clean tracked snapshot; GitHub Actions validates the release
-branch on Python 3.11.
+registries, scientific execution, and case-study artifact contracts. The v2.2
+release audit passed the full local test runner and direct pytest with `702
+passed, 3 skipped`; the clean feature snapshot passed with `703 passed, 2
+skipped`; GitHub Actions validates release branches on Python 3.11.
 
 ## Skills Demonstrated
 
@@ -134,20 +142,17 @@ branch on Python 3.11.
   systems.
 - Backblaze v1.5 does not provide calibrated failure probabilities, survival
   estimates, RUL predictions, or maintenance automation.
-- Advanced physics-aware materials descriptors, graph neural networks, and SHAP
-  are intentionally deferred until baseline validity and claim scope justify
-  them.
+- Advanced physics-aware materials modeling, graph neural networks, SHAP, and
+  physics-constrained losses remain intentionally deferred until baseline
+  validity and claim scope justify them.
 
 ## Next-Generation Roadmap
 
-v2.2 should build on the platform structure rather than stronger claims:
+v2.3 should build on the v2.2 evidence boundary rather than stronger claims:
 
-- bounded Materials composition feature builders with leakage-aware validation
-- XRD characterization feature adapters for d-spacing and crystallite-size
-  estimates without phase-identification claims
-- baseline-vs-feature comparisons under group/time validation
-- explicit model-input evidence before any physics-aware predictive claim
-
-Physics-aware materials modeling and more advanced explainability should remain
-later v2.x work and should only be applied to models that clear the relevant
-validation gates.
+- PGIR architecture RFC and representation-governance mapping
+- domain-neutral state/observation/field/parameter/control vocabulary
+- explicit boundary-condition, relation, evaluator, transformer, propagator,
+  uncertainty, and provenance ownership
+- no PDE solver, PINN, GNN, or new predictive claim until representation
+  governance is reviewed

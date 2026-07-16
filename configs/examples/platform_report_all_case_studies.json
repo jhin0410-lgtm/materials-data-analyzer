@@ -21,8 +21,8 @@
     "store_credentials": false
   },
   "testing_summary": {
-    "latest_known_full_tests": "497 passed, 1 skipped",
-    "latest_known_clean_snapshot": "497 passed, 1 skipped",
+    "latest_known_full_tests": "702 passed, 3 skipped",
+    "latest_known_clean_snapshot": "703 passed, 2 skipped",
     "source": "release_context_supplied_metadata",
     "current_report_generation_executed_tests": false
   }

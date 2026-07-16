@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v2.2.0
 
 - Added v2.2.6 Materials scientific trust closeout artifacts: capability
   matrix, prediction-context registry, evidence summary, claim matrix,
