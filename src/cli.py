@@ -80,6 +80,15 @@ from .platform_core.scientific_applicability import (
 )
 from .platform_core.scientific_constraint_registry import build_default_scientific_constraint_registry
 from .platform_core.scientific_evaluators import build_default_evaluator_registry
+from .platform_core.entity_serialization import deserialize_entity_record, serialize_entity, validate_record
+from .platform_core.quantities import quantity_from_payload, validate_quantity_payload
+from .platform_core.schema_evolution import build_default_migration_registry
+from .platform_core.scientific_entities import (
+    SUPPORTED_ENTITY_TYPES,
+    ScientificEntity,
+    entity_type_schemas,
+    validate_entity_payload,
+)
 from .platform_core.scientific_execution import (
     execute_scientific_config,
     export_scientific_findings,
@@ -91,6 +100,7 @@ from .platform_core.scientific_execution import (
     validate_scientific_result_payload,
     write_scientific_outputs,
 )
+from .platform_core.scientific_relations import default_scientific_relations
 from .platform_core.scientific_feature_registry import build_default_scientific_feature_registry
 from .platform_core.scientific_trust import (
     CLAIM_BOUNDARY_IDS,
@@ -100,6 +110,8 @@ from .platform_core.scientific_trust import (
     evaluate_scientific_trust,
 )
 from .platform_core.units import build_default_unit_registry
+from .platform_core.unit_backend import BuiltinUnitBackend, unit_backend_decision
+from .platform_core.uncertainty_propagation import propagate_bragg_uncertainty, scherrer_uncertainty_eligibility
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
 from .platform_core.version import PLATFORM_VERSION
@@ -1614,6 +1626,216 @@ def _cmd_convert_unit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list_scientific_entity_types(args: argparse.Namespace) -> int:
+    schemas = entity_type_schemas()
+    payload = [
+        {"entity_type": entity_type, **schemas[entity_type]}
+        for entity_type in sorted(SUPPORTED_ENTITY_TYPES)
+    ]
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{item['entity_type']}\t{item['purpose']}" for item in payload])
+    return 0
+
+
+def _cmd_inspect_scientific_entity_schema(args: argparse.Namespace) -> int:
+    schemas = entity_type_schemas()
+    if args.entity_type not in schemas:
+        payload = {"status": "not_found", "entity_type": args.entity_type}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"not_found: {args.entity_type}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = {"schema_version": "2.2.2", "entity_type": args.entity_type, **schemas[args.entity_type]}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"entity_type: {args.entity_type}",
+                f"purpose: {payload['purpose']}",
+                f"required_attributes: {', '.join(payload['required_attributes'])}",
+            ]
+        )
+    return 0
+
+
+def _load_small_json(path: str | Path) -> dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("JSON input must be an object")
+    assert_no_sensitive_strings(payload)
+    return payload
+
+
+def _cmd_validate_scientific_entity(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_small_json(args.path)
+        if "record" in payload and "checksum_sha256" in payload:
+            result = validate_record(payload)
+        else:
+            result = validate_entity_payload(payload).to_dict()
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        result = {"valid": False, "errors": [str(exc)], "validation_status": "invalid"}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result.get('valid')).lower()}", *[f"error: {error}" for error in result.get("errors", [])]])
+    return 0 if result.get("valid") else EXIT_INVALID_CONFIG
+
+
+def _cmd_convert_entity_record(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_small_json(args.path)
+        if "record" in payload:
+            entity = deserialize_entity_record(payload)
+        else:
+            entity = ScientificEntity(
+                entity_id=str(payload["entity_id"]),
+                entity_type=str(payload["entity_type"]),
+                schema_id=str(payload["schema_id"]),
+                schema_version=str(payload["schema_version"]),
+                domain=str(payload["domain"]),
+                attributes=payload.get("attributes", {}),
+                quantity_fields=payload.get("quantity_fields", {}),
+                provenance_refs=tuple(str(item) for item in payload.get("provenance_refs", ())),
+                artifact_refs=tuple(str(item) for item in payload.get("artifact_refs", ())),
+                created_by=str(payload.get("created_by", "cli")),
+                validation_status=str(payload.get("validation_status", "valid")),
+            )
+        if args.to_version != entity.schema_version:
+            registry = build_default_migration_registry()
+            migration = registry.migrate(entity.to_dict(), schema_id=entity.entity_type, from_version=entity.schema_version, to_version=args.to_version)
+            if migration.status not in {"migrated", "already_current"}:
+                raise ValueError("; ".join(migration.errors) or migration.status)
+            converted = migration.payload
+        else:
+            converted = serialize_entity(entity)
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryValidationError) as exc:
+        payload = {"status": "conversion_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"conversion_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(converted)
+    else:
+        _emit_lines([f"entity_id: {converted.get('entity_id')}", f"schema_version: {converted.get('schema_version')}"])
+    return 0
+
+
+def _cmd_list_scientific_relations(args: argparse.Namespace) -> int:
+    relations = [relation.to_dict() for relation in default_scientific_relations()]
+    if args.json:
+        _emit_json(relations)
+    else:
+        _emit_lines([f"{item['relation_id']}\t{item['category']}\t{item['execution_status']}" for item in relations])
+    return 0
+
+
+def _cmd_inspect_scientific_relation(args: argparse.Namespace) -> int:
+    for relation in default_scientific_relations():
+        if relation.relation_id == args.relation_id:
+            payload = relation.to_dict()
+            if args.json:
+                _emit_json(payload)
+            else:
+                _emit_lines(
+                    [
+                        f"relation_id: {payload['relation_id']}",
+                        f"category: {payload['category']}",
+                        f"operator_id: {payload['operator_id']}",
+                        f"execution_status: {payload['execution_status']}",
+                    ]
+                )
+            return 0
+    payload = {"status": "not_found", "relation_id": args.relation_id}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"not_found: {args.relation_id}", file=sys.stderr)
+    return EXIT_INVALID_CONFIG
+
+
+def _cmd_validate_scientific_quantity(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_small_json(args.path)
+        result = validate_quantity_payload(payload)
+        if result["valid"]:
+            quantity = quantity_from_payload(payload)
+            result = {**result, "quantity": quantity.to_dict()}
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryValidationError) as exc:
+        result = {"valid": False, "errors": [str(exc)]}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result.get('valid')).lower()}", *[f"error: {error}" for error in result.get("errors", [])]])
+    return 0 if result.get("valid") else EXIT_INVALID_CONFIG
+
+
+def _cmd_propagate_scientific_uncertainty(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        operator_id = str(config.get("operator_id", ""))
+        if operator_id == "xrd_bragg_uncertainty_v2_2":
+            payload = propagate_bragg_uncertainty(config)
+        elif operator_id == "xrd_scherrer_uncertainty_v2_2":
+            payload = scherrer_uncertainty_eligibility(config)
+        else:
+            raise ValueError(f"unsupported uncertainty operator_id: {operator_id}")
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryValidationError) as exc:
+        payload = {"status": "invalid_config", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"operator_id: {payload.get('operator_id')}", f"status: {payload.get('status')}"])
+    return 0 if payload.get("status") not in {"invalid_config", "invalid_input"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_inspect_unit_backend(args: argparse.Namespace) -> int:
+    payload = unit_backend_decision()
+    backend = BuiltinUnitBackend()
+    payload["builtin_unit_count"] = len(backend.registry.snapshot())
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"decision: {payload['decision']}",
+                f"default_backend: {payload['default_backend']}",
+                f"pint_available: {str(payload['pint_available']).lower()}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_schema_migrations(args: argparse.Namespace) -> int:
+    registry = build_default_migration_registry()
+    sample = {
+        "entity_id": "composition_demo",
+        "entity_type": "MaterialCompositionEntity",
+        "schema_id": "scientific_entity_schema_v2",
+        "schema_version": "1",
+        "domain": "materials",
+        "attributes": {"formula": "FeSi", "elements": ["Fe", "Si"], "amounts": {"Fe": 1, "Si": 1}, "atomic_fractions": {"Fe": 0.5, "Si": 0.5}},
+    }
+    result = registry.migrate(sample, schema_id="MaterialCompositionEntity", from_version="1", to_version="2")
+    payload = {"valid": result.status == "migrated", "migration": result.to_dict(), "registered_migrations": registry.snapshot()}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {result.status}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
 def _resolve_scientific_export_output(repo_root: Path, output: str) -> Path:
     validate_relative_path(output)
     normalized = output.replace("\\", "/")
@@ -2611,6 +2833,55 @@ def build_parser() -> argparse.ArgumentParser:
     convert_parser.add_argument("--from", dest="from_unit", required=True)
     convert_parser.add_argument("--to", dest="to_unit", required=True)
     convert_parser.set_defaults(func=_cmd_convert_unit)
+
+    entity_types_parser = subparsers.add_parser("list-scientific-entity-types", help="list supported scientific entity types")
+    entity_types_parser.set_defaults(func=_cmd_list_scientific_entity_types)
+
+    inspect_entity_schema_parser = subparsers.add_parser(
+        "inspect-scientific-entity-schema",
+        help="inspect a scientific entity schema contract",
+    )
+    inspect_entity_schema_parser.add_argument("entity_type")
+    inspect_entity_schema_parser.set_defaults(func=_cmd_inspect_scientific_entity_schema)
+
+    validate_entity_parser = subparsers.add_parser(
+        "validate-scientific-entity",
+        help="validate a small scientific entity JSON record",
+    )
+    validate_entity_parser.add_argument("path")
+    validate_entity_parser.set_defaults(func=_cmd_validate_scientific_entity)
+
+    convert_entity_parser = subparsers.add_parser(
+        "convert-entity-record",
+        help="convert or serialize a scientific entity record to a supported schema version",
+    )
+    convert_entity_parser.add_argument("path")
+    convert_entity_parser.add_argument("--to-version", required=True)
+    convert_entity_parser.set_defaults(func=_cmd_convert_entity_record)
+
+    relations_parser = subparsers.add_parser("list-scientific-relations", help="list registered scientific relation metadata")
+    relations_parser.set_defaults(func=_cmd_list_scientific_relations)
+
+    inspect_relation_parser = subparsers.add_parser("inspect-scientific-relation", help="inspect one scientific relation")
+    inspect_relation_parser.add_argument("relation_id")
+    inspect_relation_parser.set_defaults(func=_cmd_inspect_scientific_relation)
+
+    validate_quantity_parser = subparsers.add_parser("validate-scientific-quantity", help="validate a scientific quantity JSON record")
+    validate_quantity_parser.add_argument("path")
+    validate_quantity_parser.set_defaults(func=_cmd_validate_scientific_quantity)
+
+    propagate_uncertainty_parser = subparsers.add_parser(
+        "propagate-scientific-uncertainty",
+        help="run a bounded uncertainty propagation or eligibility check from a small JSON config",
+    )
+    propagate_uncertainty_parser.add_argument("config")
+    propagate_uncertainty_parser.set_defaults(func=_cmd_propagate_scientific_uncertainty)
+
+    unit_backend_parser = subparsers.add_parser("inspect-unit-backend", help="inspect the active unit backend decision")
+    unit_backend_parser.set_defaults(func=_cmd_inspect_unit_backend)
+
+    schema_migration_parser = subparsers.add_parser("validate-schema-migrations", help="validate registered schema migration fixtures")
+    schema_migration_parser.set_defaults(func=_cmd_validate_schema_migrations)
 
     export_scientific_parser = subparsers.add_parser(
         "export-scientific-registry", help="export scientific registry metadata to an ignored outputs path"

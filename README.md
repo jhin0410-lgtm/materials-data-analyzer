@@ -613,6 +613,10 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   physics-aware model.
 - See [`docs/MATERIALS_PHYSICS_FEATURES.md`](docs/MATERIALS_PHYSICS_FEATURES.md)
   and [`docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md`](docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md).
+- v2.2.2 adds scientific entity, quantity, uncertainty, relation,
+  unit-backend, schema-evolution, and graph/trajectory metadata foundations.
+  These are JSON-safe contracts, not live-object persistence, simulator
+  execution, GNN execution, or new predictive evidence.
 
 ### Later
 

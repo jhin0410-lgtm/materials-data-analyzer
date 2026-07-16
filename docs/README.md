@@ -17,6 +17,11 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform Diagnostics](PLATFORM_DIAGNOSTICS.md): v2.1.2 registry policy diagnostics, evidence-gap analysis, registered claim decisions, and CLI.
 - [Scientific Constraints](SCIENTIFIC_CONSTRAINTS.md): v2.1 unit-aware scientific constraint registry, safe evaluator boundary, XRD example, and CLI.
 - [Scientific Execution](SCIENTIFIC_EXECUTION.md): v2.1 bounded scalar/small-list scientific execution, finding persistence, trust closeout, and local-only outputs.
+- [Scientific Entity Model](SCIENTIFIC_ENTITY_MODEL.md): v2.2.2 JSON-safe entity records, runtime/persistence separation, and initial entity types.
+- [Scientific Quantities and Uncertainty](SCIENTIFIC_QUANTITIES_AND_UNCERTAINTY.md): structured quantities, original/canonical units, and bounded uncertainty semantics.
+- [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
+- [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
+- [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.
 - [Scientific Trust Boundary](SCIENTIFIC_TRUST_BOUNDARY.md): v2.1.5 evidence levels, constraint roles, claim matrix, and domain-specific scientific boundaries.
 - [Scientific Feature Candidates](SCIENTIFIC_FEATURE_CANDIDATES.md): v2.1.5 metadata-only physics-aware feature candidate registry and v2.2 builder boundary.
 - [Materials Physics Features](MATERIALS_PHYSICS_FEATURES.md): v2.2 bounded Materials composition feature builders, property provenance, coverage policy, and CLI.
@@ -39,6 +44,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Archive Data Audit](BATTERY_ARCHIVE_DATA_AUDIT.md): raw zip inventory and case-study feasibility review.
 - [Materials Project Data Audit](MATERIALS_PROJECT_DATA_AUDIT.md): local 50-row pilot audit, schema/quality follow-up, and descriptive screening notes.
 - [Materials v2.2 Data Audit](MATERIALS_V2_2_DATA_AUDIT.md): existing v1.3 local artifact gate for bounded physics feature construction.
+- [Scientific Entity Architecture Audit](SCIENTIFIC_ENTITY_ARCHITECTURE_AUDIT.md): dict/DataFrame, runtime object, serialized record, registry-row, and artifact representation audit for v2.2.2.
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
 - [Platform v2 Plan](PLATFORM_V2_PLAN.md): configuration-driven platform scaffold roadmap.

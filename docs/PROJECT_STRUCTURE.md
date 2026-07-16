@@ -97,7 +97,9 @@ local-only outputs under `outputs/platform_science/`. v2.1.5 adds scientific
 trust-boundary evaluation, constraint-role classification, metadata-only
 feature-candidate registries, deterministic snapshots in `data/platform/`, and
 SQLite schema `4` trust tables. v2.1.0 is release-ready as a metadata and
-bounded-execution trust layer. These additions do not
+bounded-execution trust layer. v2.2.2 adds JSON-safe scientific entity,
+relation, quantity, unit-backend, uncertainty, schema-evolution, and
+compatibility-adapter foundations. These additions do not
 execute arbitrary equations, read raw data, train models, or run physics
 simulators.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added v2.2.2 scientific entity, relation, quantity, unit-backend,
+  uncertainty, and schema-evolution foundations as JSON-safe metadata records.
+- Added Bragg structured uncertainty propagation and Scherrer uncertainty
+  eligibility checks without changing existing value-only XRD checks.
+- Added synthetic entity/quantity/graph/trajectory examples and CLI commands
+  for entity validation, relation inspection, unit-backend inspection,
+  uncertainty propagation, and schema migration validation.
 - Added v2.2.1 bounded Materials composition physics feature builders using
   documented pymatgen property provenance.
 - Added matched Materials predictive-value validation comparing original,

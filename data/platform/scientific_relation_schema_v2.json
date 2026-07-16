@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.2.2",
+  "schema_name": "scientific_relation_schema_v2",
+  "status": "scaffold_stage",
+  "relation_categories": [
+    "algebraic",
+    "constitutive",
+    "conservation",
+    "differential",
+    "statistical",
+    "transformation",
+    "transition",
+    "graph_construction"
+  ],
+  "execution_boundary": {
+    "equation_display_is_display_only": true,
+    "registered_operator_required": true,
+    "arbitrary_function_execution": false
+  }
+}

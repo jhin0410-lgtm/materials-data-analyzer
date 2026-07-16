@@ -1,0 +1,23 @@
+{
+  "entity_id": "synthetic_trajectory_metadata",
+  "dry_run": true,
+  "credential_policy": {"store_credentials": false, "network_access_required": false},
+  "entity_type": "TrajectoryEntity",
+  "schema_id": "scientific_entity_schema_v2",
+  "schema_version": "2.2.2",
+  "domain": "dynamic_physics_synthetic",
+  "attributes": {
+    "ordered_state_refs": ["state:t0", "state:t1"],
+    "time_axis": {"unit": "s", "point_count": 2},
+    "transition_operator_refs": ["operator:synthetic_transition"],
+    "solver_metadata": {"implemented": false},
+    "numerical_tolerance": {"status": "metadata_only"},
+    "convergence_status": "not_run"
+  },
+  "quantity_fields": {},
+  "provenance_refs": ["synthetic_example:v2.2.2"],
+  "parent_entity_refs": [],
+  "artifact_refs": ["outputs/synthetic/trajectory_payload_not_tracked.json"],
+  "created_by": "synthetic_example",
+  "validation_status": "warning"
+}

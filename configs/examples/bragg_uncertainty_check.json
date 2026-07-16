@@ -1,0 +1,17 @@
+{
+  "operator_id": "xrd_bragg_uncertainty_v2_2",
+  "dry_run": true,
+  "credential_policy": {"store_credentials": false, "network_access_required": false},
+  "wavelength": {
+    "value": 1.5406,
+    "unit": "angstrom",
+    "uncertainty": {"kind": "absolute", "value": 0.0001, "unit": "angstrom"}
+  },
+  "two_theta": {
+    "value": 44.7,
+    "unit": "degree",
+    "uncertainty": {"kind": "absolute", "value": 0.01, "unit": "degree"}
+  },
+  "diffraction_order": 1,
+  "output_unit": "angstrom"
+}

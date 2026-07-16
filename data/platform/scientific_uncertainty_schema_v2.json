@@ -1,0 +1,24 @@
+{
+  "schema_version": "2.2.2",
+  "schema_name": "scientific_uncertainty_schema_v2",
+  "status": "scaffold_stage",
+  "supported_kinds": [
+    "none",
+    "absolute",
+    "relative",
+    "standard_uncertainty",
+    "standard_deviation",
+    "confidence_interval",
+    "prediction_interval",
+    "quantile_interval",
+    "distribution_reference",
+    "epistemic",
+    "aleatoric",
+    "unavailable"
+  ],
+  "semantic_boundary": {
+    "generic_confidence_score": false,
+    "calibrated_probability_without_evidence": false,
+    "classification_probability_as_confidence_interval": false
+  }
+}

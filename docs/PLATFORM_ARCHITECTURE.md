@@ -222,6 +222,11 @@ v2.2.1 adds bounded Materials composition feature builders plus matched
 predictive-value validation for those features; the current decision is
 `performance_degraded`, not a physics-constrained model claim.
 
+v2.2.2 adds JSON-safe scientific entity, relation, quantity, unit-backend,
+uncertainty, schema-evolution, and compatibility-adapter foundations. Runtime
+objects remain separate from persisted records: registries store compact
+metadata, checksums, schema refs, and artifact refs, not live Python objects.
+
 See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
 [`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
 [`SCIENTIFIC_TRUST_BOUNDARY.md`](SCIENTIFIC_TRUST_BOUNDARY.md),

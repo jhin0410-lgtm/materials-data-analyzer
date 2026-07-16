@@ -1,6 +1,6 @@
 # Scientific Feature Candidates
 
-Status: `v2.2.1 implemented for selected Materials builders`.
+Status: `v2.2.2 foundation with selected Materials builders`.
 
 The scientific feature registry stores metadata for possible physics-aware
 features. It does not calculate feature values, create feature tables, train
@@ -80,3 +80,11 @@ Matched predictive-value validation recorded `physics_informed_feature_used`,
 but the decision was `performance_degraded` rather than improved predictive
 evidence. `physics_constrained_model`, `hybrid_physics_ml`, SHAP, DFT
 replacement, and new-material discovery claims remain prohibited.
+
+## v2.2.2 Entity Foundation
+
+v2.2.2 adds scientific entity, relation, quantity, unit-backend, uncertainty,
+and schema-evolution contracts around feature candidates. This makes the
+relationship between value, provenance, relation, and future operator metadata
+explicit. It does not add new feature values, rerun the v2.2.1 comparison, or
+upgrade `performance_degraded` into positive predictive evidence.

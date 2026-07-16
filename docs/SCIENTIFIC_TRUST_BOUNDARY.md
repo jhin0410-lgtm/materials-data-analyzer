@@ -80,6 +80,11 @@ Materials checks can validate composition fractions and conservative calculated
 property tolerances. They do not prove synthesizability, thermodynamic
 stability, or DFT-equivalent correctness.
 
+v2.2.2 adds structured entities, quantities, and uncertainty metadata to make
+claim boundaries more explicit. It does not turn weak predictive evidence into
+a physics-constrained model, hybrid physics ML, SHAP explanation, simulator, or
+calibrated probability claim.
+
 Battery checks can validate capacity, efficiency, cycle ordering, and bounded
 retention-style candidates. They do not prove degradation mechanism, RUL,
 Arrhenius acceleration, or monotonic capacity loss.

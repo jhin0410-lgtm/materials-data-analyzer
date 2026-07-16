@@ -1,0 +1,23 @@
+{
+  "entity_id": "synthetic_structure_minimal",
+  "dry_run": true,
+  "credential_policy": {"store_credentials": false, "network_access_required": false},
+  "entity_type": "CrystalStructureEntity",
+  "schema_id": "scientific_entity_schema_v2",
+  "schema_version": "2.2.2",
+  "domain": "materials",
+  "attributes": {
+    "lattice": {"a": 3.0, "b": 3.0, "c": 3.0, "alpha": 90, "beta": 90, "gamma": 90},
+    "sites": [
+      {"species": "X", "fractional_coordinates": [0.0, 0.0, 0.0], "occupancy": 1.0}
+    ],
+    "periodic_boundary_conditions": [true, true, true],
+    "structure_provenance": "synthetic metadata only"
+  },
+  "quantity_fields": {},
+  "provenance_refs": ["synthetic_example:v2.2.2"],
+  "parent_entity_refs": [],
+  "artifact_refs": [],
+  "created_by": "synthetic_example",
+  "validation_status": "valid"
+}

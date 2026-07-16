@@ -1,0 +1,23 @@
+{
+  "schema_version": "2.2.2",
+  "schema_name": "scientific_quantity_schema_v2",
+  "status": "scaffold_stage",
+  "required_fields": [
+    "quantity_id",
+    "value_or_array_metadata",
+    "original_unit",
+    "canonical_unit",
+    "dimension"
+  ],
+  "array_policy": {
+    "inline_large_arrays": false,
+    "artifact_reference_required": true,
+    "required_metadata": [
+      "shape",
+      "dtype",
+      "unit",
+      "checksum",
+      "axis_metadata"
+    ]
+  }
+}

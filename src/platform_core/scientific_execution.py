@@ -426,6 +426,15 @@ class ScientificExecutionResult:
     completed_at: str
     derived_outputs: Mapping[str, Any] = field(default_factory=dict)
     execution_manifest: Mapping[str, Any] = field(default_factory=dict)
+    result_schema_id: str | None = None
+    result_schema_version: str | None = None
+    output_entities: tuple[Mapping[str, Any], ...] = ()
+    output_quantities: tuple[Mapping[str, Any], ...] = ()
+    uncertainty_summary: Mapping[str, Any] = field(default_factory=dict)
+    uncertainty_status: str = "not_evaluated"
+    provenance_summary: Mapping[str, Any] = field(default_factory=dict)
+    relation_refs: tuple[str, ...] = ()
+    operator_refs: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -454,6 +463,15 @@ class ScientificExecutionResult:
             "completed_at": self.completed_at,
             "derived_outputs": _json_safe(self.derived_outputs),
             "execution_manifest": _json_safe(self.execution_manifest),
+            "result_schema_id": self.result_schema_id,
+            "result_schema_version": self.result_schema_version,
+            "output_entities": [_json_safe(item) for item in self.output_entities],
+            "output_quantities": [_json_safe(item) for item in self.output_quantities],
+            "uncertainty_summary": _json_safe(self.uncertainty_summary),
+            "uncertainty_status": self.uncertainty_status,
+            "provenance_summary": _json_safe(self.provenance_summary),
+            "relation_refs": list(self.relation_refs),
+            "operator_refs": list(self.operator_refs),
         }
 
     def to_markdown(self) -> str:

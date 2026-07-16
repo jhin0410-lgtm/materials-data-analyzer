@@ -77,6 +77,11 @@ python -m src.cli validate-materials-feature-artifact outputs/materials_physics_
 The local v2.2 build generated all 838 Materials v1.3 rows with complete
 property coverage over 67 observed elements.
 
+v2.2.2 can represent formula parsing output as an optional
+`MaterialCompositionEntity` and generated feature values as quantity metadata.
+This is a metadata foundation only; it does not change the v2.2.1 numerical
+features or the `performance_degraded` conclusion.
+
 Allowed claim:
 
 - `physics_informed_feature_available`

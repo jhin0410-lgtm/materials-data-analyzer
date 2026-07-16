@@ -1,0 +1,17 @@
+{
+  "schema_version": "2.2.2",
+  "schema_name": "graph_entity_schema_v2",
+  "status": "scaffold_stage",
+  "required_metadata": [
+    "nodes",
+    "edges",
+    "periodic_edge_metadata",
+    "source_entity_ref",
+    "graph_construction_metadata"
+  ],
+  "claim_boundary": {
+    "gnn_ready_metadata": true,
+    "gnn_model_ready": false,
+    "tensor_generation": false
+  }
+}

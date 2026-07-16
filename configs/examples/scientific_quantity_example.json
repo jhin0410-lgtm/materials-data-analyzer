@@ -1,0 +1,21 @@
+{
+  "schema_version": "2.2.2",
+  "dry_run": true,
+  "credential_policy": {"store_credentials": false, "network_access_required": false},
+  "quantity_id": "synthetic_wavelength",
+  "value": {
+    "value": 1.5406,
+    "original_unit": "angstrom",
+    "canonical_value": 1.5406e-10,
+    "canonical_unit": "m",
+    "dimension": "length",
+    "uncertainty": {
+      "kind": "absolute",
+      "value": 0.0001,
+      "unit": "angstrom",
+      "method": "synthetic_declared"
+    }
+  },
+  "array_metadata": null,
+  "provenance": {"source": "synthetic_example", "method": "declared", "provenance_refs": ["synthetic_example:v2.2.2"]}
+}
