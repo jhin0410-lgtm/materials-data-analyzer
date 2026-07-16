@@ -1,0 +1,22 @@
+{
+  "entity_id": "synthetic_measurement_series",
+  "dry_run": true,
+  "credential_policy": {"store_credentials": false, "network_access_required": false},
+  "entity_type": "MeasurementSeriesEntity",
+  "schema_id": "scientific_entity_schema_v2",
+  "schema_version": "2.2.2",
+  "domain": "generic",
+  "attributes": {
+    "independent_variable": "time",
+    "dependent_variable": "signal",
+    "axis_metadata": {"time_unit": "s", "signal_unit": "dimensionless", "point_count": 3},
+    "measurement_conditions": {"temperature": "synthetic ambient"},
+    "calibration_metadata": {"status": "synthetic_not_calibrated"}
+  },
+  "quantity_fields": {},
+  "provenance_refs": ["synthetic_example:v2.2.2"],
+  "parent_entity_refs": [],
+  "artifact_refs": [],
+  "created_by": "synthetic_example",
+  "validation_status": "valid"
+}

@@ -45,6 +45,34 @@ trust-boundary diagnostics used by the Materials Project case study. They are
 baseline diagnostic utilities, not AutoML, candidate recommendation, or
 calibrated uncertainty engines.
 
+`src/analyzers/materials_physics_features.py` provides bounded v2.2 Materials
+composition feature builders and matched feature-set predictive-value
+comparison utilities. It uses existing local Materials v1.3 artifacts, does
+not acquire data, does not tune models, and records `performance_degraded`
+when the physics feature set fails to improve group-aware validation.
+
+`src/platform_core/materials_project_structure_enrichment.py` and
+`src/analyzers/materials_structure_features.py` provide the v2.2.4 bounded
+existing-ID Materials Project structure enrichment, snapshot-alignment audit,
+JSON-safe structure entity conversion, Tier-1 structure descriptor candidates,
+and periodic radius-graph artifact pilot. They keep API chunks, row-level
+structures, descriptor tables, and graph JSONL under ignored local outputs and
+do not train models or claim structure-aware predictive improvement.
+
+`src/analyzers/materials_structure_prediction.py` provides the v2.2.5 bounded
+known-structure post-relaxation comparison. It uses the snapshot-aligned
+838-row cohort, preserves the original v1.3 `energy_above_hull` target, keeps
+graph artifacts out of model inputs, and records the actual
+`structure_predictive_value_limited` decision without selecting a
+representative model.
+
+`src/platform_core/v2_2_trust_closeout.py` provides the v2.2.6 read-only
+Materials scientific closeout aggregator. It reads tracked compact artifacts
+from v2.2.1 through v2.2.5, exports capability/evidence/claim/context/
+uncertainty summaries, validates result preservation, and evaluates release
+readiness. It does not call APIs, regenerate descriptors, load structure or
+graph bodies, train models, or recompute predictions.
+
 `src/analyzers/process_quality_readiness.py` provides generic schema,
 timestamp, identifier, target, leakage, SPC, and group/time validation
 readiness checks for process-quality and Smart Factory case studies. It does
@@ -91,9 +119,13 @@ local-only outputs under `outputs/platform_science/`. v2.1.5 adds scientific
 trust-boundary evaluation, constraint-role classification, metadata-only
 feature-candidate registries, deterministic snapshots in `data/platform/`, and
 SQLite schema `4` trust tables. v2.1.0 is release-ready as a metadata and
-bounded-execution trust layer. These additions do not
-execute arbitrary equations, read raw data, train models, or run physics
-simulators.
+bounded-execution trust layer. v2.2.2 adds JSON-safe scientific entity,
+relation, quantity, unit-backend, uncertainty, schema-evolution, and
+compatibility-adapter foundations. v2.2.6 adds a Materials scientific evidence
+closeout and capability matrix with `release_ready` status while preserving
+`performance_degraded`, `structure_predictive_value_limited`, and
+`representative_model_selected = false`. These additions do not execute
+arbitrary equations, read raw data, train models, or run physics simulators.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -211,10 +243,28 @@ path.
 For Materials Project, compact tracked candidates include query manifests,
 property inventories, quality summaries, screening summaries, descriptor
 inventories, model-comparison summaries, applicability summaries,
-error-structure summaries, claim-boundary summaries, and trust conclusions.
+error-structure summaries, claim-boundary summaries, trust conclusions, and
+v2.2 physics-feature definition, property-source, coverage, predictive-value,
+and claim-boundary summaries. v2.2.3 adds compact tracked acquisition-scope,
+structure-coverage, structure-adapter, and selected-operator summaries for the
+existing 838-row Materials Project dataset. v2.2.4 adds compact tracked
+structure-enrichment, snapshot-alignment, descriptor-definition,
+descriptor-coverage, graph-eligibility, and operator summaries. v2.2.5 adds
+compact tracked known-structure cohort, feature-set, paired-metric,
+uncertainty, predictive-value, feature-use, and report summaries. v2.2.6 adds
+compact tracked capability, evidence, claim, context, uncertainty, closeout
+decision, and closeout summary artifacts, plus platform-level capability and
+prediction-context registries. Row-level MP
+structure chunks, converted structure entities, descriptor rows, graph JSONL,
+alignment tables, known-structure matched cohorts, row-level predictions,
+split assignments, and plots remain local-only under
+`outputs/materials_project_structure_v2_2/` and
+`outputs/materials_structure_prediction_v2_2/`.
 Local-only artifacts include source/acquired CSVs, normalized CSVs,
 analysis-ready descriptor tables, full row-level screening results, row-level
-validation predictions, and row-level trust diagnostics.
+validation predictions, row-level trust diagnostics, v2.2 feature matrices,
+v2.2 split assignments, v2.2 row-level comparison predictions, v2.2.4
+structure enrichment caches, and v2.2.5 known-structure prediction outputs.
 
 For Smart Factory v1.4, compact tracked artifacts include acquisition,
 readiness, feature-quality, temporal, classification-metric, eligibility,

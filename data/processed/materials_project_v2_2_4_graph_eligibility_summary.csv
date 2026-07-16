@@ -1,0 +1,13 @@
+metric,value,status
+entity_count,838,source_entities
+graph_count,838,generated
+graph_eligible_entities,838,graph_adapter_candidate
+target_values_included,0,prohibited_field_absent
+gnn_execution,0,not_executed
+checksums_unique,1,determinism_indicator
+node_count_min,3,observed
+node_count_median,28.0,observed
+node_count_max,168,observed
+edge_count_min,8,observed
+edge_count_median,552.0,observed
+edge_count_max,3748,observed

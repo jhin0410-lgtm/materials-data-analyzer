@@ -1,0 +1,24 @@
+{
+  "schema_version": "2.2.1",
+  "case_study_id": "materials_project",
+  "stage": "feature_build",
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "input_path": "data/processed/materials_project_v1_3_acquired.csv",
+  "output_dir": "outputs/materials_physics_v2_2",
+  "local_feature_matrix_path": "outputs/materials_physics_v2_2/materials_physics_v2_2_feature_matrix.csv",
+  "material_id_column": "material_id",
+  "target_column": "energy_above_hull",
+  "composition_sources": [
+    "composition_reduced",
+    "composition",
+    "formula_pretty"
+  ],
+  "tracked_definition_path": "data/processed/materials_physics_v2_2_feature_definitions.csv",
+  "tracked_property_source_path": "data/processed/materials_physics_v2_2_property_source_metadata.json",
+  "tracked_coverage_path": "data/processed/materials_physics_v2_2_feature_coverage_summary.csv",
+  "tracked_evidence_path": "data/processed/materials_physics_v2_2_feature_use_evidence.json",
+  "overwrite": true
+}

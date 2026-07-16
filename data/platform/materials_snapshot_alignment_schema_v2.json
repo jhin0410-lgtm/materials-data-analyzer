@@ -1,0 +1,13 @@
+{
+  "case_study_id": "materials_project",
+  "required_fields": [
+    "material_id",
+    "original_target",
+    "current_target",
+    "absolute_difference",
+    "comparison_status"
+  ],
+  "schema_id": "materials_snapshot_alignment_schema_v2",
+  "schema_version": "2.2.4",
+  "status": "release_ready"
+}

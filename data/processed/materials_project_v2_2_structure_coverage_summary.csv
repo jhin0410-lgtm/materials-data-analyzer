@@ -1,0 +1,5 @@
+coverage_item,available_rows,total_rows,coverage,status,notes
+material_id,838,838,1.0,available,Existing-ID structure enrichment can be keyed by material_id.
+summary_symmetry_metadata,838,838,1.0,available_metadata_only,Summary symmetry metadata is not an independently re-derived symmetry analysis.
+structure_body,0,838,0.0,unavailable_no_local_api_data,The v1.3 summary query did not request the full structure field.
+crystal_structure_entities,0,838,0.0,not_generated_without_structure_enrichment,No row-level structures or entities are tracked.

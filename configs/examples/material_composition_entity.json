@@ -1,0 +1,22 @@
+{
+  "entity_id": "synthetic_composition_fe_si",
+  "dry_run": true,
+  "credential_policy": {"store_credentials": false, "network_access_required": false},
+  "entity_type": "MaterialCompositionEntity",
+  "schema_id": "scientific_entity_schema_v2",
+  "schema_version": "2.2.2",
+  "domain": "materials",
+  "attributes": {
+    "formula": "FeSi",
+    "elements": ["Fe", "Si"],
+    "stoichiometric_amounts": {"Fe": 1.0, "Si": 1.0},
+    "atomic_fractions": {"Fe": 0.5, "Si": 0.5},
+    "normalization_status": "normalized"
+  },
+  "quantity_fields": {},
+  "provenance_refs": ["synthetic_example:v2.2.2"],
+  "parent_entity_refs": [],
+  "artifact_refs": [],
+  "created_by": "synthetic_example",
+  "validation_status": "valid"
+}

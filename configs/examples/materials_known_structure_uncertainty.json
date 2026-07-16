@@ -1,0 +1,15 @@
+{
+  "schema_version": "2.2.5",
+  "case_study_id": "materials_project",
+  "stage": "known_structure_prediction_uncertainty",
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "prediction_context": "known_structure_post_relaxation",
+  "result_path": "data/processed/materials_v2_2_5_prediction_uncertainty_summary.csv",
+  "confidence_level": 0.9,
+  "calibration_policy": "train_partition_internal_calibration_only",
+  "interpretation": "prediction_interval_diagnostic_not_dft_uncertainty"
+}

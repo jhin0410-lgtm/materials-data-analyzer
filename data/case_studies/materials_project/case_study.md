@@ -299,6 +299,27 @@ Final v1.3 conclusion:
 - stronger prediction would require broader data coverage, structure
   information, calculation-context features, or a different modeling scope
 
+## v2.2.1 Physics Feature Follow-Up
+
+v2.2.1 added selected composition-derived physics-informed feature builders
+with documented pymatgen property provenance:
+
+- atomic-radius weighted mean, variance, and mismatch
+- electronegativity weighted mean, variance, and mismatch
+- ideal configurational mixing entropy
+- valence electron concentration
+- `number_of_elements` as a control composition feature
+
+All 838 local v1.3 rows generated v2.2 features with complete property
+coverage. Matched predictive-value validation compared the v1.3 baseline,
+physics-only, and combined feature sets with the same split/model policy. The
+result was `performance_degraded`: the combined physics feature set did not
+improve group-aware validation over the matched baseline.
+
+This follow-up records `physics_informed_feature_used`, but it does not support
+a physics-constrained model, hybrid physics/ML, DFT replacement,
+new-material discovery, SHAP explanation, or causal mechanism claim.
+
 ## Conclusion
 
 The current Materials Project pilot successfully demonstrates a reproducible

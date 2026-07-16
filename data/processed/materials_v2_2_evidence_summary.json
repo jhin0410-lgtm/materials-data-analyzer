@@ -1,0 +1,73 @@
+{
+  "case_study_id": "materials_project",
+  "evidence_records": [
+    {
+      "context": "composition_only_pre_structure",
+      "evidence_id": "composition_derived_features",
+      "evidence_level": "predictive_value_not_supported",
+      "limitations": [
+        "No representative composition model was selected."
+      ],
+      "status": "performance_degraded",
+      "summary": "Composition-derived physics/materials descriptors were generated and evaluated, but primary group-aware performance degraded.",
+      "supporting_artifacts": [
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json"
+      ]
+    },
+    {
+      "context": "known_structure_post_relaxation",
+      "evidence_id": "structure_descriptors",
+      "evidence_level": "predictive_value_limited",
+      "limitations": [
+        "Limited group-split consistency blocks representative model selection."
+      ],
+      "status": "structure_predictive_value_limited",
+      "summary": "Known-structure descriptors were evaluated with fixed group-aware splits and improved only one primary group split.",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ]
+    },
+    {
+      "context": "known_structure_post_relaxation",
+      "evidence_id": "periodic_graph_artifacts",
+      "evidence_level": "artifact_generated",
+      "limitations": [
+        "No graph/GNN predictive evidence exists in v2.2."
+      ],
+      "status": "artifact_generated",
+      "summary": "Periodic graph artifacts were generated deterministically for 838 structures but were not loaded as model inputs.",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_graph_eligibility_summary.csv"
+      ]
+    },
+    {
+      "context": "known_structure_post_relaxation",
+      "evidence_id": "prediction_interval_diagnostics",
+      "evidence_level": "uncertainty_evaluated",
+      "limitations": [
+        "Intervals are bounded to this dataset, model, and split context."
+      ],
+      "status": "prediction_interval_evaluated",
+      "summary": "Split-conformal residual intervals were evaluated as predictive residual diagnostics, not source or DFT uncertainty.",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_prediction_uncertainty_summary.csv"
+      ]
+    }
+  ],
+  "key_counts": {
+    "composition_feature_rows": 838,
+    "graph_artifact_count": 838,
+    "known_structure_cohort_rows": 838,
+    "snapshot_aligned_rows": 838,
+    "structure_requested_ids": 838,
+    "structure_returned_documents": 838
+  },
+  "schema_version": "2.2.6",
+  "status": "release_ready",
+  "uncertainty_diagnostics": {
+    "mean_empirical_coverage": 0.8991245397445919,
+    "mean_interval_width": 0.4003067784678055,
+    "row_count": 75,
+    "target_unit": "eV/atom"
+  }
+}

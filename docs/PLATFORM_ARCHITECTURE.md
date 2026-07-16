@@ -1,6 +1,7 @@
 # Platform Architecture
 
-Status: `release_ready` for v2.1.5.
+Status: `release_ready` for v2.1.5 platform trust boundaries and v2.2.6
+Materials scientific evidence closeout.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -23,6 +24,9 @@ changing output schemas, or replacing `src/process_data.py`.
   and onboarding readiness without forcing old scripts into one abstraction.
 - Report read-only: platform reports summarize registries and tracked compact
   artifacts without recomputing scientific results.
+- Scientific evidence closeout read-only: v2.2.6 aggregates Materials
+  capability, claim, uncertainty, and release-readiness states from tracked
+  compact artifacts only.
 - Persistent local registry: v2.1.1 can ingest run/report manifests into a
   local SQLite metadata index without rerunning scientific workflows.
 - Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
@@ -89,7 +93,18 @@ In code:
   registry and validation
 - `src/platform_core/scientific_trust.py`: scientific trust-boundary and
   feature-eligibility evaluation from stored execution evidence
+- `src/platform_core/materials_project_structure_enrichment.py`: bounded
+  existing-ID Materials Project structure enrichment, snapshot alignment, and
+  local-only structure cache orchestration
+- `src/platform_core/v2_2_trust_closeout.py`: Materials v2.2 read-only
+  scientific evidence closeout, capability matrix, claim matrix,
+  uncertainty-boundary summary, lineage validation, and release-readiness
+  evaluation
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
+- `src/analyzers/materials_structure_features.py`: deterministic structure
+  descriptor summaries and periodic radius-graph artifact construction
+- `src/analyzers/materials_structure_prediction.py`: bounded known-structure
+  post-relaxation feature-set comparison and prediction-interval diagnostics
 - `src/cli.py`: unified CLI scaffold
 
 ## Plugin Registry
@@ -218,6 +233,26 @@ metadata checks. Equations are display-only and are never parsed from config.
 v2.1.5 adds scientific trust evaluation over stored execution evidence:
 constraint roles, evidence levels, feature-candidate eligibility, and claim
 boundaries are recorded without generating feature values or training models.
+v2.2.1 adds bounded Materials composition feature builders plus matched
+predictive-value validation for those features; the current decision is
+`performance_degraded`, not a physics-constrained model claim.
+
+v2.2.2 adds JSON-safe scientific entity, relation, quantity, unit-backend,
+uncertainty, schema-evolution, and compatibility-adapter foundations. Runtime
+objects remain separate from persisted records: registries store compact
+metadata, checksums, schema refs, and artifact refs, not live Python objects.
+
+v2.2.3 applies that boundary to Materials Project structure metadata. MP
+summary rows can be adapted to composition entities and target quantities, and
+small loaded structure mappings can be converted to `CrystalStructureEntity`
+records. The selected operator registry is metadata-only and does not execute
+arbitrary callables, acquisition, graph construction, or model training.
+
+v2.2.4 performs controlled existing-ID structure enrichment and periodic graph
+artifact generation under local-only outputs. v2.2.5 uses derived Tier-1
+structure descriptors for a bounded known-structure comparison and records
+`structure_predictive_value_limited`; graph artifacts remain non-model
+artifacts.
 
 See [`SCIENTIFIC_CONSTRAINTS.md`](SCIENTIFIC_CONSTRAINTS.md),
 [`SCIENTIFIC_EXECUTION.md`](SCIENTIFIC_EXECUTION.md),
@@ -249,6 +284,8 @@ python -m src.cli list-executable-adapters
 python -m src.cli show-execution-policy reliability_trust_closeout
 python -m src.cli execute configs/examples/reliability_trust_verify_run.json --mode verify
 python -m src.cli verify-run outputs/platform_runs/reliability-trust-verify-run/run_manifest.json
+python -m src.cli preview-materials-known-structure-comparison configs/examples/materials_known_structure_prediction_preview.json
+python -m src.cli show-materials-known-structure-comparison latest
 python -m src.cli validate-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli show-manifest outputs/platform_runs/reliability-trust-manifest-dry-run/run_manifest.json
 python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
@@ -275,6 +312,9 @@ python -m src.cli preview-scientific-check configs/examples/xrd_bragg_consistent
 python -m src.cli execute-scientific-check configs/examples/xrd_scherrer_uncorrected_check.json --persist
 python -m src.cli evaluate-scientific-trust xrd_scherrer_uncorrected_check
 python -m src.cli list-scientific-feature-candidates
+python -m src.cli list-materials-feature-builders
+python -m src.cli build-materials-physics-features configs/examples/materials_physics_feature_build.json
+python -m src.cli run-materials-feature-comparison configs/examples/materials_physics_predictive_comparison.json
 python -m src.cli scientific-trust-validate
 python -m src.cli show-version
 ```

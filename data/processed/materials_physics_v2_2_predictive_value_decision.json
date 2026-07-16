@@ -1,0 +1,52 @@
+{
+  "allowed_claims": [
+    "composition-derived physics-informed features were built with documented property provenance",
+    "matched feature-set comparisons were run with the existing v1.3 split/model policy",
+    "predictive value is bounded by the recorded status and group-aware validation results"
+  ],
+  "case_study_id": "materials_project",
+  "claim_boundary": {
+    "df_t_replacement": false,
+    "hybrid_physics_ml": false,
+    "new_material_discovery": false,
+    "physics_constrained_model": false,
+    "physics_informed_feature_available": true,
+    "physics_informed_feature_used": true
+  },
+  "combined_primary_mae_improvement_median": -0.0005982293913257795,
+  "feature_coverage": 1.0,
+  "feature_rows": 838,
+  "generated_rows": 838,
+  "input_shas": {
+    "analysis_ready": "d06c78f3580b6380d5a1307d76e35310dd51b85fdbaaa1e3d28a8b7b50112320",
+    "descriptor_inventory": "2f360f4f4d9f640c23a7afecb1edb422bf9601e4d4a438fcf79ed81dd7fc75b9",
+    "feature_matrix": "fe031d3d08ee02237e19eb352e2e3f244242992e281962bc04e4e8c8335be210",
+    "validation_spec": "81143dd2a615ced0636f99680a0742baecd16a7b96b729f5d67a79a97fb79055"
+  },
+  "matched_baseline_reference": "same rows, same split/model policy",
+  "matched_rows": 838,
+  "physics_only_primary_mae_improvement_median": 0.0,
+  "predictive_value_status": "performance_degraded",
+  "primary_splits": [
+    "chemical_system_group",
+    "reduced_formula_group"
+  ],
+  "prohibited_claims": [
+    "physics-constrained model",
+    "hybrid physics ML",
+    "DFT replacement",
+    "new material discovery",
+    "experimental synthesizability",
+    "causal mechanism",
+    "SHAP or feature importance explanation"
+  ],
+  "random_reference_combined_mae_improvement_median": 0.0,
+  "reason_codes": [
+    "combined matched comparison degrades median primary MAE"
+  ],
+  "representative_model_selected": false,
+  "schema_version": "2.2.1",
+  "shap_status": "deferred_not_justified",
+  "target": "energy_above_hull",
+  "task": "matched predictive-value validation for composition physics-informed features"
+}

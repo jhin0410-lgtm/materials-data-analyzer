@@ -1,0 +1,16 @@
+{
+  "credential_policy": {
+    "network_access_required": false,
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "entities_path": "outputs/materials_project_structure_v2_2/entities/crystal_structure_entities.jsonl",
+  "output": "outputs/materials_project_structure_v2_2/descriptors/structure_descriptors.csv",
+  "radius_graph": {
+    "cutoff_angstrom": 4.0,
+    "max_edges": 50000,
+    "max_neighbors": 24,
+    "max_nodes": 512
+  },
+  "schema_version": "2.2.4"
+}

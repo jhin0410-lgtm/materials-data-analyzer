@@ -1,0 +1,14 @@
+{
+  "schema_version": "2.2.3",
+  "audit_id": "materials_project_v2_2_scope_audit_example",
+  "mode": "audit_existing",
+  "acquired_table": "data/processed/materials_project_v1_3_acquired.csv",
+  "analysis_ready_table": "data/processed/materials_project_v1_3_analysis_ready.csv",
+  "manifest": "data/processed/materials_project_v1_3_acquisition_manifest.json",
+  "network_required": false,
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  }
+}

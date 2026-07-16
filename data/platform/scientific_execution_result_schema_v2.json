@@ -44,5 +44,17 @@
     "scientific_recomputation_performed": {
       "type": "boolean"
     }
-  }
+  },
+  "optional_v2_2_2_fields": [
+    "result_schema_id",
+    "result_schema_version",
+    "output_entities",
+    "output_quantities",
+    "uncertainty_summary",
+    "uncertainty_status",
+    "provenance_summary",
+    "relation_refs",
+    "operator_refs"
+  ],
+  "compatibility_policy": "Existing consumers may ignore optional v2.2.2 fields; no existing required field is removed."
 }

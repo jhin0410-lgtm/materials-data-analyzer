@@ -60,6 +60,13 @@ Prohibited without further evidence:
 - degradation mechanism confirmation
 - production scientific decision
 
+v2.2.1 adds a narrow Materials exception for the claim
+`physics_informed_feature_used`: selected composition-derived feature builders
+were generated and included in matched validation. The resulting predictive
+decision was `performance_degraded`, so this does not authorize
+`physics_constrained_model`, `hybrid_physics_ml`, SHAP explanation, DFT
+replacement, or discovery claims.
+
 ## Domain Boundaries
 
 XRD Bragg checks can estimate d-spacing from supplied wavelength/order and
@@ -73,6 +80,11 @@ Materials checks can validate composition fractions and conservative calculated
 property tolerances. They do not prove synthesizability, thermodynamic
 stability, or DFT-equivalent correctness.
 
+v2.2.2 adds structured entities, quantities, and uncertainty metadata to make
+claim boundaries more explicit. It does not turn weak predictive evidence into
+a physics-constrained model, hybrid physics ML, SHAP explanation, simulator, or
+calibrated probability claim.
+
 Battery checks can validate capacity, efficiency, cycle ordering, and bounded
 retention-style candidates. They do not prove degradation mechanism, RUL,
 Arrhenius acceleration, or monotonic capacity loss.
@@ -80,3 +92,12 @@ Arrhenius acceleration, or monotonic capacity loss.
 Manufacturing and reliability checks require explicit variable semantics.
 Anonymous sensor columns and SMART attributes are not assigned physical
 mechanisms by default.
+
+## v2.2.6 Materials Closeout
+
+The Materials v2.2 closeout applies these trust rules to composition features,
+known-structure descriptors, prediction intervals, and graph artifacts. The
+release-readiness verdict is `release_ready` for evidence and claim-boundary
+consistency, while the scientific model conclusion remains conservative:
+`performance_degraded` for composition features, `structure_predictive_value_limited`
+for known-structure descriptors, and no representative model.

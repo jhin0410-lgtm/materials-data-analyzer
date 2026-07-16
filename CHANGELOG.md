@@ -1,8 +1,79 @@
 # Changelog
 
-## Unreleased
+## v2.2.0
 
-- No changes yet.
+- Added v2.2.6 Materials scientific trust closeout artifacts: capability
+  matrix, prediction-context registry, evidence summary, claim matrix,
+  uncertainty boundary, artifact-lineage validation, and release-readiness
+  decision.
+- Recorded v2.2 release readiness while preserving the actual negative and
+  limited outcomes: v2.2.1 remains `performance_degraded`, v2.2.5 remains
+  `structure_predictive_value_limited`, no representative model is selected,
+  and graph artifacts remain representation-only.
+- Added read-only CLI commands for v2.2 evidence audit, claim/context/uncertainty
+  inspection, result-preservation validation, closeout export, and release
+  readiness evaluation without API calls, descriptor regeneration, graph loading,
+  or model execution.
+- Added v2.2.5 known-structure post-relaxation predictive comparison for the
+  existing snapshot-aligned 838-row Materials Project cohort, preserving the
+  original v1.3 `energy_above_hull` target and treating current API target
+  values as audit-only metadata.
+- Added fixed feature-set comparisons across composition baseline,
+  composition physics, structure-only, baseline-plus-structure, and full
+  combined descriptors under random, reduced-formula group, and chemical-system
+  group splits.
+- Recorded the actual known-structure decision as
+  `structure_predictive_value_limited`: structure descriptors improved one
+  primary group split only, no representative model was selected, and graph
+  artifacts were not used as model inputs.
+- Added split-conformal residual prediction-interval diagnostics for the
+  known-structure comparison while explicitly excluding DFT uncertainty,
+  calibrated probability, GNN, SHAP, target overwrite, and hybrid physics-ML
+  claims.
+- Added v2.2.4 controlled Materials Project structure enrichment for the
+  existing 838 material IDs only, with explicit `--execute` gating, chunked
+  local-only API cache, and credential-safe output policy.
+- Added snapshot-alignment auditing between the original v1.3
+  `energy_above_hull` target and current API values without overwriting the
+  original target; the actual bounded run returned 838 structures with 257
+  exact target matches, 581 within numeric tolerance, and 0 target drifts.
+- Added actual `CrystalStructureEntity` conversion coverage for 838 current MP
+  structures, Tier-1 known-structure descriptor candidates, deterministic
+  periodic radius-graph artifacts, and compact tracked coverage summaries.
+- Documented the prediction-context boundary: composition-only pre-structure
+  screening remains separate from known-structure post-relaxation analysis, and
+  the v2.2.1 `performance_degraded` conclusion remains unchanged.
+- Kept structure-aware prediction, GNN execution, DFT replacement, SHAP, target
+  overwrite, and hybrid physics-ML claims out of scope.
+- Added v2.2.3 Materials Project acquisition-scope audit documenting the exact
+  838-row Fe/Si-containing multinary query result, row-count lineage, target
+  unit, element distribution, and structure coverage boundary.
+- Added Materials Project summary/target/structure adapters for JSON-safe
+  composition, quantity, and crystal-structure entity conversion using small
+  loaded payloads only.
+- Added a selected scientific operator registry for MP entity conversion,
+  crystal-structure integrity checks, composition/structure consistency, and
+  descriptive geometry summaries without arbitrary callable execution.
+- Recorded that full MP structure bodies are not currently acquired, structure
+  enrichment is local-only future work, uncertainty is `unavailable` rather
+  than zero, and the v2.2.1 `performance_degraded` conclusion is unchanged.
+- Added v2.2.2 scientific entity, relation, quantity, unit-backend,
+  uncertainty, and schema-evolution foundations as JSON-safe metadata records.
+- Added Bragg structured uncertainty propagation and Scherrer uncertainty
+  eligibility checks without changing existing value-only XRD checks.
+- Added synthetic entity/quantity/graph/trajectory examples and CLI commands
+  for entity validation, relation inspection, unit-backend inspection,
+  uncertainty propagation, and schema migration validation.
+- Added v2.2.1 bounded Materials composition physics feature builders using
+  documented pymatgen property provenance.
+- Added matched Materials predictive-value validation comparing original,
+  matched baseline, physics-only, and combined feature sets under the existing
+  v1.3 split/model policy.
+- Recorded the current Materials v2.2 result as `performance_degraded` rather
+  than a physics-aware model success; SHAP, DFT replacement, hybrid
+  physics/ML, and new-material discovery claims remain prohibited.
+- Added Materials v2.2 CLI commands, example configs, compact tracked summary
+  artifacts, local-only row-level outputs, and documentation.
 
 ## v2.1
 

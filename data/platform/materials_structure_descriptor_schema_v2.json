@@ -1,0 +1,13 @@
+{
+  "case_study_id": "materials_project",
+  "required_fields": [
+    "descriptor_id",
+    "required_entity_type",
+    "output_unit",
+    "role",
+    "target_access_policy"
+  ],
+  "schema_id": "materials_structure_descriptor_schema_v2",
+  "schema_version": "2.2.4",
+  "status": "release_ready"
+}

@@ -21,6 +21,11 @@ bounded derivation ran. It does not mean a case-study dataset was recomputed.
 Scientific trust evaluation does not recompute the scientific result; it reads
 stored execution rows and registry metadata.
 
+v2.2.2 extends the result contract with optional entity, quantity,
+uncertainty, provenance, relation, and operator-reference fields. Existing
+consumers can ignore these optional fields; bounded scalar/small-list execution
+behavior is unchanged.
+
 ## Supported Checks
 
 - XRD Bragg geometry: derives d-spacing and optionally compares a supplied

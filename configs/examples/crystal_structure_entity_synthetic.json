@@ -1,0 +1,88 @@
+{
+  "entity_id": "mp_synthetic_fesi_structure_example",
+  "entity_type": "CrystalStructureEntity",
+  "schema_id": "scientific_entity_schema_v2",
+  "schema_version": "2.2.2",
+  "domain": "materials",
+  "attributes": {
+    "material_id": "mp-synthetic-fesi",
+    "lattice": {
+      "matrix": [
+        [
+          2.8,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          2.8,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.8
+        ]
+      ],
+      "unit": "angstrom",
+      "periodic_axes": [
+        true,
+        true,
+        true
+      ]
+    },
+    "periodic_boundary_conditions": [
+      true,
+      true,
+      true
+    ],
+    "sites": [
+      {
+        "site_index": 0,
+        "species": [
+          {
+            "element": "Fe",
+            "occupancy": 1.0
+          }
+        ],
+        "fractional_coordinates": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "site_index": 1,
+        "species": [
+          {
+            "element": "Si",
+            "occupancy": 1.0
+          }
+        ],
+        "fractional_coordinates": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      }
+    ],
+    "structure_derived_composition": {
+      "Fe": 1.0,
+      "Si": 1.0
+    },
+    "total_sites": 2,
+    "ordered_status": "ordered"
+  },
+  "quantity_fields": {},
+  "provenance_refs": [
+    "configs/examples/materials_project_structure_entity_conversion.json"
+  ],
+  "artifact_refs": [],
+  "created_by": "v2.2.3 synthetic example",
+  "validation_status": "valid",
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  }
+}

@@ -17,8 +17,31 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform Diagnostics](PLATFORM_DIAGNOSTICS.md): v2.1.2 registry policy diagnostics, evidence-gap analysis, registered claim decisions, and CLI.
 - [Scientific Constraints](SCIENTIFIC_CONSTRAINTS.md): v2.1 unit-aware scientific constraint registry, safe evaluator boundary, XRD example, and CLI.
 - [Scientific Execution](SCIENTIFIC_EXECUTION.md): v2.1 bounded scalar/small-list scientific execution, finding persistence, trust closeout, and local-only outputs.
+- [Scientific Entity Model](SCIENTIFIC_ENTITY_MODEL.md): v2.2.2 JSON-safe entity records, runtime/persistence separation, and initial entity types.
+- [Materials Prediction Contexts](MATERIALS_PREDICTION_CONTEXTS.md): separation between composition-only pre-structure screening and known-structure post-relaxation analysis.
+- [Materials Known-Structure Prediction Context](MATERIALS_KNOWN_STRUCTURE_PREDICTION_CONTEXT.md): v2.2.5 known-structure post-relaxation claim boundary and target-source separation.
+- [Scientific Quantities and Uncertainty](SCIENTIFIC_QUANTITIES_AND_UNCERTAINTY.md): structured quantities, original/canonical units, and bounded uncertainty semantics.
+- [Crystal Structure Entity Adapter](CRYSTAL_STRUCTURE_ENTITY_ADAPTER.md): Materials Project structure-to-entity mapping, actual v2.2.4 conversion coverage, validation boundary, quantity mapping, and uncertainty policy.
+- [Scientific Operator Registry](SCIENTIFIC_OPERATOR_REGISTRY.md): v2.2.4 selected metadata-only scientific operators for entity conversion, descriptors, graph artifacts, and execution boundary.
+- [Materials Structure Enrichment](MATERIALS_STRUCTURE_ENRICHMENT.md): v2.2.4 existing-ID structure acquisition, snapshot alignment, conversion coverage, and local-only policy.
+- [Materials Structure Descriptors](MATERIALS_STRUCTURE_DESCRIPTORS.md): Tier-1 known-structure descriptor definitions, coverage, and invariance boundary.
+- [Periodic Crystal Graph Artifacts](PERIODIC_CRYSTAL_GRAPH_ARTIFACTS.md): deterministic periodic graph artifact pilot and GNN/non-goal boundary.
+- [Materials Structure Prediction Readiness](MATERIALS_STRUCTURE_PREDICTION_READINESS.md): v2.2.4 readiness and v2.2.5 limited known-structure comparison outcome.
+- [Materials Known-Structure Prediction](MATERIALS_KNOWN_STRUCTURE_PREDICTION.md): v2.2.5 fixed known-structure feature-set comparison and local/tracked outputs.
+- [Materials Structure Predictive Value](MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md): v2.2.5 paired structure-descriptor predictive-value decision and representative-model boundary.
+- [Materials Predictive Uncertainty](MATERIALS_PREDICTIVE_UNCERTAINTY.md): split-conformal residual interval diagnostics and uncertainty claim limits.
+- [Platform v2.2 Closeout](PLATFORM_V2_2_CLOSEOUT.md): v2.2 scientific evidence closeout, capability matrix, claim matrix, artifact lineage, and release-readiness verdict.
+- [Materials v2.2 Scientific Evidence](MATERIALS_V2_2_SCIENTIFIC_EVIDENCE.md): composition, known-structure descriptor, graph-artifact, and representative-model evidence levels.
+- [Materials v2.2 Claim Boundaries](MATERIALS_V2_2_CLAIM_BOUNDARIES.md): allowed, limited, unsupported, and prohibited Materials v2.2 scientific claims.
+- [Materials v2.2 Uncertainty Boundaries](MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md): source uncertainty, numerical tolerance, prediction interval, split variation, and model-form limitations.
+- [v2.2.0 Release Notes](releases/V2_2_0.md): Materials composition features, structure entities/descriptors, graph artifacts, limited known-structure evidence, and trust-boundary release notes.
+- [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
+- [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
+- [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.
 - [Scientific Trust Boundary](SCIENTIFIC_TRUST_BOUNDARY.md): v2.1.5 evidence levels, constraint roles, claim matrix, and domain-specific scientific boundaries.
 - [Scientific Feature Candidates](SCIENTIFIC_FEATURE_CANDIDATES.md): v2.1.5 metadata-only physics-aware feature candidate registry and v2.2 builder boundary.
+- [Materials Physics Features](MATERIALS_PHYSICS_FEATURES.md): v2.2 bounded Materials composition feature builders, property provenance, coverage policy, and CLI.
+- [Materials Predictive-Value Validation](MATERIALS_PREDICTIVE_VALUE_VALIDATION.md): v2.2 matched baseline/physics feature-set comparison and claim boundary.
 - [XRD Physics Validation](XRD_PHYSICS_VALIDATION.md): Bragg and Scherrer execution boundary, units, claim limits, and non-goals.
 - [Domain Knowledge Packs](DOMAIN_KNOWLEDGE_PACKS.md): v2.1.4 metadata packs for materials, battery, manufacturing, reliability, and XRD.
 - [Physics-Aware Roadmap](PHYSICS_AWARE_ROADMAP.md): staged path for future physics-aware metadata and descriptors without overclaiming.
@@ -36,6 +59,10 @@ This directory collects project references, specifications, audits, policies, ca
 - [v1.0 Release Readiness Audit](V1_0_RELEASE_READINESS_AUDIT.md): release-readiness review.
 - [Battery Archive Data Audit](BATTERY_ARCHIVE_DATA_AUDIT.md): raw zip inventory and case-study feasibility review.
 - [Materials Project Data Audit](MATERIALS_PROJECT_DATA_AUDIT.md): local 50-row pilot audit, schema/quality follow-up, and descriptive screening notes.
+- [Materials v2.2 Data Audit](MATERIALS_V2_2_DATA_AUDIT.md): existing v1.3 local artifact gate for bounded physics feature construction.
+- [Materials Project Acquisition Scope Audit](MATERIALS_PROJECT_ACQUISITION_SCOPE_AUDIT.md): v2.2.3 exact 838-row lineage, Fe/Si-containing multinary scope, and structure coverage audit.
+- [Materials Project Acquisition and Structure](MATERIALS_PROJECT_ACQUISITION_AND_STRUCTURE.md): v2.2.4 existing-ID structure enrichment execution, snapshot alignment, and local-only structure policy.
+- [Scientific Entity Architecture Audit](SCIENTIFIC_ENTITY_ARCHITECTURE_AUDIT.md): dict/DataFrame, runtime object, serialized record, registry-row, and artifact representation audit for v2.2.2.
 - [Materials Project v1.3 Plan](MATERIALS_PROJECT_V1_3_PLAN.md): exact acquisition, descriptors, group-aware validation, trust-boundary diagnostics, and conservative closeout.
 - [Reliability v1.5 Plan](RELIABILITY_V1_5_PLAN.md): generic reliability/risk contract, Backblaze access gate, full-year readiness reassessment, fixed 7-day classification baselines, trust-boundary closeout, leakage map, and validation hierarchy.
 - [Platform v2 Plan](PLATFORM_V2_PLAN.md): configuration-driven platform scaffold roadmap.

@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from .platform_core.adapter_registry import build_default_adapter_registry
 from .platform_core.artifacts import build_default_artifact_registry, validate_relative_path
 from .platform_core.case_study_adapter import build_case_study_stage_plan
@@ -80,6 +82,51 @@ from .platform_core.scientific_applicability import (
 )
 from .platform_core.scientific_constraint_registry import build_default_scientific_constraint_registry
 from .platform_core.scientific_evaluators import build_default_evaluator_registry
+from .platform_core.entity_serialization import deserialize_entity_record, serialize_entity, validate_record
+from .platform_core.materials_project_acquisition import (
+    audit_current_materials_scope,
+    preview_existing_id_enrichment,
+    write_scope_audit_outputs,
+)
+from .platform_core.materials_project_structure_enrichment import (
+    compact_snapshot_alignment_summary,
+    convert_structure_docs_to_entities,
+    load_existing_material_rows,
+    load_structure_docs,
+    plan_existing_id_structure_enrichment,
+    preview_structure_enrichment,
+    run_structure_enrichment,
+    snapshot_alignment_rows,
+    summarize_v2_2_4_readiness,
+)
+from .platform_core.materials_project_adapters import (
+    MaterialsProjectStructureAdapter,
+    MaterialsProjectSummaryAdapter,
+    MaterialsProjectTargetAdapter,
+    assess_crystal_graph_eligibility,
+    composition_structure_consistency,
+    crystal_basic_geometry_summary,
+    validate_crystal_structure_entity as validate_crystal_structure_entity_payload,
+)
+from .analyzers.materials_structure_features import (
+    RadiusGraphConfig,
+    build_radius_graph,
+    build_structure_descriptor_table,
+    descriptor_coverage_summary,
+    graph_eligibility_summary,
+    load_structure_entities,
+    structure_descriptor_definitions,
+    write_graph_jsonl,
+    write_structure_descriptors,
+)
+from .platform_core.quantities import quantity_from_payload, validate_quantity_payload
+from .platform_core.schema_evolution import build_default_migration_registry
+from .platform_core.scientific_entities import (
+    SUPPORTED_ENTITY_TYPES,
+    ScientificEntity,
+    entity_type_schemas,
+    validate_entity_payload,
+)
 from .platform_core.scientific_execution import (
     execute_scientific_config,
     export_scientific_findings,
@@ -91,6 +138,8 @@ from .platform_core.scientific_execution import (
     validate_scientific_result_payload,
     write_scientific_outputs,
 )
+from .platform_core.scientific_relations import default_scientific_relations
+from .platform_core.scientific_operator_registry import build_default_scientific_operator_registry
 from .platform_core.scientific_feature_registry import build_default_scientific_feature_registry
 from .platform_core.scientific_trust import (
     CLAIM_BOUNDARY_IDS,
@@ -100,9 +149,45 @@ from .platform_core.scientific_trust import (
     evaluate_scientific_trust,
 )
 from .platform_core.units import build_default_unit_registry
+from .platform_core.unit_backend import BuiltinUnitBackend, unit_backend_decision
+from .platform_core.uncertainty_propagation import propagate_bragg_uncertainty, scherrer_uncertainty_eligibility
 from .platform_core.trust_registry import build_default_trust_policy_registry
 from .platform_core.validation_registry import build_default_validation_policy_registry
 from .platform_core.version import PLATFORM_VERSION
+from .analyzers.materials_physics_features import (
+    build_request_from_config as build_materials_feature_request_from_config,
+    comparison_request_from_config as build_materials_comparison_request_from_config,
+    feature_definitions as materials_feature_definitions,
+    get_feature_definition as get_materials_feature_definition,
+    load_json as load_materials_json,
+    render_predictive_value_report,
+    run_feature_build,
+    run_predictive_comparison,
+    validate_feature_artifact,
+)
+from .analyzers.materials_structure_prediction import (
+    DEFAULT_OUTPUT_DIR as MATERIALS_STRUCTURE_PREDICTION_OUTPUT_DIR,
+    build_known_structure_cohort,
+    load_json as load_materials_structure_json,
+    preview_known_structure_comparison,
+    render_report_summary as render_known_structure_report_summary,
+    request_from_config as build_known_structure_request_from_config,
+    run_known_structure_comparison,
+    validate_known_structure_cohort,
+    validate_known_structure_result,
+)
+from .platform_core.v2_2_trust_closeout import (
+    build_capability_matrix as build_v2_2_capability_matrix,
+    build_claim_matrix as build_v2_2_claim_matrix,
+    build_evidence_summary as build_v2_2_evidence_summary,
+    build_prediction_context_registry as build_v2_2_prediction_contexts,
+    build_uncertainty_boundary as build_v2_2_uncertainty_boundary,
+    evaluate_release_readiness as evaluate_v2_2_release_readiness,
+    export_closeout_outputs as export_v2_2_closeout_outputs,
+    render_closeout_summary as render_v2_2_closeout_summary,
+    validate_artifact_lineage as validate_v2_2_artifact_lineage,
+    validate_result_preservation as validate_v2_2_result_preservation,
+)
 
 
 EXIT_INVALID_CONFIG = 2
@@ -1603,6 +1688,787 @@ def _cmd_convert_unit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list_scientific_entity_types(args: argparse.Namespace) -> int:
+    schemas = entity_type_schemas()
+    payload = [
+        {"entity_type": entity_type, **schemas[entity_type]}
+        for entity_type in sorted(SUPPORTED_ENTITY_TYPES)
+    ]
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{item['entity_type']}\t{item['purpose']}" for item in payload])
+    return 0
+
+
+def _cmd_inspect_scientific_entity_schema(args: argparse.Namespace) -> int:
+    schemas = entity_type_schemas()
+    if args.entity_type not in schemas:
+        payload = {"status": "not_found", "entity_type": args.entity_type}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"not_found: {args.entity_type}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    payload = {"schema_version": "2.2.2", "entity_type": args.entity_type, **schemas[args.entity_type]}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"entity_type: {args.entity_type}",
+                f"purpose: {payload['purpose']}",
+                f"required_attributes: {', '.join(payload['required_attributes'])}",
+            ]
+        )
+    return 0
+
+
+def _load_small_json(path: str | Path) -> dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("JSON input must be an object")
+    assert_no_sensitive_strings(payload)
+    return payload
+
+
+def _cmd_validate_scientific_entity(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_small_json(args.path)
+        if "record" in payload and "checksum_sha256" in payload:
+            result = validate_record(payload)
+        else:
+            result = validate_entity_payload(payload).to_dict()
+    except (OSError, json.JSONDecodeError, ValueError, RuntimeError, RegistryValidationError) as exc:
+        result = {"valid": False, "errors": [str(exc)], "validation_status": "invalid"}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result.get('valid')).lower()}", *[f"error: {error}" for error in result.get("errors", [])]])
+    return 0 if result.get("valid") else EXIT_INVALID_CONFIG
+
+
+def _cmd_convert_entity_record(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_small_json(args.path)
+        if "record" in payload:
+            entity = deserialize_entity_record(payload)
+        else:
+            entity = ScientificEntity(
+                entity_id=str(payload["entity_id"]),
+                entity_type=str(payload["entity_type"]),
+                schema_id=str(payload["schema_id"]),
+                schema_version=str(payload["schema_version"]),
+                domain=str(payload["domain"]),
+                attributes=payload.get("attributes", {}),
+                quantity_fields=payload.get("quantity_fields", {}),
+                provenance_refs=tuple(str(item) for item in payload.get("provenance_refs", ())),
+                artifact_refs=tuple(str(item) for item in payload.get("artifact_refs", ())),
+                created_by=str(payload.get("created_by", "cli")),
+                validation_status=str(payload.get("validation_status", "valid")),
+            )
+        if args.to_version != entity.schema_version:
+            registry = build_default_migration_registry()
+            migration = registry.migrate(entity.to_dict(), schema_id=entity.entity_type, from_version=entity.schema_version, to_version=args.to_version)
+            if migration.status not in {"migrated", "already_current"}:
+                raise ValueError("; ".join(migration.errors) or migration.status)
+            converted = migration.payload
+        else:
+            converted = serialize_entity(entity)
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryValidationError) as exc:
+        payload = {"status": "conversion_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"conversion_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(converted)
+    else:
+        _emit_lines([f"entity_id: {converted.get('entity_id')}", f"schema_version: {converted.get('schema_version')}"])
+    return 0
+
+
+def _cmd_list_scientific_relations(args: argparse.Namespace) -> int:
+    relations = [relation.to_dict() for relation in default_scientific_relations()]
+    if args.json:
+        _emit_json(relations)
+    else:
+        _emit_lines([f"{item['relation_id']}\t{item['category']}\t{item['execution_status']}" for item in relations])
+    return 0
+
+
+def _cmd_inspect_scientific_relation(args: argparse.Namespace) -> int:
+    for relation in default_scientific_relations():
+        if relation.relation_id == args.relation_id:
+            payload = relation.to_dict()
+            if args.json:
+                _emit_json(payload)
+            else:
+                _emit_lines(
+                    [
+                        f"relation_id: {payload['relation_id']}",
+                        f"category: {payload['category']}",
+                        f"operator_id: {payload['operator_id']}",
+                        f"execution_status: {payload['execution_status']}",
+                    ]
+                )
+            return 0
+    payload = {"status": "not_found", "relation_id": args.relation_id}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"not_found: {args.relation_id}", file=sys.stderr)
+    return EXIT_INVALID_CONFIG
+
+
+def _scientific_entity_from_payload(payload: dict[str, Any]) -> ScientificEntity:
+    if "record" in payload and "checksum_sha256" in payload:
+        return deserialize_entity_record(payload)
+    return ScientificEntity(
+        entity_id=str(payload["entity_id"]),
+        entity_type=str(payload["entity_type"]),
+        schema_id=str(payload["schema_id"]),
+        schema_version=str(payload["schema_version"]),
+        domain=str(payload["domain"]),
+        attributes=payload.get("attributes", {}),
+        quantity_fields=payload.get("quantity_fields", {}),
+        provenance_refs=tuple(str(item) for item in payload.get("provenance_refs", ())),
+        artifact_refs=tuple(str(item) for item in payload.get("artifact_refs", ())),
+        created_by=str(payload.get("created_by", "cli")),
+        validation_status=str(payload.get("validation_status", "valid")),
+    )
+
+
+def _cmd_audit_materials_project_scope(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        if config.get("mode") != "audit_existing":
+            raise ValueError("audit-materials-project-scope only supports mode=audit_existing")
+        payload = write_scope_audit_outputs(Path.cwd())
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        result = {"status": "scope_audit_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"scope_audit_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"lineage_verdict: {payload['lineage_verdict']}",
+                f"dataset_scope_verdict: {payload['dataset_scope_verdict']}",
+                f"row_count: {payload['row_count']}",
+                f"unique_material_id_count: {payload['unique_material_id_count']}",
+                f"fe_si_binary_only: {str(payload['fe_si_binary_only']).lower()}",
+                f"structure_enrichment_status: {payload['actual_structure_enrichment_status']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_preview_mp_structure_enrichment(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        if config.get("execute") is True:
+            raise ValueError("preview command refuses execute=true")
+        result = preview_structure_enrichment(config, root=Path.cwd())
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        result = {"status": "preview_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"preview_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines(
+            [
+                f"status: {result['status']}",
+                f"requested_count: {result.get('requested_count', result.get('query_plan', {}).get('material_id_count', 0))}",
+            ]
+        )
+    return 0
+
+
+def _cmd_enrich_mp_structures(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        result = run_structure_enrichment(config, root=Path.cwd(), execute=bool(args.execute))
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        result = {"status": "enrichment_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"enrichment_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"network_called: {str(result.get('network_called', False)).lower()}"])
+    return 0 if result["status"] not in {"failed", "enrichment_failed"} else EXIT_RUNTIME_FAILURE
+
+
+def _cmd_validate_mp_structure_cache(args: argparse.Namespace) -> int:
+    path = Path(args.path)
+    if path.is_absolute() or ".." in path.parts:
+        payload = {"valid": False, "status": "invalid_path", "errors": ["path must be repository-relative"]}
+    elif not path.exists():
+        payload = {"valid": False, "status": "missing_cache", "errors": [f"missing:{path.as_posix()}"]}
+    else:
+        jsonl_count = len(list(path.rglob("*.jsonl"))) if path.is_dir() else int(path.suffix == ".jsonl")
+        payload = {
+            "valid": True,
+            "status": "cache_inspected",
+            "jsonl_file_count": jsonl_count,
+            "local_only_policy": True,
+        }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {payload['status']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_convert_mp_structures_to_entities(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        if "structure_docs_path" in config:
+            docs = load_structure_docs(config["structure_docs_path"])
+            existing = load_existing_material_rows(Path.cwd())
+            output = Path(config.get("output", "outputs/materials_project_structure_v2_2/entities/crystal_structure_entities.jsonl"))
+            if output.is_absolute() or ".." in output.parts:
+                raise ValueError("output must be repository-relative")
+            payload = convert_structure_docs_to_entities(docs, existing, output_path=output)
+            payload["output"] = output.as_posix()
+            payload["runtime_object_persisted"] = False
+        else:
+            summary = config["summary"]
+            structure = config["structure"]
+            composition_entity = MaterialsProjectSummaryAdapter().to_composition_entity(summary)
+            composition_record = serialize_entity(composition_entity)
+            structure_entity = MaterialsProjectStructureAdapter().to_crystal_structure_entity(
+                material_id=str(config["material_id"]),
+                structure=structure,
+                summary_row=summary,
+                parent_composition_ref=None,
+            )
+            target_quantity = MaterialsProjectTargetAdapter().to_quantity(summary)
+            payload = {
+                "status": "converted_synthetic_structure",
+                "composition_entity": composition_record,
+                "structure_entity": serialize_entity(structure_entity),
+                "target_quantity": target_quantity.to_dict(),
+                "runtime_object_persisted": False,
+            }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "conversion_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"conversion_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"entity_count: {payload.get('entity_count', 1)}",
+            ]
+        )
+    return 0
+
+
+def _load_entity_records(path: str) -> list[ScientificEntity]:
+    payload_path = Path(path)
+    if payload_path.suffix == ".jsonl":
+        entities = []
+        for line in payload_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                entities.append(_scientific_entity_from_payload(json.loads(line)))
+        return entities
+    payload = _load_small_json(path)
+    if isinstance(payload.get("entities"), list):
+        return [_scientific_entity_from_payload(item) for item in payload["entities"]]
+    return [_scientific_entity_from_payload(payload)]
+
+
+def _cmd_summarize_crystal_structure_entities(args: argparse.Namespace) -> int:
+    try:
+        entities = _load_entity_records(args.path)
+        crystal_entities = [entity for entity in entities if entity.entity_type == "CrystalStructureEntity"]
+        statuses = [validate_crystal_structure_entity_payload(entity)["status"] for entity in crystal_entities]
+        payload = {
+            "entity_count": len(crystal_entities),
+            "status_counts": {status: statuses.count(status) for status in sorted(set(statuses))},
+            "graph_candidate_count": sum(
+                1 for entity in crystal_entities if assess_crystal_graph_eligibility(entity)["status"] == "graph_adapter_candidate"
+            ),
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "summary_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"summary_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"entity_count: {payload['entity_count']}", f"graph_candidate_count: {payload['graph_candidate_count']}"])
+    return 0
+
+
+def _cmd_validate_crystal_structure_entity(args: argparse.Namespace) -> int:
+    try:
+        entity = _load_entity_records(args.path)[0]
+        if entity.entity_type != "CrystalStructureEntity":
+            raise ValueError("entity is not CrystalStructureEntity")
+        payload = validate_crystal_structure_entity_payload(entity)
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "invalid", "errors": [str(exc)]}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", *[f"finding: {item}" for item in payload.get("findings", [])]])
+    return 0 if payload.get("status") in {"valid", "valid_with_warnings"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_list_scientific_operators(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_operator_registry()
+    payload = registry.snapshot()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{item['operator_id']}\t{item['status']}\t{','.join(item['output_types'])}" for item in payload])
+    return 0
+
+
+def _cmd_inspect_scientific_operator(args: argparse.Namespace) -> int:
+    registry = build_default_scientific_operator_registry()
+    try:
+        payload = registry.get(args.operator_id).to_dict()
+    except KeyError as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {args.operator_id}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"operator_id: {payload['operator_id']}",
+                f"status: {payload['status']}",
+                f"network_policy: {payload['network_policy']}",
+                f"side_effect_policy: {payload['side_effect_policy']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_scientific_operator_registry(args: argparse.Namespace) -> int:
+    payload = build_default_scientific_operator_registry().validate()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"operator_count: {payload['operator_count']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_assess_crystal_graph_eligibility(args: argparse.Namespace) -> int:
+    try:
+        entity = _load_entity_records(args.path)[0]
+        if entity.entity_type != "CrystalStructureEntity":
+            raise ValueError("entity is not CrystalStructureEntity")
+        payload = assess_crystal_graph_eligibility(entity)
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "blocked_unknown_semantics", "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"graph_constructed: {str(payload.get('graph_constructed', False)).lower()}"])
+    return 0 if payload.get("status") in {"graph_adapter_candidate", "blocked_disorder"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_resume_mp_structure_enrichment(args: argparse.Namespace) -> int:
+    try:
+        manifest = _load_small_json(args.manifest)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "resume_inspected",
+            "execute": bool(args.execute),
+            "previous_status": manifest.get("status"),
+            "network_called": False,
+            "resume_execution_supported": False,
+            "reason": "v2.2.4 resume validates manifest state only; rerun enrich-mp-structures for bounded acquisition.",
+        }
+    except (OSError, json.JSONDecodeError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "resume_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"resume_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"network_called: {str(payload['network_called']).lower()}"])
+    return 0
+
+
+def _cmd_audit_mp_snapshot_alignment(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        docs = load_structure_docs(config["structure_docs_path"])
+        existing = load_existing_material_rows(Path.cwd())
+        rows = snapshot_alignment_rows(existing, docs)
+        summary = compact_snapshot_alignment_summary(rows)
+        output = config.get("output")
+        if output:
+            out_path = Path(output)
+            if out_path.is_absolute() or ".." in out_path.parts:
+                raise ValueError("output must be repository-relative")
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(rows).to_csv(out_path, index=False)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "snapshot_alignment_completed",
+            "row_count": len(rows),
+            "summary": summary,
+            "original_target_overwritten": False,
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "snapshot_alignment_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"snapshot_alignment_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"row_count: {payload['row_count']}"])
+    return 0
+
+
+def _cmd_validate_crystal_structure_entities(args: argparse.Namespace) -> int:
+    try:
+        entities = load_structure_entities(args.path)
+        statuses = [validate_crystal_structure_entity_payload(entity)["status"] for entity in entities]
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "validated",
+            "entity_count": len(entities),
+            "status_counts": {status: statuses.count(status) for status in sorted(set(statuses))},
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "validation_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"validation_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"entity_count: {payload['entity_count']}"])
+    return 0
+
+
+def _cmd_build_materials_structure_descriptors(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        entities_path = Path(config["entities_path"])
+        if entities_path.is_absolute() or ".." in entities_path.parts:
+            raise ValueError("entities_path must be repository-relative")
+        entities = load_structure_entities(entities_path)
+        graph_config = RadiusGraphConfig(**config.get("radius_graph", {}))
+        table = build_structure_descriptor_table(entities, graph_config=graph_config)
+        output = Path(config.get("output", "outputs/materials_project_structure_v2_2/descriptors/structure_descriptors.csv"))
+        if output.is_absolute() or ".." in output.parts:
+            raise ValueError("output must be repository-relative")
+        write_structure_descriptors(output, table)
+        coverage = descriptor_coverage_summary(table)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "descriptors_written",
+            "entity_count": len(entities),
+            "descriptor_count": len(structure_descriptor_definitions()),
+            "descriptor_eligible_entities": int(len(table)),
+            "output": output.as_posix(),
+            "coverage": coverage,
+            "target_accessed": False,
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "descriptor_build_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"descriptor_build_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"descriptor_eligible_entities: {payload['descriptor_eligible_entities']}"])
+    return 0
+
+
+def _cmd_validate_materials_structure_descriptors(args: argparse.Namespace) -> int:
+    try:
+        table = pd.read_csv(args.path)
+        forbidden = sorted(set(table.columns) & {"energy_above_hull", "target", "prediction", "material_id_encoded"})
+        payload = {
+            "schema_version": "2.2.4",
+            "valid": not forbidden,
+            "status": "valid" if not forbidden else "invalid_forbidden_fields",
+            "row_count": int(len(table)),
+            "column_count": int(len(table.columns)),
+            "forbidden_fields": forbidden,
+        }
+    except (OSError, ValueError) as exc:
+        payload = {"valid": False, "status": "descriptor_validation_failed", "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {payload['status']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_build_crystal_graph_artifacts(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        entities_path = Path(config["entities_path"])
+        if entities_path.is_absolute() or ".." in entities_path.parts:
+            raise ValueError("entities_path must be repository-relative")
+        entities = load_structure_entities(entities_path)
+        graph_config = RadiusGraphConfig(**config.get("radius_graph", {}))
+        graphs = [build_radius_graph(entity, graph_config) for entity in entities]
+        output = Path(config.get("output", "outputs/materials_project_structure_v2_2/graphs/periodic_graphs.jsonl"))
+        if output.is_absolute() or ".." in output.parts:
+            raise ValueError("output must be repository-relative")
+        count = write_graph_jsonl(output, graphs)
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "graphs_written",
+            "graph_count": count,
+            "output": output.as_posix(),
+            "summary": graph_eligibility_summary(entities, graphs),
+        }
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "graph_build_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"graph_build_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"graph_count: {payload['graph_count']}"])
+    return 0
+
+
+def _cmd_validate_crystal_graph_artifacts(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.path)
+        graphs = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        valid = all(graph.get("graph_construction_metadata", {}).get("target_values_included") is False for graph in graphs)
+        valid = valid and all(graph.get("graph_construction_metadata", {}).get("gnn_input_ready") is False for graph in graphs)
+        payload = {
+            "schema_version": "2.2.4",
+            "valid": valid,
+            "status": "valid" if valid else "invalid",
+            "graph_count": len(graphs),
+            "checksums_unique": len({graph.get("checksum_sha256") for graph in graphs}) == len(graphs),
+        }
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        payload = {"valid": False, "status": "graph_validation_failed", "error": str(exc)}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {payload['status']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_summarize_structure_readiness(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        requested_count = int(config.get("requested_count", 0))
+        docs = load_structure_docs(config["structure_docs_path"]) if config.get("structure_docs_path") else []
+        existing = load_existing_material_rows(Path.cwd()) if docs else pd.DataFrame(columns=["material_id"])
+        alignment = snapshot_alignment_rows(existing, docs) if docs else []
+        entity_summary = config.get("entity_summary")
+        descriptor_summary = config.get("descriptor_summary")
+        graph_summary = config.get("graph_summary")
+        if entity_summary is None and config.get("entities_path"):
+            entities_path = Path(config["entities_path"])
+            if entities_path.is_absolute() or ".." in entities_path.parts:
+                raise ValueError("entities_path must be repository-relative")
+            if entities_path.exists():
+                entities = load_structure_entities(entities_path)
+                statuses = [validate_crystal_structure_entity_payload(entity)["status"] for entity in entities]
+                entity_summary = {
+                    "integrity_status_counts": {status: statuses.count(status) for status in sorted(set(statuses))}
+                }
+        if descriptor_summary is None and config.get("descriptors_path"):
+            descriptors_path = Path(config["descriptors_path"])
+            if descriptors_path.is_absolute() or ".." in descriptors_path.parts:
+                raise ValueError("descriptors_path must be repository-relative")
+            if descriptors_path.exists():
+                descriptor_table = pd.read_csv(descriptors_path)
+                descriptor_summary = {"descriptor_eligible_entities": int(len(descriptor_table))}
+        if graph_summary is None and config.get("graphs_path"):
+            graphs_path = Path(config["graphs_path"])
+            if graphs_path.is_absolute() or ".." in graphs_path.parts:
+                raise ValueError("graphs_path must be repository-relative")
+            if graphs_path.exists():
+                graphs = [
+                    json.loads(line)
+                    for line in graphs_path.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+                graph_summary = {
+                    "graph_eligible_entities": sum(
+                        1
+                        for graph in graphs
+                        if graph.get("graph_construction_metadata", {}).get("target_values_included") is False
+                        and graph.get("graph_construction_metadata", {}).get("gnn_input_ready") is False
+                    )
+                }
+        payload = summarize_v2_2_4_readiness(
+            requested_count=requested_count or len(docs),
+            docs=docs,
+            alignment_rows=alignment,
+            entity_summary=entity_summary,
+            descriptor_summary=descriptor_summary,
+            graph_summary=graph_summary,
+        )
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "readiness_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"readiness_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"readiness: {payload['structure_prediction_readiness']}"])
+    return 0
+
+
+def _cmd_export_structure_readiness_summary(args: argparse.Namespace) -> int:
+    try:
+        scope = audit_current_materials_scope(Path.cwd())
+        payload = {
+            "schema_version": "2.2.4",
+            "status": "exported_without_local_structure_data",
+            "requested_unique_material_ids": scope["unique_material_id_count"],
+            "structure_prediction_readiness": "blocked_no_api_data",
+            "model_training_run": False,
+            "predictive_claim_made": False,
+        }
+        output = Path(args.output)
+        if output.is_absolute() or ".." in output.parts:
+            raise ValueError("output must be repository-relative")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, RegistryValidationError) as exc:
+        payload = {"status": "export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: {payload['status']}", f"output: {output.as_posix()}"])
+    return 0
+
+
+def _cmd_validate_scientific_quantity(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_small_json(args.path)
+        result = validate_quantity_payload(payload)
+        if result["valid"]:
+            quantity = quantity_from_payload(payload)
+            result = {**result, "quantity": quantity.to_dict()}
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryValidationError) as exc:
+        result = {"valid": False, "errors": [str(exc)]}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result.get('valid')).lower()}", *[f"error: {error}" for error in result.get("errors", [])]])
+    return 0 if result.get("valid") else EXIT_INVALID_CONFIG
+
+
+def _cmd_propagate_scientific_uncertainty(args: argparse.Namespace) -> int:
+    try:
+        config = _load_small_json(args.config)
+        operator_id = str(config.get("operator_id", ""))
+        if operator_id == "xrd_bragg_uncertainty_v2_2":
+            payload = propagate_bragg_uncertainty(config)
+        elif operator_id == "xrd_scherrer_uncertainty_v2_2":
+            payload = scherrer_uncertainty_eligibility(config)
+        else:
+            raise ValueError(f"unsupported uncertainty operator_id: {operator_id}")
+    except (OSError, json.JSONDecodeError, ValueError, KeyError, RegistryValidationError) as exc:
+        payload = {"status": "invalid_config", "error": str(exc)}
+        if args.json:
+            _emit_json(payload)
+        else:
+            print(f"invalid_config: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"operator_id: {payload.get('operator_id')}", f"status: {payload.get('status')}"])
+    return 0 if payload.get("status") not in {"invalid_config", "invalid_input"} else EXIT_INVALID_CONFIG
+
+
+def _cmd_inspect_unit_backend(args: argparse.Namespace) -> int:
+    payload = unit_backend_decision()
+    backend = BuiltinUnitBackend()
+    payload["builtin_unit_count"] = len(backend.registry.snapshot())
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"decision: {payload['decision']}",
+                f"default_backend: {payload['default_backend']}",
+                f"pint_available: {str(payload['pint_available']).lower()}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_schema_migrations(args: argparse.Namespace) -> int:
+    registry = build_default_migration_registry()
+    sample = {
+        "entity_id": "composition_demo",
+        "entity_type": "MaterialCompositionEntity",
+        "schema_id": "scientific_entity_schema_v2",
+        "schema_version": "1",
+        "domain": "materials",
+        "attributes": {"formula": "FeSi", "elements": ["Fe", "Si"], "amounts": {"Fe": 1, "Si": 1}, "atomic_fractions": {"Fe": 0.5, "Si": 0.5}},
+    }
+    result = registry.migrate(sample, schema_id="MaterialCompositionEntity", from_version="1", to_version="2")
+    payload = {"valid": result.status == "migrated", "migration": result.to_dict(), "registered_migrations": registry.snapshot()}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"status: {result.status}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
 def _resolve_scientific_export_output(repo_root: Path, output: str) -> Path:
     validate_relative_path(output)
     normalized = output.replace("\\", "/")
@@ -2137,6 +3003,599 @@ def _cmd_export_scientific_trust(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list_materials_feature_builders(args: argparse.Namespace) -> int:
+    payload = materials_feature_definitions().to_dict(orient="records")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"{row['feature_id']}\t{row['role']}\t{row['unit']}" for row in payload])
+    return 0
+
+
+def _cmd_inspect_materials_feature_builder(args: argparse.Namespace) -> int:
+    try:
+        payload = get_materials_feature_definition(args.feature_id)
+    except KeyError as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"feature_id: {payload['feature_id']}",
+                f"column_name: {payload['column_name']}",
+                f"role: {payload['role']}",
+                f"unit: {payload['unit']}",
+                f"formula: {payload['formula']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_build_materials_physics_features(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_json(args.config_path)
+        request = build_materials_feature_request_from_config(config)
+        payload = run_feature_build(request)
+    except (OSError, ValueError, RuntimeError, FileExistsError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_feature_build_failed", "error": str(exc)})
+        else:
+            print(f"materials_feature_build_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload.get('run_stage')}",
+                f"feature_rows: {payload.get('feature_rows')}",
+                f"generated_rows: {payload.get('generated_rows')}",
+                f"feature_matrix: {payload['local_outputs']['feature_matrix']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_materials_feature_artifact(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_feature_artifact(args.path)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"valid: {str(payload['valid']).lower()}",
+                f"row_count: {payload['row_count']}",
+                f"generated_rows: {payload['generated_rows']}",
+            ]
+        )
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_run_materials_feature_comparison(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_json(args.config_path)
+        request = build_materials_comparison_request_from_config(config)
+        payload = run_predictive_comparison(request)
+    except (OSError, ValueError, RuntimeError, FileExistsError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_feature_comparison_failed", "error": str(exc)})
+        else:
+            print(f"materials_feature_comparison_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['decision_status']}",
+                f"matched_rows: {payload['rows']['matched_rows']}",
+                f"local_manifest: {payload['local_outputs']['local_manifest']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_materials_feature_comparison(args: argparse.Namespace) -> int:
+    candidate = Path(args.result)
+    if not candidate.exists():
+        if args.result == "latest":
+            candidate = Path("data/processed/materials_physics_v2_2_predictive_value_decision.json")
+        else:
+            candidate = Path("outputs/materials_physics_v2_2") / args.result / "materials_physics_v2_2_comparison_manifest.json"
+    try:
+        payload = load_materials_json(candidate)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"schema_version: {payload.get('schema_version')}",
+                f"status: {payload.get('predictive_value_status', payload.get('decision_status', 'unavailable'))}",
+                f"matched_rows: {payload.get('matched_rows', payload.get('rows', {}).get('matched_rows', 'unavailable'))}",
+            ]
+        )
+    return 0
+
+
+def _cmd_export_materials_feature_summary(args: argparse.Namespace) -> int:
+    try:
+        decision = load_materials_json(args.decision)
+        summary = json.loads(Path(args.summary).read_text(encoding="utf-8")) if args.summary.endswith(".json") else None
+        if summary is None:
+            import pandas as pd
+
+            summary_df = pd.read_csv(args.summary)
+            report = render_predictive_value_report(decision, summary_df)
+            payload: dict[str, Any] = {
+                "schema_version": decision.get("schema_version"),
+                "decision": decision,
+                "summary_row_count": int(len(summary_df)),
+            }
+        else:
+            report = json.dumps(summary, indent=2, sort_keys=True)
+            payload = {"schema_version": decision.get("schema_version"), "decision": decision, "summary": summary}
+        output = Path(args.output)
+        validate_relative_path(output.as_posix())
+        if not output.as_posix().startswith("outputs/"):
+            raise ValueError("materials feature summary export must be under outputs/")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if args.markdown_output:
+            markdown_output = Path(args.markdown_output)
+            validate_relative_path(markdown_output.as_posix())
+            if not markdown_output.as_posix().startswith("outputs/"):
+                raise ValueError("materials feature markdown export must be under outputs/")
+            markdown_output.parent.mkdir(parents=True, exist_ok=True)
+            markdown_output.write_text(report, encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "export_failed", "error": str(exc)})
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {"status": "exported", "output": output.as_posix()}
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: exported", f"output: {output.as_posix()}"])
+    return 0
+
+
+def _cmd_preview_materials_known_structure_comparison(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_structure_json(args.config_path)
+        request = build_known_structure_request_from_config(config)
+        payload = preview_known_structure_comparison(request)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_known_structure_preview_failed", "error": str(exc)})
+        else:
+            print(f"materials_known_structure_preview_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"prediction_context: {payload['prediction_context']}",
+                f"feature_sets: {len(payload['feature_sets'])}",
+                f"missing_inputs: {len(payload['missing_inputs'])}",
+            ]
+        )
+    return 0 if payload["status"] == "ready_for_local_comparison" else EXIT_MISSING_ARTIFACT
+
+
+def _cmd_build_materials_known_structure_cohort(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_structure_json(args.config_path)
+        request = build_known_structure_request_from_config(config)
+        cohort, summary = build_known_structure_cohort(request)
+        output = Path(config.get("cohort_output", (MATERIALS_STRUCTURE_PREDICTION_OUTPUT_DIR / "cohort" / "matched_cohort.csv").as_posix()))
+        validate_relative_path(output.as_posix())
+        if not output.as_posix().startswith("outputs/"):
+            raise ValueError("known-structure cohort output must be under outputs/")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        cohort.to_csv(output, index=False, lineterminator="\n")
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_known_structure_cohort_failed", "error": str(exc)})
+        else:
+            print(f"materials_known_structure_cohort_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    payload = {
+        "schema_version": summary["schema_version"],
+        "status": "cohort_built",
+        "cohort_output": output.as_posix(),
+        "cohort_rows": summary["cohort_rows"],
+        "snapshot_aligned_rows": summary["snapshot_aligned_rows"],
+        "target_source": summary["target_source"],
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"status: cohort_built", f"cohort_rows: {summary['cohort_rows']}", f"cohort_output: {output.as_posix()}"])
+    return 0
+
+
+def _cmd_validate_materials_known_structure_cohort(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_known_structure_cohort(args.path)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"row_count: {payload['row_count']}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_run_materials_known_structure_comparison(args: argparse.Namespace) -> int:
+    try:
+        config = load_materials_structure_json(args.config_path)
+        request = build_known_structure_request_from_config(config)
+        payload = run_known_structure_comparison(request)
+    except (OSError, ValueError, RuntimeError, FileExistsError) as exc:
+        if args.json:
+            _emit_json({"status": "materials_known_structure_comparison_failed", "error": str(exc)})
+        else:
+            print(f"materials_known_structure_comparison_failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_FAILURE
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['decision_status']}",
+                f"cohort_rows: {payload['cohort_rows']}",
+                f"manifest: {payload['local_outputs']['manifest']}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_materials_known_structure_comparison(args: argparse.Namespace) -> int:
+    candidate = Path(args.result)
+    if not candidate.exists():
+        if args.result == "latest":
+            candidate = Path("data/processed/materials_v2_2_5_predictive_value_decision.json")
+        else:
+            candidate = MATERIALS_STRUCTURE_PREDICTION_OUTPUT_DIR / args.result / "comparison" / "comparison_manifest.json"
+    try:
+        payload = load_materials_structure_json(candidate)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "not_found", "error": str(exc)})
+        else:
+            print(f"not_found: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"schema_version: {payload.get('schema_version')}",
+                f"status: {payload.get('structure_predictive_value_status', payload.get('decision_status', 'unavailable'))}",
+                f"cohort_rows: {payload.get('cohort_rows', 'unavailable')}",
+                f"representative_model: {payload.get('representative_model', 'unavailable')}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_materials_known_structure_result(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_known_structure_result(args.path)
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"valid: {str(payload['valid']).lower()}", f"errors: {','.join(payload['errors'])}"])
+    return 0 if payload["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_export_materials_known_structure_summary(args: argparse.Namespace) -> int:
+    try:
+        decision = load_materials_structure_json(args.decision)
+        output = Path(args.output)
+        validate_relative_path(output.as_posix())
+        if not output.as_posix().startswith("outputs/"):
+            raise ValueError("known-structure summary export must be under outputs/")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": decision.get("schema_version"),
+            "decision": decision,
+            "summary_markdown": render_known_structure_report_summary(decision),
+        }
+        output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "export_failed", "error": str(exc)})
+        else:
+            print(f"export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    if args.json:
+        _emit_json({"status": "exported", "output": output.as_posix()})
+    else:
+        _emit_lines([f"status: exported", f"output: {output.as_posix()}"])
+    return 0
+
+
+def _cmd_evaluate_materials_structure_predictive_claim(args: argparse.Namespace) -> int:
+    try:
+        decision = load_materials_structure_json(args.result)
+        claims = decision.get("claim_boundary", {})
+        payload = {
+            "schema_version": decision.get("schema_version"),
+            "status": decision.get("structure_predictive_value_status"),
+            "representative_model_selected": decision.get("representative_model_selected"),
+            "allowed_claims": [
+                "known_structure_post_relaxation_comparison_completed",
+                "group_aware_structure_descriptor_evaluation",
+                "prediction_interval_diagnostic_evaluated",
+            ],
+            "prohibited_claims": [key for key, value in claims.items() if value is False],
+        }
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "claim_evaluation_failed", "error": str(exc)})
+        else:
+            print(f"claim_evaluation_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"status: {payload['status']}",
+                f"representative_model_selected: {str(payload['representative_model_selected']).lower()}",
+                f"prohibited_claims: {len(payload['prohibited_claims'])}",
+            ]
+        )
+    return 0
+
+
+def _cmd_show_materials_prediction_uncertainty(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result)
+        if path.suffix.lower() == ".json":
+            payload = load_materials_structure_json(path)
+        else:
+            table = pd.read_csv(path)
+            payload = {
+                "schema_version": "2.2.5",
+                "row_count": int(len(table)),
+                "uncertainty_statuses": sorted(set(table.get("uncertainty_status", pd.Series(dtype=str)).astype(str))),
+                "mean_empirical_coverage": float(pd.to_numeric(table.get("empirical_coverage_mean"), errors="coerce").mean()),
+                "interpretation": "prediction_interval_diagnostic_not_dft_uncertainty",
+            }
+    except (OSError, ValueError) as exc:
+        if args.json:
+            _emit_json({"status": "uncertainty_summary_failed", "error": str(exc)})
+        else:
+            print(f"uncertainty_summary_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines([f"schema_version: {payload.get('schema_version')}", f"row_count: {payload.get('row_count', 'unavailable')}"])
+    return 0
+
+
+def _emit_v2_2_payload(args: argparse.Namespace, payload: dict[str, Any], lines: list[str]) -> int:
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(lines)
+    return 0
+
+
+def _cmd_audit_v2_2_scientific_evidence(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_evidence_summary()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_evidence_audit_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_evidence_audit_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"composition_feature_rows: {payload['key_counts']['composition_feature_rows']}",
+            f"known_structure_cohort_rows: {payload['key_counts']['known_structure_cohort_rows']}",
+            f"graph_artifacts: {payload['key_counts']['graph_artifact_count']}",
+        ],
+    )
+
+
+def _cmd_show_v2_2_capability_matrix(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_capability_matrix()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_capability_matrix_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_capability_matrix_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"capability_count: {len(payload['capabilities'])}",
+            f"composition_decision: {payload['source_decisions']['composition']}",
+            f"structure_decision: {payload['source_decisions']['structure']}",
+        ],
+    )
+
+
+def _cmd_show_v2_2_claim_matrix(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_claim_matrix()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_claim_matrix_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_claim_matrix_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    prohibited = sum(1 for claim in payload["claims"] if claim["status"] == "prohibited")
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [f"status: {payload['status']}", f"claim_count: {len(payload['claims'])}", f"prohibited_claims: {prohibited}"],
+    )
+
+
+def _cmd_show_v2_2_prediction_contexts(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_prediction_contexts()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_prediction_contexts_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_prediction_contexts_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            "contexts: " + ",".join(context["context_id"] for context in payload["contexts"]),
+        ],
+    )
+
+
+def _cmd_show_v2_2_uncertainty_boundaries(args: argparse.Namespace) -> int:
+    try:
+        payload = build_v2_2_uncertainty_boundary()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_uncertainty_boundary_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_uncertainty_boundary_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"uncertainty_records: {len(payload['uncertainty_records'])}",
+            f"prediction_interval_unit: {payload['prediction_interval_diagnostics']['target_unit']}",
+        ],
+    )
+
+
+def _cmd_validate_v2_2_artifact_lineage(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_v2_2_artifact_lineage()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"valid: {str(payload['valid']).lower()}",
+            f"lineage_status: {payload['lineage_status']}",
+            f"input_artifact_count: {payload['input_artifact_count']}",
+        ],
+    )
+
+
+def _cmd_validate_v2_2_result_preservation(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_v2_2_result_preservation()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"valid": False, "error": str(exc)})
+        else:
+            print(f"invalid: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"valid: {str(payload['valid']).lower()}",
+            f"checks: {len(payload['checks'])}",
+            f"v2_2_1_decision_sha: {payload['canonical_checksums']['materials_physics_v2_2_predictive_value_decision']}",
+        ],
+    )
+
+
+def _cmd_export_v2_2_closeout_summary(args: argparse.Namespace) -> int:
+    try:
+        payload = export_v2_2_closeout_outputs()
+        payload["summary_preview"] = render_v2_2_closeout_summary().splitlines()[0]
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_closeout_export_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_closeout_export_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"status: {payload['status']}",
+            f"release_readiness: {payload['release_readiness']}",
+            f"outputs: {len(payload['outputs'])}",
+        ],
+    )
+
+
+def _cmd_evaluate_v2_2_release_readiness(args: argparse.Namespace) -> int:
+    try:
+        payload = evaluate_v2_2_release_readiness()
+    except (OSError, ValueError, KeyError) as exc:
+        if args.json:
+            _emit_json({"status": "v2_2_release_readiness_failed", "error": str(exc)})
+        else:
+            print(f"v2_2_release_readiness_failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID_CONFIG
+    return _emit_v2_2_payload(
+        args,
+        payload,
+        [
+            f"release_readiness: {payload['release_readiness']}",
+            f"representative_model_selected: {str(payload['representative_model_selected']).lower()}",
+            f"no_new_scientific_result: {str(payload['no_new_scientific_result']).lower()}",
+        ],
+    )
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -2425,6 +3884,189 @@ def build_parser() -> argparse.ArgumentParser:
     convert_parser.add_argument("--to", dest="to_unit", required=True)
     convert_parser.set_defaults(func=_cmd_convert_unit)
 
+    entity_types_parser = subparsers.add_parser("list-scientific-entity-types", help="list supported scientific entity types")
+    entity_types_parser.set_defaults(func=_cmd_list_scientific_entity_types)
+
+    inspect_entity_schema_parser = subparsers.add_parser(
+        "inspect-scientific-entity-schema",
+        help="inspect a scientific entity schema contract",
+    )
+    inspect_entity_schema_parser.add_argument("entity_type")
+    inspect_entity_schema_parser.set_defaults(func=_cmd_inspect_scientific_entity_schema)
+
+    validate_entity_parser = subparsers.add_parser(
+        "validate-scientific-entity",
+        help="validate a small scientific entity JSON record",
+    )
+    validate_entity_parser.add_argument("path")
+    validate_entity_parser.set_defaults(func=_cmd_validate_scientific_entity)
+
+    convert_entity_parser = subparsers.add_parser(
+        "convert-entity-record",
+        help="convert or serialize a scientific entity record to a supported schema version",
+    )
+    convert_entity_parser.add_argument("path")
+    convert_entity_parser.add_argument("--to-version", required=True)
+    convert_entity_parser.set_defaults(func=_cmd_convert_entity_record)
+
+    relations_parser = subparsers.add_parser("list-scientific-relations", help="list registered scientific relation metadata")
+    relations_parser.set_defaults(func=_cmd_list_scientific_relations)
+
+    inspect_relation_parser = subparsers.add_parser("inspect-scientific-relation", help="inspect one scientific relation")
+    inspect_relation_parser.add_argument("relation_id")
+    inspect_relation_parser.set_defaults(func=_cmd_inspect_scientific_relation)
+
+    mp_scope_parser = subparsers.add_parser(
+        "audit-materials-project-scope",
+        help="audit existing tracked Materials Project acquisition scope without network access",
+    )
+    mp_scope_parser.add_argument("config")
+    mp_scope_parser.set_defaults(func=_cmd_audit_materials_project_scope)
+
+    mp_preview_parser = subparsers.add_parser(
+        "preview-mp-structure-enrichment",
+        help="preview bounded existing-ID Materials Project structure enrichment without network access",
+    )
+    mp_preview_parser.add_argument("config")
+    mp_preview_parser.set_defaults(func=_cmd_preview_mp_structure_enrichment)
+
+    mp_enrich_parser = subparsers.add_parser(
+        "enrich-mp-structures",
+        help="run bounded existing-ID MP structure enrichment only with --execute",
+    )
+    mp_enrich_parser.add_argument("config")
+    mp_enrich_parser.add_argument("--execute", action="store_true")
+    mp_enrich_parser.set_defaults(func=_cmd_enrich_mp_structures)
+
+    mp_resume_parser = subparsers.add_parser(
+        "resume-mp-structure-enrichment",
+        help="inspect a local MP structure enrichment manifest for resumability",
+    )
+    mp_resume_parser.add_argument("manifest")
+    mp_resume_parser.add_argument("--execute", action="store_true")
+    mp_resume_parser.set_defaults(func=_cmd_resume_mp_structure_enrichment)
+
+    mp_alignment_parser = subparsers.add_parser(
+        "audit-mp-snapshot-alignment",
+        help="compare original v1.3 target with current API target values from local-only structure docs",
+    )
+    mp_alignment_parser.add_argument("config")
+    mp_alignment_parser.set_defaults(func=_cmd_audit_mp_snapshot_alignment)
+
+    mp_cache_parser = subparsers.add_parser("validate-mp-structure-cache", help="validate local-only MP structure cache shape")
+    mp_cache_parser.add_argument("path")
+    mp_cache_parser.set_defaults(func=_cmd_validate_mp_structure_cache)
+
+    mp_convert_parser = subparsers.add_parser(
+        "convert-mp-structures-to-entities",
+        help="convert a small synthetic MP structure payload to JSON-safe entity records",
+    )
+    mp_convert_parser.add_argument("config")
+    mp_convert_parser.set_defaults(func=_cmd_convert_mp_structures_to_entities)
+
+    structure_summary_parser = subparsers.add_parser(
+        "summarize-crystal-structure-entities",
+        help="summarize crystal structure entity records without graph construction",
+    )
+    structure_summary_parser.add_argument("path")
+    structure_summary_parser.set_defaults(func=_cmd_summarize_crystal_structure_entities)
+
+    structure_validate_parser = subparsers.add_parser(
+        "validate-crystal-structure-entity",
+        help="run basic integrity checks for one crystal structure entity",
+    )
+    structure_validate_parser.add_argument("path")
+    structure_validate_parser.set_defaults(func=_cmd_validate_crystal_structure_entity)
+
+    operators_parser = subparsers.add_parser("list-scientific-operators", help="list selected scientific operators")
+    operators_parser.set_defaults(func=_cmd_list_scientific_operators)
+
+    inspect_operator_parser = subparsers.add_parser("inspect-scientific-operator", help="inspect one selected scientific operator")
+    inspect_operator_parser.add_argument("operator_id")
+    inspect_operator_parser.set_defaults(func=_cmd_inspect_scientific_operator)
+
+    operator_validate_parser = subparsers.add_parser(
+        "validate-scientific-operator-registry",
+        help="validate selected scientific operator registry metadata",
+    )
+    operator_validate_parser.set_defaults(func=_cmd_validate_scientific_operator_registry)
+
+    graph_eligibility_parser = subparsers.add_parser(
+        "assess-crystal-graph-eligibility",
+        help="assess graph-construction contract eligibility without constructing a graph",
+    )
+    graph_eligibility_parser.add_argument("path")
+    graph_eligibility_parser.set_defaults(func=_cmd_assess_crystal_graph_eligibility)
+
+    structures_validate_parser = subparsers.add_parser(
+        "validate-crystal-structure-entities",
+        help="validate one or more crystal structure entity records",
+    )
+    structures_validate_parser.add_argument("path")
+    structures_validate_parser.set_defaults(func=_cmd_validate_crystal_structure_entities)
+
+    structure_descriptor_parser = subparsers.add_parser(
+        "build-materials-structure-descriptors",
+        help="build deterministic local-only structure descriptor candidates from CrystalStructureEntity records",
+    )
+    structure_descriptor_parser.add_argument("config")
+    structure_descriptor_parser.set_defaults(func=_cmd_build_materials_structure_descriptors)
+
+    structure_descriptor_validate_parser = subparsers.add_parser(
+        "validate-materials-structure-descriptors",
+        help="validate structure descriptor artifact boundaries",
+    )
+    structure_descriptor_validate_parser.add_argument("path")
+    structure_descriptor_validate_parser.set_defaults(func=_cmd_validate_materials_structure_descriptors)
+
+    graph_build_parser = subparsers.add_parser(
+        "build-crystal-graph-artifacts",
+        help="build deterministic local-only periodic radius graph artifacts",
+    )
+    graph_build_parser.add_argument("config")
+    graph_build_parser.set_defaults(func=_cmd_build_crystal_graph_artifacts)
+
+    graph_validate_parser = subparsers.add_parser(
+        "validate-crystal-graph-artifacts",
+        help="validate periodic graph artifact boundaries",
+    )
+    graph_validate_parser.add_argument("path")
+    graph_validate_parser.set_defaults(func=_cmd_validate_crystal_graph_artifacts)
+
+    readiness_parser = subparsers.add_parser(
+        "summarize-structure-readiness",
+        help="summarize structure-aware prediction readiness without training a model",
+    )
+    readiness_parser.add_argument("config")
+    readiness_parser.set_defaults(func=_cmd_summarize_structure_readiness)
+
+    readiness_export_parser = subparsers.add_parser(
+        "export-structure-readiness-summary",
+        help="export a local-only structure readiness summary scaffold",
+    )
+    readiness_export_parser.add_argument(
+        "--output",
+        default="outputs/materials_project_structure_v2_2/reports/structure_readiness_summary.json",
+    )
+    readiness_export_parser.set_defaults(func=_cmd_export_structure_readiness_summary)
+
+    validate_quantity_parser = subparsers.add_parser("validate-scientific-quantity", help="validate a scientific quantity JSON record")
+    validate_quantity_parser.add_argument("path")
+    validate_quantity_parser.set_defaults(func=_cmd_validate_scientific_quantity)
+
+    propagate_uncertainty_parser = subparsers.add_parser(
+        "propagate-scientific-uncertainty",
+        help="run a bounded uncertainty propagation or eligibility check from a small JSON config",
+    )
+    propagate_uncertainty_parser.add_argument("config")
+    propagate_uncertainty_parser.set_defaults(func=_cmd_propagate_scientific_uncertainty)
+
+    unit_backend_parser = subparsers.add_parser("inspect-unit-backend", help="inspect the active unit backend decision")
+    unit_backend_parser.set_defaults(func=_cmd_inspect_unit_backend)
+
+    schema_migration_parser = subparsers.add_parser("validate-schema-migrations", help="validate registered schema migration fixtures")
+    schema_migration_parser.set_defaults(func=_cmd_validate_schema_migrations)
+
     export_scientific_parser = subparsers.add_parser(
         "export-scientific-registry", help="export scientific registry metadata to an ignored outputs path"
     )
@@ -2557,6 +4199,180 @@ def build_parser() -> argparse.ArgumentParser:
     export_trust_parser.add_argument("--output", default="outputs/platform_science/scientific_trust_export.json")
     export_trust_parser.add_argument("--overwrite", action="store_true")
     export_trust_parser.set_defaults(func=_cmd_export_scientific_trust)
+
+    subparsers.add_parser(
+        "list-materials-feature-builders",
+        help="list registered Materials v2.2 physics feature builders",
+    ).set_defaults(func=_cmd_list_materials_feature_builders)
+
+    inspect_materials_feature_parser = subparsers.add_parser(
+        "inspect-materials-feature-builder",
+        help="inspect one registered Materials v2.2 feature builder",
+    )
+    inspect_materials_feature_parser.add_argument("feature_id")
+    inspect_materials_feature_parser.set_defaults(func=_cmd_inspect_materials_feature_builder)
+
+    build_materials_features_parser = subparsers.add_parser(
+        "build-materials-physics-features",
+        help="build local-only Materials v2.2 physics feature matrix from an existing local source CSV",
+    )
+    build_materials_features_parser.add_argument("config_path")
+    build_materials_features_parser.set_defaults(func=_cmd_build_materials_physics_features)
+
+    validate_materials_features_parser = subparsers.add_parser(
+        "validate-materials-feature-artifact",
+        help="validate a Materials v2.2 feature matrix artifact",
+    )
+    validate_materials_features_parser.add_argument("path")
+    validate_materials_features_parser.set_defaults(func=_cmd_validate_materials_feature_artifact)
+
+    compare_materials_features_parser = subparsers.add_parser(
+        "run-materials-feature-comparison",
+        help="run matched baseline/physics feature-set comparison for Materials v2.2",
+    )
+    compare_materials_features_parser.add_argument("config_path")
+    compare_materials_features_parser.set_defaults(func=_cmd_run_materials_feature_comparison)
+
+    show_materials_comparison_parser = subparsers.add_parser(
+        "show-materials-feature-comparison",
+        help="show a Materials v2.2 predictive-value decision or comparison manifest",
+    )
+    show_materials_comparison_parser.add_argument("result")
+    show_materials_comparison_parser.set_defaults(func=_cmd_show_materials_feature_comparison)
+
+    export_materials_summary_parser = subparsers.add_parser(
+        "export-materials-feature-summary",
+        help="export Materials v2.2 predictive summary to local-only outputs",
+    )
+    export_materials_summary_parser.add_argument(
+        "--decision",
+        default="data/processed/materials_physics_v2_2_predictive_value_decision.json",
+    )
+    export_materials_summary_parser.add_argument(
+        "--summary",
+        default="data/processed/materials_physics_v2_2_predictive_comparison_summary.csv",
+    )
+    export_materials_summary_parser.add_argument(
+        "--output",
+        default="outputs/materials_physics_v2_2/materials_feature_summary_export.json",
+    )
+    export_materials_summary_parser.add_argument("--markdown-output")
+    export_materials_summary_parser.set_defaults(func=_cmd_export_materials_feature_summary)
+
+    known_structure_preview_parser = subparsers.add_parser(
+        "preview-materials-known-structure-comparison",
+        help="preview known-structure predictive comparison inputs without running models",
+    )
+    known_structure_preview_parser.add_argument("config_path")
+    known_structure_preview_parser.set_defaults(func=_cmd_preview_materials_known_structure_comparison)
+
+    known_structure_cohort_parser = subparsers.add_parser(
+        "build-materials-known-structure-cohort",
+        help="build the local-only matched known-structure cohort",
+    )
+    known_structure_cohort_parser.add_argument("config_path")
+    known_structure_cohort_parser.set_defaults(func=_cmd_build_materials_known_structure_cohort)
+
+    known_structure_validate_cohort_parser = subparsers.add_parser(
+        "validate-materials-known-structure-cohort",
+        help="validate a local-only known-structure cohort artifact",
+    )
+    known_structure_validate_cohort_parser.add_argument("path")
+    known_structure_validate_cohort_parser.set_defaults(func=_cmd_validate_materials_known_structure_cohort)
+
+    known_structure_run_parser = subparsers.add_parser(
+        "run-materials-known-structure-comparison",
+        help="run fixed known-structure Materials predictive comparison",
+    )
+    known_structure_run_parser.add_argument("config_path")
+    known_structure_run_parser.set_defaults(func=_cmd_run_materials_known_structure_comparison)
+
+    known_structure_show_parser = subparsers.add_parser(
+        "show-materials-known-structure-comparison",
+        help="show a known-structure predictive decision or manifest",
+    )
+    known_structure_show_parser.add_argument("result")
+    known_structure_show_parser.set_defaults(func=_cmd_show_materials_known_structure_comparison)
+
+    known_structure_validate_result_parser = subparsers.add_parser(
+        "validate-materials-known-structure-result",
+        help="validate a known-structure predictive decision artifact",
+    )
+    known_structure_validate_result_parser.add_argument("path")
+    known_structure_validate_result_parser.set_defaults(func=_cmd_validate_materials_known_structure_result)
+
+    known_structure_export_parser = subparsers.add_parser(
+        "export-materials-known-structure-summary",
+        help="export known-structure summary to local-only outputs",
+    )
+    known_structure_export_parser.add_argument(
+        "--decision",
+        default="data/processed/materials_v2_2_5_predictive_value_decision.json",
+    )
+    known_structure_export_parser.add_argument(
+        "--output",
+        default="outputs/materials_structure_prediction_v2_2/reports/known_structure_summary_export.json",
+    )
+    known_structure_export_parser.set_defaults(func=_cmd_export_materials_known_structure_summary)
+
+    known_structure_claim_parser = subparsers.add_parser(
+        "evaluate-materials-structure-predictive-claim",
+        help="evaluate known-structure predictive claim boundaries",
+    )
+    known_structure_claim_parser.add_argument("result")
+    known_structure_claim_parser.set_defaults(func=_cmd_evaluate_materials_structure_predictive_claim)
+
+    known_structure_uncertainty_parser = subparsers.add_parser(
+        "show-materials-prediction-uncertainty",
+        help="show known-structure prediction interval diagnostics",
+    )
+    known_structure_uncertainty_parser.add_argument("result")
+    known_structure_uncertainty_parser.set_defaults(func=_cmd_show_materials_prediction_uncertainty)
+
+    subparsers.add_parser(
+        "audit-v2-2-scientific-evidence",
+        help="audit v2.2 Materials scientific evidence from tracked compact artifacts",
+    ).set_defaults(func=_cmd_audit_v2_2_scientific_evidence)
+
+    subparsers.add_parser(
+        "show-v2-2-capability-matrix",
+        help="show the v2.2 Materials capability matrix",
+    ).set_defaults(func=_cmd_show_v2_2_capability_matrix)
+
+    subparsers.add_parser(
+        "show-v2-2-claim-matrix",
+        help="show the v2.2 Materials claim matrix",
+    ).set_defaults(func=_cmd_show_v2_2_claim_matrix)
+
+    subparsers.add_parser(
+        "show-v2-2-prediction-contexts",
+        help="show v2.2 Materials prediction-context boundaries",
+    ).set_defaults(func=_cmd_show_v2_2_prediction_contexts)
+
+    subparsers.add_parser(
+        "show-v2-2-uncertainty-boundaries",
+        help="show v2.2 Materials uncertainty boundaries",
+    ).set_defaults(func=_cmd_show_v2_2_uncertainty_boundaries)
+
+    subparsers.add_parser(
+        "validate-v2-2-artifact-lineage",
+        help="validate v2.2 Materials compact artifact lineage",
+    ).set_defaults(func=_cmd_validate_v2_2_artifact_lineage)
+
+    subparsers.add_parser(
+        "validate-v2-2-result-preservation",
+        help="validate that v2.2.1/v2.2.4/v2.2.5 decisions remain preserved",
+    ).set_defaults(func=_cmd_validate_v2_2_result_preservation)
+
+    subparsers.add_parser(
+        "export-v2-2-closeout-summary",
+        help="export tracked v2.2 Materials closeout summary artifacts",
+    ).set_defaults(func=_cmd_export_v2_2_closeout_summary)
+
+    subparsers.add_parser(
+        "evaluate-v2-2-release-readiness",
+        help="evaluate v2.2 Materials release readiness from compact closeout artifacts",
+    ).set_defaults(func=_cmd_evaluate_v2_2_release_readiness)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

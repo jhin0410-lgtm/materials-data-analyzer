@@ -1,0 +1,27 @@
+{
+  "chunk_size": 50,
+  "credential_policy": {
+    "network_access_required": true,
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "execute": false,
+  "max_records": 838,
+  "mode": "enrich_existing_ids",
+  "output_root": "outputs/materials_project_structure_v2_2",
+  "requested_fields": [
+    "material_id",
+    "structure",
+    "formula_pretty",
+    "composition",
+    "composition_reduced",
+    "chemsys",
+    "nelements",
+    "energy_above_hull",
+    "density",
+    "volume",
+    "symmetry",
+    "last_updated"
+  ],
+  "schema_version": "2.2.4"
+}

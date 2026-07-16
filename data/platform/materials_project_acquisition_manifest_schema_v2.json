@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.2.3",
+  "schema_id": "materials_project_acquisition_manifest_schema_v2",
+  "status": "release_ready",
+  "required_fields": [
+    "source_system",
+    "endpoint",
+    "query_plan_checksum",
+    "requested_fields",
+    "execution_status",
+    "material_count"
+  ],
+  "prohibited_fields": [
+    "api_key",
+    "token",
+    "absolute_path",
+    "raw_structure_payload"
+  ],
+  "local_only_policy": "row_level_structure_artifacts_are_not_tracked"
+}

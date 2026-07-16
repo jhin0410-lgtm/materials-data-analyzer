@@ -7,6 +7,11 @@ assumptions, applicability, and conservative consistency checks. They are not
 physics solvers, symbolic math, dataset readers, feature-selection engines, or
 model-training hooks.
 
+v2.2.2 keeps constraints separate from scientific relations. A relation records
+the scientific relationship and registered operator metadata, while a
+constraint records validation or applicability checks. Display equations remain
+non-executable metadata.
+
 ## Contract Boundary
 
 Each constraint declares:

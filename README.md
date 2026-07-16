@@ -273,7 +273,7 @@ Tabular Engineering Data Analysis & Virtual Experiment Screening Platform.
 | --- | --- | --- | --- | --- |
 | Kaggle NASA Li-ion Battery | Capacity-retention analysis | Random split vs `battery_id` group split | Stronger within-battery interpolation than unseen-battery generalization | v0.8 |
 | Battery Archive | Cycle-level capacity retention and threshold proxies | Data quality, observed censoring, reliability group summaries | Descriptive cycle-data case study; no forecasting/RUL claim | v1.1 |
-| Materials Project | Computed-property screening and composition-only validation | Group-aware chemical-system validation and applicability domain | Descriptive screening reproducible; predictive validation weak | v1.2 / v1.3 |
+| Materials Project | Computed-property screening, composition features, and known-structure descriptors | Group-aware chemical-system/reduced-formula validation and scientific claim closeout | Descriptive screening reproducible; v2.2 `performance_degraded` / `structure_predictive_value_limited`; no representative model | v1.2 / v1.3 / v2.2 |
 | Smart Factory / UCI SECOM | Process-quality failure classification | Time-aware validation and random-split gap | Diagnostic-only; no production model selected | v1.4.0 |
 | Reliability / Backblaze | 7-day drive failure-risk ranking | Asset-disjoint, time-aware, combined asset/time validation | Diagnostic-only; no representative model selected | v1.5.0 |
 
@@ -335,18 +335,40 @@ Fe/Si-containing multinary calculated-property table. It demonstrates:
 - Group-aware baseline validation by reduced formula and chemical system
 - Applicability-domain, error-structure, and claim-boundary diagnostics
 - Conservative release closeout with weak/limited predictive results preserved
+- v2.2 bounded composition physics-feature builders and matched
+  predictive-value validation, currently recorded as `performance_degraded`
+- v2.2.4/v2.2.5 controlled known-structure enrichment and fixed
+  known-structure descriptor comparison, currently recorded as
+  `structure_predictive_value_limited`
 
 This case study does not claim novel materials discovery, direct DFT execution,
 synthesis feasibility, experimental validation, or generalizable model
 performance. The v1.3 conclusion is that composition-only prediction remained
 weak, group-aware generalization was limited, and observed-property descriptive
-screening remains reproducible. Reproduction commands and interpretation notes
+screening remains reproducible. The v2.2 feature-builder follow-up generated
+838/838 physics feature rows with complete property coverage, but matched
+group-aware validation did not improve over the baseline, so it is recorded as
+`performance_degraded` rather than a physics-aware model success. The
+known-structure follow-up retrieved and converted structures for the same 838
+IDs, preserved the original v1.3 target, and found limited structure
+descriptor value in one primary group split only; no representative
+known-structure model, GNN, DFT-replacement, or hybrid physics-ML claim is
+selected.
+Reproduction commands and interpretation notes
 live in:
 
 - [`data/case_studies/materials_project/README.md`](data/case_studies/materials_project/README.md)
 - [`data/case_studies/materials_project/source.md`](data/case_studies/materials_project/source.md)
 - [`data/case_studies/materials_project/screening_methodology.md`](data/case_studies/materials_project/screening_methodology.md)
 - [`data/case_studies/materials_project/case_study.md`](data/case_studies/materials_project/case_study.md)
+- [`docs/MATERIALS_PHYSICS_FEATURES.md`](docs/MATERIALS_PHYSICS_FEATURES.md)
+- [`docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md`](docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md)
+- [`docs/MATERIALS_KNOWN_STRUCTURE_PREDICTION.md`](docs/MATERIALS_KNOWN_STRUCTURE_PREDICTION.md)
+- [`docs/MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md`](docs/MATERIALS_STRUCTURE_PREDICTIVE_VALUE.md)
+- [`docs/PLATFORM_V2_2_CLOSEOUT.md`](docs/PLATFORM_V2_2_CLOSEOUT.md)
+- [`docs/MATERIALS_V2_2_SCIENTIFIC_EVIDENCE.md`](docs/MATERIALS_V2_2_SCIENTIFIC_EVIDENCE.md)
+- [`docs/MATERIALS_V2_2_CLAIM_BOUNDARIES.md`](docs/MATERIALS_V2_2_CLAIM_BOUNDARIES.md)
+- [`docs/MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md`](docs/MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md)
 
 ### Smart Factory / UCI SECOM
 
@@ -408,6 +430,12 @@ study can be complete even when no representative model is selected. The
 Backblaze v1.5 release is an example: top-risk concentration exists, but
 repeated daily origins, resource-limited training, uncertain censoring, and
 missing external validation keep the result inside a diagnostic boundary.
+
+The Materials v2.2 closeout applies the same discipline to scientific features:
+composition-derived features remain `performance_degraded`, known-structure
+descriptors remain `structure_predictive_value_limited`, graph artifacts remain
+representation-only, prediction intervals are not DFT uncertainty, and no
+representative Materials model is selected.
 
 ## Optional Connectors
 
@@ -595,6 +623,33 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   production scientific decisions.
 - See [`docs/PLATFORM_V2_1_CLOSEOUT.md`](docs/PLATFORM_V2_1_CLOSEOUT.md) and
   [`docs/releases/V2_1_0.md`](docs/releases/V2_1_0.md).
+
+### v2.2 Complete: Materials Physics and Known-Structure Evidence
+
+- Selected Materials composition feature builders are implemented with
+  documented pymatgen property provenance and local-only row-level outputs.
+- Matched predictive-value validation uses the existing v1.3 split/model
+  policy; the current result is `performance_degraded`, not a successful
+  physics-aware model.
+- See [`docs/MATERIALS_PHYSICS_FEATURES.md`](docs/MATERIALS_PHYSICS_FEATURES.md)
+  and [`docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md`](docs/MATERIALS_PREDICTIVE_VALUE_VALIDATION.md).
+- v2.2.2 adds scientific entity, quantity, uncertainty, relation,
+  unit-backend, schema-evolution, and graph/trajectory metadata foundations.
+  These are JSON-safe contracts, not live-object persistence, simulator
+  execution, GNN execution, or new predictive evidence.
+- v2.2.3 audits the exact 838-row Materials Project acquisition scope and adds
+  structure-entity adapter/operator metadata.
+- v2.2.4 performs controlled existing-ID structure enrichment and deterministic
+  descriptor/periodic graph artifact generation under local-only outputs.
+- v2.2.5 runs a known-structure post-relaxation comparison. The result is
+  `structure_predictive_value_limited`, with no representative structure-aware
+  model selected and no GNN, SHAP, DFT replacement, or phase-stability claim.
+- v2.2.6 closes the Materials evidence cycle with capability/evidence/claim
+  matrices, uncertainty boundaries, artifact-lineage validation, and a
+  `release_ready` verdict for v2.2.0 while preserving the negative/limited
+  scientific results.
+- See [`docs/PLATFORM_V2_2_CLOSEOUT.md`](docs/PLATFORM_V2_2_CLOSEOUT.md) and
+  [`docs/releases/V2_2_0.md`](docs/releases/V2_2_0.md).
 
 ### Later
 

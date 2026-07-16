@@ -1,0 +1,35 @@
+{
+  "case_study_id": "materials_project",
+  "composition_decision": "performance_degraded",
+  "current_target_policy": "audit_only_not_label_not_feature",
+  "gnn_model_validated": false,
+  "graph_model_used": false,
+  "known_structure_decision": "structure_predictive_value_limited",
+  "limitations": [
+    "Composition-derived physics features degraded primary group-aware performance.",
+    "Known-structure descriptors showed limited improvement in one primary group split only.",
+    "No external validation or representative model exists.",
+    "Graph artifacts are representation-only and were not used by a GNN or graph model.",
+    "Prediction intervals are not DFT or source uncertainty."
+  ],
+  "no_new_scientific_result": true,
+  "recommended_next_scope": "v2.3 PGIR/RFC design for future physics/graph representation governance without model overclaim",
+  "release_gates": {
+    "artifact_lineage_complete": true,
+    "context_separation_explicit": true,
+    "graph_boundary_correct": true,
+    "local_only_outputs_ignored": true,
+    "no_representative_model": true,
+    "overclaim_absent": true,
+    "result_preservation_valid": true,
+    "schemas_deterministic": true,
+    "target_leakage_absent": true,
+    "unit_uncertainty_semantics_correct": true,
+    "v2_2_1_conclusion_preserved": true,
+    "v2_2_5_conclusion_preserved": true
+  },
+  "release_readiness": "release_ready",
+  "representative_model_selected": false,
+  "schema_version": "2.2.6",
+  "target_source": "original_v1_3_energy_above_hull"
+}

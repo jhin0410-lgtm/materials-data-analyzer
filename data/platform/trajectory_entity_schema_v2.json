@@ -1,0 +1,18 @@
+{
+  "schema_version": "2.2.2",
+  "schema_name": "trajectory_entity_schema_v2",
+  "status": "scaffold_stage",
+  "required_metadata": [
+    "ordered_state_refs",
+    "time_axis",
+    "transition_operator_refs",
+    "solver_metadata",
+    "numerical_tolerance",
+    "convergence_status"
+  ],
+  "claim_boundary": {
+    "simulator_metadata_ready": true,
+    "solver_implemented": false,
+    "dynamic_prediction_claim": false
+  }
+}

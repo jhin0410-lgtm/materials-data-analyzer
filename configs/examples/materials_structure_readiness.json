@@ -1,0 +1,13 @@
+{
+  "credential_policy": {
+    "network_access_required": false,
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "descriptors_path": "outputs/materials_project_structure_v2_2/descriptors/structure_descriptors.csv",
+  "entities_path": "outputs/materials_project_structure_v2_2/entities/crystal_structure_entities.jsonl",
+  "graphs_path": "outputs/materials_project_structure_v2_2/graphs/periodic_graphs.jsonl",
+  "requested_count": 838,
+  "schema_version": "2.2.4",
+  "structure_docs_path": "outputs/materials_project_structure_v2_2/acquisition/chunks"
+}

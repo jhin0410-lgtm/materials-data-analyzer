@@ -1,6 +1,6 @@
 # Scientific Feature Candidates
 
-Status: `release_ready` for v2.1.5.
+Status: `v2.2.2 foundation with selected Materials builders`.
 
 The scientific feature registry stores metadata for possible physics-aware
 features. It does not calculate feature values, create feature tables, train
@@ -67,3 +67,31 @@ It does not mean:
 
 v2.2 may add bounded builders for selected candidates after each builder has a
 contract, leakage test, unit test, and claim boundary.
+
+## v2.2 Materials Builder Follow-Up
+
+v2.2.1 implements bounded builders for selected Materials candidates:
+composition-weighted means/variances, atomic-radius mismatch,
+electronegativity mismatch, ideal configurational mixing entropy, and
+valence-electron concentration. The builders generated 838/838 rows for the
+local v1.3 Materials Project dataset with complete property coverage.
+
+Matched predictive-value validation recorded `physics_informed_feature_used`,
+but the decision was `performance_degraded` rather than improved predictive
+evidence. `physics_constrained_model`, `hybrid_physics_ml`, SHAP, DFT
+replacement, and new-material discovery claims remain prohibited.
+
+## v2.2.2 Entity Foundation
+
+v2.2.2 adds scientific entity, relation, quantity, unit-backend, uncertainty,
+and schema-evolution contracts around feature candidates. This makes the
+relationship between value, provenance, relation, and future operator metadata
+explicit. It does not add new feature values, rerun the v2.2.1 comparison, or
+upgrade `performance_degraded` into positive predictive evidence.
+
+## v2.2.3 Structure Operator Boundary
+
+v2.2.3 adds descriptive crystal-structure geometry operators for metadata
+validation and future enrichment planning. These summaries are not registered
+as predictive feature artifacts and do not change the v2.2.1 Materials
+`performance_degraded` result.

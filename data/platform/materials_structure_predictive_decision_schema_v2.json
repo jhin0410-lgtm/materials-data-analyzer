@@ -1,0 +1,24 @@
+{
+  "schema_id": "materials_structure_predictive_decision_schema_v2",
+  "schema_version": "2.2.5",
+  "case_study_id": "materials_project",
+  "status": "release_ready",
+  "required_fields": [
+    "schema_version",
+    "prediction_context",
+    "target_source",
+    "structure_predictive_value_status",
+    "representative_model_selected",
+    "claim_boundary"
+  ],
+  "allowed_statuses": [
+    "structure_predictive_value_supported",
+    "structure_predictive_value_limited",
+    "random_only_structure_improvement",
+    "structure_performance_degraded",
+    "no_material_structure_improvement",
+    "blocked_artifact_mismatch"
+  ],
+  "representative_model_policy": "none_unless_both_primary_group_splits_improve",
+  "claim_boundary_policy": "no_gnn_no_dft_replacement_no_pre_structure_claim"
+}

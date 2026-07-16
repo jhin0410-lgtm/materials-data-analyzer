@@ -1,0 +1,139 @@
+{
+  "case_study_id": "materials_project",
+  "prediction_interval_diagnostics": {
+    "confidence_level": 0.9,
+    "interpretation": "predictive_residual_interval_not_dft_uncertainty",
+    "mean_empirical_coverage": 0.8991245397445919,
+    "mean_interval_width": 0.4003067784678055,
+    "row_count": 75,
+    "target_unit": "eV/atom"
+  },
+  "schema_version": "2.2.6",
+  "status": "release_ready",
+  "uncertainty_records": [
+    {
+      "interpretation": "Materials Project records used here do not provide per-record source uncertainty.",
+      "limitations": [
+        "Unavailable does not mean zero."
+      ],
+      "prohibited_interpretations": [
+        "zero_uncertainty",
+        "confidence_score"
+      ],
+      "status": "unavailable",
+      "supporting_artifacts": [
+        "docs/SCIENTIFIC_QUANTITIES_AND_UNCERTAINTY.md"
+      ],
+      "uncertainty_id": "source_uncertainty",
+      "unit": "not_applicable"
+    },
+    {
+      "interpretation": "Snapshot matching and floating-point tolerances are data-quality checks, not scientific uncertainty intervals.",
+      "limitations": [
+        "Tolerances cannot be used as predictive confidence."
+      ],
+      "prohibited_interpretations": [
+        "tolerance_as_measurement_uncertainty"
+      ],
+      "status": "validation_tolerance_only",
+      "supporting_artifacts": [
+        "data/processed/materials_project_v2_2_4_snapshot_alignment_summary.csv"
+      ],
+      "uncertainty_id": "numerical_tolerance",
+      "unit": "eV/atom_for_target_alignment"
+    },
+    {
+      "interpretation": "Residual prediction intervals are bounded to the v2.2.5 model, cohort, and split context.",
+      "limitations": [
+        "They do not quantify DFT, experimental, or source uncertainty."
+      ],
+      "prohibited_interpretations": [
+        "DFT_uncertainty",
+        "physical_ground_truth_uncertainty"
+      ],
+      "status": "prediction_interval_evaluated",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_prediction_uncertainty_summary.csv"
+      ],
+      "uncertainty_id": "predictive_interval",
+      "unit": "eV/atom"
+    },
+    {
+      "interpretation": "Fold-to-fold variation is represented in paired metrics and is distinct from prediction intervals.",
+      "limitations": [
+        "Variation does not establish causal explanation."
+      ],
+      "prohibited_interpretations": [
+        "single_split_generalization_claim"
+      ],
+      "status": "fold_variation_recorded",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_paired_metric_summary.csv"
+      ],
+      "uncertainty_id": "split_uncertainty",
+      "unit": "metric_specific"
+    },
+    {
+      "interpretation": "Simple descriptors and fixed baselines may miss structural chemistry; this is a model-form limitation, not a numeric interval.",
+      "limitations": [
+        "No scalar model-form uncertainty is invented."
+      ],
+      "prohibited_interpretations": [
+        "generic_confidence_score"
+      ],
+      "status": "limitation_recorded",
+      "supporting_artifacts": [
+        "data/processed/materials_v2_2_5_predictive_value_decision.json"
+      ],
+      "uncertainty_id": "model_form_uncertainty",
+      "unit": "not_applicable"
+    }
+  ],
+  "unit_audit": [
+    {
+      "quantity": "energy_above_hull",
+      "status": "canonical_target_unit",
+      "unit": "eV/atom"
+    },
+    {
+      "quantity": "lattice_length",
+      "status": "structure_quantity_unit",
+      "unit": "angstrom"
+    },
+    {
+      "quantity": "volume",
+      "status": "structure_quantity_unit",
+      "unit": "angstrom^3"
+    },
+    {
+      "quantity": "volume_per_atom",
+      "status": "descriptor_unit",
+      "unit": "angstrom^3/atom"
+    },
+    {
+      "quantity": "density",
+      "status": "descriptor_unit",
+      "unit": "g/cm^3"
+    },
+    {
+      "quantity": "neighbor_distance",
+      "status": "descriptor_unit",
+      "unit": "angstrom"
+    },
+    {
+      "quantity": "angles",
+      "status": "structure_quantity_unit",
+      "unit": "degree"
+    },
+    {
+      "quantity": "composition_descriptors",
+      "status": "descriptor_unit",
+      "unit": "dimensionless"
+    },
+    {
+      "quantity": "prediction_interval",
+      "status": "same_as_target",
+      "unit": "eV/atom"
+    }
+  ]
+}

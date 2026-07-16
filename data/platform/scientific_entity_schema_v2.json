@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.2.2",
+  "schema_name": "scientific_entity_schema_v2",
+  "status": "scaffold_stage",
+  "required_fields": [
+    "entity_id",
+    "entity_type",
+    "schema_id",
+    "schema_version",
+    "domain",
+    "attributes"
+  ],
+  "supported_entity_types": [
+    "MaterialCompositionEntity",
+    "CrystalStructureEntity",
+    "MeasurementSeriesEntity",
+    "StateEntity",
+    "TrajectoryEntity",
+    "GraphEntity"
+  ],
+  "persistence_policy": {
+    "live_python_object_persistence": false,
+    "pickle_allowed": false,
+    "registry_stores": [
+      "entity_id",
+      "entity_type",
+      "schema_reference",
+      "checksum",
+      "artifact_reference",
+      "compact_metadata"
+    ]
+  }
+}

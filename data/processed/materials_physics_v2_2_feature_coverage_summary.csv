@@ -1,0 +1,11 @@
+schema_version,feature_id,column_name,role,unit,row_count,generated_row_count,non_null_count,finite_count,coverage_rate,coverage_status
+2.2.1,materials.atomic_radius_weighted_mean,atomic_radius_weighted_mean,physics_informed_feature,angstrom,838,838,838,838,1.0,complete
+2.2.1,materials.atomic_radius_weighted_variance,atomic_radius_weighted_variance,physics_informed_feature,angstrom^2,838,838,838,838,1.0,complete
+2.2.1,materials.atomic_radius_mismatch,atomic_radius_mismatch,physics_informed_feature,dimensionless,838,838,838,838,1.0,complete
+2.2.1,materials.electronegativity_weighted_mean,electronegativity_weighted_mean,physics_informed_feature,Pauling,838,838,838,838,1.0,complete
+2.2.1,materials.electronegativity_weighted_variance,electronegativity_weighted_variance,physics_informed_feature,Pauling^2,838,838,838,838,1.0,complete
+2.2.1,materials.electronegativity_mismatch,electronegativity_mismatch,physics_informed_feature,Pauling,838,838,838,838,1.0,complete
+2.2.1,materials.configurational_mixing_entropy,configurational_mixing_entropy_j_per_mol_k,physics_informed_feature,J/mol/K,838,838,838,838,1.0,complete
+2.2.1,materials.valence_electron_concentration,valence_electron_concentration,physics_informed_feature,electrons/atom,838,838,838,838,1.0,complete
+2.2.1,materials.number_of_elements,number_of_elements,control_composition_feature,count,838,838,838,838,1.0,complete
+2.2.1,row_status:generated,feature_build_status,quality_metadata,count,838,838,838,838,1.0,status_count

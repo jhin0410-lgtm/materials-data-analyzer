@@ -1,0 +1,11 @@
+{
+  "credential_policy": {
+    "network_access_required": false,
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "mode": "convert_cached_structure_docs",
+  "output": "outputs/materials_project_structure_v2_2/entities/crystal_structure_entities.jsonl",
+  "schema_version": "2.2.4",
+  "structure_docs_path": "outputs/materials_project_structure_v2_2/acquisition/chunks"
+}
