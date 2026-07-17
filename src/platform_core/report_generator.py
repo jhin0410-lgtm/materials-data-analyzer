@@ -14,6 +14,7 @@ from .artifact_resolver import ArtifactResolver, calculate_sha256
 from .artifacts import ArtifactRegistry, build_default_artifact_registry, validate_relative_path
 from .case_study_registry import CaseStudyRegistry, build_default_case_study_registry
 from .execution_policy import ExecutionPolicyRegistry, build_default_execution_policy_registry
+from .pgir_governance import governance_summary
 from .registry import PluginRegistry, build_default_plugin_registry
 from .report_extractors import extract_case_study_results
 from .reports import (
@@ -136,6 +137,8 @@ def validate_report_config(config: dict[str, Any]) -> None:
         raise ValueError("include_registry_diagnostics must be a boolean")
     if "include_scientific_trust" in config and not isinstance(config["include_scientific_trust"], bool):
         raise ValueError("include_scientific_trust must be a boolean")
+    if "include_pgir_governance" in config and not isinstance(config["include_pgir_governance"], bool):
+        raise ValueError("include_pgir_governance must be a boolean")
     registry_path = config.get("registry_path")
     if registry_path is not None:
         if not isinstance(registry_path, str):
@@ -497,6 +500,22 @@ def _scientific_trust_summary(config: dict[str, Any], repo_root: Path) -> dict[s
     }
 
 
+def _pgir_governance_summary(config: dict[str, Any]) -> dict[str, Any]:
+    if config.get("include_pgir_governance") is not True:
+        return {"status": "not_requested"}
+    summary = governance_summary()
+    return {
+        "status": summary["status"],
+        "concept_count": summary["concept_count"],
+        "mapping_count": summary["mapping_count"],
+        "schema_count": summary["schema_count"],
+        "capability_count": summary["capability_count"],
+        "operator_roles": summary["operator_roles"],
+        "readiness": summary["readiness"],
+        "execution_boundary": summary["execution_boundary"],
+    }
+
+
 def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = ".") -> PlatformReport:
     validate_report_config(config)
     root = Path(repo_root).resolve()
@@ -541,6 +560,7 @@ def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = "."
         trust_policy_summary=tuple(registries.trust_registry.snapshot()),
         registry_diagnostics_summary=_registry_diagnostics_summary(config, root),
         scientific_trust_summary=_scientific_trust_summary(config, root),
+        pgir_governance_summary=_pgir_governance_summary(config),
         testing_summary=testing_summary,
         security_boundaries=(
             "no acquisition, normalization, feature engineering, model training, or trust rerun",
@@ -700,6 +720,15 @@ def render_report_markdown(report: PlatformReport) -> str:
     lines.extend(["", "## Scientific Trust Summary"])
     for key, value in sorted(report.scientific_trust_summary.items()):
         lines.append(f"- `{key}`: `{value}`")
+    if report.pgir_governance_summary.get("status") != "not_requested":
+        lines.extend(["", "## PGIR Architecture And Governance"])
+        lines.append(f"- `status`: `{report.pgir_governance_summary['status']}`")
+        lines.append(f"- `concept_count`: `{report.pgir_governance_summary['concept_count']}`")
+        lines.append(f"- `mapping_count`: `{report.pgir_governance_summary['mapping_count']}`")
+        lines.append(f"- `schema_count`: `{report.pgir_governance_summary['schema_count']}`")
+        lines.append(f"- `capability_count`: `{report.pgir_governance_summary['capability_count']}`")
+        lines.append("- `scientific_recomputation_performed`: `False`")
+        lines.append("- PGIR is a representation-governance layer; no physics execution, API call, model run, or raw artifact read is performed.")
     lines.extend(["", "## Case-Study Result Summaries"])
     for case in report.case_studies:
         lines.extend(

@@ -38,3 +38,11 @@ the v2.2.1 `performance_degraded` conclusion.
 The closeout reads operator snapshots and compact result artifacts only. It
 does not register a new execution-capable operator, import arbitrary callables,
 regenerate descriptors, rebuild graphs, or rerun predictive comparisons.
+
+## v2.3.1 PGIR Operator Roles
+
+PGIR classifies operator metadata into `Evaluator`, `Transformer`, and
+`Propagator` roles. Existing v2.2 structure conversion and graph construction
+remain Transformer-style metadata. Existing bounded consistency checks remain
+Evaluator-style metadata. `Propagator` is concept-defined only in v2.3.1; no
+diffusion, Arrhenius, PDE/ODE, GNN, PINN, or physics-loss execution is added.

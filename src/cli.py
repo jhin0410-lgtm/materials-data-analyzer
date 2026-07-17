@@ -59,6 +59,15 @@ from .platform_core.report_generator import (
     load_report_json,
     load_report_manifest,
 )
+from .platform_core.pgir_governance import (
+    evaluate_pgir_readiness,
+    governance_summary,
+    load_registry_payload,
+    representation_maturity_levels,
+    validate_capability_stages,
+    validate_mapping_matrix,
+    validate_schema_governance,
+)
 from .platform_core.registry_service import RegistryService
 from .platform_core.run_registry import (
     DEFAULT_EXPORT_DIR,
@@ -3596,6 +3605,165 @@ def _cmd_evaluate_v2_2_release_readiness(args: argparse.Namespace) -> int:
     )
 
 
+def _pgir_registry_payload(name: str) -> dict[str, Any]:
+    return load_registry_payload(Path("data/platform") / f"{name}.json")
+
+
+def _cmd_list_pgir_concepts(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_concept_registry_v1")
+    concepts = payload["concepts"]
+    result = {
+        "schema_version": payload["schema_version"],
+        "status": payload["status"],
+        "concept_count": len(concepts),
+        "concepts": concepts,
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines(f"{item['concept_id']}\t{item['status']}\t{item['definition']}" for item in concepts)
+    return 0
+
+
+def _cmd_inspect_pgir_concept(args: argparse.Namespace) -> int:
+    concepts = _pgir_registry_payload("pgir_concept_registry_v1")["concepts"]
+    for concept in concepts:
+        if concept["concept_id"] == args.concept_id:
+            if args.json:
+                _emit_json(concept)
+            else:
+                _emit_lines(
+                    [
+                        f"concept_id: {concept['concept_id']}",
+                        f"definition: {concept['definition']}",
+                        f"status: {concept['status']}",
+                        f"maturity_requirements: {', '.join(concept['maturity_requirements']) or 'none'}",
+                    ]
+                )
+            return 0
+    payload = {"status": "unknown_pgir_concept", "concept_id": args.concept_id}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"unknown_pgir_concept: {args.concept_id}", file=sys.stderr)
+    return EXIT_INVALID_CONFIG
+
+
+def _cmd_show_pgir_mapping(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_current_mapping_matrix_v1")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            f"{item['implementation_ref']}\t{item['mapping_status']}\t{','.join(item['pgir_concepts'])}"
+            for item in payload["mappings"]
+        )
+    return 0
+
+
+def _cmd_validate_pgir_mapping(args: argparse.Namespace) -> int:
+    result = validate_mapping_matrix()
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result['valid']).lower()}", f"mapping_count: {result['mapping_count']}"])
+    return 0 if result["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_show_pgir_representation_levels(args: argparse.Namespace) -> int:
+    payload = {"schema_version": "2.3.1", "maturity_levels": list(representation_maturity_levels())}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(f"{item['level']}\t{item['maturity_id']}\t{item['definition']}" for item in payload["maturity_levels"])
+    return 0
+
+
+def _cmd_show_pgir_schema_ownership(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_schema_ownership_registry_v1")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(f"{item['schema_id']}\t{item['owner_module']}\t{item['pgir_concept']}" for item in payload["schemas"])
+    return 0
+
+
+def _cmd_validate_pgir_schema_governance(args: argparse.Namespace) -> int:
+    result = validate_schema_governance()
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result['valid']).lower()}", f"schema_count: {result['schema_count']}"])
+    return 0 if result["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_show_pgir_capability_stages(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_capability_stage_registry_v1")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(f"{item['capability_id']}\t{item['capability_stage']}\t{item['current_status']}" for item in payload["capabilities"])
+    return 0
+
+
+def _cmd_evaluate_pgir_readiness(args: argparse.Namespace) -> int:
+    decision = evaluate_pgir_readiness().to_dict()
+    if args.json:
+        _emit_json(decision)
+    else:
+        _emit_lines(
+            [
+                f"status: {decision['status']}",
+                f"valid: {str(decision['valid']).lower()}",
+                f"concept_count: {decision['readiness_summary']['concept_count']}",
+                f"model_or_solver_executed: {str(decision['readiness_summary']['model_or_solver_executed']).lower()}",
+            ]
+        )
+    return 0 if decision["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_export_pgir_governance_summary(args: argparse.Namespace) -> int:
+    try:
+        target = _resolve_pgir_export_output(Path.cwd(), args.output)
+        if target.exists() and not args.overwrite:
+            raise FileExistsError(f"output already exists: {args.output}")
+        payload = governance_summary()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        temp.replace(target)
+    except (OSError, ValueError, FileExistsError) as exc:
+        result = {"status": "pgir_export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"pgir_export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {
+        "status": "exported",
+        "output": target.relative_to(Path.cwd()).as_posix(),
+        "pgir_status": payload["status"],
+        "scientific_recomputation_performed": payload["execution_boundary"]["scientific_recomputation_performed"],
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"output: {result['output']}", f"pgir_status: {result['pgir_status']}"])
+    return 0
+
+
+def _resolve_pgir_export_output(repo_root: Path, output: str) -> Path:
+    validate_relative_path(output)
+    normalized = output.replace("\\", "/")
+    if not normalized.startswith("outputs/platform_pgir/"):
+        raise ValueError("PGIR governance export must be under outputs/platform_pgir/")
+    target = (repo_root / output).resolve()
+    root = repo_root.resolve()
+    if root != target and root not in target.parents:
+        raise ValueError("PGIR governance export must stay inside repository root")
+    return target
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -4373,6 +4541,52 @@ def build_parser() -> argparse.ArgumentParser:
         "evaluate-v2-2-release-readiness",
         help="evaluate v2.2 Materials release readiness from compact closeout artifacts",
     ).set_defaults(func=_cmd_evaluate_v2_2_release_readiness)
+
+    subparsers.add_parser("list-pgir-concepts", help="list PGIR canonical concept records").set_defaults(
+        func=_cmd_list_pgir_concepts
+    )
+
+    inspect_pgir_parser = subparsers.add_parser("inspect-pgir-concept", help="inspect one PGIR canonical concept")
+    inspect_pgir_parser.add_argument("concept_id")
+    inspect_pgir_parser.set_defaults(func=_cmd_inspect_pgir_concept)
+
+    subparsers.add_parser("show-pgir-mapping", help="show current implementation to PGIR mapping").set_defaults(
+        func=_cmd_show_pgir_mapping
+    )
+
+    subparsers.add_parser("validate-pgir-mapping", help="validate current implementation to PGIR mapping").set_defaults(
+        func=_cmd_validate_pgir_mapping
+    )
+
+    subparsers.add_parser(
+        "show-pgir-representation-levels",
+        help="show PGIR representation maturity levels",
+    ).set_defaults(func=_cmd_show_pgir_representation_levels)
+
+    subparsers.add_parser("show-pgir-schema-ownership", help="show PGIR schema ownership registry").set_defaults(
+        func=_cmd_show_pgir_schema_ownership
+    )
+
+    subparsers.add_parser(
+        "validate-pgir-schema-governance",
+        help="validate PGIR schema ownership and compatibility governance",
+    ).set_defaults(func=_cmd_validate_pgir_schema_governance)
+
+    subparsers.add_parser("show-pgir-capability-stages", help="show PGIR capability-stage registry").set_defaults(
+        func=_cmd_show_pgir_capability_stages
+    )
+
+    subparsers.add_parser("evaluate-pgir-readiness", help="evaluate PGIR governance readiness gates").set_defaults(
+        func=_cmd_evaluate_pgir_readiness
+    )
+
+    export_pgir_parser = subparsers.add_parser(
+        "export-pgir-governance-summary",
+        help="export a local-only PGIR governance summary",
+    )
+    export_pgir_parser.add_argument("--output", default="outputs/platform_pgir/pgir_governance_summary.json")
+    export_pgir_parser.add_argument("--overwrite", action="store_true")
+    export_pgir_parser.set_defaults(func=_cmd_export_pgir_governance_summary)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

@@ -15,6 +15,7 @@
   "include_artifacts": true,
   "include_validation_policies": true,
   "include_trust_policies": true,
+  "include_pgir_governance": true,
   "output_dir": "outputs/platform_reports/platform_v2_all_case_studies",
   "overwrite": false,
   "credential_policy": {

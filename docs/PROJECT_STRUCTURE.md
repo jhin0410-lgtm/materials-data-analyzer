@@ -126,6 +126,12 @@ closeout and capability matrix with `release_ready` status while preserving
 `performance_degraded`, `structure_predictive_value_limited`, and
 `representative_model_selected = false`. These additions do not execute
 arbitrary equations, read raw data, train models, or run physics simulators.
+v2.3.1 adds read-only PGIR governance metadata in
+`src/platform_core/pgir_governance.py` and compact registries under
+`data/platform/pgir_*`. PGIR maps existing scientific records to canonical
+concepts, maturity levels, schema ownership, and capability stages. It does
+not rename existing schemas, execute solvers, run models, call APIs, or change
+v2.2 results.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -254,7 +260,9 @@ compact tracked known-structure cohort, feature-set, paired-metric,
 uncertainty, predictive-value, feature-use, and report summaries. v2.2.6 adds
 compact tracked capability, evidence, claim, context, uncertainty, closeout
 decision, and closeout summary artifacts, plus platform-level capability and
-prediction-context registries. Row-level MP
+prediction-context registries. v2.3.1 adds compact tracked PGIR concept,
+mapping, representation-governance, schema-ownership, and capability-stage
+registries. Row-level MP
 structure chunks, converted structure entities, descriptor rows, graph JSONL,
 alignment tables, known-structure matched cohorts, row-level predictions,
 split assignments, and plots remain local-only under

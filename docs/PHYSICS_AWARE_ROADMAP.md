@@ -97,3 +97,11 @@ them into representative-model claims.
 Physics-aware extensions should be added only when the dataset supplies the
 semantic metadata, units, assumptions, and validation evidence needed to bound
 the claim.
+
+## v2.3.1 PGIR Governance
+
+v2.3.1 introduces PGIR as architecture and representation governance. It
+defines canonical concepts, maturity levels, current implementation mapping,
+schema ownership, and capability stages. It does not add descriptors, rerun
+Materials models, train graph models, execute solvers, or change the v2.2
+`performance_degraded` and `structure_predictive_value_limited` decisions.

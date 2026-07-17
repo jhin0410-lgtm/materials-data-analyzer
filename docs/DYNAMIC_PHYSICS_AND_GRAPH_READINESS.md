@@ -37,3 +37,10 @@ deterministic representation, not model inputs.
 
 No DFT, FEM, CFD, differential equation solver, graph model, GNN training,
 feature tensor generation, or new predictive claim is introduced in this step.
+
+## v2.3.1 PGIR Boundary
+
+PGIR defines how future dynamic state, field, parameter, initial condition, and
+boundary condition records should be governed. The current project remains at
+representation governance for those concepts. `Propagator` capability is
+`concept_defined` only, so dynamic physics execution remains future work.

@@ -1,7 +1,7 @@
 # Platform Architecture
 
-Status: `release_ready` for v2.1.5 platform trust boundaries and v2.2.6
-Materials scientific evidence closeout.
+Status: `release_ready` for the v2.2.0 public release and
+`development_stage` for v2.3.1 PGIR representation governance.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -27,6 +27,9 @@ changing output schemas, or replacing `src/process_data.py`.
 - Scientific evidence closeout read-only: v2.2.6 aggregates Materials
   capability, claim, uncertainty, and release-readiness states from tracked
   compact artifacts only.
+- PGIR governance first: v2.3.1 maps current scientific records to canonical
+  representation concepts, maturity levels, schema ownership, and capability
+  stages without changing existing APIs or executing physics mechanisms.
 - Persistent local registry: v2.1.1 can ingest run/report manifests into a
   local SQLite metadata index without rerunning scientific workflows.
 - Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
@@ -100,12 +103,29 @@ In code:
   scientific evidence closeout, capability matrix, claim matrix,
   uncertainty-boundary summary, lineage validation, and release-readiness
   evaluation
+- `src/platform_core/pgir_governance.py`: v2.3.1 PGIR concept, mapping,
+  schema-ownership, capability-stage, and readiness governance layer
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/analyzers/materials_structure_features.py`: deterministic structure
   descriptor summaries and periodic radius-graph artifact construction
 - `src/analyzers/materials_structure_prediction.py`: bounded known-structure
   post-relaxation feature-set comparison and prediction-interval diagnostics
 - `src/cli.py`: unified CLI scaffold
+
+## PGIR Governance
+
+v2.3.1 adds PGIR as a canonical representation-governance layer. Current
+implementation records remain authoritative; PGIR names are conceptual roles
+used for mapping and future readiness decisions. The tracked registries are:
+
+- `data/platform/pgir_concept_registry_v1.json`
+- `data/platform/pgir_current_mapping_matrix_v1.json`
+- `data/platform/pgir_representation_governance_v1.json`
+- `data/platform/pgir_schema_ownership_registry_v1.json`
+- `data/platform/pgir_capability_stage_registry_v1.json`
+
+PGIR does not run acquisition, feature generation, model training, physics
+simulation, GNN/PINN, or production scientific decisions.
 
 ## Plugin Registry
 

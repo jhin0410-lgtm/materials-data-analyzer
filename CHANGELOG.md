@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Started v2.3.1 PGIR governance work with accepted architecture RFCs,
+  canonical concepts, representation maturity levels, current implementation
+  mapping, schema ownership registry, and capability-stage registry.
+- Added read-only PGIR CLI inspection commands and optional platform-report
+  integration. This does not run solvers, models, API acquisition, feature
+  generation, GNN/PINN, or change v2.2 Materials conclusions.
+
 ## v2.2.0
 
 - Added v2.2.6 Materials scientific trust closeout artifacts: capability

@@ -156,3 +156,8 @@ v2.3 should build on the v2.2 evidence boundary rather than stronger claims:
   uncertainty, and provenance ownership
 - no PDE solver, PINN, GNN, or new predictive claim until representation
   governance is reviewed
+
+v2.3.1 begins that review through PGIR architecture RFCs and compact
+governance registries. This is valuable as platform architecture work, but it
+is not a claim that the project has become a general physics intelligence
+system.

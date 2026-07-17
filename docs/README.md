@@ -8,6 +8,9 @@ This directory collects project references, specifications, audits, policies, ca
 - [Outputs Policy](OUTPUTS_POLICY.md): how `outputs/` and generated run artifacts should be treated.
 - [Portfolio Overview](PORTFOLIO_OVERVIEW.md): portfolio-oriented summary of architecture, case studies, validation rigor, and limitations.
 - [Platform Architecture](PLATFORM_ARCHITECTURE.md): v2 scaffold architecture, registries, config contract, CLI, and backward-compatibility boundary.
+- [PGIR Architecture](PGIR_ARCHITECTURE.md): v2.3 representation governance, canonical concepts, maturity levels, operator taxonomy, and non-goals.
+- [PGIR Current Architecture Audit](PGIR_CURRENT_ARCHITECTURE_AUDIT.md): current scientific records mapped to PGIR concepts.
+- [Platform v2.3 Roadmap](PLATFORM_V2_3_ROADMAP.md): staged PGIR-to-dynamic-physics roadmap without solver or model claims in v2.3.1.
 - [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
@@ -35,6 +38,11 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials v2.2 Claim Boundaries](MATERIALS_V2_2_CLAIM_BOUNDARIES.md): allowed, limited, unsupported, and prohibited Materials v2.2 scientific claims.
 - [Materials v2.2 Uncertainty Boundaries](MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md): source uncertainty, numerical tolerance, prediction interval, split variation, and model-form limitations.
 - [v2.2.0 Release Notes](releases/V2_2_0.md): Materials composition features, structure entities/descriptors, graph artifacts, limited known-structure evidence, and trust-boundary release notes.
+- [RFC 0001 PGIR Architecture](rfcs/RFC_0001_PGIR_ARCHITECTURE.md): accepted PGIR architecture decision.
+- [RFC 0002 Representation Maturity](rfcs/RFC_0002_REPRESENTATION_MATURITY.md): maturity levels and promotion rules.
+- [RFC 0003 Schema Ownership and Evolution](rfcs/RFC_0003_SCHEMA_OWNERSHIP_AND_EVOLUTION.md): ownership, compatibility, and migration policy.
+- [RFC 0004 Mechanism and Operator Taxonomy](rfcs/RFC_0004_MECHANISM_AND_OPERATOR_TAXONOMY.md): Evaluator, Transformer, and Propagator taxonomy.
+- [RFC 0005 Domain Boundaries](rfcs/RFC_0005_DOMAIN_BOUNDARIES.md): domain-neutral core and domain-explicit context policy.
 - [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
 - [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
 - [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.

@@ -63,6 +63,8 @@ The simulation workflow is a data-driven screening aid. It uses observed target-
 - State what each result can and cannot support before making claims.
 - Treat scientific constraints as explicit metadata contracts before using
   them as features, diagnostics, or model constraints.
+- Treat v2.3 PGIR as representation governance, not a completed physics
+  intelligence or solver system.
 
 ## What This Project Is Not
 
@@ -216,6 +218,22 @@ powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 
 The tracked test suite is designed to run without local raw datasets, Backblaze
 archives, row-level predictions, or generated `outputs/` folders.
+
+### Platform Governance Status
+
+`v2.2.0` is the current public release for Materials physics features,
+structure entities, crystal graph artifacts, and bounded scientific evidence.
+`v2.3` is now in development as PGIR representation governance: it defines
+canonical concepts, maturity levels, schema ownership, and operator taxonomy
+without adding solvers, GNN/PINN, model retraining, or new predictive claims.
+
+Useful PGIR inspection commands:
+
+```powershell
+python -m src.cli list-pgir-concepts
+python -m src.cli evaluate-pgir-readiness
+python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
+```
 
 ### Platform Scientific Execution
 

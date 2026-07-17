@@ -101,3 +101,11 @@ release-readiness verdict is `release_ready` for evidence and claim-boundary
 consistency, while the scientific model conclusion remains conservative:
 `performance_degraded` for composition features, `structure_predictive_value_limited`
 for known-structure descriptors, and no representative model.
+
+## v2.3.1 PGIR Claim Boundary
+
+PGIR governance is not a new evidence level for predictive performance. It can
+say that concepts, mappings, maturity levels, schema owners, and future-only
+capabilities are explicit. It cannot support physics-constrained modeling,
+hybrid physics/ML, graph-model evidence, calibrated scientific probability,
+causal mechanism, or production scientific-decision claims.

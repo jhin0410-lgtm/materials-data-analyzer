@@ -64,3 +64,11 @@ The closeout records `CrystalStructureEntity` as executed representation
 evidence, structure descriptors as limited predictive evidence, and
 `GraphEntity` artifacts as representation-only. Entity availability is not
 treated as proof of predictive value, DFT replacement, or GNN readiness.
+
+## v2.3.1 PGIR Mapping
+
+PGIR maps existing entity records to canonical roles without renaming the
+runtime classes or persisted schema IDs. `MeasurementSeriesEntity` maps to
+Observation, `StateEntity` maps to State/Field/condition concepts by context,
+and `GraphEntity` remains a representation artifact. Observation is not
+automatically State, and entity availability is not mechanism evidence.

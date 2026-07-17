@@ -32,13 +32,21 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/materials_known_structure_prediction_schema_v2.json"),
         Path("data/platform/materials_structure_predictive_decision_schema_v2.json"),
         Path("data/platform/materials_prediction_interval_schema_v2.json"),
+        Path("data/platform/pgir_concept_registry_v1.json"),
+        Path("data/platform/pgir_current_mapping_matrix_v1.json"),
+        Path("data/platform/pgir_representation_governance_v1.json"),
+        Path("data/platform/pgir_schema_ownership_registry_v1.json"),
+        Path("data/platform/pgir_capability_stage_registry_v1.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5"}
-        assert payload["status"] in {"scaffold_stage", "release_ready"}
+        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1"}
+        assert payload["status"] in {"scaffold_stage", "release_ready", "accepted_for_v2_3"}
     registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
     assert registry_schema["schema_version"] == "2.1"
     assert registry_schema["status"] == "release_ready"
+    report_schema = json.loads(Path("data/platform/platform_report_schema_v2.json").read_text(encoding="utf-8"))
+    assert "scientific_trust_summary" in report_schema["required_fields"]
+    assert "pgir_governance_summary" in report_schema["required_fields"]
 
 
 def test_example_configs_have_no_credentials_or_absolute_paths():

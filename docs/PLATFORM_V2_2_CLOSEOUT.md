@@ -59,3 +59,11 @@ are part of the release.
 Future v2.3 work should focus on PGIR/RFC-style representation governance and
 broader evidence requirements before any graph model, physics-constrained
 model, or richer structure-aware learning claim is attempted.
+
+## v2.3.1 Follow-up Boundary
+
+v2.3.1 starts that follow-up as governance only: PGIR RFCs, concept registry,
+current mapping matrix, schema ownership, capability stages, CLI inspection,
+and optional platform-report integration. It does not change the v2.2 closeout
+decision, select a representative model, execute a solver, or run a new
+Materials predictive comparison.
