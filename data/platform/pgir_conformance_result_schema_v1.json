@@ -1,0 +1,22 @@
+{
+  "schema_version": "2.3.2",
+  "status": "accepted_for_v2_3",
+  "schema_id": "pgir_conformance_result_schema_v1",
+  "required_fields": [
+    "schema_version",
+    "status",
+    "valid",
+    "findings"
+  ],
+  "status_values": [
+    "valid",
+    "blocked",
+    "invalid"
+  ],
+  "execution_boundary": {
+    "network_allowed": false,
+    "model_training_allowed": false,
+    "solver_execution_allowed": false,
+    "registry_mutation_allowed": false
+  }
+}

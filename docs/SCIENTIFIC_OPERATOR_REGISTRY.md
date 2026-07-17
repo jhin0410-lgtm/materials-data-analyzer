@@ -46,3 +46,12 @@ PGIR classifies operator metadata into `Evaluator`, `Transformer`, and
 remain Transformer-style metadata. Existing bounded consistency checks remain
 Evaluator-style metadata. `Propagator` is concept-defined only in v2.3.1; no
 diffusion, Arrhenius, PDE/ODE, GNN, PINN, or physics-loss execution is added.
+
+## v2.3.2 Battery Operators
+
+v2.3.2 registers Battery representation transformers for source-record to
+cycle Observation, cycle Observation to operational State summary, and ordered
+States to Trajectory metadata. It also registers a mechanism-readiness
+assessment operator. These are metadata and adapter operators only; they do
+not execute Arrhenius fitting, diffusion solving, degradation modeling, or
+prediction.

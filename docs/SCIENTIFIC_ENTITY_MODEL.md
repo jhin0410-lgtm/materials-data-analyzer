@@ -72,3 +72,11 @@ runtime classes or persisted schema IDs. `MeasurementSeriesEntity` maps to
 Observation, `StateEntity` maps to State/Field/condition concepts by context,
 and `GraphEntity` remains a representation artifact. Observation is not
 automatically State, and entity availability is not mechanism evidence.
+
+## v2.3.2 Battery Entity Pilot
+
+The Battery PGIR pilot instantiates this boundary on actual processed battery
+cycle summaries: cycle rows become `MeasurementSeriesEntity` Observation
+metadata, derived operational summaries become `StateEntity`, and ordered
+per-cell summaries become `TrajectoryEntity`. The State is explicitly bounded
+to operational summary variables and is not a latent electrochemical state.

@@ -89,6 +89,8 @@ CURRENT_IMPLEMENTATION_REFS = (
     "src.platform_core.entity_adapters",
     "src.platform_core.artifacts",
     "src.platform_core.report_generator",
+    "src.platform_core.pgir_conformance",
+    "src.platform_core.battery_pgir_adapters",
 )
 
 
@@ -716,6 +718,38 @@ def build_current_mapping_matrix() -> tuple[PGIRMappingRecord, ...]:
             prohibited_promotions=("unregistered dynamic operator", "general solver"),
             **common,
         ),
+        PGIRMappingRecord(
+            "src.platform_core.pgir_conformance",
+            "PGIR representation declaration and conformance gate metadata",
+            ("operator", "context", "provenance", "result"),
+            "partial",
+            "read-only gate implementation",
+            "JSON-safe declaration and assessment records",
+            "pgir_conformance_result_schema_v1",
+            "1",
+            ownership_module="src.platform_core.pgir_conformance",
+            uncertainty_support="requires explicit uncertainty refs or unavailable status",
+            current_domain_use=("pgir_conformance", "battery_representation_governance"),
+            current_limitations=("conformance is not scientific correctness", "no solver or model execution"),
+            prohibited_promotions=("production decision", "mechanism execution evidence"),
+            **common,
+        ),
+        PGIRMappingRecord(
+            "src.platform_core.battery_pgir_adapters",
+            "Battery Observation, operational State summary, and Trajectory adapters",
+            ("observation", "state", "result", "provenance"),
+            "partial",
+            "domain adapter and local-only artifact writer",
+            "ScientificEntity records plus compact summaries",
+            "battery_cycle_observation_schema_v1",
+            "1",
+            ownership_module="src.platform_core.battery_pgir_adapters",
+            uncertainty_support="source uncertainty unavailable unless explicitly provided",
+            current_domain_use=("battery_pgir_v2_3_pilot",),
+            current_limitations=("operational state summary only", "no latent electrochemical state"),
+            prohibited_promotions=("diffusion-ready state", "Arrhenius fit", "SOH/RUL model evidence"),
+            **common,
+        ),
     )
 
 
@@ -767,6 +801,12 @@ def build_schema_ownership_registry() -> tuple[PGIRSchemaOwnershipRecord, ...]:
         PGIRSchemaOwnershipRecord("scientific_trust_evaluation_schema_v2", "2.1.5", "src.platform_core.scientific_trust", "scientific_trust_validate", "ScientificTrustEvaluation.to_dict", "run_registry", "data/platform/scientific_trust_evaluation_schema_v2.json", "stable", "active", "result", "metadata_only", "tracked_compact_metadata"),
         PGIRSchemaOwnershipRecord("materials_prediction_context_registry_v2", "2.2.6", "src.platform_core.v2_2_trust_closeout", "build_prediction_context_registry", "canonical_json", "none", "data/platform/materials_prediction_context_registry_v2.json", "stable", "active", "context", "metadata_only", "tracked_compact_metadata"),
         PGIRSchemaOwnershipRecord("platform_report_schema_v2", "2.0", "src.platform_core.report_generator", "validate_report_config", "render_report_json", "none", "data/platform/platform_report_schema_v2.json", "additive_optional_fields", "active", "result", "local_outputs_under_outputs_platform_reports", "local_only_report"),
+        PGIRSchemaOwnershipRecord("pgir_representation_declaration_schema_v1", "1", "src.platform_core.pgir_conformance", "validate_declaration", "PGIRRepresentationDeclaration.to_dict", "none", "data/platform/pgir_representation_declaration_schema_v1.json", "stable", "active", "context", "metadata_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("pgir_conformance_result_schema_v1", "1", "src.platform_core.pgir_conformance", "conformance_summary", "PGIRConformanceSummary.to_dict", "none", "data/platform/pgir_conformance_result_schema_v1.json", "stable", "active", "result", "metadata_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("battery_cycle_observation_schema_v1", "1", "src.platform_core.battery_pgir_adapters", "validate_battery_entities", "ScientificEntity.to_dict", "none", "data/platform/battery_cycle_observation_schema_v1.json", "stable", "active", "observation", "artifact_refs_for_large_series", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("battery_operational_state_schema_v1", "1", "src.platform_core.battery_pgir_adapters", "validate_battery_entities", "ScientificEntity.to_dict", "none", "data/platform/battery_operational_state_schema_v1.json", "stable", "active", "state", "small_inline_operational_summary_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("battery_trajectory_summary_schema_v1", "1", "src.platform_core.battery_pgir_adapters", "validate_battery_entities", "ScientificEntity.to_dict", "none", "data/platform/battery_trajectory_summary_schema_v1.json", "stable", "active", "state", "artifact_refs_for_ordered_state_sequence", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("battery_mechanism_readiness_schema_v1", "1", "src.platform_core.battery_pgir_adapters", "assess_battery_mechanism_readiness", "canonical_json", "none", "data/platform/battery_mechanism_readiness_schema_v1.json", "stable", "active", "result", "metadata_only", "tracked_compact_metadata"),
     )
 
 
@@ -779,6 +819,11 @@ def build_capability_stage_registry() -> tuple[PGIRCapabilityStageRecord, ...]:
         PGIRCapabilityStageRecord("structure_descriptor_candidates", "result", "scientifically_evaluated", "evaluated_limited", "v2_2_5_structure_predictive_value_limited", ("src.analyzers.materials_structure_prediction",), False, True, "limited_known_structure_evidence", ("known-structure context differs from pre-structure screening",), ("GNN evidence", "DFT replacement", "general structure-aware superiority")),
         PGIRCapabilityStageRecord("bounded_scientific_execution", "operator", "operator_executed", "active_bounded", "XRD scalar consistency examples", ("src.platform_core.scientific_execution",), False, False, "bounded_consistency_evidence_only", ("no arbitrary equation execution",), ("general solver", "phase identification")),
         PGIRCapabilityStageRecord("pgir_governance_registry", "provenance", "schema_defined", "active", "v2_3_1_governance_ready", ("src.platform_core.pgir_governance",), False, False, "governance_contract_only", ("no runtime rewrite",), ("new predictive result", "solver readiness")),
+        PGIRCapabilityStageRecord("pgir_conformance_gates", "operator", "adapter_available", "active", "v2_3_2_conformance_gate_available", ("src.platform_core.pgir_conformance",), False, False, "representation_governance_only", ("conformance is not scientific correctness",), ("mechanism execution", "predictive evidence")),
+        PGIRCapabilityStageRecord("battery_cycle_observation_adapter", "observation", "adapter_available", "active", "v2_3_2_battery_observation_adapter", ("src.platform_core.battery_pgir_adapters",), False, False, "representation_only", ("large time-series bodies stay local-only",), ("latent electrochemical state", "diffusion readiness")),
+        PGIRCapabilityStageRecord("battery_operational_state_transformer", "state", "adapter_available", "active", "v2_3_2_operational_state_summary_only", ("src.platform_core.battery_pgir_adapters",), False, False, "bounded_operational_summary_only", ("not complete electrochemical state",), ("SEI thickness", "lithium inventory", "reaction rate constant")),
+        PGIRCapabilityStageRecord("battery_trajectory_transformer", "state", "artifact_generated", "active_limited", "v2_3_2_ordered_cycle_trajectory_metadata", ("src.platform_core.battery_pgir_adapters",), False, False, "trajectory_representation_only", ("cycle index is not physical elapsed time",), ("RUL model evidence", "degradation mechanism proof")),
+        PGIRCapabilityStageRecord("battery_mechanism_readiness_assessment", "result", "adapter_available", "active_limited", "v2_3_2_requirements_audit_only", ("src.platform_core.battery_pgir_adapters",), False, False, "readiness_audit_only", ("no Arrhenius fit", "no diffusion solve"), ("mechanism execution", "battery lifetime prediction")),
     )
 
 

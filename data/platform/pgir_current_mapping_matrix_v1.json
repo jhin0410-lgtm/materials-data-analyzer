@@ -343,6 +343,70 @@
       "schema_version": "2.2.4",
       "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
       "uncertainty_support": "declared uncertainty behavior"
+    },
+    {
+      "current_domain_use": [
+        "pgir_conformance",
+        "battery_representation_governance"
+      ],
+      "current_limitations": [
+        "conformance is not scientific correctness",
+        "no solver or model execution"
+      ],
+      "implementation_ref": "src.platform_core.pgir_conformance",
+      "implementation_role": "PGIR representation declaration and conformance gate metadata",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.pgir_conformance",
+      "persisted_representation": "JSON-safe declaration and assessment records",
+      "pgir_concepts": [
+        "operator",
+        "context",
+        "provenance",
+        "result"
+      ],
+      "prohibited_promotions": [
+        "production decision",
+        "mechanism execution evidence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "read-only gate implementation",
+      "schema_id": "pgir_conformance_result_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "requires explicit uncertainty refs or unavailable status"
+    },
+    {
+      "current_domain_use": [
+        "battery_pgir_v2_3_pilot"
+      ],
+      "current_limitations": [
+        "operational state summary only",
+        "no latent electrochemical state"
+      ],
+      "implementation_ref": "src.platform_core.battery_pgir_adapters",
+      "implementation_role": "Battery Observation, operational State summary, and Trajectory adapters",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.battery_pgir_adapters",
+      "persisted_representation": "ScientificEntity records plus compact summaries",
+      "pgir_concepts": [
+        "observation",
+        "state",
+        "result",
+        "provenance"
+      ],
+      "prohibited_promotions": [
+        "diffusion-ready state",
+        "Arrhenius fit",
+        "SOH/RUL model evidence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "domain adapter and local-only artifact writer",
+      "schema_id": "battery_cycle_observation_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "source uncertainty unavailable unless explicitly provided"
     }
   ],
   "schema_version": "2.3.1",
@@ -350,7 +414,7 @@
   "validation": {
     "concept_count": 15,
     "errors": [],
-    "mapping_count": 12,
+    "mapping_count": 14,
     "status": "valid",
     "valid": true
   }

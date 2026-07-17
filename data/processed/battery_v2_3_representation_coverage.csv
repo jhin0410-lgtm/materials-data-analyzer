@@ -1,0 +1,4 @@
+representation,pgir_concept,count,denominator,coverage,actual_data_status,status
+cycle_observation,observation,2495,2495,1.0,actual_processed_summary_available,available
+operational_state_summary,state,2495,2495,1.0,actual_processed_summary_available,available
+cell_trajectory,trajectory,34,34,1.0,actual_processed_summary_available,available

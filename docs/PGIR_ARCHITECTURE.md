@@ -75,3 +75,18 @@ v2.3.1 readiness is `pgir_governance_ready` because:
 - maturity levels and operator roles are explicit,
 - future-only capabilities remain marked as future-only,
 - v2.2 results are not promoted or changed.
+
+## v2.3.2 Conformance Gates
+
+v2.3.2 adds explicit conformance gates over the v2.3.1 registries:
+representation declarations, maturity promotion checks, context compatibility,
+registered transition checks, and capability eligibility checks. These gates
+block unsupported promotion such as treating a terminal battery cycle
+Observation as a complete electrochemical State or internal concentration
+Field.
+
+The first adapter pilot maps existing processed battery cycle rows to
+Observation metadata, bounded operational State summaries, and per-cell
+Trajectory metadata. It produces compact tracked summaries and local-only
+row-level JSONL artifacts. It does not execute Arrhenius fitting, diffusion
+solving, SOH/RUL prediction, or any battery degradation model.

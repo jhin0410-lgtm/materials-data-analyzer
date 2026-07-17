@@ -1,0 +1,22 @@
+{
+  "schema_version": "2.3.2",
+  "status": "accepted_for_v2_3",
+  "schema_id": "battery_mechanism_readiness_schema_v1",
+  "required_fields": [
+    "mechanism_id",
+    "requirements_status",
+    "readiness_status",
+    "reason",
+    "execution_performed"
+  ],
+  "mechanisms": [
+    "arrhenius_temperature_dependence",
+    "diffusion_transport",
+    "empirical_degradation_trajectory"
+  ],
+  "execution_boundary": {
+    "arrhenius_fit_allowed": false,
+    "diffusion_solver_allowed": false,
+    "prediction_allowed": false
+  }
+}

@@ -57,3 +57,9 @@ Use PGIR mapping, capability-stage, and report integration tests.
 ## Open Questions
 
 - What is the minimum context needed for battery Observation to State mapping?
+
+## v2.3.2 Follow-up
+
+The first mapping is intentionally bounded: Battery Observation may transform
+only to an operational State summary, not to complete electrochemical State,
+internal concentration Field, or mechanism-ready parameter records.

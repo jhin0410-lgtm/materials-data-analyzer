@@ -37,9 +37,15 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/pgir_representation_governance_v1.json"),
         Path("data/platform/pgir_schema_ownership_registry_v1.json"),
         Path("data/platform/pgir_capability_stage_registry_v1.json"),
+        Path("data/platform/pgir_representation_declaration_schema_v1.json"),
+        Path("data/platform/pgir_conformance_result_schema_v1.json"),
+        Path("data/platform/battery_cycle_observation_schema_v1.json"),
+        Path("data/platform/battery_operational_state_schema_v1.json"),
+        Path("data/platform/battery_trajectory_summary_schema_v1.json"),
+        Path("data/platform/battery_mechanism_readiness_schema_v1.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1"}
+        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1", "2.3.2"}
         assert payload["status"] in {"scaffold_stage", "release_ready", "accepted_for_v2_3"}
     registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
     assert registry_schema["schema_version"] == "2.1"
@@ -47,6 +53,8 @@ def test_platform_schema_json_files_parse():
     report_schema = json.loads(Path("data/platform/platform_report_schema_v2.json").read_text(encoding="utf-8"))
     assert "scientific_trust_summary" in report_schema["required_fields"]
     assert "pgir_governance_summary" in report_schema["required_fields"]
+    assert "pgir_conformance_summary" in report_schema["required_fields"]
+    assert "battery_pgir_summary" in report_schema["required_fields"]
 
 
 def test_example_configs_have_no_credentials_or_absolute_paths():
@@ -86,6 +94,10 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
         elif payload.get("schema_version") == "2.2.5":
             assert payload["credential_policy"]["store_credentials"] is False
             assert payload["credential_policy"]["network_access_required"] is False
+        elif payload.get("schema_version") == "2.3.2":
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["dry_run"] is True
         else:
             assert payload["dry_run"] is True
 

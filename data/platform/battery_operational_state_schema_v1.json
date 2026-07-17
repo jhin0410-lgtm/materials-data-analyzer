@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.3.2",
+  "status": "accepted_for_v2_3",
+  "schema_id": "battery_operational_state_schema_v1",
+  "pgir_concept": "state",
+  "entity_type": "StateEntity",
+  "required_attributes": [
+    "state_variables",
+    "conditions",
+    "state_scope",
+    "source_observation_ref"
+  ],
+  "state_scope": "operational_state_summary",
+  "prohibited_state_variables": [
+    "SEI thickness",
+    "lithium inventory",
+    "diffusion coefficient",
+    "reaction rate constant"
+  ]
+}

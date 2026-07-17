@@ -27,6 +27,8 @@ PLATFORM_FILES = [
     Path("src/platform_core/report_generator.py"),
     Path("src/platform_core/snapshots.py"),
     Path("src/platform_core/pgir_governance.py"),
+    Path("src/platform_core/pgir_conformance.py"),
+    Path("src/platform_core/battery_pgir_adapters.py"),
     Path("src/cli.py"),
 ]
 

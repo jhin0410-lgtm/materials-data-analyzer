@@ -8,6 +8,16 @@
 - Added read-only PGIR CLI inspection commands and optional platform-report
   integration. This does not run solvers, models, API acquisition, feature
   generation, GNN/PINN, or change v2.2 Materials conclusions.
+- Added v2.3.2 PGIR conformance gates for representation declarations,
+  maturity promotion, context compatibility, registered transitions, and
+  capability eligibility.
+- Added a Battery PGIR adapter pilot that maps existing processed cycle
+  summaries into Observation metadata, bounded operational State summaries,
+  and per-cell Trajectory metadata while keeping row-level artifacts local-only.
+- Added compact Battery PGIR data-audit, representation-coverage, maturity,
+  transition, mechanism-readiness, readiness-decision, and report-summary
+  artifacts. This does not infer latent electrochemical state, execute
+  Arrhenius/diffusion mechanisms, train models, or make SOH/RUL claims.
 
 ## v2.2.0
 

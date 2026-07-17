@@ -65,3 +65,9 @@ capability boundaries.
 
 - How much evidence is sufficient for `mechanism_compatible` in battery
   trajectory analysis?
+
+## v2.3.2 Follow-up
+
+Battery observations and operational state summaries remain below
+`mechanism_compatible`; the conformance gate records the missing mechanism
+requirements rather than promoting the representation.

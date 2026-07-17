@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.3.2",
+  "status": "accepted_for_v2_3",
+  "schema_id": "battery_trajectory_summary_schema_v1",
+  "pgir_concept": "state",
+  "entity_type": "TrajectoryEntity",
+  "required_attributes": [
+    "ordered_state_refs",
+    "time_axis",
+    "cell_id",
+    "state_count",
+    "duplicate_cycle_policy"
+  ],
+  "time_axis_policy": "cycle_index is ordered index metadata, not physical elapsed time",
+  "prohibited_interpretations": [
+    "degradation mechanism proof",
+    "RUL model evidence",
+    "battery lifetime prediction"
+  ]
+}

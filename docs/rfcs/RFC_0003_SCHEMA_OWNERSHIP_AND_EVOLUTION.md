@@ -58,3 +58,9 @@ validation.
 ## Open Questions
 
 - Which schema should first accept optional `pgir_role` metadata?
+
+## v2.3.2 Follow-up
+
+Battery PGIR schemas are registered as additive v1 schemas for cycle
+Observation, operational State, Trajectory summary, and mechanism-readiness
+metadata. Existing v2.2 and v1.x schemas are not rewritten.

@@ -1,0 +1,5 @@
+transition_id,input_concept,output_concept,transition_allowed,maturity_result,finding_count,status,findings
+battery_source_record_to_cycle_observation_v1,result,observation,True,semantically_mapped,0,allowed,
+battery_cycle_observation_to_operational_state_v1,observation,state,True,dimensionally_valid,0,allowed,
+battery_operational_states_to_trajectory_v1,state,trajectory,True,dimensionally_valid,0,allowed,
+battery_cycle_observation_to_operational_state_v1,observation,state,False,raw_observed,1,blocked,latent_state_transition_rejected

@@ -49,6 +49,32 @@ battery_archive_cycle_normalized.csv
 battery_archive_cycle_analysis_ready.csv
 ```
 
+## Battery PGIR v2.3 Representation Summaries
+
+Compact reproducibility artifacts for the v2.3.2 Battery PGIR representation
+pilot include:
+
+```text
+battery_v2_3_data_audit_summary.json
+battery_v2_3_representation_coverage.csv
+battery_v2_3_maturity_summary.csv
+battery_v2_3_transition_summary.csv
+battery_v2_3_mechanism_readiness.csv
+battery_v2_3_pgir_readiness_decision.json
+battery_v2_3_report_summary.md
+```
+
+The row-level Observation, operational State, and Trajectory JSONL artifacts
+are local-only:
+
+```text
+outputs/battery_pgir_v2_3/
+```
+
+These files document representation readiness only. They do not contain a
+battery mechanism fit, SOH/RUL model, diffusion result, Arrhenius estimate, or
+production prediction output.
+
 ## Materials Project Case Study Summaries
 
 Compact reproducibility artifacts for the Materials Project v1.2 pilot and

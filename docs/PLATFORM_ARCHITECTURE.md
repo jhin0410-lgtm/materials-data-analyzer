@@ -376,3 +376,11 @@ The scaffold avoids:
   adapters are implemented.
 - The report engine is JSON/Markdown only and does not generate HTML, PDF, or a
   dashboard.
+
+## v2.3.2 PGIR Conformance Add-On
+
+v2.3.2 adds PGIR conformance gates and a Battery representation pilot as an
+additive platform-core layer. The new commands validate declarations,
+transitions, capability gates, and Battery Observation/State/Trajectory
+artifacts, but they do not execute acquisition, solvers, models, or raw-data
+pipelines. Row-level Battery PGIR artifacts remain under ignored `outputs/`.

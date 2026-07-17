@@ -61,3 +61,9 @@ capability-stage validation, CLI smoke, and v2.2 preservation tests.
 - Which battery trajectory representation should be the first PGIR adapter?
 - Which mechanism family should be evaluated first after data sufficiency is
   demonstrated?
+
+## v2.3.2 Follow-up
+
+The first adapter is the Battery cycle Observation / operational State /
+Trajectory pilot. It remains representation governance only and does not
+execute a mechanism or predictive model.

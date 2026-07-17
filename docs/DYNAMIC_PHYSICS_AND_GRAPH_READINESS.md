@@ -44,3 +44,11 @@ PGIR defines how future dynamic state, field, parameter, initial condition, and
 boundary condition records should be governed. The current project remains at
 representation governance for those concepts. `Propagator` capability is
 `concept_defined` only, so dynamic physics execution remains future work.
+
+## v2.3.2 Battery Dynamic-Mechanism Boundary
+
+Battery cycle trajectories now have representation metadata, but they remain
+cycle-index operational summaries. The current data does not provide spatial
+fields, boundary conditions, comparable multi-temperature response sets, or
+transport parameters, so Arrhenius and diffusion mechanisms remain
+not-identifiable from the current processed summaries.

@@ -46,3 +46,11 @@ Reviewed implementation families:
 
 The machine-readable mapping lives in
 [`data/platform/pgir_current_mapping_matrix_v1.json`](../data/platform/pgir_current_mapping_matrix_v1.json).
+
+## v2.3.2 Implementation Additions
+
+The current mapping now includes `pgir_conformance` and
+`battery_pgir_adapters` as adapter/governance modules. They add conformance
+checks and Battery representation metadata without changing the persisted
+scientific entity hierarchy, executing mechanisms, or promoting Battery cycle
+observations to complete electrochemical State.

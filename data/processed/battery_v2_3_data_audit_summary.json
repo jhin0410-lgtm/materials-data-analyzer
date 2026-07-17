@@ -1,0 +1,30 @@
+{
+  "actual_data_status": "actual_processed_summary_available",
+  "cell_count": 34,
+  "cycle_count": 2495,
+  "limitations": [
+    "processed discharge summary does not inline voltage/current/time arrays",
+    "capacity retention is deterministically derived from an explicit reference",
+    "uncertainty is unavailable and is not synthesized",
+    "trajectory ordering uses cycle_index, not physical elapsed time",
+    "no predictive model or mechanism execution is performed"
+  ],
+  "local_raw_available": true,
+  "model_or_solver_executed": false,
+  "network_called": false,
+  "provenance_status": "tracked_processed_summary_with_local_raw_optional",
+  "schema_version": "2.3.2",
+  "selected_source": "kaggle_nasa_battery_processed_discharge_summary",
+  "source_exists": true,
+  "source_path": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "source_units": {
+    "ambient_temperature": "degC",
+    "capacity_retention": "percent",
+    "cycle_index": "dimensionless_order_index",
+    "discharge_capacity": "Ah",
+    "internal_resistance": "ohm"
+  },
+  "status": "actual_data_ready_with_gaps",
+  "tracked_source": true,
+  "uncertainty_status": "source_does_not_provide_measurement_uncertainty"
+}

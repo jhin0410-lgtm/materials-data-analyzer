@@ -1,0 +1,23 @@
+{
+  "schema_version": "2.3.2",
+  "status": "accepted_for_v2_3",
+  "schema_id": "battery_cycle_observation_schema_v1",
+  "pgir_concept": "observation",
+  "entity_type": "MeasurementSeriesEntity",
+  "required_attributes": [
+    "independent_variable",
+    "dependent_variable",
+    "axis_metadata",
+    "cell_id",
+    "cycle_index",
+    "cycle_type",
+    "quantity_roles",
+    "series_body_policy"
+  ],
+  "large_payload_policy": "series bodies must be artifact references, not tracked inline payloads",
+  "prohibited_interpretations": [
+    "complete electrochemical state",
+    "internal lithium concentration",
+    "diffusion coefficient"
+  ]
+}

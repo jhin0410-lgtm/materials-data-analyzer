@@ -63,3 +63,9 @@ Validate capability stages and prohibit promotion of `Propagator` beyond
 ## Open Questions
 
 - Which first mechanism family should receive a bounded Evaluator?
+
+## v2.3.2 Follow-up
+
+The Battery pilot registers Transformer-style representation adapters and a
+requirements-audit operator. It does not promote any battery mechanism to an
+executed Evaluator or Propagator.

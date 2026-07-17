@@ -231,6 +231,8 @@ class PlatformReport:
     registry_diagnostics_summary: dict[str, Any]
     scientific_trust_summary: dict[str, Any]
     pgir_governance_summary: dict[str, Any]
+    pgir_conformance_summary: dict[str, Any]
+    battery_pgir_summary: dict[str, Any]
     testing_summary: dict[str, Any]
     security_boundaries: tuple[str, ...]
     limitations: tuple[str, ...]
@@ -257,6 +259,8 @@ class PlatformReport:
             "registry_diagnostics_summary": self.registry_diagnostics_summary,
             "scientific_trust_summary": self.scientific_trust_summary,
             "pgir_governance_summary": self.pgir_governance_summary,
+            "pgir_conformance_summary": self.pgir_conformance_summary,
+            "battery_pgir_summary": self.battery_pgir_summary,
             "testing_summary": self.testing_summary,
             "security_boundaries": list(self.security_boundaries),
             "limitations": list(self.limitations),

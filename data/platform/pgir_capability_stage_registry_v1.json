@@ -141,12 +141,114 @@
         "solver readiness"
       ],
       "scientific_claim_supported": "governance_contract_only"
+    },
+    {
+      "capability_id": "pgir_conformance_gates",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.pgir_conformance"
+      ],
+      "current_status": "active",
+      "evidence_level": "v2_3_2_conformance_gate_available",
+      "future_only": false,
+      "limitations": [
+        "conformance is not scientific correctness"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "operator",
+      "prohibited_interpretations": [
+        "mechanism execution",
+        "predictive evidence"
+      ],
+      "scientific_claim_supported": "representation_governance_only"
+    },
+    {
+      "capability_id": "battery_cycle_observation_adapter",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active",
+      "evidence_level": "v2_3_2_battery_observation_adapter",
+      "future_only": false,
+      "limitations": [
+        "large time-series bodies stay local-only"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "observation",
+      "prohibited_interpretations": [
+        "latent electrochemical state",
+        "diffusion readiness"
+      ],
+      "scientific_claim_supported": "representation_only"
+    },
+    {
+      "capability_id": "battery_operational_state_transformer",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active",
+      "evidence_level": "v2_3_2_operational_state_summary_only",
+      "future_only": false,
+      "limitations": [
+        "not complete electrochemical state"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "state",
+      "prohibited_interpretations": [
+        "SEI thickness",
+        "lithium inventory",
+        "reaction rate constant"
+      ],
+      "scientific_claim_supported": "bounded_operational_summary_only"
+    },
+    {
+      "capability_id": "battery_trajectory_transformer",
+      "capability_stage": "artifact_generated",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active_limited",
+      "evidence_level": "v2_3_2_ordered_cycle_trajectory_metadata",
+      "future_only": false,
+      "limitations": [
+        "cycle index is not physical elapsed time"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "state",
+      "prohibited_interpretations": [
+        "RUL model evidence",
+        "degradation mechanism proof"
+      ],
+      "scientific_claim_supported": "trajectory_representation_only"
+    },
+    {
+      "capability_id": "battery_mechanism_readiness_assessment",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active_limited",
+      "evidence_level": "v2_3_2_requirements_audit_only",
+      "future_only": false,
+      "limitations": [
+        "no Arrhenius fit",
+        "no diffusion solve"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "mechanism execution",
+        "battery lifetime prediction"
+      ],
+      "scientific_claim_supported": "readiness_audit_only"
     }
   ],
   "schema_version": "2.3.1",
   "status": "accepted_for_v2_3",
   "validation": {
-    "capability_count": 7,
+    "capability_count": 12,
     "errors": [],
     "future_only_capabilities": [
       "propagator_operator_role"

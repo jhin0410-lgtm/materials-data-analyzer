@@ -226,14 +226,25 @@ structure entities, crystal graph artifacts, and bounded scientific evidence.
 `v2.3` is now in development as PGIR representation governance: it defines
 canonical concepts, maturity levels, schema ownership, and operator taxonomy
 without adding solvers, GNN/PINN, model retraining, or new predictive claims.
+The current v2.3.2 scaffold adds conformance gates and a Battery
+Observation / bounded operational State / Trajectory adapter pilot over
+existing processed summaries only.
 
 Useful PGIR inspection commands:
 
 ```powershell
 python -m src.cli list-pgir-concepts
 python -m src.cli evaluate-pgir-readiness
+python -m src.cli validate-pgir-representation configs/examples/pgir_representation_conformance.json
+python -m src.cli preview-battery-observation-build configs/examples/battery_observation_build.json
+python -m src.cli export-battery-pgir-summary
 python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
 ```
+
+Battery PGIR row-level Observation, State, and Trajectory JSONL files are
+local-only under `outputs/battery_pgir_v2_3/`; tracked outputs are compact
+coverage, maturity, transition, mechanism-readiness, and readiness-decision
+summaries.
 
 ### Platform Scientific Execution
 

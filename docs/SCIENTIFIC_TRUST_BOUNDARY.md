@@ -109,3 +109,10 @@ say that concepts, mappings, maturity levels, schema owners, and future-only
 capabilities are explicit. It cannot support physics-constrained modeling,
 hybrid physics/ML, graph-model evidence, calibrated scientific probability,
 causal mechanism, or production scientific-decision claims.
+
+## v2.3.2 Conformance And Battery Trust Boundary
+
+The new conformance gates can reject unsupported representation reuse, such as
+treating a battery Observation as complete State. The Battery pilot supports
+representation readiness and mechanism-readiness auditing only. It does not
+add SOH/RUL evidence, mechanism execution, or a predictive battery model.

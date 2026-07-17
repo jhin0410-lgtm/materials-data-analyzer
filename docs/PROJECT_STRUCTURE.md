@@ -132,6 +132,14 @@ v2.3.1 adds read-only PGIR governance metadata in
 concepts, maturity levels, schema ownership, and capability stages. It does
 not rename existing schemas, execute solvers, run models, call APIs, or change
 v2.2 results.
+v2.3.2 adds `src/platform_core/pgir_conformance.py` and
+`src/platform_core/battery_pgir_adapters.py` for representation conformance
+gates and a Battery Observation / bounded operational State / Trajectory
+adapter pilot. The pilot reads existing processed battery summaries, exports
+compact tracked summaries, and writes row-level entity JSONL only under
+ignored `outputs/battery_pgir_v2_3/`. It does not infer latent
+electrochemical state, execute Arrhenius or diffusion mechanisms, train
+models, or make SOH/RUL claims.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -262,7 +270,11 @@ compact tracked capability, evidence, claim, context, uncertainty, closeout
 decision, and closeout summary artifacts, plus platform-level capability and
 prediction-context registries. v2.3.1 adds compact tracked PGIR concept,
 mapping, representation-governance, schema-ownership, and capability-stage
-registries. Row-level MP
+registries. v2.3.2 adds compact tracked Battery PGIR data-audit,
+representation-coverage, maturity, transition, mechanism-readiness, readiness
+decision, and report-summary artifacts. Row-level Battery PGIR observations,
+operational states, trajectories, and conformance details remain local-only
+under `outputs/battery_pgir_v2_3/`. Row-level MP
 structure chunks, converted structure entities, descriptor rows, graph JSONL,
 alignment tables, known-structure matched cohorts, row-level predictions,
 split assignments, and plots remain local-only under

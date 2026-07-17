@@ -20,3 +20,26 @@ def test_platform_report_can_include_pgir_governance_without_recomputation():
     assert report.pgir_governance_summary["execution_boundary"]["api_or_network_called"] is False
     assert "PGIR Architecture And Governance" in markdown
     assert "no physics execution, API call, model run, or raw artifact read" in markdown
+
+
+def test_platform_report_can_include_pgir_conformance_and_battery_summary():
+    report = build_platform_report(
+        {
+            "schema_version": "2.0",
+            "report_id": "test_pgir_conformance_report",
+            "formats": ["json", "markdown"],
+            "selected_case_studies": ["battery_archive"],
+            "output_dir": "outputs/platform_reports/test_pgir_conformance_report",
+            "credential_policy": {"store_credentials": False},
+            "include_pgir_conformance": True,
+            "include_battery_pgir": True,
+        }
+    )
+    markdown = render_report_markdown(report)
+
+    assert report.scientific_recomputation_performed is False
+    assert report.pgir_conformance_summary["status"] in {"available", "not_available"}
+    assert report.battery_pgir_summary["status"] == "available"
+    assert report.battery_pgir_summary["prediction_ready"] is False
+    assert report.battery_pgir_summary["model_or_solver_executed"] is False
+    assert "Battery PGIR Representation Summary" in markdown

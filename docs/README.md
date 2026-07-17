@@ -9,8 +9,13 @@ This directory collects project references, specifications, audits, policies, ca
 - [Portfolio Overview](PORTFOLIO_OVERVIEW.md): portfolio-oriented summary of architecture, case studies, validation rigor, and limitations.
 - [Platform Architecture](PLATFORM_ARCHITECTURE.md): v2 scaffold architecture, registries, config contract, CLI, and backward-compatibility boundary.
 - [PGIR Architecture](PGIR_ARCHITECTURE.md): v2.3 representation governance, canonical concepts, maturity levels, operator taxonomy, and non-goals.
+- [PGIR Conformance Gates](PGIR_CONFORMANCE_GATES.md): v2.3.2 representation declaration, maturity, context, transition, and capability gates.
 - [PGIR Current Architecture Audit](PGIR_CURRENT_ARCHITECTURE_AUDIT.md): current scientific records mapped to PGIR concepts.
 - [Platform v2.3 Roadmap](PLATFORM_V2_3_ROADMAP.md): staged PGIR-to-dynamic-physics roadmap without solver or model claims in v2.3.1.
+- [Battery PGIR Mapping](BATTERY_PGIR_MAPPING.md): mapping existing battery cycle summaries to Observation, operational State, and Trajectory metadata.
+- [Battery Observation, State, and Trajectory](BATTERY_OBSERVATION_STATE_TRAJECTORY.md): representation boundary for cycle observations, operational state summaries, and trajectories.
+- [Battery Mechanism Readiness](BATTERY_MECHANISM_READINESS.md): requirements-only mechanism readiness audit for Arrhenius, diffusion, and empirical trajectory contexts.
+- [Battery v2.3 Data and Representation Audit](BATTERY_V2_3_DATA_AND_REPRESENTATION_AUDIT.md): actual processed battery coverage and tracked/local output policy for the v2.3.2 pilot.
 - [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.

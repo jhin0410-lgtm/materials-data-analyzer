@@ -18,9 +18,16 @@ solver, model retraining, or experiment recommendation.
 
 ## v2.3.2
 
-- Battery Observation/State/Trajectory adapter audit.
-- Battery cycle rows remain observations unless state sufficiency is proven.
-- No degradation mechanism fitting.
+- PGIR conformance gates for representation declarations, maturity promotion,
+  context compatibility, registered transitions, and capability eligibility.
+- Battery Observation, bounded operational State, and Trajectory adapter pilot
+  using existing processed battery summaries only.
+- Compact tracked Battery PGIR coverage, maturity, transition,
+  mechanism-readiness, and decision summaries.
+- Battery cycle rows remain observations unless a registered transformer and
+  sufficient context justify a bounded operational summary.
+- No degradation mechanism fitting, solver execution, SOH/RUL model, or
+  predictive claim.
 
 ## v2.3.3
 

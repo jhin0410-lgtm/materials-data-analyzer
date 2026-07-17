@@ -105,3 +105,11 @@ defines canonical concepts, maturity levels, current implementation mapping,
 schema ownership, and capability stages. It does not add descriptors, rerun
 Materials models, train graph models, execute solvers, or change the v2.2
 `performance_degraded` and `structure_predictive_value_limited` decisions.
+
+## v2.3.2 PGIR Conformance And Battery Pilot
+
+v2.3.2 adds explicit PGIR conformance gates and applies them to existing
+processed battery cycle summaries. This creates representation evidence for
+Observation, bounded operational State, and Trajectory metadata, plus a
+mechanism-readiness audit. It still does not run mechanisms, train predictors,
+fit degradation laws, or make physics-aware battery performance claims.
