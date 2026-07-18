@@ -59,6 +59,75 @@ from .platform_core.report_generator import (
     load_report_json,
     load_report_manifest,
 )
+from .platform_core.pgir_governance import (
+    evaluate_pgir_readiness,
+    governance_summary,
+    load_registry_payload,
+    representation_maturity_levels,
+    validate_capability_stages,
+    validate_mapping_matrix,
+    validate_schema_governance,
+)
+from .platform_core.pgir_conformance import (
+    PGIRRepresentationDeclaration,
+    assess_maturity,
+    canonical_json as pgir_conformance_json,
+    check_context_compatibility,
+    conformance_summary,
+    evaluate_capability,
+    load_declaration,
+    validate_declaration,
+    validate_transition,
+)
+from .platform_core.battery_pgir_adapters import (
+    DEFAULT_OUTPUT_ROOT as BATTERY_PGIR_OUTPUT_ROOT,
+    assess_battery_mechanism_readiness,
+    audit_local_battery_data,
+    build_battery_observations,
+    build_battery_operational_states,
+    build_battery_trajectories,
+    export_tracked_battery_pgir_summaries,
+    load_battery_cycle_summary,
+    load_battery_pgir_summary,
+    run_battery_pgir_pipeline,
+    validate_battery_entities,
+)
+from .platform_core.mechanism_identifiability import (
+    BATTERY_MECHANISM_AUDIT_VERSION,
+    assess_confounding as assess_battery_mechanism_confounding,
+    assess_identifiability as assess_battery_mechanism_identifiability,
+    audit_battery_evidence_inventory,
+    bind_mechanism_requirements,
+    build_default_mechanism_candidates,
+    build_evidence_gap_registry,
+    condition_coverage_summary,
+    export_battery_mechanism_audit_summary,
+    load_battery_mechanism_summary,
+    mechanism_candidate_registry_payload,
+    protocol_comparability_summary,
+    select_bounded_evaluator,
+    validate_battery_mechanism_audit_path,
+)
+from .platform_core.battery_trajectory_evaluator import (
+    BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+    CapacityTrajectoryEvaluatorConfig,
+    evaluator_contract as battery_capacity_evaluator_contract,
+    export_battery_capacity_evaluator_summary,
+    load_battery_capacity_evaluator_summary,
+    load_evaluator_config as load_battery_capacity_evaluator_config,
+    preview_battery_capacity_evaluation,
+    run_battery_capacity_evaluator,
+    validate_battery_capacity_evaluator_result,
+)
+from .platform_core.battery_metadata_stability import (
+    AUDIT_VERSION as BATTERY_METADATA_STABILITY_VERSION,
+    DEFAULT_CONFIG_PATH as DEFAULT_BATTERY_METADATA_STABILITY_CONFIG,
+    TRACKED_OUTPUTS as BATTERY_METADATA_STABILITY_OUTPUTS,
+    load_battery_v2_3_5_summary,
+    preview_battery_metadata_stability,
+    run_battery_metadata_stability_audit,
+    validate_battery_v2_3_5_artifacts,
+)
 from .platform_core.registry_service import RegistryService
 from .platform_core.run_registry import (
     DEFAULT_EXPORT_DIR,
@@ -3596,6 +3665,742 @@ def _cmd_evaluate_v2_2_release_readiness(args: argparse.Namespace) -> int:
     )
 
 
+def _pgir_registry_payload(name: str) -> dict[str, Any]:
+    return load_registry_payload(Path("data/platform") / f"{name}.json")
+
+
+def _cmd_list_pgir_concepts(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_concept_registry_v1")
+    concepts = payload["concepts"]
+    result = {
+        "schema_version": payload["schema_version"],
+        "status": payload["status"],
+        "concept_count": len(concepts),
+        "concepts": concepts,
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines(f"{item['concept_id']}\t{item['status']}\t{item['definition']}" for item in concepts)
+    return 0
+
+
+def _cmd_inspect_pgir_concept(args: argparse.Namespace) -> int:
+    concepts = _pgir_registry_payload("pgir_concept_registry_v1")["concepts"]
+    for concept in concepts:
+        if concept["concept_id"] == args.concept_id:
+            if args.json:
+                _emit_json(concept)
+            else:
+                _emit_lines(
+                    [
+                        f"concept_id: {concept['concept_id']}",
+                        f"definition: {concept['definition']}",
+                        f"status: {concept['status']}",
+                        f"maturity_requirements: {', '.join(concept['maturity_requirements']) or 'none'}",
+                    ]
+                )
+            return 0
+    payload = {"status": "unknown_pgir_concept", "concept_id": args.concept_id}
+    if args.json:
+        _emit_json(payload)
+    else:
+        print(f"unknown_pgir_concept: {args.concept_id}", file=sys.stderr)
+    return EXIT_INVALID_CONFIG
+
+
+def _cmd_show_pgir_mapping(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_current_mapping_matrix_v1")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            f"{item['implementation_ref']}\t{item['mapping_status']}\t{','.join(item['pgir_concepts'])}"
+            for item in payload["mappings"]
+        )
+    return 0
+
+
+def _cmd_validate_pgir_mapping(args: argparse.Namespace) -> int:
+    result = validate_mapping_matrix()
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result['valid']).lower()}", f"mapping_count: {result['mapping_count']}"])
+    return 0 if result["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_show_pgir_representation_levels(args: argparse.Namespace) -> int:
+    payload = {"schema_version": "2.3.1", "maturity_levels": list(representation_maturity_levels())}
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(f"{item['level']}\t{item['maturity_id']}\t{item['definition']}" for item in payload["maturity_levels"])
+    return 0
+
+
+def _cmd_show_pgir_schema_ownership(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_schema_ownership_registry_v1")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(f"{item['schema_id']}\t{item['owner_module']}\t{item['pgir_concept']}" for item in payload["schemas"])
+    return 0
+
+
+def _cmd_validate_pgir_schema_governance(args: argparse.Namespace) -> int:
+    result = validate_schema_governance()
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"valid: {str(result['valid']).lower()}", f"schema_count: {result['schema_count']}"])
+    return 0 if result["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_show_pgir_capability_stages(args: argparse.Namespace) -> int:
+    payload = _pgir_registry_payload("pgir_capability_stage_registry_v1")
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(f"{item['capability_id']}\t{item['capability_stage']}\t{item['current_status']}" for item in payload["capabilities"])
+    return 0
+
+
+def _cmd_evaluate_pgir_readiness(args: argparse.Namespace) -> int:
+    decision = evaluate_pgir_readiness().to_dict()
+    if args.json:
+        _emit_json(decision)
+    else:
+        _emit_lines(
+            [
+                f"status: {decision['status']}",
+                f"valid: {str(decision['valid']).lower()}",
+                f"concept_count: {decision['readiness_summary']['concept_count']}",
+                f"model_or_solver_executed: {str(decision['readiness_summary']['model_or_solver_executed']).lower()}",
+            ]
+        )
+    return 0 if decision["valid"] else EXIT_INVALID_CONFIG
+
+
+def _cmd_export_pgir_governance_summary(args: argparse.Namespace) -> int:
+    try:
+        target = _resolve_pgir_export_output(Path.cwd(), args.output)
+        if target.exists() and not args.overwrite:
+            raise FileExistsError(f"output already exists: {args.output}")
+        payload = governance_summary()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_suffix(target.suffix + ".tmp")
+        temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        temp.replace(target)
+    except (OSError, ValueError, FileExistsError) as exc:
+        result = {"status": "pgir_export_failed", "error": str(exc)}
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"pgir_export_failed: {exc}", file=sys.stderr)
+        return EXIT_PATH_POLICY
+    result = {
+        "status": "exported",
+        "output": target.relative_to(Path.cwd()).as_posix(),
+        "pgir_status": payload["status"],
+        "scientific_recomputation_performed": payload["execution_boundary"]["scientific_recomputation_performed"],
+    }
+    if args.json:
+        _emit_json(result)
+    else:
+        _emit_lines([f"status: {result['status']}", f"output: {result['output']}", f"pgir_status: {result['pgir_status']}"])
+    return 0
+
+
+def _resolve_pgir_export_output(repo_root: Path, output: str) -> Path:
+    validate_relative_path(output)
+    normalized = output.replace("\\", "/")
+    if not normalized.startswith("outputs/platform_pgir/"):
+        raise ValueError("PGIR governance export must be under outputs/platform_pgir/")
+    target = (repo_root / output).resolve()
+    root = repo_root.resolve()
+    if root != target and root not in target.parents:
+        raise ValueError("PGIR governance export must stay inside repository root")
+    return target
+
+
+def _load_pgir_json_config(path: str) -> dict[str, Any]:
+    payload = load_json_config(path)
+    if not isinstance(payload, dict):
+        raise ValueError("PGIR config must be a JSON object")
+    return payload
+
+
+def _emit_or_error(args: argparse.Namespace, payload: dict[str, Any], *, ok: bool = True) -> int:
+    if args.json:
+        _emit_json(payload)
+    else:
+        lines = [f"{key}: {value}" for key, value in payload.items() if not isinstance(value, (dict, list))]
+        _emit_lines(lines or [json.dumps(payload, sort_keys=True)])
+    return 0 if ok else EXIT_INVALID_CONFIG
+
+
+def _cmd_validate_pgir_representation(args: argparse.Namespace) -> int:
+    try:
+        config = _load_pgir_json_config(args.path)
+        declaration = PGIRRepresentationDeclaration.from_mapping(config.get("declaration", config))
+        findings = validate_declaration(declaration)
+        payload = {
+            "schema_version": "2.3.2",
+            "status": "valid" if not any(finding.severity == "error" for finding in findings) else "invalid",
+            "valid": not any(finding.severity == "error" for finding in findings),
+            "declaration": declaration.to_dict(),
+            "findings": [finding.to_dict() for finding in findings],
+        }
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=bool(payload.get("valid")))
+
+
+def _cmd_assess_pgir_maturity(args: argparse.Namespace) -> int:
+    try:
+        config = _load_pgir_json_config(args.path)
+        declaration = PGIRRepresentationDeclaration.from_mapping(config.get("declaration", config))
+        assessment = assess_maturity(
+            declaration,
+            requested_maturity_level=config.get("requested_maturity_level") or args.target_level,
+            evidence=config.get("evidence", {}),
+        )
+        payload = {"schema_version": "2.3.2", "status": "assessed", **assessment.to_dict()}
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "promotion_allowed": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_validate_pgir_transition(args: argparse.Namespace) -> int:
+    try:
+        config = _load_pgir_json_config(args.config)
+        assessment = validate_transition(config)
+        payload = {"schema_version": "2.3.2", "status": "allowed" if assessment.transition_allowed else "blocked", **assessment.to_dict()}
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "transition_allowed": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("transition_allowed") is True)
+
+
+def _cmd_evaluate_pgir_capability(args: argparse.Namespace) -> int:
+    try:
+        config = _load_pgir_json_config(args.config)
+        declaration = PGIRRepresentationDeclaration.from_mapping(config["declaration"])
+        result = evaluate_capability(declaration, str(config["capability_id"]), context=config.get("context", {}))
+        payload = {"schema_version": "2.3.2", **result.to_dict()}
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "eligible")
+
+
+def _cmd_show_pgir_conformance_summary(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_pgir_json_config(args.result)
+        required = {"schema_version", "status"}
+        if not required <= set(payload):
+            raise ValueError("conformance summary missing required fields")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+        return _emit_or_error(args, payload, ok=False)
+    return _emit_or_error(args, payload, ok=payload.get("status") not in {"invalid", "blocked"})
+
+
+def _battery_source_audit_payload(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_pgir_json_config(args.config) if getattr(args, "config", None) else {}
+    repo_root = config.get("repo_root", ".")
+    return audit_local_battery_data(repo_root).to_dict()
+
+
+def _cmd_audit_battery_pgir_source_impl(args: argparse.Namespace) -> int:
+    try:
+        payload = _battery_source_audit_payload(args)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") != "invalid")
+
+
+def _cmd_preview_battery_observation_build(args: argparse.Namespace) -> int:
+    try:
+        config = _load_pgir_json_config(args.config)
+        audit = audit_local_battery_data(config.get("repo_root", "."))
+        payload = {
+            "schema_version": "2.3.2",
+            "status": "preview",
+            "source_status": audit.status,
+            "expected_observation_count": audit.cycle_count,
+            "expected_state_count": audit.cycle_count,
+            "expected_trajectory_count": audit.cell_count,
+            "output_root": config.get("output_root", BATTERY_PGIR_OUTPUT_ROOT),
+            "writes_outputs": False,
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "preview")
+
+
+def _run_battery_pipeline_from_config(args: argparse.Namespace, *, write_local: bool) -> dict[str, Any]:
+    config = _load_pgir_json_config(args.config)
+    return run_battery_pgir_pipeline(
+        config.get("repo_root", "."),
+        source_path=config.get("source_path", "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv"),
+        output_root=config.get("output_root", BATTERY_PGIR_OUTPUT_ROOT),
+        limit_rows=config.get("limit_rows"),
+        write_local=write_local,
+    )
+
+
+def _cmd_build_battery_cycle_observations(args: argparse.Namespace) -> int:
+    try:
+        result = _run_battery_pipeline_from_config(args, write_local=True)
+        payload = {
+            "schema_version": "2.3.2",
+            "status": "built",
+            "observation_count": result["readiness_decision"]["observation_count"],
+            "output_root": result["local_outputs"]["output_root"],
+            "local_only": True,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "built")
+
+
+def _load_entities_jsonl(path: str, expected_type: str) -> list[ScientificEntity]:
+    target = Path(path)
+    entities: list[ScientificEntity] = []
+    with target.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            entities.append(
+                ScientificEntity(
+                    entity_id=payload["entity_id"],
+                    entity_type=payload["entity_type"],
+                    schema_id=payload["schema_id"],
+                    schema_version=payload["schema_version"],
+                    domain=payload["domain"],
+                    attributes=payload.get("attributes", {}),
+                    quantity_fields=payload.get("quantity_fields", {}),
+                    provenance_refs=tuple(payload.get("provenance_refs", ())),
+                    artifact_refs=tuple(payload.get("artifact_refs", ())),
+                    created_by=payload.get("created_by", "platform_core"),
+                    validation_status=payload.get("validation_status", "valid"),
+                )
+            )
+    result = validate_battery_entities(entities, expected_type)
+    if not result["valid"]:
+        raise ValueError(result["errors"])
+    return entities
+
+
+def _cmd_validate_battery_cycle_observations(args: argparse.Namespace) -> int:
+    try:
+        entities = _load_entities_jsonl(args.path, "MeasurementSeriesEntity")
+        payload = validate_battery_entities(entities, "MeasurementSeriesEntity")
+    except (OSError, ValueError, json.JSONDecodeError, KeyError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_build_battery_operational_states(args: argparse.Namespace) -> int:
+    try:
+        result = _run_battery_pipeline_from_config(args, write_local=True)
+        payload = {
+            "schema_version": "2.3.2",
+            "status": "built",
+            "state_count": result["readiness_decision"]["state_count"],
+            "output_root": result["local_outputs"]["output_root"],
+            "local_only": True,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "built")
+
+
+def _cmd_validate_battery_operational_states(args: argparse.Namespace) -> int:
+    try:
+        entities = _load_entities_jsonl(args.path, "StateEntity")
+        payload = validate_battery_entities(entities, "StateEntity")
+    except (OSError, ValueError, json.JSONDecodeError, KeyError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_build_battery_trajectories(args: argparse.Namespace) -> int:
+    try:
+        result = _run_battery_pipeline_from_config(args, write_local=True)
+        payload = {
+            "schema_version": "2.3.2",
+            "status": "built",
+            "trajectory_count": result["readiness_decision"]["trajectory_count"],
+            "output_root": result["local_outputs"]["output_root"],
+            "local_only": True,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "built")
+
+
+def _cmd_validate_battery_trajectories(args: argparse.Namespace) -> int:
+    try:
+        entities = _load_entities_jsonl(args.path, "TrajectoryEntity")
+        payload = validate_battery_entities(entities, "TrajectoryEntity")
+    except (OSError, ValueError, json.JSONDecodeError, KeyError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_assess_battery_mechanism_readiness(args: argparse.Namespace) -> int:
+    try:
+        result = _run_battery_pipeline_from_config(args, write_local=False)
+        payload = {
+            "schema_version": "2.3.2",
+            "status": "assessed",
+            "mechanisms": result["mechanism_rows"],
+            "readiness_status": result["readiness_decision"]["status"],
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_export_battery_pgir_summary(args: argparse.Namespace) -> int:
+    try:
+        payload = export_tracked_battery_pgir_summaries(Path.cwd())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.3.2", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
+def _cmd_list_battery_mechanism_candidates(args: argparse.Namespace) -> int:
+    payload = {
+        "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+        "status": "available",
+        "candidates": [
+            {
+                "mechanism_id": candidate.mechanism_id,
+                "mechanism_family": candidate.mechanism_family,
+                "possible_operator_role": candidate.possible_operator_role,
+                "current_implementation_status": candidate.current_implementation_status,
+                "requirement_count": len(candidate.requirements),
+            }
+            for candidate in build_default_mechanism_candidates()
+        ],
+        "network_called": False,
+        "model_or_solver_executed": False,
+    }
+    return _emit_or_error(args, payload, ok=True)
+
+
+def _cmd_inspect_battery_mechanism_candidate(args: argparse.Namespace) -> int:
+    candidates = {candidate.mechanism_id: candidate for candidate in build_default_mechanism_candidates()}
+    candidate = candidates.get(args.mechanism_id)
+    if candidate is None:
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "unknown_mechanism_candidate",
+            "mechanism_id": args.mechanism_id,
+        }
+        return _emit_or_error(args, payload, ok=False)
+    payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "available", "candidate": candidate.to_dict()}
+    return _emit_or_error(args, payload, ok=True)
+
+
+def _battery_mechanism_config(args: argparse.Namespace) -> dict[str, Any]:
+    return _load_pgir_json_config(args.config) if getattr(args, "config", None) else {}
+
+
+def _cmd_audit_battery_condition_coverage(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "audited",
+            "rows": condition_coverage_summary(config.get("repo_root", "."), config.get("source_path")),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_audit_battery_protocol_comparability(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "audited",
+            "rows": protocol_comparability_summary(config.get("repo_root", "."), config.get("source_path")),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_assess_battery_mechanism_sufficiency(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        inventory = audit_battery_evidence_inventory(config.get("repo_root", "."), config.get("source_path"))
+        candidates = build_default_mechanism_candidates()
+        bindings = bind_mechanism_requirements(candidates, inventory, config.get("repo_root", "."))
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "assessed",
+            "inventory": inventory,
+            "candidate_count": len(candidates),
+            "evidence_bindings": [binding.to_dict() for binding in bindings],
+            "network_called": False,
+            "model_or_solver_executed": False,
+            "parameter_fitting_performed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_assess_battery_mechanism_identifiability(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        candidates = build_default_mechanism_candidates()
+        bindings = bind_mechanism_requirements(candidates, repo_root=config.get("repo_root", "."))
+        assessments = assess_battery_mechanism_identifiability(candidates, bindings, config.get("repo_root", "."))
+        confounding = assess_battery_mechanism_confounding(candidates)
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "assessed",
+            "identifiability": [item.to_dict() for item in assessments],
+            "confounding": [item.to_dict() for item in confounding],
+            "network_called": False,
+            "model_or_solver_executed": False,
+            "parameter_fitting_performed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_show_battery_mechanism_evidence_gaps(args: argparse.Namespace) -> int:
+    try:
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "available",
+            "evidence_gaps": [gap.to_dict() for gap in build_evidence_gap_registry()],
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except ValueError as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "available")
+
+
+def _cmd_select_battery_bounded_evaluator(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args) if getattr(args, "config", None) else {}
+        candidates = build_default_mechanism_candidates()
+        bindings = bind_mechanism_requirements(candidates, repo_root=config.get("repo_root", "."))
+        assessments = assess_battery_mechanism_identifiability(candidates, bindings, config.get("repo_root", "."))
+        decision = select_bounded_evaluator(assessments)
+        payload = decision.to_dict()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") != "invalid")
+
+
+def _cmd_validate_battery_mechanism_audit(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_battery_mechanism_audit_path(args.path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_export_battery_mechanism_audit_summary(args: argparse.Namespace) -> int:
+    try:
+        payload = export_battery_mechanism_audit_summary(Path.cwd(), write_local=not args.tracked_only)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
+def _battery_capacity_config(path: str | None) -> CapacityTrajectoryEvaluatorConfig:
+    if path is None:
+        return CapacityTrajectoryEvaluatorConfig()
+    config, _ = load_battery_capacity_evaluator_config(path)
+    return config
+
+
+def _cmd_inspect_battery_capacity_evaluator(args: argparse.Namespace) -> int:
+    payload = battery_capacity_evaluator_contract()
+    return _emit_or_error(args, payload)
+
+
+def _cmd_preview_battery_capacity_evaluation(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_capacity_config(args.config)
+        payload = preview_battery_capacity_evaluation(Path.cwd(), config=config)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "ready_for_bounded_descriptive_evaluation")
+
+
+def _cmd_run_battery_capacity_evaluator(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_capacity_config(args.config)
+        result = run_battery_capacity_evaluator(
+            Path.cwd(),
+            config=config,
+            write_local=True,
+            write_plots=not args.no_plots,
+        )
+        payload = {
+            "schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+            "status": result["decision"]["status"],
+            "aggregate": result["aggregate"],
+            "deterministic_rerun_match": result["deterministic_rerun_match"],
+            "local_outputs_written": True,
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status", "").startswith("descriptive_evaluator_executed"))
+
+
+def _cmd_validate_battery_capacity_evaluator_result(args: argparse.Namespace) -> int:
+    payload = validate_battery_capacity_evaluator_result(args.path)
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_show_battery_capacity_evaluator_summary(args: argparse.Namespace) -> int:
+    try:
+        if args.result:
+            payload = json.loads(Path(args.result).read_text(encoding="utf-8"))
+        else:
+            payload = load_battery_capacity_evaluator_summary(Path.cwd())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") not in {"invalid", "not_available"})
+
+
+def _cmd_show_battery_capacity_findings_summary(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result or "data/processed/battery_v2_3_4_finding_summary.csv")
+        rows = pd.read_csv(path).to_dict(orient="records")
+        payload = {
+            "schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+            "status": "available",
+            "finding_summary": rows,
+            "row_level_findings_loaded": False,
+        }
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "available")
+
+
+def _cmd_assess_battery_capacity_evaluator_trust(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result or "data/processed/battery_v2_3_4_trust_summary.csv")
+        rows = pd.read_csv(path).to_dict(orient="records")
+        payload = {
+            "schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+            "status": "assessed",
+            "trust_assessments": rows,
+            "generic_confidence_score_generated": False,
+        }
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_evaluate_battery_capacity_claims(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result or "data/processed/battery_v2_3_4_claim_evidence.json")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["status"] = "evaluated"
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "evaluated")
+
+
+def _cmd_export_battery_capacity_evaluator_summary(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_capacity_config(args.config)
+        payload = export_battery_capacity_evaluator_summary(
+            Path.cwd(),
+            config=config,
+            write_local=not args.tracked_only,
+            write_plots=not args.no_plots and not args.tracked_only,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
+def _cmd_preview_battery_metadata_stability(args: argparse.Namespace) -> int:
+    try:
+        payload = preview_battery_metadata_stability(args.config, Path.cwd())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(
+        args,
+        payload,
+        ok=payload.get("status") in {"ready_for_local_execution", "blocked_missing_local_source"},
+    )
+
+
+def _cmd_run_battery_metadata_stability(args: argparse.Namespace) -> int:
+    if not args.execute:
+        payload = {
+            "schema_version": BATTERY_METADATA_STABILITY_VERSION,
+            "status": "blocked_explicit_execute_required",
+            "network_called": False,
+        }
+        return _emit_or_error(args, payload, ok=False)
+    try:
+        payload = run_battery_metadata_stability_audit(
+            args.config,
+            Path.cwd(),
+            write_local=not args.tracked_only,
+            write_tracked=True,
+        )
+    except (OSError, ValueError, json.JSONDecodeError, pd.errors.ParserError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(
+        args,
+        payload,
+        ok=payload.get("status", "").startswith("descriptive_evaluator_"),
+    )
+
+
+def _cmd_show_battery_metadata_stability(args: argparse.Namespace) -> int:
+    try:
+        payload = load_battery_v2_3_5_summary(Path.cwd())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "available")
+
+
+def _cmd_validate_battery_metadata_stability(args: argparse.Namespace) -> int:
+    payload = validate_battery_v2_3_5_artifacts(Path.cwd())
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_evaluate_battery_external_data_requirement(args: argparse.Namespace) -> int:
+    try:
+        path = Path(BATTERY_METADATA_STABILITY_OUTPUTS["external_data_decision"])
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["status"] = "evaluated"
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "evaluated")
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -4373,6 +5178,323 @@ def build_parser() -> argparse.ArgumentParser:
         "evaluate-v2-2-release-readiness",
         help="evaluate v2.2 Materials release readiness from compact closeout artifacts",
     ).set_defaults(func=_cmd_evaluate_v2_2_release_readiness)
+
+    subparsers.add_parser("list-pgir-concepts", help="list PGIR canonical concept records").set_defaults(
+        func=_cmd_list_pgir_concepts
+    )
+
+    inspect_pgir_parser = subparsers.add_parser("inspect-pgir-concept", help="inspect one PGIR canonical concept")
+    inspect_pgir_parser.add_argument("concept_id")
+    inspect_pgir_parser.set_defaults(func=_cmd_inspect_pgir_concept)
+
+    subparsers.add_parser("show-pgir-mapping", help="show current implementation to PGIR mapping").set_defaults(
+        func=_cmd_show_pgir_mapping
+    )
+
+    subparsers.add_parser("validate-pgir-mapping", help="validate current implementation to PGIR mapping").set_defaults(
+        func=_cmd_validate_pgir_mapping
+    )
+
+    subparsers.add_parser(
+        "show-pgir-representation-levels",
+        help="show PGIR representation maturity levels",
+    ).set_defaults(func=_cmd_show_pgir_representation_levels)
+
+    subparsers.add_parser("show-pgir-schema-ownership", help="show PGIR schema ownership registry").set_defaults(
+        func=_cmd_show_pgir_schema_ownership
+    )
+
+    subparsers.add_parser(
+        "validate-pgir-schema-governance",
+        help="validate PGIR schema ownership and compatibility governance",
+    ).set_defaults(func=_cmd_validate_pgir_schema_governance)
+
+    subparsers.add_parser("show-pgir-capability-stages", help="show PGIR capability-stage registry").set_defaults(
+        func=_cmd_show_pgir_capability_stages
+    )
+
+    subparsers.add_parser("evaluate-pgir-readiness", help="evaluate PGIR governance readiness gates").set_defaults(
+        func=_cmd_evaluate_pgir_readiness
+    )
+
+    export_pgir_parser = subparsers.add_parser(
+        "export-pgir-governance-summary",
+        help="export a local-only PGIR governance summary",
+    )
+    export_pgir_parser.add_argument("--output", default="outputs/platform_pgir/pgir_governance_summary.json")
+    export_pgir_parser.add_argument("--overwrite", action="store_true")
+    export_pgir_parser.set_defaults(func=_cmd_export_pgir_governance_summary)
+
+    validate_pgir_rep_parser = subparsers.add_parser(
+        "validate-pgir-representation",
+        help="validate a PGIR representation declaration JSON file",
+    )
+    validate_pgir_rep_parser.add_argument("path")
+    validate_pgir_rep_parser.set_defaults(func=_cmd_validate_pgir_representation)
+
+    maturity_parser = subparsers.add_parser(
+        "assess-pgir-maturity",
+        help="assess PGIR maturity promotion evidence",
+    )
+    maturity_parser.add_argument("path")
+    maturity_parser.add_argument("--target-level")
+    maturity_parser.set_defaults(func=_cmd_assess_pgir_maturity)
+
+    transition_parser = subparsers.add_parser(
+        "validate-pgir-transition",
+        help="validate a PGIR representation transition config",
+    )
+    transition_parser.add_argument("config")
+    transition_parser.set_defaults(func=_cmd_validate_pgir_transition)
+
+    capability_parser = subparsers.add_parser(
+        "evaluate-pgir-capability",
+        help="evaluate PGIR capability eligibility for a representation",
+    )
+    capability_parser.add_argument("config")
+    capability_parser.set_defaults(func=_cmd_evaluate_pgir_capability)
+
+    conformance_summary_parser = subparsers.add_parser(
+        "show-pgir-conformance-summary",
+        help="show a PGIR conformance summary JSON file",
+    )
+    conformance_summary_parser.add_argument("result")
+    conformance_summary_parser.set_defaults(func=_cmd_show_pgir_conformance_summary)
+
+    battery_audit_parser = subparsers.add_parser(
+        "audit-battery-pgir-source",
+        help="audit local battery data availability for PGIR representation",
+    )
+    battery_audit_parser.add_argument("config", nargs="?")
+    battery_audit_parser.set_defaults(func=_cmd_audit_battery_pgir_source_impl)
+
+    battery_preview_parser = subparsers.add_parser(
+        "preview-battery-observation-build",
+        help="preview Battery PGIR Observation/State/Trajectory build without writing outputs",
+    )
+    battery_preview_parser.add_argument("config")
+    battery_preview_parser.set_defaults(func=_cmd_preview_battery_observation_build)
+
+    battery_obs_build_parser = subparsers.add_parser(
+        "build-battery-cycle-observations",
+        help="build local-only Battery PGIR cycle Observation artifacts",
+    )
+    battery_obs_build_parser.add_argument("config")
+    battery_obs_build_parser.set_defaults(func=_cmd_build_battery_cycle_observations)
+
+    battery_obs_validate_parser = subparsers.add_parser(
+        "validate-battery-cycle-observations",
+        help="validate local-only Battery PGIR cycle Observation JSONL",
+    )
+    battery_obs_validate_parser.add_argument("path")
+    battery_obs_validate_parser.set_defaults(func=_cmd_validate_battery_cycle_observations)
+
+    battery_state_build_parser = subparsers.add_parser(
+        "build-battery-operational-states",
+        help="build local-only Battery PGIR operational State summary artifacts",
+    )
+    battery_state_build_parser.add_argument("config")
+    battery_state_build_parser.set_defaults(func=_cmd_build_battery_operational_states)
+
+    battery_state_validate_parser = subparsers.add_parser(
+        "validate-battery-operational-states",
+        help="validate local-only Battery PGIR operational State JSONL",
+    )
+    battery_state_validate_parser.add_argument("path")
+    battery_state_validate_parser.set_defaults(func=_cmd_validate_battery_operational_states)
+
+    battery_trajectory_build_parser = subparsers.add_parser(
+        "build-battery-trajectories",
+        help="build local-only Battery PGIR Trajectory artifacts",
+    )
+    battery_trajectory_build_parser.add_argument("config")
+    battery_trajectory_build_parser.set_defaults(func=_cmd_build_battery_trajectories)
+
+    battery_trajectory_validate_parser = subparsers.add_parser(
+        "validate-battery-trajectories",
+        help="validate local-only Battery PGIR Trajectory JSONL",
+    )
+    battery_trajectory_validate_parser.add_argument("path")
+    battery_trajectory_validate_parser.set_defaults(func=_cmd_validate_battery_trajectories)
+
+    battery_mechanism_parser = subparsers.add_parser(
+        "assess-battery-mechanism-readiness",
+        help="assess Battery PGIR mechanism-readiness requirements without mechanism execution",
+    )
+    battery_mechanism_parser.add_argument("config")
+    battery_mechanism_parser.set_defaults(func=_cmd_assess_battery_mechanism_readiness)
+
+    subparsers.add_parser(
+        "export-battery-pgir-summary",
+        help="export tracked compact Battery PGIR summaries",
+    ).set_defaults(func=_cmd_export_battery_pgir_summary)
+
+    subparsers.add_parser(
+        "list-battery-mechanism-candidates",
+        help="list v2.3.3 Battery mechanism candidates and statuses",
+    ).set_defaults(func=_cmd_list_battery_mechanism_candidates)
+
+    inspect_battery_mechanism_parser = subparsers.add_parser(
+        "inspect-battery-mechanism-candidate",
+        help="inspect one Battery mechanism candidate and requirement set",
+    )
+    inspect_battery_mechanism_parser.add_argument("mechanism_id")
+    inspect_battery_mechanism_parser.set_defaults(func=_cmd_inspect_battery_mechanism_candidate)
+
+    battery_condition_parser = subparsers.add_parser(
+        "audit-battery-condition-coverage",
+        help="audit Battery condition coverage for mechanism sufficiency",
+    )
+    battery_condition_parser.add_argument("config")
+    battery_condition_parser.set_defaults(func=_cmd_audit_battery_condition_coverage)
+
+    battery_protocol_parser = subparsers.add_parser(
+        "audit-battery-protocol-comparability",
+        help="audit Battery protocol comparability for mechanism sufficiency",
+    )
+    battery_protocol_parser.add_argument("config")
+    battery_protocol_parser.set_defaults(func=_cmd_audit_battery_protocol_comparability)
+
+    battery_sufficiency_parser = subparsers.add_parser(
+        "assess-battery-mechanism-sufficiency",
+        help="bind Battery mechanism requirements to current evidence",
+    )
+    battery_sufficiency_parser.add_argument("config")
+    battery_sufficiency_parser.set_defaults(func=_cmd_assess_battery_mechanism_sufficiency)
+
+    battery_identifiability_parser = subparsers.add_parser(
+        "assess-battery-mechanism-identifiability",
+        help="assess structural, practical, and contextual Battery identifiability",
+    )
+    battery_identifiability_parser.add_argument("config")
+    battery_identifiability_parser.set_defaults(func=_cmd_assess_battery_mechanism_identifiability)
+
+    evidence_gap_parser = subparsers.add_parser(
+        "show-battery-mechanism-evidence-gaps",
+        help="show Battery mechanism evidence gaps and prohibited workarounds",
+    )
+    evidence_gap_parser.add_argument("result", nargs="?")
+    evidence_gap_parser.set_defaults(func=_cmd_show_battery_mechanism_evidence_gaps)
+
+    evaluator_parser = subparsers.add_parser(
+        "select-battery-bounded-evaluator",
+        help="select at most one bounded Battery evaluator candidate",
+    )
+    evaluator_parser.add_argument("config", nargs="?")
+    evaluator_parser.set_defaults(func=_cmd_select_battery_bounded_evaluator)
+
+    validate_mechanism_parser = subparsers.add_parser(
+        "validate-battery-mechanism-audit",
+        help="validate a Battery mechanism audit JSON or CSV artifact",
+    )
+    validate_mechanism_parser.add_argument("path")
+    validate_mechanism_parser.set_defaults(func=_cmd_validate_battery_mechanism_audit)
+
+    export_battery_mechanism_parser = subparsers.add_parser(
+        "export-battery-mechanism-audit-summary",
+        help="export v2.3.3 Battery mechanism audit compact summaries",
+    )
+    export_battery_mechanism_parser.add_argument("--tracked-only", action="store_true")
+    export_battery_mechanism_parser.set_defaults(func=_cmd_export_battery_mechanism_audit_summary)
+
+    subparsers.add_parser(
+        "inspect-battery-capacity-evaluator",
+        help="inspect the selected bounded Battery capacity evaluator",
+    ).set_defaults(func=_cmd_inspect_battery_capacity_evaluator)
+
+    preview_capacity_parser = subparsers.add_parser(
+        "preview-battery-capacity-evaluation",
+        help="preview Battery capacity evaluation without writing results",
+    )
+    preview_capacity_parser.add_argument("config")
+    preview_capacity_parser.set_defaults(func=_cmd_preview_battery_capacity_evaluation)
+
+    run_capacity_parser = subparsers.add_parser(
+        "run-battery-capacity-evaluator",
+        help="run the bounded Battery capacity evaluator using local PGIR artifacts",
+    )
+    run_capacity_parser.add_argument("config")
+    run_capacity_parser.add_argument("--no-plots", action="store_true")
+    run_capacity_parser.set_defaults(func=_cmd_run_battery_capacity_evaluator)
+
+    validate_capacity_parser = subparsers.add_parser(
+        "validate-battery-capacity-evaluator-result",
+        help="validate a Battery capacity evaluator JSON, JSONL, or CSV result",
+    )
+    validate_capacity_parser.add_argument("path")
+    validate_capacity_parser.set_defaults(func=_cmd_validate_battery_capacity_evaluator_result)
+
+    show_capacity_parser = subparsers.add_parser(
+        "show-battery-capacity-evaluator-summary",
+        help="show tracked or selected Battery capacity evaluator summary",
+    )
+    show_capacity_parser.add_argument("result", nargs="?")
+    show_capacity_parser.set_defaults(func=_cmd_show_battery_capacity_evaluator_summary)
+
+    show_capacity_findings_parser = subparsers.add_parser(
+        "show-battery-capacity-findings-summary",
+        help="show aggregate Battery capacity finding counts",
+    )
+    show_capacity_findings_parser.add_argument("result", nargs="?")
+    show_capacity_findings_parser.set_defaults(func=_cmd_show_battery_capacity_findings_summary)
+
+    trust_capacity_parser = subparsers.add_parser(
+        "assess-battery-capacity-evaluator-trust",
+        help="show the separated Battery evaluator trust dimensions",
+    )
+    trust_capacity_parser.add_argument("result", nargs="?")
+    trust_capacity_parser.set_defaults(func=_cmd_assess_battery_capacity_evaluator_trust)
+
+    claims_capacity_parser = subparsers.add_parser(
+        "evaluate-battery-capacity-claims",
+        help="show allowed and prohibited Battery evaluator claims",
+    )
+    claims_capacity_parser.add_argument("result", nargs="?")
+    claims_capacity_parser.set_defaults(func=_cmd_evaluate_battery_capacity_claims)
+
+    export_capacity_parser = subparsers.add_parser(
+        "export-battery-capacity-evaluator-summary",
+        help="export compact v2.3.4 Battery capacity evaluator summaries",
+    )
+    export_capacity_parser.add_argument("--config", default="configs/examples/battery_capacity_trajectory_evaluator.json")
+    export_capacity_parser.add_argument("--tracked-only", action="store_true")
+    export_capacity_parser.add_argument("--no-plots", action="store_true")
+    export_capacity_parser.set_defaults(func=_cmd_export_battery_capacity_evaluator_summary)
+
+    preview_metadata_stability_parser = subparsers.add_parser(
+        "preview-battery-source-metadata-audit",
+        help="preview local Battery source-metadata recovery and policy stability inputs",
+    )
+    preview_metadata_stability_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_BATTERY_METADATA_STABILITY_CONFIG
+    )
+    preview_metadata_stability_parser.set_defaults(func=_cmd_preview_battery_metadata_stability)
+
+    run_metadata_stability_parser = subparsers.add_parser(
+        "run-battery-metadata-stability-audit",
+        help="run the local-only v2.3.5 metadata recovery and evaluator stability audit",
+    )
+    run_metadata_stability_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_BATTERY_METADATA_STABILITY_CONFIG
+    )
+    run_metadata_stability_parser.add_argument("--execute", action="store_true")
+    run_metadata_stability_parser.add_argument("--tracked-only", action="store_true")
+    run_metadata_stability_parser.set_defaults(func=_cmd_run_battery_metadata_stability)
+
+    subparsers.add_parser(
+        "show-battery-metadata-stability",
+        help="show tracked v2.3.5 Battery metadata and evaluator stability results",
+    ).set_defaults(func=_cmd_show_battery_metadata_stability)
+
+    subparsers.add_parser(
+        "validate-battery-metadata-stability",
+        help="validate tracked v2.3.5 Battery metadata and stability outputs",
+    ).set_defaults(func=_cmd_validate_battery_metadata_stability)
+
+    subparsers.add_parser(
+        "evaluate-battery-external-data-requirement",
+        help="show the evidence-bounded external battery data requirement decision",
+    ).set_defaults(func=_cmd_evaluate_battery_external_data_requirement)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

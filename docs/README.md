@@ -8,6 +8,27 @@ This directory collects project references, specifications, audits, policies, ca
 - [Outputs Policy](OUTPUTS_POLICY.md): how `outputs/` and generated run artifacts should be treated.
 - [Portfolio Overview](PORTFOLIO_OVERVIEW.md): portfolio-oriented summary of architecture, case studies, validation rigor, and limitations.
 - [Platform Architecture](PLATFORM_ARCHITECTURE.md): v2 scaffold architecture, registries, config contract, CLI, and backward-compatibility boundary.
+- [PGIR Architecture](PGIR_ARCHITECTURE.md): v2.3 representation governance, canonical concepts, maturity levels, operator taxonomy, and non-goals.
+- [PGIR Conformance Gates](PGIR_CONFORMANCE_GATES.md): v2.3.2 representation declaration, maturity, context, transition, and capability gates.
+- [PGIR Current Architecture Audit](PGIR_CURRENT_ARCHITECTURE_AUDIT.md): current scientific records mapped to PGIR concepts.
+- [Platform v2.3 Roadmap](PLATFORM_V2_3_ROADMAP.md): staged PGIR-to-dynamic-physics roadmap without solver or model claims in v2.3.1.
+- [Battery PGIR Mapping](BATTERY_PGIR_MAPPING.md): mapping existing battery cycle summaries to Observation, operational State, and Trajectory metadata.
+- [Battery Observation, State, and Trajectory](BATTERY_OBSERVATION_STATE_TRAJECTORY.md): representation boundary for cycle observations, operational state summaries, and trajectories.
+- [Battery Mechanism Readiness](BATTERY_MECHANISM_READINESS.md): requirements-only mechanism readiness audit for Arrhenius, diffusion, and empirical trajectory contexts.
+- [Battery Mechanism Data Sufficiency Audit](BATTERY_MECHANISM_DATA_SUFFICIENCY_AUDIT.md): v2.3.3 actual Battery coverage for mechanism requirements.
+- [Battery Mechanism Candidates](BATTERY_MECHANISM_CANDIDATES.md): metadata-only mechanism-candidate registry and prohibited interpretations.
+- [Battery Identifiability Audit](BATTERY_IDENTIFIABILITY_AUDIT.md): structural, practical, and contextual identifiability results.
+- [Battery Protocol and Condition Comparability](BATTERY_PROTOCOL_AND_CONDITION_COMPARABILITY.md): protocol metadata and temperature-condition limits.
+- [Battery Mechanism Evidence Gaps](BATTERY_MECHANISM_EVIDENCE_GAPS.md): missing evidence and prohibited workarounds.
+- [Battery v2.3.3 Operator Selection](BATTERY_V2_3_3_OPERATOR_SELECTION.md): selected descriptive evaluator and blocked mechanism claims.
+- [Battery Capacity-Trajectory Evaluator](BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md): actual v2.3.4 bounded execution and aggregate findings.
+- [Battery Trajectory Findings and Thresholds](BATTERY_TRAJECTORY_FINDINGS_AND_THRESHOLDS.md): fixed gap-aware detection policy and interpretation limits.
+- [Battery Trajectory Evaluator Trust](BATTERY_TRAJECTORY_EVALUATOR_TRUST.md): representation, execution, interpretation, and external-validity boundaries.
+- [Battery v2.3.4 Scientific Boundary](BATTERY_V2_3_4_SCIENTIFIC_BOUNDARY.md): allowed and prohibited claims after execution.
+- [Battery Source-Metadata Recovery](BATTERY_SOURCE_METADATA_RECOVERY.md): v2.3.5 exact local lineage, recovered source evidence, and unresolved metadata.
+- [Battery Evaluator Stability Audit](BATTERY_EVALUATOR_STABILITY_AUDIT.md): predeclared threshold, reference, window, and gap sensitivity with bounded event consolidation.
+- [Battery v2.3.5 Scientific Boundary](BATTERY_V2_3_5_SCIENTIFIC_BOUNDARY.md): allowed claims and mechanism/prediction limits after the stability audit.
+- [Battery v2.3 Data and Representation Audit](BATTERY_V2_3_DATA_AND_REPRESENTATION_AUDIT.md): actual processed battery coverage and tracked/local output policy for the v2.3.2 pilot.
 - [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.
 - [Platform Adapters](PLATFORM_ADAPTERS.md): v2.0.2 thin adapter contract, manifest-only execution boundary, and current adapter matrix.
@@ -35,6 +56,12 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials v2.2 Claim Boundaries](MATERIALS_V2_2_CLAIM_BOUNDARIES.md): allowed, limited, unsupported, and prohibited Materials v2.2 scientific claims.
 - [Materials v2.2 Uncertainty Boundaries](MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md): source uncertainty, numerical tolerance, prediction interval, split variation, and model-form limitations.
 - [v2.2.0 Release Notes](releases/V2_2_0.md): Materials composition features, structure entities/descriptors, graph artifacts, limited known-structure evidence, and trust-boundary release notes.
+- [v2.3.0 Release Notes](releases/V2_3_0.md): PGIR governance, Battery representation conformance, identifiability limits, bounded evaluator execution, source recovery, and policy-stability evidence.
+- [RFC 0001 PGIR Architecture](rfcs/RFC_0001_PGIR_ARCHITECTURE.md): accepted PGIR architecture decision.
+- [RFC 0002 Representation Maturity](rfcs/RFC_0002_REPRESENTATION_MATURITY.md): maturity levels and promotion rules.
+- [RFC 0003 Schema Ownership and Evolution](rfcs/RFC_0003_SCHEMA_OWNERSHIP_AND_EVOLUTION.md): ownership, compatibility, and migration policy.
+- [RFC 0004 Mechanism and Operator Taxonomy](rfcs/RFC_0004_MECHANISM_AND_OPERATOR_TAXONOMY.md): Evaluator, Transformer, and Propagator taxonomy.
+- [RFC 0005 Domain Boundaries](rfcs/RFC_0005_DOMAIN_BOUNDARIES.md): domain-neutral core and domain-explicit context policy.
 - [Schema Evolution](SCHEMA_EVOLUTION.md): deterministic migration policy for versioned scientific records.
 - [Dynamic Physics and Graph Readiness](DYNAMIC_PHYSICS_AND_GRAPH_READINESS.md): state, trajectory, and graph metadata readiness without solvers or GNN execution.
 - [Unit Backend Decision](UNIT_BACKEND_DECISION.md): builtin unit backend default and optional Pint adapter decision.

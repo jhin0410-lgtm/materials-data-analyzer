@@ -63,6 +63,8 @@ The simulation workflow is a data-driven screening aid. It uses observed target-
 - State what each result can and cannot support before making claims.
 - Treat scientific constraints as explicit metadata contracts before using
   them as features, diagnostics, or model constraints.
+- Treat v2.3 PGIR as representation governance, not a completed physics
+  intelligence or solver system.
 
 ## What This Project Is Not
 
@@ -216,6 +218,69 @@ powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 
 The tracked test suite is designed to run without local raw datasets, Backblaze
 archives, row-level predictions, or generated `outputs/` folders.
+
+### Platform Governance Status
+
+`v2.3.0` is the current public release. It adds PGIR representation governance,
+conformance gates, and a bounded Battery trajectory evidence workflow while
+preserving the v2.2 Materials decisions. PGIR defines
+canonical concepts, maturity levels, schema ownership, and operator taxonomy
+without adding solvers, GNN/PINN, model retraining, or new predictive claims.
+The v2.3 release adds a Battery Observation /
+bounded operational State / Trajectory adapter pilot, and a v2.3.3 Battery
+mechanism-candidate identifiability audit over existing processed summaries
+only. The audit selects a descriptive capacity-trajectory consistency
+Evaluator candidate, not a mechanism fit or predictive battery model. v2.3.4
+executes that one selected Evaluator against 34 local PGIR trajectories and
+2,495 operational states: 33 are eligible with warnings and one
+four-observation trajectory is blocked by the preconfigured minimum-five rule.
+The deterministic findings remain cycle-index descriptive candidates; they do
+not identify a mechanism, estimate a parameter, train a model, extrapolate
+lifetime, or support production decisions. See
+[`docs/BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md`](docs/BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md).
+v2.3.5 verifies exact lineage to the immediate local Kaggle package, recovers
+only source-supported metadata for 2,495 analysis-ready discharge rows, and
+audits nine predeclared threshold/reference/window/gap policies. Of 489
+consolidated descriptive events, 211 are stable across policies, 97 are stable
+with restrictions, 50 are policy-sensitive, and 131 have insufficient support.
+These are robustness classifications, not degradation mechanisms. See
+[`docs/BATTERY_EVALUATOR_STABILITY_AUDIT.md`](docs/BATTERY_EVALUATOR_STABILITY_AUDIT.md).
+
+Useful PGIR inspection commands:
+
+```powershell
+python -m src.cli list-pgir-concepts
+python -m src.cli evaluate-pgir-readiness
+python -m src.cli validate-pgir-representation configs/examples/pgir_representation_conformance.json
+python -m src.cli preview-battery-observation-build configs/examples/battery_observation_build.json
+python -m src.cli export-battery-pgir-summary
+python -m src.cli list-battery-mechanism-candidates
+python -m src.cli export-battery-mechanism-audit-summary --tracked-only
+python -m src.cli preview-battery-capacity-evaluation configs/examples/battery_capacity_trajectory_evaluator.json
+python -m src.cli export-battery-capacity-evaluator-summary --tracked-only
+python -m src.cli preview-battery-source-metadata-audit configs/examples/battery_source_metadata_stability_audit.json
+python -m src.cli run-battery-metadata-stability-audit configs/examples/battery_source_metadata_stability_audit.json --execute --tracked-only
+python -m src.cli validate-battery-metadata-stability
+python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
+```
+
+Battery PGIR row-level Observation, State, and Trajectory JSONL files are
+local-only under `outputs/battery_pgir_v2_3/`; tracked outputs are compact
+coverage, maturity, transition, mechanism-readiness, and readiness-decision
+summaries. Battery mechanism-audit row-level/local detail remains under
+`outputs/battery_mechanism_audit_v2_3/`; tracked v2.3.3 outputs are compact
+condition, protocol, candidate, identifiability, evidence-gap, operator
+selection, and report summaries.
+Battery v2.3.4 row-level trajectory findings, results, reports, and plots stay
+under `outputs/battery_trajectory_evaluator_v2_3/`; tracked outputs contain no
+cell IDs, cycle indices, capacities, or raw series. Its thresholds are fixed
+algorithmic detection rules, not measurement uncertainty.
+Battery v2.3.5 cell/cycle lineage, recovered metadata, per-policy findings,
+and consolidated event rows stay under ignored
+`outputs/battery_metadata_stability_v2_3/`. Tracked outputs contain aggregate
+coverage and stability summaries only. The official original NASA snapshot and
+source measurement uncertainty remain unresolved; no external data is
+downloaded automatically.
 
 ### Platform Scientific Execution
 
@@ -489,6 +554,15 @@ outputs/{run_name}/reports/
 
 ## Releases
 
+- v2.3.0: PGIR representation governance, Battery conformance and
+  identifiability audits, bounded descriptive trajectory evaluation,
+  source-metadata recovery, and evaluator policy-stability evidence. No
+  mechanism, SOH/RUL, lifetime, or production claim is made. See
+  [`docs/releases/V2_3_0.md`](docs/releases/V2_3_0.md).
+- v2.2.0: Materials composition features, controlled known-structure
+  enrichment, deterministic structure descriptors and graph artifacts, and a
+  bounded evidence closeout with no representative model selected. See
+  [`docs/releases/V2_2_0.md`](docs/releases/V2_2_0.md).
 - v2.1.0: Persistent run/artifact registry, reproducibility diagnostics,
   bounded scientific execution, scientific trust boundaries, and metadata-only
   feature eligibility. See [`docs/releases/V2_1_0.md`](docs/releases/V2_1_0.md).
@@ -650,6 +724,25 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   scientific results.
 - See [`docs/PLATFORM_V2_2_CLOSEOUT.md`](docs/PLATFORM_V2_2_CLOSEOUT.md) and
   [`docs/releases/V2_2_0.md`](docs/releases/V2_2_0.md).
+
+### v2.3 Complete: PGIR Governance and Battery Trajectory Evidence
+
+- v2.3.1 defines PGIR concepts, representation maturity, schema ownership,
+  operator roles, and capability-stage governance without introducing a
+  solver or model.
+- v2.3.2 adds conformance gates and maps 34 Battery trajectories and 2,495
+  operational states into bounded Observation / State / Trajectory metadata.
+- v2.3.3 finds Arrhenius, diffusion, and resistance mechanisms unidentifiable
+  from the available evidence and selects one descriptive evaluator only.
+- v2.3.4 executes that evaluator on 33 eligible trajectories; one short
+  trajectory remains blocked by the predeclared eligibility rule.
+- v2.3.5 verifies immediate local-source lineage, recovers only supported
+  metadata, and classifies 489 consolidated events across nine predeclared
+  policies. The result remains
+  `descriptive_evaluator_stable_with_policy_restrictions` with no
+  representative mechanism.
+- See [`docs/PLATFORM_V2_3_ROADMAP.md`](docs/PLATFORM_V2_3_ROADMAP.md) and
+  [`docs/releases/V2_3_0.md`](docs/releases/V2_3_0.md).
 
 ### Later
 

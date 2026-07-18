@@ -1,0 +1,487 @@
+{
+  "mappings": [
+    {
+      "current_domain_use": [
+        "materials",
+        "battery",
+        "xrd",
+        "reliability_metadata"
+      ],
+      "current_limitations": [
+        "not a complete physical state ontology",
+        "does not execute mechanisms"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.ScientificEntity",
+      "implementation_role": "base runtime helper for JSON-safe scientific entity records",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "JSON object via EntityRecord or artifact-backed record",
+      "pgir_concepts": [
+        "physical_entity",
+        "observation",
+        "state",
+        "result"
+      ],
+      "prohibited_promotions": [
+        "production physical state",
+        "universal entity ontology"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "runtime helper and persisted record constructor",
+      "schema_id": "scientific_entity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "quantity_fields or explicit uncertainty refs"
+    },
+    {
+      "current_domain_use": [
+        "entity_serialization"
+      ],
+      "current_limitations": [
+        "not a live Python object"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.EntityRecord",
+      "implementation_role": "persisted JSON-safe entity record",
+      "mapping_status": "exact",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "canonical JSON-safe mapping plus checksum",
+      "pgir_concepts": [
+        "result",
+        "provenance"
+      ],
+      "prohibited_promotions": [
+        "runtime object persistence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "serialized record wrapper",
+      "schema_id": "scientific_entity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "preserved from entity payload"
+    },
+    {
+      "current_domain_use": [
+        "materials_project"
+      ],
+      "current_limitations": [
+        "composition is not structure",
+        "composition is not mechanism"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.MaterialCompositionEntity",
+      "implementation_role": "composition entity type",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "ScientificEntity attributes",
+      "pgir_concepts": [
+        "physical_entity"
+      ],
+      "prohibited_promotions": [
+        "structure-aware evidence",
+        "physics-constrained model success"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "entity_type specialization",
+      "schema_id": "scientific_entity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "unavailable unless source provides uncertainty"
+    },
+    {
+      "current_domain_use": [
+        "materials_project_known_structure"
+      ],
+      "current_limitations": [
+        "relaxed structure changes prediction context",
+        "not DFT replacement"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.CrystalStructureEntity",
+      "implementation_role": "crystal structure entity type",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "ScientificEntity attributes with lattice/site metadata",
+      "pgir_concepts": [
+        "physical_entity",
+        "state"
+      ],
+      "prohibited_promotions": [
+        "pre_structure_screening_input",
+        "phase_identification_claim"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "entity_type specialization",
+      "schema_id": "scientific_entity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "unavailable unless source provides uncertainty"
+    },
+    {
+      "current_domain_use": [
+        "battery_trajectories_future",
+        "xrd_patterns_future"
+      ],
+      "current_limitations": [
+        "large arrays should be artifact-backed"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.MeasurementSeriesEntity",
+      "implementation_role": "measurement series entity type",
+      "mapping_status": "exact",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "ScientificEntity attributes with axis metadata",
+      "pgir_concepts": [
+        "observation"
+      ],
+      "prohibited_promotions": [
+        "complete state without mechanism context"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "entity_type specialization",
+      "schema_id": "scientific_entity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "series uncertainty metadata or unavailable"
+    },
+    {
+      "current_domain_use": [
+        "dynamic_physics_future"
+      ],
+      "current_limitations": [
+        "not yet tied to a solver",
+        "field payloads artifact-backed only"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.StateEntity",
+      "implementation_role": "state metadata entity type",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "ScientificEntity attributes with state variables and conditions",
+      "pgir_concepts": [
+        "state",
+        "field",
+        "initial_condition",
+        "boundary_condition"
+      ],
+      "prohibited_promotions": [
+        "solver-ready state without sufficiency assumptions"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "entity_type specialization",
+      "schema_id": "scientific_entity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "state variable uncertainty metadata or unavailable"
+    },
+    {
+      "current_domain_use": [
+        "battery_trajectory_future"
+      ],
+      "current_limitations": [
+        "not a fitted degradation mechanism"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.TrajectoryEntity",
+      "implementation_role": "ordered state sequence metadata",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "artifact-backed ordered state references",
+      "pgir_concepts": [
+        "observation",
+        "state",
+        "result"
+      ],
+      "prohibited_promotions": [
+        "RUL model evidence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "entity_type specialization",
+      "schema_id": "trajectory_entity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "per-state or trajectory-level metadata"
+    },
+    {
+      "current_domain_use": [
+        "materials_periodic_graph_artifacts"
+      ],
+      "current_limitations": [
+        "representation only",
+        "not GNN evidence"
+      ],
+      "implementation_ref": "src.platform_core.scientific_entities.GraphEntity",
+      "implementation_role": "graph representation artifact metadata",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_entities",
+      "persisted_representation": "artifact-backed graph metadata",
+      "pgir_concepts": [
+        "result",
+        "physical_entity"
+      ],
+      "prohibited_promotions": [
+        "graph neural network claim",
+        "causal relation graph"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "entity_type specialization",
+      "schema_id": "graph_entity_schema_v2",
+      "schema_version": "2.2.4",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "graph builder limitation metadata"
+    },
+    {
+      "current_domain_use": [
+        "xrd",
+        "materials_properties"
+      ],
+      "current_limitations": [
+        "dimensional validity is not physical correctness"
+      ],
+      "implementation_ref": "src.platform_core.quantities.ScientificQuantity",
+      "implementation_role": "structured quantity record",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.quantities",
+      "persisted_representation": "JSON object",
+      "pgir_concepts": [
+        "parameter",
+        "field",
+        "result"
+      ],
+      "prohibited_promotions": [
+        "universal physical truth"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "runtime quantity helper",
+      "schema_id": "scientific_quantity_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "explicit UncertaintySpec or unavailable"
+    },
+    {
+      "current_domain_use": [
+        "xrd",
+        "materials_prediction_intervals"
+      ],
+      "current_limitations": [
+        "no arbitrary confidence score"
+      ],
+      "implementation_ref": "src.platform_core.uncertainty.UncertaintySpec",
+      "implementation_role": "structured uncertainty record",
+      "mapping_status": "exact",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.uncertainty",
+      "persisted_representation": "JSON object",
+      "pgir_concepts": [
+        "uncertainty"
+      ],
+      "prohibited_promotions": [
+        "zero uncertainty when unavailable"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "runtime uncertainty helper",
+      "schema_id": "scientific_uncertainty_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "self-describing"
+    },
+    {
+      "current_domain_use": [
+        "xrd",
+        "graph_construction_metadata"
+      ],
+      "current_limitations": [
+        "equation display is display-only"
+      ],
+      "implementation_ref": "src.platform_core.scientific_relations.ScientificRelation",
+      "implementation_role": "registered relation metadata",
+      "mapping_status": "exact",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_relations",
+      "persisted_representation": "JSON-safe metadata",
+      "pgir_concepts": [
+        "relation"
+      ],
+      "prohibited_promotions": [
+        "arbitrary equation execution"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "metadata record",
+      "schema_id": "scientific_relation_schema_v2",
+      "schema_version": "2.2.2",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "relation uncertainty policy metadata"
+    },
+    {
+      "current_domain_use": [
+        "xrd",
+        "materials_structure_adapters"
+      ],
+      "current_limitations": [
+        "only allowlisted operators",
+        "no arbitrary callable execution"
+      ],
+      "implementation_ref": "src.platform_core.scientific_operator_registry.ScientificOperatorMetadata",
+      "implementation_role": "operator metadata registry entry",
+      "mapping_status": "exact",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.scientific_operator_registry",
+      "persisted_representation": "registered JSON-safe operator metadata",
+      "pgir_concepts": [
+        "operator"
+      ],
+      "prohibited_promotions": [
+        "unregistered dynamic operator",
+        "general solver"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "metadata record",
+      "schema_id": "scientific_operator_registry_schema_v2",
+      "schema_version": "2.2.4",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "declared uncertainty behavior"
+    },
+    {
+      "current_domain_use": [
+        "pgir_conformance",
+        "battery_representation_governance"
+      ],
+      "current_limitations": [
+        "conformance is not scientific correctness",
+        "no solver or model execution"
+      ],
+      "implementation_ref": "src.platform_core.pgir_conformance",
+      "implementation_role": "PGIR representation declaration and conformance gate metadata",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.pgir_conformance",
+      "persisted_representation": "JSON-safe declaration and assessment records",
+      "pgir_concepts": [
+        "operator",
+        "context",
+        "provenance",
+        "result"
+      ],
+      "prohibited_promotions": [
+        "production decision",
+        "mechanism execution evidence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "read-only gate implementation",
+      "schema_id": "pgir_conformance_result_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "requires explicit uncertainty refs or unavailable status"
+    },
+    {
+      "current_domain_use": [
+        "battery_pgir_v2_3_pilot"
+      ],
+      "current_limitations": [
+        "operational state summary only",
+        "no latent electrochemical state"
+      ],
+      "implementation_ref": "src.platform_core.battery_pgir_adapters",
+      "implementation_role": "Battery Observation, operational State summary, and Trajectory adapters",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.battery_pgir_adapters",
+      "persisted_representation": "ScientificEntity records plus compact summaries",
+      "pgir_concepts": [
+        "observation",
+        "state",
+        "result",
+        "provenance"
+      ],
+      "prohibited_promotions": [
+        "diffusion-ready state",
+        "Arrhenius fit",
+        "SOH/RUL model evidence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "domain adapter and local-only artifact writer",
+      "schema_id": "battery_cycle_observation_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "source uncertainty unavailable unless explicitly provided"
+    },
+    {
+      "current_domain_use": [
+        "battery_v2_3_3_mechanism_audit"
+      ],
+      "current_limitations": [
+        "no mechanism execution",
+        "no parameter estimation",
+        "no hidden state inference"
+      ],
+      "implementation_ref": "src.platform_core.mechanism_identifiability",
+      "implementation_role": "Battery mechanism requirement, evidence, and identifiability audit",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.mechanism_identifiability",
+      "persisted_representation": "JSON-safe requirement, evidence, and decision summaries",
+      "pgir_concepts": [
+        "operator",
+        "context",
+        "result",
+        "uncertainty"
+      ],
+      "prohibited_promotions": [
+        "Arrhenius fit",
+        "diffusion coefficient",
+        "SOH/RUL model evidence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "read-only audit implementation",
+      "schema_id": "mechanism_identifiability_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "records unavailable source uncertainty without inventing intervals"
+    },
+    {
+      "current_domain_use": [
+        "battery_v2_3_4_capacity_trajectory_audit"
+      ],
+      "current_limitations": [
+        "cycle-index domain only",
+        "no external validation",
+        "no physical parameter fitting"
+      ],
+      "implementation_ref": "src.platform_core.battery_trajectory_evaluator",
+      "implementation_role": "Deterministic Battery capacity-trajectory consistency evaluator",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.battery_trajectory_evaluator",
+      "persisted_representation": "local row-level findings plus tracked compact aggregates",
+      "pgir_concepts": [
+        "operator",
+        "result",
+        "provenance",
+        "uncertainty"
+      ],
+      "prohibited_promotions": [
+        "degradation mechanism confirmation",
+        "SOH/RUL prediction",
+        "production decision"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "bounded descriptive evaluator",
+      "schema_id": "battery_capacity_trajectory_result_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "source uncertainty unavailable; thresholds are algorithmic detection policy"
+    }
+  ],
+  "schema_version": "2.3.1",
+  "status": "accepted_for_v2_3",
+  "validation": {
+    "concept_count": 15,
+    "errors": [],
+    "mapping_count": 16,
+    "status": "valid",
+    "valid": true
+  }
+}

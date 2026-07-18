@@ -14,6 +14,10 @@ from .artifact_resolver import ArtifactResolver, calculate_sha256
 from .artifacts import ArtifactRegistry, build_default_artifact_registry, validate_relative_path
 from .case_study_registry import CaseStudyRegistry, build_default_case_study_registry
 from .execution_policy import ExecutionPolicyRegistry, build_default_execution_policy_registry
+from .battery_pgir_adapters import load_battery_pgir_summary
+from .mechanism_identifiability import load_battery_mechanism_summary
+from .battery_trajectory_evaluator import load_battery_capacity_evaluator_summary
+from .pgir_governance import governance_summary
 from .registry import PluginRegistry, build_default_plugin_registry
 from .report_extractors import extract_case_study_results
 from .reports import (
@@ -136,6 +140,16 @@ def validate_report_config(config: dict[str, Any]) -> None:
         raise ValueError("include_registry_diagnostics must be a boolean")
     if "include_scientific_trust" in config and not isinstance(config["include_scientific_trust"], bool):
         raise ValueError("include_scientific_trust must be a boolean")
+    if "include_pgir_governance" in config and not isinstance(config["include_pgir_governance"], bool):
+        raise ValueError("include_pgir_governance must be a boolean")
+    if "include_pgir_conformance" in config and not isinstance(config["include_pgir_conformance"], bool):
+        raise ValueError("include_pgir_conformance must be a boolean")
+    if "include_battery_pgir" in config and not isinstance(config["include_battery_pgir"], bool):
+        raise ValueError("include_battery_pgir must be a boolean")
+    if "include_battery_mechanism_audit" in config and not isinstance(config["include_battery_mechanism_audit"], bool):
+        raise ValueError("include_battery_mechanism_audit must be a boolean")
+    if "include_battery_capacity_evaluator" in config and not isinstance(config["include_battery_capacity_evaluator"], bool):
+        raise ValueError("include_battery_capacity_evaluator must be a boolean")
     registry_path = config.get("registry_path")
     if registry_path is not None:
         if not isinstance(registry_path, str):
@@ -497,6 +511,121 @@ def _scientific_trust_summary(config: dict[str, Any], repo_root: Path) -> dict[s
     }
 
 
+def _pgir_governance_summary(config: dict[str, Any]) -> dict[str, Any]:
+    if config.get("include_pgir_governance") is not True:
+        return {"status": "not_requested"}
+    summary = governance_summary()
+    return {
+        "status": summary["status"],
+        "concept_count": summary["concept_count"],
+        "mapping_count": summary["mapping_count"],
+        "schema_count": summary["schema_count"],
+        "capability_count": summary["capability_count"],
+        "operator_roles": summary["operator_roles"],
+        "readiness": summary["readiness"],
+        "execution_boundary": summary["execution_boundary"],
+    }
+
+
+def _pgir_conformance_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_pgir_conformance") is not True:
+        return {"status": "not_requested"}
+    import csv
+
+    maturity_path = repo_root / "data/processed/battery_v2_3_maturity_summary.csv"
+    transition_path = repo_root / "data/processed/battery_v2_3_transition_summary.csv"
+    if not maturity_path.exists() or not transition_path.exists():
+        return {"status": "not_available"}
+    with maturity_path.open("r", encoding="utf-8", newline="") as handle:
+        maturity_rows = list(csv.DictReader(handle))
+    with transition_path.open("r", encoding="utf-8", newline="") as handle:
+        transition_rows = list(csv.DictReader(handle))
+    return {
+        "status": "available",
+        "schema_version": "2.3.2",
+        "declaration_count": len(maturity_rows),
+        "blocked_promotion_count": sum(str(row.get("promotion_allowed", "")).lower() != "true" for row in maturity_rows),
+        "transition_count": len(transition_rows),
+        "blocked_transition_count": sum(str(row.get("transition_allowed", "")).lower() != "true" for row in transition_rows),
+        "raw_cycle_series_loaded": False,
+        "model_or_solver_executed": False,
+    }
+
+
+def _battery_pgir_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_battery_pgir") is not True:
+        return {"status": "not_requested"}
+    summary = load_battery_pgir_summary(repo_root)
+    if summary.get("status") != "available":
+        return summary
+    decision = summary["readiness_decision"]
+    audit = summary["data_audit"]
+    return {
+        "status": "available",
+        "readiness_status": decision["status"],
+        "actual_data_status": audit["actual_data_status"],
+        "cell_count": decision["cell_count"],
+        "cycle_count": decision["cycle_count"],
+        "observation_count": decision["observation_count"],
+        "state_count": decision["state_count"],
+        "trajectory_count": decision["trajectory_count"],
+        "mechanism_execution_ready": decision["mechanism_execution_ready"],
+        "prediction_ready": decision["prediction_ready"],
+        "model_or_solver_executed": False,
+    }
+
+
+def _battery_mechanism_audit_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_battery_mechanism_audit") is not True:
+        return {"status": "not_requested"}
+    summary = load_battery_mechanism_summary(repo_root)
+    if summary.get("status") != "available":
+        return summary
+    decision = summary["decision"]
+    source_inventory = decision.get("source_inventory", {})
+    return {
+        "status": "available",
+        "schema_version": summary["schema_version"],
+        "decision_status": decision["status"],
+        "selected_evaluator_id": decision.get("selected_evaluator_id"),
+        "selected_operator_role": decision.get("selected_operator_role"),
+        "cell_count": source_inventory.get("cell_count"),
+        "cycle_count": source_inventory.get("cycle_count"),
+        "ambient_temperature_unique_count": source_inventory.get("ambient_temperature_unique_count"),
+        "internal_resistance_available_rows": source_inventory.get("internal_resistance_available_rows"),
+        "mechanism_confirmation_supported": False,
+        "model_or_solver_executed": False,
+        "parameter_fitting_performed": False,
+        "allowed_claims": decision.get("allowed_claims", []),
+        "prohibited_claims": decision.get("prohibited_claims", []),
+    }
+
+
+def _battery_capacity_evaluator_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_battery_capacity_evaluator") is not True:
+        return {"status": "not_requested"}
+    summary = load_battery_capacity_evaluator_summary(repo_root)
+    if summary.get("status") != "available":
+        return summary
+    decision = summary["decision"]
+    execution = summary["execution"]
+    return {
+        "status": "available",
+        "schema_version": summary["schema_version"],
+        "evaluator_id": decision["evaluator_id"],
+        "execution_status": decision["status"],
+        "requested_trajectories": execution["requested_trajectories"],
+        "evaluated_trajectories": execution["evaluated_trajectories"],
+        "valid_capacity_observations": execution["valid_capacity_observations"],
+        "deterministic_rerun_match": execution["deterministic_rerun_match"],
+        "representative_mechanism": decision["representative_mechanism"],
+        "model_or_solver_executed": False,
+        "parameter_fitting_performed": False,
+        "allowed_claims": decision.get("allowed_claims", []),
+        "prohibited_claims": decision.get("prohibited_claims", []),
+    }
+
+
 def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = ".") -> PlatformReport:
     validate_report_config(config)
     root = Path(repo_root).resolve()
@@ -541,6 +670,11 @@ def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = "."
         trust_policy_summary=tuple(registries.trust_registry.snapshot()),
         registry_diagnostics_summary=_registry_diagnostics_summary(config, root),
         scientific_trust_summary=_scientific_trust_summary(config, root),
+        pgir_governance_summary=_pgir_governance_summary(config),
+        pgir_conformance_summary=_pgir_conformance_summary(config, root),
+        battery_pgir_summary=_battery_pgir_summary(config, root),
+        battery_mechanism_audit_summary=_battery_mechanism_audit_summary(config, root),
+        battery_capacity_evaluator_summary=_battery_capacity_evaluator_summary(config, root),
         testing_summary=testing_summary,
         security_boundaries=(
             "no acquisition, normalization, feature engineering, model training, or trust rerun",
@@ -700,6 +834,34 @@ def render_report_markdown(report: PlatformReport) -> str:
     lines.extend(["", "## Scientific Trust Summary"])
     for key, value in sorted(report.scientific_trust_summary.items()):
         lines.append(f"- `{key}`: `{value}`")
+    if report.pgir_governance_summary.get("status") != "not_requested":
+        lines.extend(["", "## PGIR Architecture And Governance"])
+        lines.append(f"- `status`: `{report.pgir_governance_summary['status']}`")
+        lines.append(f"- `concept_count`: `{report.pgir_governance_summary['concept_count']}`")
+        lines.append(f"- `mapping_count`: `{report.pgir_governance_summary['mapping_count']}`")
+        lines.append(f"- `schema_count`: `{report.pgir_governance_summary['schema_count']}`")
+        lines.append(f"- `capability_count`: `{report.pgir_governance_summary['capability_count']}`")
+        lines.append("- `scientific_recomputation_performed`: `False`")
+        lines.append("- PGIR is a representation-governance layer; no physics execution, API call, model run, or raw artifact read is performed.")
+    if report.pgir_conformance_summary.get("status") != "not_requested":
+        lines.extend(["", "## PGIR Conformance Summary"])
+        for key, value in sorted(report.pgir_conformance_summary.items()):
+            lines.append(f"- `{key}`: `{value}`")
+    if report.battery_pgir_summary.get("status") != "not_requested":
+        lines.extend(["", "## Battery PGIR Representation Summary"])
+        for key, value in sorted(report.battery_pgir_summary.items()):
+            lines.append(f"- `{key}`: `{value}`")
+        lines.append("- Battery PGIR summaries are representation readiness artifacts, not battery lifetime or mechanism predictions.")
+    if report.battery_mechanism_audit_summary.get("status") != "not_requested":
+        lines.extend(["", "## Battery Mechanism And Identifiability Audit"])
+        for key, value in sorted(report.battery_mechanism_audit_summary.items()):
+            lines.append(f"- `{key}`: `{value}`")
+        lines.append("- Battery mechanism audit summaries read compact artifacts only and do not execute fitting, solvers, or predictive models.")
+    if report.battery_capacity_evaluator_summary.get("status") != "not_requested":
+        lines.extend(["", "## Battery Capacity-Trajectory Evaluator"])
+        for key, value in sorted(report.battery_capacity_evaluator_summary.items()):
+            lines.append(f"- `{key}`: `{value}`")
+        lines.append("- Findings are cycle-index descriptive candidates, not mechanisms, physical-time rates, predictions, or production decisions.")
     lines.extend(["", "## Case-Study Result Summaries"])
     for case in report.case_studies:
         lines.extend(

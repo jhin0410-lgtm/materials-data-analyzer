@@ -1,0 +1,524 @@
+{
+  "concepts": [
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Transformer"
+      ],
+      "concept_id": "physical_entity",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.ScientificEntity"
+      ],
+      "definition": "Identifiable physical object or system such as a material, specimen, component or device.",
+      "maturity_requirements": [
+        "semantically_mapped"
+      ],
+      "optional_metadata": [
+        "composition",
+        "structure",
+        "component_id",
+        "artifact_ref"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "database row identity is not automatically physical identity"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "entity_id",
+        "domain_context",
+        "provenance"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Transformer"
+      ],
+      "concept_id": "observation",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.MeasurementSeriesEntity"
+      ],
+      "definition": "Measurement or recorded evidence with observation context; not automatically a complete state.",
+      "maturity_requirements": [
+        "schema_valid",
+        "semantically_mapped"
+      ],
+      "optional_metadata": [
+        "instrument",
+        "calibration",
+        "time",
+        "location"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "measured output is not automatically latent physical state"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "observed_quantity",
+        "measurement_context",
+        "provenance"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator"
+      ],
+      "concept_id": "state",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.StateEntity"
+      ],
+      "definition": "Variables sufficient for a defined model or mechanism context; may be observed, estimated or latent.",
+      "maturity_requirements": [
+        "semantically_mapped",
+        "dimensionally_valid"
+      ],
+      "optional_metadata": [
+        "boundary_condition_refs",
+        "initial_condition_refs",
+        "uncertainty"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "all table rows are not automatically states"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "state_variables",
+        "context",
+        "sufficiency_assumptions"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator",
+        "Renderer"
+      ],
+      "concept_id": "field",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.StateEntity"
+      ],
+      "definition": "Quantity distributed over space, time or another coordinate domain.",
+      "maturity_requirements": [
+        "semantically_mapped",
+        "dimensionally_valid"
+      ],
+      "optional_metadata": [
+        "discretization",
+        "artifact_ref",
+        "boundary_condition_refs"
+      ],
+      "parent_concept": "state",
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "large arrays are not stored inline",
+        "tensor values require frame metadata"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "quantity_shape",
+        "axes",
+        "coordinate_system",
+        "unit",
+        "basis_or_frame"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator",
+        "Calibrator"
+      ],
+      "concept_id": "parameter",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.quantities.ScientificQuantity"
+      ],
+      "definition": "Model, material or system parameter fixed or estimated within a defined execution.",
+      "maturity_requirements": [
+        "semantically_mapped",
+        "dimensionally_valid"
+      ],
+      "optional_metadata": [
+        "estimation_method",
+        "uncertainty"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "fitted parameter is not universal without validation context"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "parameter_id",
+        "unit",
+        "context",
+        "provenance"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator"
+      ],
+      "concept_id": "control",
+      "concept_version": "1",
+      "current_implementation_refs": [],
+      "definition": "Externally selected input or intervention.",
+      "maturity_requirements": [
+        "semantically_mapped"
+      ],
+      "optional_metadata": [
+        "safety_constraints",
+        "equipment_constraints"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "observed correlation is not intervention evidence"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "control_id",
+        "availability_time",
+        "domain_context"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator"
+      ],
+      "concept_id": "initial_condition",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.StateEntity"
+      ],
+      "definition": "State specification at a reference time for a bounded mechanism context.",
+      "maturity_requirements": [
+        "dimensionally_valid"
+      ],
+      "optional_metadata": [
+        "uncertainty",
+        "source_observation_refs"
+      ],
+      "parent_concept": "state",
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "first row is not automatically an initial condition"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "reference_time",
+        "state_variable_refs",
+        "context"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator"
+      ],
+      "concept_id": "boundary_condition",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.StateEntity"
+      ],
+      "definition": "Condition applied at a spatial, temporal or system boundary.",
+      "maturity_requirements": [
+        "dimensionally_valid"
+      ],
+      "optional_metadata": [
+        "geometry",
+        "flux",
+        "interface_ref"
+      ],
+      "parent_concept": "state",
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "global average is not automatically a boundary condition"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "boundary_id",
+        "boundary_type",
+        "condition_value_or_ref",
+        "applicability"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Transformer",
+        "Propagator"
+      ],
+      "concept_id": "relation",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_relations.ScientificRelation"
+      ],
+      "definition": "Algebraic, constitutive, conservation, kinetic, differential, statistical or transformation relationship.",
+      "maturity_requirements": [
+        "semantically_mapped"
+      ],
+      "optional_metadata": [
+        "mechanism_family",
+        "equation_display",
+        "operator_refs"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "equation display is not arbitrary executable code"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "relation_id",
+        "relation_category",
+        "input_roles",
+        "output_roles",
+        "assumptions"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Transformer",
+        "Propagator",
+        "Estimator",
+        "Inverter",
+        "Calibrator",
+        "Renderer"
+      ],
+      "concept_id": "operator",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_operator_registry.ScientificOperatorMetadata"
+      ],
+      "definition": "Registered executable implementation metadata for a relation or transformation.",
+      "maturity_requirements": [
+        "schema_valid"
+      ],
+      "optional_metadata": [
+        "uncertainty_behavior",
+        "evidence_level"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "registry metadata is not permission for arbitrary dynamic import"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "operator_id",
+        "role",
+        "input_schema",
+        "output_schema",
+        "side_effect_policy"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator",
+        "Calibrator"
+      ],
+      "concept_id": "model",
+      "concept_version": "1",
+      "current_implementation_refs": [],
+      "definition": "Bounded collection of relations, operators and assumptions.",
+      "maturity_requirements": [
+        "mechanism_compatible"
+      ],
+      "optional_metadata": [
+        "parameters",
+        "calibration_data",
+        "limitations"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "registered model is not production readiness"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "model_id",
+        "relations",
+        "assumptions",
+        "validation_context"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Transformer",
+        "Propagator"
+      ],
+      "concept_id": "result",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.run_registry",
+        "src.platform_core.report_generator"
+      ],
+      "definition": "Output quantity, entity or artifact with context, uncertainty and provenance.",
+      "maturity_requirements": [
+        "schema_valid"
+      ],
+      "optional_metadata": [
+        "uncertainty",
+        "claim_boundary",
+        "artifact_ref"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "artifact generation is not predictive evidence"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "result_id",
+        "producer",
+        "context",
+        "provenance"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Propagator"
+      ],
+      "concept_id": "uncertainty",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.uncertainty.UncertaintySpec"
+      ],
+      "definition": "Structured uncertainty, limitation, sensitivity or unavailable state.",
+      "maturity_requirements": [
+        "schema_valid"
+      ],
+      "optional_metadata": [
+        "interval",
+        "confidence_level",
+        "method"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "unavailable uncertainty is not zero uncertainty",
+        "confidence score is not universal truth"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "kind",
+        "reason_or_value",
+        "source"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator"
+      ],
+      "concept_id": "provenance",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.run_registry",
+        "src.platform_core.artifacts"
+      ],
+      "definition": "Source, acquisition, transformation and execution lineage.",
+      "maturity_requirements": [
+        "schema_valid"
+      ],
+      "optional_metadata": [
+        "code_commit",
+        "operator_ref",
+        "timestamp"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "local absolute path is not portable provenance"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "source",
+        "transformation",
+        "checksum_or_manifest"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    },
+    {
+      "allowed_operator_roles": [
+        "Evaluator",
+        "Transformer",
+        "Propagator"
+      ],
+      "concept_id": "context",
+      "concept_version": "1",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_trust"
+      ],
+      "definition": "Domain, prediction timing, scale, assumptions and validity conditions for an entity, relation or result.",
+      "maturity_requirements": [
+        "semantically_mapped"
+      ],
+      "optional_metadata": [
+        "prediction_context",
+        "scale_context",
+        "validation_context"
+      ],
+      "parent_concept": null,
+      "persistence_policy": "json_safe_metadata_or_artifact_reference",
+      "prohibited_interpretations": [
+        "known-structure context cannot be reused as pre-structure context without a boundary"
+      ],
+      "provenance_policy": "source_and_transformation_lineage_required",
+      "required_metadata": [
+        "context_id",
+        "domain_context",
+        "availability_timing",
+        "validity_conditions"
+      ],
+      "status": "concept_defined",
+      "uncertainty_policy": "explicit_structured_uncertainty_or_unavailable"
+    }
+  ],
+  "schema_version": "2.3.1",
+  "status": "accepted_for_v2_3"
+}

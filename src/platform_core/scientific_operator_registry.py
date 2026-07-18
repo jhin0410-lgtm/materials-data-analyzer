@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-OPERATOR_REGISTRY_VERSION = "2.2.4"
+OPERATOR_REGISTRY_VERSION = "2.3.4"
 ALLOWED_OPERATOR_STATUSES = ("registered", "metadata_only", "adapter_available", "validation_ready")
 
 
@@ -29,6 +29,11 @@ class ScientificOperatorMetadata:
     bounded_input_policy: str
     status: str = "registered"
     description: str = ""
+    operator_role: str = "unspecified"
+    mechanism_family: str = "unspecified"
+    target_access_policy: str = "no_target_access"
+    claim_boundary: tuple[str, ...] = ()
+    capability_stage: str = "registered"
 
     def __post_init__(self) -> None:
         if "/" in self.operator_id or "\\" in self.operator_id or ".." in self.operator_id:
@@ -54,6 +59,11 @@ class ScientificOperatorMetadata:
             "bounded_input_policy": self.bounded_input_policy,
             "status": self.status,
             "description": self.description,
+            "operator_role": self.operator_role,
+            "mechanism_family": self.mechanism_family,
+            "target_access_policy": self.target_access_policy,
+            "claim_boundary": list(self.claim_boundary),
+            "capability_stage": self.capability_stage,
         }
 
 
@@ -103,6 +113,11 @@ def _op(
     status: str = "registered",
     uncertainty_policy: str = "unavailable_if_source_not_provided",
     side_effect_policy: str = "none",
+    operator_role: str = "unspecified",
+    mechanism_family: str = "unspecified",
+    target_access_policy: str = "no_target_access",
+    claim_boundary: tuple[str, ...] = (),
+    capability_stage: str = "registered",
 ) -> ScientificOperatorMetadata:
     return ScientificOperatorMetadata(
         operator_id=operator_id,
@@ -118,6 +133,11 @@ def _op(
         bounded_input_policy="small_inline_or_artifact_backed_json_safe_records",
         status=status,
         description=description,
+        operator_role=operator_role,
+        mechanism_family=mechanism_family,
+        target_access_policy=target_access_policy,
+        claim_boundary=claim_boundary,
+        capability_stage=capability_stage,
     )
 
 
@@ -194,6 +214,105 @@ def build_default_scientific_operator_registry() -> ScientificOperatorRegistry:
             ("SnapshotAlignmentFinding",),
             ("material_id", "energy_above_hull"),
             "Compare original v1.3 target with current API value without overwriting the original target.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_source_record_to_cycle_observation_v1",
+            ("BatteryCycleSourceRecord",),
+            ("MeasurementSeriesEntity",),
+            ("battery_id", "cycle_index", "discharge_capacity_ah"),
+            "Map an existing battery cycle source row to a PGIR Observation without inlining large series.",
+            status="adapter_available",
+        ),
+        _op(
+            "battery_cycle_observation_to_operational_state_v1",
+            ("MeasurementSeriesEntity",),
+            ("StateEntity",),
+            ("cycle_index", "capacity_observation", "unit_metadata"),
+            "Transform a Battery Observation into a bounded operational State summary, not a latent electrochemical state.",
+            status="adapter_available",
+        ),
+        _op(
+            "battery_operational_states_to_trajectory_v1",
+            ("StateEntity",),
+            ("TrajectoryEntity",),
+            ("ordered_state_refs", "time_axis_semantics"),
+            "Build a deterministic per-cell trajectory from ordered battery operational State summaries.",
+            status="adapter_available",
+        ),
+        _op(
+            "battery_cycle_observation_integrity_check_v1",
+            ("MeasurementSeriesEntity",),
+            ("IntegrityFinding",),
+            ("cycle_index", "quantity_roles", "unit_metadata"),
+            "Validate Battery Observation metadata, units, and direct/derived quantity roles.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_trajectory_integrity_check_v1",
+            ("TrajectoryEntity",),
+            ("IntegrityFinding",),
+            ("ordered_state_refs", "time_axis"),
+            "Validate cycle ordering, duplicate policy, and mixed-cell rejection for Battery trajectories.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_mechanism_readiness_assessment_v1",
+            ("TrajectoryEntity",),
+            ("MechanismReadinessSummary",),
+            ("trajectory_count", "temperature_context", "boundary_condition_context"),
+            "Audit readiness for Arrhenius, diffusion, and empirical degradation mechanisms without executing them.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_capacity_trajectory_consistency_evaluator_v1",
+            ("TrajectoryEntity",),
+            ("CapacityTrajectoryResult", "CapacityTrajectoryFinding", "CapacityTrajectoryTrustAssessment"),
+            ("cycle_order", "discharge_capacity_ah", "reference_capacity_policy"),
+            "Evaluate observed capacity trajectory consistency descriptively without mechanism confirmation or prediction.",
+            status="adapter_available",
+            side_effect_policy="local_output_only",
+            operator_role="Evaluator",
+            mechanism_family="damage_and_degradation_descriptive_trajectory_evaluation",
+            target_access_policy="observed_capacity_only_no_predictive_target",
+            claim_boundary=(
+                "descriptive trajectory candidates only",
+                "no mechanism attribution",
+                "no parameter estimation",
+                "no prediction or extrapolation",
+            ),
+            capability_stage="scientifically_evaluated_as_descriptive_evaluator",
+        ),
+        _op(
+            "battery_protocol_comparability_evaluator_v1",
+            ("MeasurementSeriesEntity", "TrajectoryEntity"),
+            ("ProtocolComparabilityFinding",),
+            ("cycle_type", "current_profile", "voltage_window", "temperature_context"),
+            "Audit protocol comparability metadata for mechanism candidates without treating missing metadata as equality.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_arrhenius_readiness_evaluator_v1",
+            ("TrajectoryEntity",),
+            ("MechanismReadinessSummary",),
+            ("temperature_groups", "rate_like_response", "protocol_comparability"),
+            "Audit Arrhenius sufficiency and block activation-energy claims when current evidence is insufficient.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_diffusion_readiness_evaluator_v1",
+            ("TrajectoryEntity",),
+            ("MechanismReadinessSummary",),
+            ("internal_state", "geometry", "boundary_conditions", "transient_time_axis"),
+            "Audit diffusion sufficiency and block diffusion-coefficient claims when state, geometry, or boundary evidence is missing.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_resistance_capacity_relation_applicability_v1",
+            ("MeasurementSeriesEntity", "TrajectoryEntity"),
+            ("MechanismReadinessSummary",),
+            ("resistance_definition", "capacity_definition", "protocol_context"),
+            "Audit resistance/capacity relation applicability without equivalent-circuit or impedance fitting.",
             status="validation_ready",
         ),
     ):

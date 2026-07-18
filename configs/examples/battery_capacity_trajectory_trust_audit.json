@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.3.4",
+  "case_study_id": "kaggle_battery",
+  "stage": "trust",
+  "evaluator_id": "battery_capacity_trajectory_consistency_evaluator_v1",
+  "dry_run": true,
+  "result_path": "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+  "decision_path": "data/processed/battery_v2_3_4_evaluator_decision.json",
+  "claim_evidence_path": "data/processed/battery_v2_3_4_claim_evidence.json",
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "execution_policy": {
+    "model_training_enabled": false,
+    "solver_enabled": false,
+    "parameter_fitting_enabled": false
+  }
+}

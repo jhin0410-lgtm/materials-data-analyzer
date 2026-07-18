@@ -1,0 +1,12 @@
+protocol_field,available,coverage_rows,status,comparability_impact
+c_rate,false,0,missing,required_for_mechanism_comparison
+current_summary,true,0,available,supporting_metadata
+cutoff_voltage,false,0,missing,required_for_mechanism_comparison
+cycle_type,false,0,missing,supporting_metadata
+duration_summary,true,0,available,supporting_metadata
+protocol_identifier,false,0,missing,required_for_mechanism_comparison
+rest_period,false,0,missing,required_for_mechanism_comparison
+source_filename,true,2495,available,supporting_metadata
+test_id,true,2495,available,supporting_metadata
+voltage_window_summary,true,0,available,supporting_metadata
+overall_protocol_comparability,false,2495,insufficient_protocol_metadata,blocks Arrhenius and mechanism comparison when exact protocol equality is required

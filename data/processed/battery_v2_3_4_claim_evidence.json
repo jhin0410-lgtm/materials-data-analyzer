@@ -1,0 +1,177 @@
+{
+  "claims": [
+    {
+      "claim": "battery capacity trajectory evaluator registered",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+        "data/processed/battery_v2_3_4_finding_summary.csv",
+        "data/processed/battery_v2_3_4_trust_summary.csv"
+      ],
+      "scope": "current_34_cell_source_context",
+      "status": "supported_for_bounded_descriptive_audit"
+    },
+    {
+      "claim": "battery capacity trajectory evaluator executed",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+        "data/processed/battery_v2_3_4_finding_summary.csv",
+        "data/processed/battery_v2_3_4_trust_summary.csv"
+      ],
+      "scope": "current_34_cell_source_context",
+      "status": "supported_for_bounded_descriptive_audit"
+    },
+    {
+      "claim": "battery trajectory consistency findings generated",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+        "data/processed/battery_v2_3_4_finding_summary.csv",
+        "data/processed/battery_v2_3_4_trust_summary.csv"
+      ],
+      "scope": "current_34_cell_source_context",
+      "status": "supported_for_bounded_descriptive_audit"
+    },
+    {
+      "claim": "deterministic threshold policy recorded",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+        "data/processed/battery_v2_3_4_finding_summary.csv",
+        "data/processed/battery_v2_3_4_trust_summary.csv"
+      ],
+      "scope": "current_34_cell_source_context",
+      "status": "supported_for_bounded_descriptive_audit"
+    },
+    {
+      "claim": "PGIR conformance checked before execution",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+        "data/processed/battery_v2_3_4_finding_summary.csv",
+        "data/processed/battery_v2_3_4_trust_summary.csv"
+      ],
+      "scope": "current_34_cell_source_context",
+      "status": "supported_for_bounded_descriptive_audit"
+    },
+    {
+      "claim": "evaluator trust assessed",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+        "data/processed/battery_v2_3_4_finding_summary.csv",
+        "data/processed/battery_v2_3_4_trust_summary.csv"
+      ],
+      "scope": "current_34_cell_source_context",
+      "status": "supported_for_bounded_descriptive_audit"
+    },
+    {
+      "claim": "descriptive trajectory patterns summarized",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+        "data/processed/battery_v2_3_4_finding_summary.csv",
+        "data/processed/battery_v2_3_4_trust_summary.csv"
+      ],
+      "scope": "current_34_cell_source_context",
+      "status": "supported_for_bounded_descriptive_audit"
+    },
+    {
+      "claim": "degradation mechanism identified",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "knee point physically confirmed",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "lithium plating detected",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "SEI growth detected",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "internal short detected",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "activation energy estimated",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "diffusion coefficient estimated",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "RUL predicted",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "SOH model validated",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "lifetime predicted",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "causal temperature effect",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    },
+    {
+      "claim": "production battery decision",
+      "evidence_refs": [
+        "data/processed/battery_v2_3_4_evaluator_decision.json"
+      ],
+      "scope": "unsupported",
+      "status": "prohibited"
+    }
+  ],
+  "decision_status": "descriptive_evaluator_executed_with_restrictions",
+  "evaluated_trajectory_count": 33,
+  "evaluator_id": "battery_capacity_trajectory_consistency_evaluator_v1",
+  "mechanism_labels_included": false,
+  "result_checksum": "bf127325892c9af3707d4ed98faff95fd024a0fc185bf1e2391d124bc407fe31",
+  "row_level_data_included": false,
+  "schema_version": "2.3.4"
+}

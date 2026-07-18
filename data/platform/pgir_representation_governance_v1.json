@@ -1,0 +1,36 @@
+{
+  "compatibility_policy": {
+    "existing_scientific_entity_remains_valid": true,
+    "mass_rename_prohibited": true,
+    "persisted_schema_ids_remain_stable": true,
+    "tracked_artifact_checksum_changes": "not_allowed_for_v2_3_1"
+  },
+  "optional_pgir_metadata": [
+    "pgir_role",
+    "representation_maturity",
+    "context_refs"
+  ],
+  "rules": [
+    "each schema has one owning module",
+    "each schema has stable schema_id",
+    "schema version is separate from product version",
+    "backward-compatible optional fields preferred",
+    "breaking changes require migration",
+    "future unsupported versions rejected",
+    "deprecated fields retain documented read period",
+    "silent field dropping prohibited",
+    "logical checksums use canonical content",
+    "large payload stored as artifact reference",
+    "unit and uncertainty semantics may not be weakened during migration",
+    "provenance references must survive migration",
+    "runtime implementation class is not part of persisted identity"
+  ],
+  "schema_version": "2.3.1",
+  "security_policy": {
+    "arbitrary_dynamic_import": false,
+    "binary_python_object_serialization": false,
+    "live_python_object_persistence": false,
+    "row_level_payload_required": false
+  },
+  "status": "accepted_for_v2_3"
+}

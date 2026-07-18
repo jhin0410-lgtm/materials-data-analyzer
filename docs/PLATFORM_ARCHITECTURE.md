@@ -1,7 +1,7 @@
 # Platform Architecture
 
-Status: `release_ready` for v2.1.5 platform trust boundaries and v2.2.6
-Materials scientific evidence closeout.
+Status: `released` through v2.3.0. PGIR representation governance and the
+bounded Battery trajectory evidence workflow are additive platform layers.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -27,6 +27,9 @@ changing output schemas, or replacing `src/process_data.py`.
 - Scientific evidence closeout read-only: v2.2.6 aggregates Materials
   capability, claim, uncertainty, and release-readiness states from tracked
   compact artifacts only.
+- PGIR governance first: v2.3.1 maps current scientific records to canonical
+  representation concepts, maturity levels, schema ownership, and capability
+  stages without changing existing APIs or executing physics mechanisms.
 - Persistent local registry: v2.1.1 can ingest run/report manifests into a
   local SQLite metadata index without rerunning scientific workflows.
 - Registry intelligence: v2.1.2 evaluates static policy diagnostics, evidence
@@ -100,12 +103,29 @@ In code:
   scientific evidence closeout, capability matrix, claim matrix,
   uncertainty-boundary summary, lineage validation, and release-readiness
   evaluation
+- `src/platform_core/pgir_governance.py`: v2.3.1 PGIR concept, mapping,
+  schema-ownership, capability-stage, and readiness governance layer
 - `src/platform_core/snapshots.py`: deterministic registry snapshot helper
 - `src/analyzers/materials_structure_features.py`: deterministic structure
   descriptor summaries and periodic radius-graph artifact construction
 - `src/analyzers/materials_structure_prediction.py`: bounded known-structure
   post-relaxation feature-set comparison and prediction-interval diagnostics
 - `src/cli.py`: unified CLI scaffold
+
+## PGIR Governance
+
+v2.3.1 adds PGIR as a canonical representation-governance layer. Current
+implementation records remain authoritative; PGIR names are conceptual roles
+used for mapping and future readiness decisions. The tracked registries are:
+
+- `data/platform/pgir_concept_registry_v1.json`
+- `data/platform/pgir_current_mapping_matrix_v1.json`
+- `data/platform/pgir_representation_governance_v1.json`
+- `data/platform/pgir_schema_ownership_registry_v1.json`
+- `data/platform/pgir_capability_stage_registry_v1.json`
+
+PGIR does not run acquisition, feature generation, model training, physics
+simulation, GNN/PINN, or production scientific decisions.
 
 ## Plugin Registry
 
@@ -315,6 +335,9 @@ python -m src.cli list-scientific-feature-candidates
 python -m src.cli list-materials-feature-builders
 python -m src.cli build-materials-physics-features configs/examples/materials_physics_feature_build.json
 python -m src.cli run-materials-feature-comparison configs/examples/materials_physics_predictive_comparison.json
+python -m src.cli list-battery-mechanism-candidates
+python -m src.cli assess-battery-mechanism-identifiability configs/examples/battery_mechanism_candidate_audit.json
+python -m src.cli export-battery-mechanism-audit-summary --tracked-only
 python -m src.cli scientific-trust-validate
 python -m src.cli show-version
 ```
@@ -356,3 +379,29 @@ The scaffold avoids:
   adapters are implemented.
 - The report engine is JSON/Markdown only and does not generate HTML, PDF, or a
   dashboard.
+
+## v2.3.2 PGIR Conformance Add-On
+
+v2.3.2 adds PGIR conformance gates and a Battery representation pilot as an
+additive platform-core layer. The new commands validate declarations,
+transitions, capability gates, and Battery Observation/State/Trajectory
+artifacts, but they do not execute acquisition, solvers, models, or raw-data
+pipelines. Row-level Battery PGIR artifacts remain under ignored `outputs/`.
+
+## v2.3.3 Battery Mechanism Audit Add-On
+
+v2.3.3 adds a read-only mechanism-candidate and identifiability audit layer.
+It reads existing compact/processed Battery summaries, exports compact
+tracked audit summaries, and can write detailed local-only audit inventories
+under `outputs/battery_mechanism_audit_v2_3/`. It does not fit parameters,
+execute solvers, train models, infer hidden state, or call network services.
+
+## v2.3.4-v2.3.5 Battery Evidence Closeout
+
+v2.3.4 executes only the selected descriptive capacity-trajectory Evaluator:
+33 of 34 trajectories are evaluated and one is blocked by the fixed minimum
+support rule. v2.3.5 verifies immediate local-source lineage, recovers only
+source-supported metadata, and evaluates nine predeclared policies. The 489
+consolidated events are stability classifications, not degradation mechanisms.
+No solver, parameter fit, predictive model, SOH/RUL estimate, lifetime
+extrapolation, or production decision is introduced.

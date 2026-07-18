@@ -1,0 +1,51 @@
+{
+  "config_checksum": "5e549bfe847715ba2e0f042a82d202b6c78701be7f8291932bfc3b545cf36a8e",
+  "deterministic_rerun_checksum": "22a3c6bcc9c3316dee53503156cd3e362c03415e287bab290376e662f35e1728",
+  "deterministic_rerun_match": true,
+  "deterministic_result_checksum": "22a3c6bcc9c3316dee53503156cd3e362c03415e287bab290376e662f35e1728",
+  "evaluated_trajectories": 33,
+  "evaluator_id": "battery_capacity_trajectory_consistency_evaluator_v1",
+  "execution_status": "descriptive_evaluator_executed_with_restrictions",
+  "local_outputs": {
+    "execution_summary": "outputs/battery_trajectory_evaluator_v2_3/trust/evaluator_execution_summary.json",
+    "input_manifest": "outputs/battery_trajectory_evaluator_v2_3/inputs/trajectory_evaluation_manifest.json",
+    "report": "outputs/battery_trajectory_evaluator_v2_3/reports/battery_trajectory_evaluator_report.md",
+    "trajectory_findings": "outputs/battery_trajectory_evaluator_v2_3/results/trajectory_findings.jsonl",
+    "trajectory_results": "outputs/battery_trajectory_evaluator_v2_3/results/trajectory_results.jsonl",
+    "trajectory_summary": "outputs/battery_trajectory_evaluator_v2_3/results/trajectory_summary.csv",
+    "trust_assessments": "outputs/battery_trajectory_evaluator_v2_3/trust/trajectory_trust_assessments.csv"
+  },
+  "model_or_solver_executed": false,
+  "network_called": false,
+  "parameter_fitting_performed": false,
+  "requested_trajectories": 34,
+  "result_checksum": "e7bcd88ad6b515edafc3be4be6b3d32122ced048e27efa04febc8127ffd30eb0",
+  "row_level_data_included": false,
+  "schema_version": "2.3.4",
+  "source_metadata": {
+    "model_or_solver_executed": false,
+    "network_called": false,
+    "pgir_readiness_checksum": "6f0f91e4268c8aba4a82cd0d27e40d70247349eb310f85ea5d06ddd43fecbbb5",
+    "schema_version": "2.3.4",
+    "selection_decision_checksum": "685cdfbcccc2ed5e317df2ec6368d960ce35a0542d35a791da1bb2892807a9e9",
+    "source_checksum_sha256": "cf67c7210036e11032e140385864ce68bb8445e2f282e57259aa5b314ed1f7ce",
+    "source_path": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+    "state_checksum_sha256": "e57b176250901aec3155a7238675df3c880cf6a0c9b5e12143c872a584a5d246",
+    "state_count": 2495,
+    "state_path": "outputs/battery_pgir_v2_3/states/operational_states.jsonl",
+    "trajectory_checksum_sha256": "9a728016d1b42ff95e2c8888d5ff768b7e558cf144928fa7d64cb3622fbd740f",
+    "trajectory_count": 34,
+    "trajectory_path": "outputs/battery_pgir_v2_3/trajectories/battery_trajectories.jsonl"
+  },
+  "total_states": 2495,
+  "tracked_outputs": {
+    "claim_evidence": "data/processed/battery_v2_3_4_claim_evidence.json",
+    "decision": "data/processed/battery_v2_3_4_evaluator_decision.json",
+    "eligibility_summary": "data/processed/battery_v2_3_4_eligibility_summary.csv",
+    "execution_summary": "data/processed/battery_v2_3_4_evaluator_execution_summary.json",
+    "finding_summary": "data/processed/battery_v2_3_4_finding_summary.csv",
+    "report_summary": "data/processed/battery_v2_3_4_report_summary.md",
+    "trust_summary": "data/processed/battery_v2_3_4_trust_summary.csv"
+  },
+  "valid_capacity_observations": 2495
+}

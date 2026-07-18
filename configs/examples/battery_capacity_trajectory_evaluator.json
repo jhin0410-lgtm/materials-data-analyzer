@@ -1,0 +1,46 @@
+{
+  "schema_version": "2.3.4",
+  "case_study_id": "kaggle_battery",
+  "stage": "bounded_evaluator_execution",
+  "evaluator_id": "battery_capacity_trajectory_consistency_evaluator_v1",
+  "evaluator_version": "1",
+  "dry_run": false,
+  "source_path": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "trajectory_path": "outputs/battery_pgir_v2_3/trajectories/battery_trajectories.jsonl",
+  "state_path": "outputs/battery_pgir_v2_3/states/operational_states.jsonl",
+  "output_root": "outputs/battery_trajectory_evaluator_v2_3",
+  "minimum_valid_observations": 5,
+  "reference_capacity": {
+    "policy_id": "source_recorded_first_n_median_window_5",
+    "window": 5,
+    "post_hoc_maximum_prohibited": true
+  },
+  "threshold_policy": {
+    "absolute_detection_floor": 0.005,
+    "robust_scale_multiplier": 6.0,
+    "gap_exclusion_threshold": 1,
+    "plateau_threshold": 0.01,
+    "accelerated_fade_threshold": 0.0025,
+    "high_variability_scale_threshold": 0.01,
+    "terminal_retention_boundary": 0.8,
+    "numerical_tolerance": 1e-12,
+    "semantics": "algorithmic_detection_policy_not_measurement_uncertainty"
+  },
+  "window_policy": {
+    "window_size": 5,
+    "minimum_window_support": 5,
+    "overlap_policy": "merge_adjacent_candidate_windows"
+  },
+  "resource_policy": {
+    "maximum_states_per_trajectory": 10000
+  },
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "execution_policy": {
+    "model_training_enabled": false,
+    "solver_enabled": false,
+    "parameter_fitting_enabled": false
+  }
+}

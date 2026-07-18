@@ -37,3 +37,25 @@ deterministic representation, not model inputs.
 
 No DFT, FEM, CFD, differential equation solver, graph model, GNN training,
 feature tensor generation, or new predictive claim is introduced in this step.
+
+## v2.3.1 PGIR Boundary
+
+PGIR defines how future dynamic state, field, parameter, initial condition, and
+boundary condition records should be governed. The current project remains at
+representation governance for those concepts. `Propagator` capability is
+`concept_defined` only, so dynamic physics execution remains future work.
+
+## v2.3.2 Battery Dynamic-Mechanism Boundary
+
+Battery cycle trajectories now have representation metadata, but they remain
+cycle-index operational summaries. The current data does not provide spatial
+fields, boundary conditions, comparable multi-temperature response sets, or
+transport parameters, so Arrhenius and diffusion mechanisms remain
+not-identifiable from the current processed summaries.
+
+## v2.3.3 Battery Identifiability Boundary
+
+v2.3.3 records the actual mechanism-candidate audit and selects only a
+descriptive capacity-trajectory consistency Evaluator for possible v2.3.4
+implementation. This is still Evaluator readiness, not Propagator readiness,
+parameter estimation, hidden-state inference, or dynamic physics execution.

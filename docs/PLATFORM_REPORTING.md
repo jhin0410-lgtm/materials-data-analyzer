@@ -1,6 +1,7 @@
 # Platform Reporting
 
-Status: `release_ready` for v2.1.5.
+Status: `release_ready` through v2.3.0, including the optional PGIR governance
+section.
 
 The platform report engine creates a local-only summary of v2 registry metadata
 and tracked compact case-study artifacts. It is read-only: it does not run
@@ -35,6 +36,12 @@ scientific trust rows from the local registry and summarizes trust evaluation,
 feature eligibility, and prohibited-claim counts. It does not execute
 scientific checks or recompute trust evaluations.
 
+v2.3.1 adds an opt-in `pgir_governance_summary` field. When
+`include_pgir_governance` is true, the report reads compact PGIR governance
+registries and summarizes architecture status, maturity, mapping, schema
+ownership, operator roles, and future-only capability boundaries. It does not
+run physics execution, API acquisition, model training, or raw artifact reads.
+
 ## Source Boundary
 
 Allowed inputs:
@@ -59,6 +66,8 @@ Prohibited inputs:
 
 Optional registry diagnostics and scientific trust inputs are limited to the
 local SQLite metadata registry under `outputs/platform_registry/`.
+Optional PGIR governance inputs are limited to tracked compact registries under
+`data/platform/pgir_*` and code metadata.
 
 ## Extraction Policy
 

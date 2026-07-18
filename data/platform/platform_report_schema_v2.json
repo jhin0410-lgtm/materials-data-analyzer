@@ -17,6 +17,12 @@
     "validation_policy_summary",
     "trust_policy_summary",
     "registry_diagnostics_summary",
+    "scientific_trust_summary",
+    "pgir_governance_summary",
+    "pgir_conformance_summary",
+    "battery_pgir_summary",
+    "battery_mechanism_audit_summary",
+    "battery_capacity_evaluator_summary",
     "testing_summary",
     "security_boundaries",
     "limitations",
@@ -66,6 +72,10 @@
     "Raw data, local-only analysis tables, row-level predictions, and serialized models must not be read.",
     "Credentials, absolute paths, usernames, home directories, and local host metadata must not be stored.",
     "Report outputs are local-only and must be written under outputs/platform_reports.",
-    "Registry diagnostics are opt-in and read persisted metadata only; report generation must not run diagnose-run automatically."
+    "Registry diagnostics are opt-in and read persisted metadata only; report generation must not run diagnose-run automatically.",
+    "PGIR governance summaries are optional and read compact registries/code metadata only; they must not run physics execution, API acquisition, model training, or raw artifact reads.",
+    "PGIR conformance and Battery PGIR summaries are optional read-only summaries over compact tracked artifacts; row-level battery observations, operational states, and trajectories remain local-only.",
+    "Battery mechanism audit summaries are optional read-only summaries over compact v2.3.3 artifacts; they must not execute parameter fitting, solvers, predictive models, or hidden-state inference.",
+    "Battery capacity evaluator summaries are optional read-only summaries over compact v2.3.4 aggregates; they must not load trajectory bodies or row-level findings during report generation."
   ]
 }

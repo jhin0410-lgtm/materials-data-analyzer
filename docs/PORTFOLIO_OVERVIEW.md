@@ -49,7 +49,10 @@ descriptors, controlled existing-ID structure enrichment, JSON-safe crystal
 structure entities, deterministic periodic graph artifacts, known-structure
 post-relaxation comparison, and a scientific evidence closeout. It does not
 turn the project into an automatic training, physics-aware modeling,
-GNN/DFT-replacement, or production execution system.
+GNN/DFT-replacement, or production execution system. v2.3 adds PGIR
+representation governance and a Battery evidence workflow that separates
+conformance, mechanism identifiability, bounded descriptive evaluation,
+source-metadata recovery, and policy-stability auditing.
 
 ## Completed Case Studies
 
@@ -61,6 +64,7 @@ GNN/DFT-replacement, or production execution system.
 | v1.4 | Smart Factory / UCI SECOM | Semiconductor process data | Time-aware quality classification | Diagnostic-only; no representative production model |
 | v1.5 | Reliability / Backblaze | 2013 hard-drive daily SMART records | Asset/time-aware 7-day failure-risk ranking | Diagnostic-only; no representative model |
 | v2.2 | Materials Project | 838 Fe/Si-containing multinary MP rows | Composition features, structure descriptors, graph artifacts, and known-structure validation | Composition evidence degraded; known-structure evidence limited; no representative model |
+| v2.3 | Kaggle NASA Battery | 34 trajectories / 2,495 discharge states | PGIR conformance, identifiability, bounded evaluator, source recovery, and policy stability | Descriptive evidence with restrictions; no representative mechanism or predictive claim |
 
 For the Backblaze v1.5 closeout, the best primary median PR-AUC is 0.0998 and
 the best combined asset/time PR-AUC is 0.1119. The reference combined top 1%
@@ -116,10 +120,11 @@ or license-sensitive source files.
 
 The project has a broad pytest suite covering core analyzers, loaders,
 connectors, feature engineering, validation utilities, scripts, platform
-registries, scientific execution, and case-study artifact contracts. The v2.2
-release audit passed the full local test runner and direct pytest with `702
-passed, 3 skipped`; the clean feature snapshot passed with `703 passed, 2
-skipped`; GitHub Actions validates release branches on Python 3.11.
+registries, scientific execution, and case-study artifact contracts. The
+v2.3 release baseline passes `789 passed, 3 skipped` locally; the feature CI
+passes `790 passed, 2 skipped` on Python 3.11. Local Windows additionally skips
+the symlink-escape test when symlink creation is unavailable. Pint remains an
+optional backend, and controlled execution retains its clean-worktree guard.
 
 ## Skills Demonstrated
 
@@ -148,11 +153,8 @@ skipped`; GitHub Actions validates release branches on Python 3.11.
 
 ## Next-Generation Roadmap
 
-v2.3 should build on the v2.2 evidence boundary rather than stronger claims:
-
-- PGIR architecture RFC and representation-governance mapping
-- domain-neutral state/observation/field/parameter/control vocabulary
-- explicit boundary-condition, relation, evaluator, transformer, propagator,
-  uncertainty, and provenance ownership
-- no PDE solver, PINN, GNN, or new predictive claim until representation
-  governance is reviewed
+After v2.3.0, the next useful step is a second-domain PGIR reuse audit and a
+versioned external-source metadata contract. Mechanism fitting should remain
+blocked until protocol, physical-time, calibration/uncertainty, and
+cross-dataset comparability evidence are available. The project does not claim
+to be a general physics intelligence system.

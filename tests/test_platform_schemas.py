@@ -32,13 +32,45 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/materials_known_structure_prediction_schema_v2.json"),
         Path("data/platform/materials_structure_predictive_decision_schema_v2.json"),
         Path("data/platform/materials_prediction_interval_schema_v2.json"),
+        Path("data/platform/pgir_concept_registry_v1.json"),
+        Path("data/platform/pgir_current_mapping_matrix_v1.json"),
+        Path("data/platform/pgir_representation_governance_v1.json"),
+        Path("data/platform/pgir_schema_ownership_registry_v1.json"),
+        Path("data/platform/pgir_capability_stage_registry_v1.json"),
+        Path("data/platform/pgir_representation_declaration_schema_v1.json"),
+        Path("data/platform/pgir_conformance_result_schema_v1.json"),
+        Path("data/platform/battery_cycle_observation_schema_v1.json"),
+        Path("data/platform/battery_operational_state_schema_v1.json"),
+        Path("data/platform/battery_trajectory_summary_schema_v1.json"),
+        Path("data/platform/battery_mechanism_readiness_schema_v1.json"),
+        Path("data/platform/mechanism_candidate_schema_v1.json"),
+        Path("data/platform/mechanism_requirement_schema_v1.json"),
+        Path("data/platform/mechanism_evidence_binding_schema_v1.json"),
+        Path("data/platform/mechanism_identifiability_schema_v1.json"),
+        Path("data/platform/mechanism_selection_decision_schema_v1.json"),
+        Path("data/platform/mechanism_evidence_gap_schema_v1.json"),
+        Path("data/platform/battery_mechanism_candidate_registry_v1.json"),
+        Path("data/platform/battery_mechanism_evidence_gap_registry_v1.json"),
+        Path("data/platform/battery_capacity_trajectory_evaluator_config_schema_v1.json"),
+        Path("data/platform/battery_capacity_trajectory_finding_schema_v1.json"),
+        Path("data/platform/battery_capacity_trajectory_result_schema_v1.json"),
+        Path("data/platform/battery_capacity_trajectory_trust_schema_v1.json"),
+        Path("data/platform/battery_source_metadata_stability_config_schema_v1.json"),
+        Path("data/platform/battery_evaluator_stability_result_schema_v1.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5"}
-        assert payload["status"] in {"scaffold_stage", "release_ready"}
+        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1", "2.3.2", "2.3.3", "2.3.4", "2.3.5"}
+        assert payload["status"] in {"scaffold_stage", "release_ready", "accepted_for_v2_3"}
     registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
     assert registry_schema["schema_version"] == "2.1"
     assert registry_schema["status"] == "release_ready"
+    report_schema = json.loads(Path("data/platform/platform_report_schema_v2.json").read_text(encoding="utf-8"))
+    assert "scientific_trust_summary" in report_schema["required_fields"]
+    assert "pgir_governance_summary" in report_schema["required_fields"]
+    assert "pgir_conformance_summary" in report_schema["required_fields"]
+    assert "battery_pgir_summary" in report_schema["required_fields"]
+    assert "battery_mechanism_audit_summary" in report_schema["required_fields"]
+    assert "battery_capacity_evaluator_summary" in report_schema["required_fields"]
 
 
 def test_example_configs_have_no_credentials_or_absolute_paths():
@@ -78,6 +110,28 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
         elif payload.get("schema_version") == "2.2.5":
             assert payload["credential_policy"]["store_credentials"] is False
             assert payload["credential_policy"]["network_access_required"] is False
+        elif payload.get("schema_version") == "2.3.2":
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["dry_run"] is True
+        elif payload.get("schema_version") == "2.3.3":
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["dry_run"] is True
+            assert payload["execution_policy"]["fitting_enabled"] is False
+            assert payload["execution_policy"]["solver_enabled"] is False
+        elif payload.get("schema_version") == "2.3.4":
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["execution_policy"]["model_training_enabled"] is False
+            assert payload["execution_policy"]["solver_enabled"] is False
+            assert payload["execution_policy"]["parameter_fitting_enabled"] is False
+        elif payload.get("schema_version") == "2.3.5":
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["network_policy"]["network_access"] is False
+            assert payload["recovery_policy"]["allow_default_fill"] is False
+            assert payload["recovery_policy"]["allow_inference"] is False
         else:
             assert payload["dry_run"] is True
 

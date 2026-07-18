@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.3.4",
+  "schema_name": "battery_capacity_trajectory_finding_schema_v1",
+  "status": "accepted_for_v2_3",
+  "owner_module": "src.platform_core.battery_trajectory_evaluator",
+  "pgir_concept": "result",
+  "current_version": "1",
+  "migration_policy": "additive_optional_fields",
+  "persistence_policy": "local_jsonl_only",
+  "payload_classification": "row_level_finding",
+  "security_classification": "local_only_report",
+  "large_payload_policy": "artifact_backed_jsonl",
+  "required_fields": [
+    "finding_id",
+    "trajectory_id",
+    "finding_category",
+    "finding_status",
+    "threshold_id",
+    "threshold_semantics",
+    "interpretation",
+    "prohibited_interpretations"
+  ],
+  "finding_categories": [
+    "trajectory_validity",
+    "missing_cycle_gap",
+    "duplicate_cycle_candidate",
+    "non_monotonic_increase_candidate",
+    "abrupt_capacity_drop_candidate",
+    "abrupt_capacity_rise_candidate",
+    "plateau_candidate",
+    "accelerated_fade_candidate",
+    "decelerated_fade_candidate",
+    "high_variability_candidate",
+    "terminal_low_retention_observation",
+    "protocol_context_change_candidate"
+  ],
+  "security_rules": [
+    "Finding records remain under ignored local outputs and are never tracked compact artifacts.",
+    "Candidate findings do not identify physical mechanisms, failure modes, or causal effects."
+  ]
+}

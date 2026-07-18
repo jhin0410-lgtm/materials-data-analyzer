@@ -97,3 +97,37 @@ them into representative-model claims.
 Physics-aware extensions should be added only when the dataset supplies the
 semantic metadata, units, assumptions, and validation evidence needed to bound
 the claim.
+
+## v2.3.1 PGIR Governance
+
+v2.3.1 introduces PGIR as architecture and representation governance. It
+defines canonical concepts, maturity levels, current implementation mapping,
+schema ownership, and capability stages. It does not add descriptors, rerun
+Materials models, train graph models, execute solvers, or change the v2.2
+`performance_degraded` and `structure_predictive_value_limited` decisions.
+
+## v2.3.2 PGIR Conformance And Battery Pilot
+
+v2.3.2 adds explicit PGIR conformance gates and applies them to existing
+processed battery cycle summaries. This creates representation evidence for
+Observation, bounded operational State, and Trajectory metadata, plus a
+mechanism-readiness audit. It still does not run mechanisms, train predictors,
+fit degradation laws, or make physics-aware battery performance claims.
+
+## v2.3.3 Battery Mechanism Audit
+
+v2.3.3 completes a data-sufficiency and identifiability audit for Battery
+mechanism candidates. Arrhenius and diffusion remain blocked by evidence gaps;
+the selected next step is a descriptive capacity-trajectory consistency
+Evaluator only. Any physics-aware battery model, parameter fit, or solver
+remains future work.
+
+## v2.3.4-v2.3.5 Battery Evaluator And Stability Audit
+
+v2.3.4 executes the selected descriptive capacity-trajectory Evaluator on 34
+actual trajectories, with 33 evaluated and one blocked. v2.3.5 verifies exact
+lineage to the immediate local Kaggle package, recovers source-supported
+metadata without inference, and measures sensitivity under nine predeclared
+threshold, reference, window, and gap policies. The result remains bounded
+descriptive evidence: no mechanism, SOH/RUL, lifetime, or production claim is
+promoted.

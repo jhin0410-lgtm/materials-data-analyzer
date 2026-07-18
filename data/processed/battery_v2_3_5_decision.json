@@ -1,0 +1,41 @@
+{
+  "allowed_claims": [
+    "existing local battery source metadata was audited",
+    "source-supported metadata was recovered without default filling",
+    "predeclared evaluator sensitivity was measured",
+    "overlapping descriptive findings were consolidated into bounded events",
+    "finding stability was classified across policies"
+  ],
+  "analysis_ready_rows": 2495,
+  "audit_id": "battery_source_metadata_recovery_and_stability_v1",
+  "baseline_v2_3_4_decision_preserved": true,
+  "bounded_event_count": 489,
+  "decision_checksum": "c5abf3d0a19c3bf7afb99c98a07edaee3fa6c8e07de896b22d1dd599807d5ebe",
+  "event_stability_counts": {
+    "insufficient_support": 131,
+    "policy_sensitive": 50,
+    "stable_across_policies": 211,
+    "stable_with_restrictions": 97
+  },
+  "exact_lineage_cell_count": 34,
+  "external_data_requirement_status": "selective_external_source_documentation_required",
+  "mechanism_fitting_performed": false,
+  "network_called": false,
+  "post_hoc_reference_selection_performed": false,
+  "predeclared_policy_count": 9,
+  "prediction_performed": false,
+  "prohibited_claims": [
+    "degradation mechanism identified",
+    "lifetime or RUL predicted",
+    "SOH model validated",
+    "policy-sensitive finding is a physical transition",
+    "source uncertainty is zero",
+    "external battery datasets are directly comparable",
+    "production decision supported"
+  ],
+  "representative_mechanism": "none",
+  "schema_version": "2.3.5",
+  "source_metadata_recovery_status": "source_metadata_recovered_with_explicit_limitations",
+  "status": "descriptive_evaluator_stable_with_policy_restrictions",
+  "threshold_optimization_performed": false
+}

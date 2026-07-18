@@ -19,6 +19,8 @@ This folder documents:
 - Random split versus `battery_id` group split validation
 - Simulation comparison results
 - Portfolio-style case-study interpretation and limitations
+- v2.3.5 exact immediate-source lineage and source-supported metadata recovery
+- Predeclared evaluator sensitivity and bounded descriptive event stability
 
 Key files:
 
@@ -27,6 +29,8 @@ data/case_studies/kaggle_battery/README.md
 data/case_studies/kaggle_battery/source.md
 data/case_studies/kaggle_battery/case_study.md
 data/case_studies/kaggle_battery/simulation_comparison.md
+../../docs/BATTERY_SOURCE_METADATA_RECOVERY.md
+../../docs/BATTERY_EVALUATOR_STABILITY_AUDIT.md
 ```
 
 ### `battery_archive/`

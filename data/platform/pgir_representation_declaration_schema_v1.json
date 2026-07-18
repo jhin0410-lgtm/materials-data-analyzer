@@ -1,0 +1,32 @@
+{
+  "schema_version": "2.3.2",
+  "status": "accepted_for_v2_3",
+  "schema_id": "pgir_representation_declaration_schema_v1",
+  "required_fields": [
+    "declaration_id",
+    "pgir_concept_id",
+    "representation_schema_id",
+    "representation_schema_version",
+    "entity_or_artifact_ref",
+    "domain_context",
+    "current_maturity_level"
+  ],
+  "optional_fields": [
+    "measurement_context",
+    "mechanism_context",
+    "temporal_context",
+    "spatial_context",
+    "validation_context",
+    "claimed_capabilities",
+    "evidence_refs",
+    "uncertainty_refs",
+    "provenance_refs",
+    "limitations",
+    "prohibited_interpretations"
+  ],
+  "security_policy": {
+    "absolute_paths_allowed": false,
+    "credentials_allowed": false,
+    "runtime_object_persistence": false
+  }
+}

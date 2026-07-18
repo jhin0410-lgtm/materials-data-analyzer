@@ -1,0 +1,11 @@
+{
+  "schema_version": "2.3.2",
+  "dry_run": true,
+  "repo_root": ".",
+  "source_path": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "output_root": "outputs/battery_pgir_v2_3",
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "2.3.4",
+  "schema_name": "battery_capacity_trajectory_evaluator_config_schema_v1",
+  "status": "accepted_for_v2_3",
+  "owner_module": "src.platform_core.battery_trajectory_evaluator",
+  "pgir_concept": "operator",
+  "current_version": "1",
+  "migration_policy": "additive_optional_fields",
+  "persistence_policy": "tracked_sanitized_config",
+  "payload_classification": "aggregate_configuration",
+  "security_classification": "tracked_compact_metadata",
+  "large_payload_policy": "no_row_level_payload",
+  "required_fields": [
+    "evaluator_id",
+    "minimum_valid_observations",
+    "reference_capacity",
+    "threshold_policy",
+    "window_policy",
+    "resource_policy",
+    "credential_policy",
+    "execution_policy"
+  ],
+  "threshold_semantics": "algorithmic_detection_policy_not_measurement_uncertainty",
+  "security_rules": [
+    "No credentials, absolute paths, arbitrary callables, dynamic imports, network access, model training, solver execution, or parameter fitting.",
+    "Thresholds are fixed before actual result inspection and cannot be optimized from findings.",
+    "Row-level findings and cell identities remain local-only."
+  ]
+}

@@ -38,3 +38,36 @@ the v2.2.1 `performance_degraded` conclusion.
 The closeout reads operator snapshots and compact result artifacts only. It
 does not register a new execution-capable operator, import arbitrary callables,
 regenerate descriptors, rebuild graphs, or rerun predictive comparisons.
+
+## v2.3.1 PGIR Operator Roles
+
+PGIR classifies operator metadata into `Evaluator`, `Transformer`, and
+`Propagator` roles. Existing v2.2 structure conversion and graph construction
+remain Transformer-style metadata. Existing bounded consistency checks remain
+Evaluator-style metadata. `Propagator` is concept-defined only in v2.3.1; no
+diffusion, Arrhenius, PDE/ODE, GNN, PINN, or physics-loss execution is added.
+
+## v2.3.2 Battery Operators
+
+v2.3.2 registers Battery representation transformers for source-record to
+cycle Observation, cycle Observation to operational State summary, and ordered
+States to Trajectory metadata. It also registers a mechanism-readiness
+assessment operator. These are metadata and adapter operators only; they do
+not execute Arrhenius fitting, diffusion solving, degradation modeling, or
+prediction.
+
+## v2.3.3 Battery Evaluator Candidates
+
+v2.3.3 registers metadata-only Battery evaluator candidates for capacity
+trajectory consistency, protocol comparability, Arrhenius readiness, diffusion
+readiness, and resistance/capacity applicability. Only
+`battery_capacity_trajectory_consistency_evaluator_v1` is selected for the
+next bounded descriptive step. None of these registrations perform fitting,
+solver execution, prediction, or mechanism confirmation.
+
+## v2.3.4 Executed Battery Evaluator
+
+`battery_capacity_trajectory_consistency_evaluator_v1` is now registered as an
+execution-capable bounded `Evaluator` with local-only row-level side effects.
+Its input, output, maturity, target-access, uncertainty, provenance, and claim
+policies are explicit. No other Battery mechanism candidate was executed.

@@ -1,0 +1,4 @@
+mechanism_id,requirements_available,requirements_status,readiness_status,reason,execution_performed,schema_version,cell_count,trajectory_count,temperature_context_count,operator_id
+arrhenius_temperature_dependence,False,requirements_missing,not_identifiable_from_current_data,single or unavailable temperature context; no comparable multi-temperature response set,False,2.3.2,34,34,1,battery_mechanism_readiness_assessment_v1
+diffusion_transport,False,requirements_missing,not_identifiable_from_current_data,"no spatial concentration field, geometry, boundary condition, or transport parameter context",False,2.3.2,34,34,1,battery_mechanism_readiness_assessment_v1
+empirical_degradation_trajectory,True,requirements_partial,requirements_partial,multiple cells and repeated cycles support representation audit only; no prediction or generalization claim,False,2.3.2,34,34,1,battery_mechanism_readiness_assessment_v1

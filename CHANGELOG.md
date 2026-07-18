@@ -1,5 +1,55 @@
 # Changelog
 
+## Unreleased
+
+## v2.3.0
+
+- Started v2.3.1 PGIR governance work with accepted architecture RFCs,
+  canonical concepts, representation maturity levels, current implementation
+  mapping, schema ownership registry, and capability-stage registry.
+- Added read-only PGIR CLI inspection commands and optional platform-report
+  integration. This does not run solvers, models, API acquisition, feature
+  generation, GNN/PINN, or change v2.2 Materials conclusions.
+- Added v2.3.2 PGIR conformance gates for representation declarations,
+  maturity promotion, context compatibility, registered transitions, and
+  capability eligibility.
+- Added a Battery PGIR adapter pilot that maps existing processed cycle
+  summaries into Observation metadata, bounded operational State summaries,
+  and per-cell Trajectory metadata while keeping row-level artifacts local-only.
+- Added compact Battery PGIR data-audit, representation-coverage, maturity,
+  transition, mechanism-readiness, readiness-decision, and report-summary
+  artifacts. This does not infer latent electrochemical state, execute
+  Arrhenius/diffusion mechanisms, train models, or make SOH/RUL claims.
+- Added v2.3.3 Battery mechanism-candidate, evidence-binding, protocol
+  comparability, confounding, and identifiability audits over the existing
+  34-cell / 2,495-cycle processed Battery summaries.
+- Recorded the actual v2.3.3 decision as `descriptive_evaluator_only` with
+  `battery_capacity_trajectory_consistency_evaluator_v1` selected for a
+  bounded descriptive next step. Arrhenius, diffusion, resistance-mechanism,
+  SOH/RUL, and predictive claims remain unsupported.
+- Added v2.3.4 deterministic execution of the selected Battery capacity-
+  trajectory consistency Evaluator over 34 trajectories and 2,495 operational
+  states, with one short trajectory blocked by the fixed eligibility rule.
+- Added gap-aware non-monotonic, abrupt-change, plateau, acceleration/
+  deceleration, variability, and terminal-retention candidate summaries using
+  fixed algorithmic thresholds that are explicitly not measurement uncertainty.
+- Added separated representation, execution, interpretation, external, and
+  production trust boundaries plus identity-free compact claim evidence. No
+  mechanism, physical parameter, SOH/RUL, lifetime, causal, model, or
+  production claim is added.
+- Added v2.3.5 exact lineage from all 34 Battery trajectories to the verified
+  local Kaggle package and recovered source-supported timestamp, ambient-
+  temperature, duration, measured-signal, protocol-group, and impedance
+  availability metadata without inference or external download.
+- Added nine predeclared threshold, reference, window, and gap sensitivity
+  configurations and consolidated overlapping findings into 489 bounded
+  descriptive events: 211 stable across policies, 97 stable with restrictions,
+  50 policy-sensitive, and 131 with insufficient support.
+- Recorded selective external documentation requirements only for unavailable
+  official NASA snapshot/version, cycle-specific command logs, and source
+  measurement/calibration uncertainty. Mechanism fitting, prediction, and
+  heterogeneous dataset combination remain prohibited.
+
 ## v2.2.0
 
 - Added v2.2.6 Materials scientific trust closeout artifacts: capability

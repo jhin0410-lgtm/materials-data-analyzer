@@ -1,0 +1,306 @@
+{
+  "capabilities": [
+    {
+      "capability_id": "scientific_entity_records",
+      "capability_stage": "schema_defined",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.ScientificEntity"
+      ],
+      "current_status": "active",
+      "evidence_level": "schema_and_validator_available",
+      "future_only": false,
+      "limitations": [
+        "not a complete state ontology"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "physical_entity",
+      "prohibited_interpretations": [
+        "universal physics ontology"
+      ],
+      "scientific_claim_supported": "metadata_contract_only"
+    },
+    {
+      "capability_id": "graph_entity_artifact",
+      "capability_stage": "artifact_generated",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_entities.GraphEntity"
+      ],
+      "current_status": "v2_2_limited",
+      "evidence_level": "representation_artifact_generated",
+      "future_only": false,
+      "limitations": [
+        "no GNN model was run",
+        "not used as predictive evidence"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "GNN evidence",
+        "causal graph"
+      ],
+      "scientific_claim_supported": "representation_only"
+    },
+    {
+      "capability_id": "propagator_operator_role",
+      "capability_stage": "concept_defined",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_interfaces.Predictor"
+      ],
+      "current_status": "future_only",
+      "evidence_level": "contract_only",
+      "future_only": true,
+      "limitations": [
+        "no PDE/ODE solver in v2.3.1"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "operator",
+      "prohibited_interpretations": [
+        "diffusion simulation",
+        "physics loss",
+        "PINN"
+      ],
+      "scientific_claim_supported": "unsupported_future_capability"
+    },
+    {
+      "capability_id": "composition_feature_candidates",
+      "capability_stage": "scientifically_evaluated",
+      "current_implementation_refs": [
+        "src.analyzers.materials_physics_features"
+      ],
+      "current_status": "evaluated_negative",
+      "evidence_level": "v2_2_1_performance_degraded",
+      "future_only": false,
+      "limitations": [
+        "composition-derived physics features degraded primary validation"
+      ],
+      "model_execution_performed": true,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "physics-aware model success",
+        "representative model"
+      ],
+      "scientific_claim_supported": "predictive_value_not_supported"
+    },
+    {
+      "capability_id": "structure_descriptor_candidates",
+      "capability_stage": "scientifically_evaluated",
+      "current_implementation_refs": [
+        "src.analyzers.materials_structure_prediction"
+      ],
+      "current_status": "evaluated_limited",
+      "evidence_level": "v2_2_5_structure_predictive_value_limited",
+      "future_only": false,
+      "limitations": [
+        "known-structure context differs from pre-structure screening"
+      ],
+      "model_execution_performed": true,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "GNN evidence",
+        "DFT replacement",
+        "general structure-aware superiority"
+      ],
+      "scientific_claim_supported": "limited_known_structure_evidence"
+    },
+    {
+      "capability_id": "bounded_scientific_execution",
+      "capability_stage": "operator_executed",
+      "current_implementation_refs": [
+        "src.platform_core.scientific_execution"
+      ],
+      "current_status": "active_bounded",
+      "evidence_level": "XRD scalar consistency examples",
+      "future_only": false,
+      "limitations": [
+        "no arbitrary equation execution"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "operator",
+      "prohibited_interpretations": [
+        "general solver",
+        "phase identification"
+      ],
+      "scientific_claim_supported": "bounded_consistency_evidence_only"
+    },
+    {
+      "capability_id": "pgir_governance_registry",
+      "capability_stage": "schema_defined",
+      "current_implementation_refs": [
+        "src.platform_core.pgir_governance"
+      ],
+      "current_status": "active",
+      "evidence_level": "v2_3_1_governance_ready",
+      "future_only": false,
+      "limitations": [
+        "no runtime rewrite"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "provenance",
+      "prohibited_interpretations": [
+        "new predictive result",
+        "solver readiness"
+      ],
+      "scientific_claim_supported": "governance_contract_only"
+    },
+    {
+      "capability_id": "pgir_conformance_gates",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.pgir_conformance"
+      ],
+      "current_status": "active",
+      "evidence_level": "v2_3_2_conformance_gate_available",
+      "future_only": false,
+      "limitations": [
+        "conformance is not scientific correctness"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "operator",
+      "prohibited_interpretations": [
+        "mechanism execution",
+        "predictive evidence"
+      ],
+      "scientific_claim_supported": "representation_governance_only"
+    },
+    {
+      "capability_id": "battery_cycle_observation_adapter",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active",
+      "evidence_level": "v2_3_2_battery_observation_adapter",
+      "future_only": false,
+      "limitations": [
+        "large time-series bodies stay local-only"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "observation",
+      "prohibited_interpretations": [
+        "latent electrochemical state",
+        "diffusion readiness"
+      ],
+      "scientific_claim_supported": "representation_only"
+    },
+    {
+      "capability_id": "battery_operational_state_transformer",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active",
+      "evidence_level": "v2_3_2_operational_state_summary_only",
+      "future_only": false,
+      "limitations": [
+        "not complete electrochemical state"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "state",
+      "prohibited_interpretations": [
+        "SEI thickness",
+        "lithium inventory",
+        "reaction rate constant"
+      ],
+      "scientific_claim_supported": "bounded_operational_summary_only"
+    },
+    {
+      "capability_id": "battery_trajectory_transformer",
+      "capability_stage": "artifact_generated",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active_limited",
+      "evidence_level": "v2_3_2_ordered_cycle_trajectory_metadata",
+      "future_only": false,
+      "limitations": [
+        "cycle index is not physical elapsed time"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "state",
+      "prohibited_interpretations": [
+        "RUL model evidence",
+        "degradation mechanism proof"
+      ],
+      "scientific_claim_supported": "trajectory_representation_only"
+    },
+    {
+      "capability_id": "battery_mechanism_readiness_assessment",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.battery_pgir_adapters"
+      ],
+      "current_status": "active_limited",
+      "evidence_level": "v2_3_2_requirements_audit_only",
+      "future_only": false,
+      "limitations": [
+        "no Arrhenius fit",
+        "no diffusion solve"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "mechanism execution",
+        "battery lifetime prediction"
+      ],
+      "scientific_claim_supported": "readiness_audit_only"
+    },
+    {
+      "capability_id": "battery_mechanism_identifiability_audit",
+      "capability_stage": "adapter_available",
+      "current_implementation_refs": [
+        "src.platform_core.mechanism_identifiability"
+      ],
+      "current_status": "active_limited",
+      "evidence_level": "v2_3_3_requirement_evidence_binding",
+      "future_only": false,
+      "limitations": [
+        "no parameter fitting",
+        "no solver",
+        "no mechanism confirmation"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "Arrhenius activation energy",
+        "diffusion coefficient",
+        "SOH/RUL model"
+      ],
+      "scientific_claim_supported": "identifiability_audit_only"
+    },
+    {
+      "capability_id": "battery_capacity_trajectory_evaluator",
+      "capability_stage": "scientifically_evaluated",
+      "current_implementation_refs": [
+        "src.platform_core.battery_trajectory_evaluator"
+      ],
+      "current_status": "active_bounded",
+      "evidence_level": "v2_3_4_deterministic_capacity_trajectory_findings",
+      "future_only": false,
+      "limitations": [
+        "cycle index is not physical time",
+        "source uncertainty unavailable",
+        "no external validation"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "degradation mechanism confirmation",
+        "physical parameter estimate",
+        "SOH/RUL prediction",
+        "production decision"
+      ],
+      "scientific_claim_supported": "bounded_descriptive_audit_only"
+    }
+  ],
+  "schema_version": "2.3.1",
+  "status": "accepted_for_v2_3",
+  "validation": {
+    "capability_count": 14,
+    "errors": [],
+    "future_only_capabilities": [
+      "propagator_operator_role"
+    ],
+    "status": "valid",
+    "valid": true
+  }
+}

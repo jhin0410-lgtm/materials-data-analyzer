@@ -49,6 +49,62 @@ battery_archive_cycle_normalized.csv
 battery_archive_cycle_analysis_ready.csv
 ```
 
+## Battery PGIR v2.3 Representation Summaries
+
+Compact reproducibility artifacts for the v2.3.2 Battery PGIR representation
+pilot include:
+
+```text
+battery_v2_3_data_audit_summary.json
+battery_v2_3_representation_coverage.csv
+battery_v2_3_maturity_summary.csv
+battery_v2_3_transition_summary.csv
+battery_v2_3_mechanism_readiness.csv
+battery_v2_3_pgir_readiness_decision.json
+battery_v2_3_report_summary.md
+battery_v2_3_3_condition_coverage_summary.csv
+battery_v2_3_3_protocol_comparability_summary.csv
+battery_v2_3_3_mechanism_candidate_summary.csv
+battery_v2_3_3_identifiability_summary.csv
+battery_v2_3_3_evidence_gap_summary.csv
+battery_v2_3_3_operator_selection_decision.json
+battery_v2_3_3_report_summary.md
+battery_v2_3_4_evaluator_execution_summary.json
+battery_v2_3_4_eligibility_summary.csv
+battery_v2_3_4_finding_summary.csv
+battery_v2_3_4_trust_summary.csv
+battery_v2_3_4_evaluator_decision.json
+battery_v2_3_4_claim_evidence.json
+battery_v2_3_4_report_summary.md
+battery_v2_3_5_source_lineage_summary.json
+battery_v2_3_5_metadata_recovery_summary.csv
+battery_v2_3_5_policy_definition_snapshot.csv
+battery_v2_3_5_evaluator_stability_summary.csv
+battery_v2_3_5_event_stability_summary.csv
+battery_v2_3_5_external_data_requirement_decision.json
+battery_v2_3_5_decision.json
+battery_v2_3_5_report_summary.md
+```
+
+The row-level Observation, operational State, and Trajectory JSONL artifacts
+are local-only:
+
+```text
+outputs/battery_pgir_v2_3/
+outputs/battery_mechanism_audit_v2_3/
+outputs/battery_trajectory_evaluator_v2_3/
+outputs/battery_metadata_stability_v2_3/
+```
+
+These files document representation readiness only. They do not contain a
+battery mechanism fit, SOH/RUL model, diffusion result, Arrhenius estimate, or
+production prediction output. The v2.3.3 mechanism-audit summaries document
+requirements, evidence gaps, identifiability, and descriptive evaluator
+selection only.
+The v2.3.4 and v2.3.5 summaries contain identity-free evaluator and policy-
+stability aggregates only. Source/cell lineage, recovered cycle metadata,
+per-policy findings, and bounded event rows remain local-only.
+
 ## Materials Project Case Study Summaries
 
 Compact reproducibility artifacts for the Materials Project v1.2 pilot and

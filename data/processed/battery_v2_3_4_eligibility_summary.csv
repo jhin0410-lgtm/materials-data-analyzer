@@ -1,0 +1,3 @@
+eligibility_status,trajectory_count,evaluation_scope,row_level_identity_included
+blocked_insufficient_capacity_data,1,34_cell_current_source_cycle_index_domain,False
+eligible_with_warnings,33,34_cell_current_source_cycle_index_domain,False

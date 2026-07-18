@@ -1,0 +1,33 @@
+{
+  "actual_data_status": "actual_processed_summary_available",
+  "allowed_claims": [
+    "battery cycle observations can be represented as PGIR Observation metadata",
+    "cycle summaries can be represented as bounded operational State summaries",
+    "ordered operational summaries can form TrajectoryEntity metadata",
+    "mechanism readiness can be audited without execution"
+  ],
+  "cell_count": 34,
+  "cycle_count": 2495,
+  "mechanism_execution_ready": false,
+  "mechanism_readiness": {
+    "arrhenius_temperature_dependence": "not_identifiable_from_current_data",
+    "diffusion_transport": "not_identifiable_from_current_data",
+    "empirical_degradation_trajectory": "requirements_partial"
+  },
+  "network_called": false,
+  "observation_count": 2495,
+  "prediction_ready": false,
+  "prohibited_claims": [
+    "complete electrochemical state inferred",
+    "diffusion coefficient estimated",
+    "Arrhenius fit executed",
+    "battery lifetime prediction",
+    "SOH or RUL model training"
+  ],
+  "schema_version": "2.3.2",
+  "solver_or_model_executed": false,
+  "state_count": 2495,
+  "status": "battery_pgir_ready_for_mechanism_audit",
+  "trajectory_count": 34,
+  "uncertainty_policy": "source uncertainty unavailable; no synthetic uncertainty generated"
+}

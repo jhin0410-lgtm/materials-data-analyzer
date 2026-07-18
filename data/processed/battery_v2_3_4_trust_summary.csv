@@ -1,0 +1,6 @@
+trust_dimension,status,evidence,limitations
+representation_trust,trusted_with_representation_warnings,"schema, Ah unit, strict ordering, lineage, and reference policy checked",cycle gaps and blocked short trajectories remain explicit
+execution_trust,trusted_for_bounded_descriptive_audit,"fixed config, canonical serialization, and repeated checksum comparison",algorithmic thresholds are not measurement uncertainty
+scientific_interpretation_trust,execution_valid_but_interpretation_restricted,observed capacity and cycle-index findings only,"no mechanism attribution, physical-time rate, parameter estimate, prediction, or extrapolation"
+external_validity,not_independently_validated,current 34-cell source context only,no external or production validation
+production_validity,not_production_validated,no production evidence was evaluated,production decision support is prohibited

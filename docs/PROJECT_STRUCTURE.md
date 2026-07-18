@@ -126,6 +126,39 @@ closeout and capability matrix with `release_ready` status while preserving
 `performance_degraded`, `structure_predictive_value_limited`, and
 `representative_model_selected = false`. These additions do not execute
 arbitrary equations, read raw data, train models, or run physics simulators.
+v2.3.1 adds read-only PGIR governance metadata in
+`src/platform_core/pgir_governance.py` and compact registries under
+`data/platform/pgir_*`. PGIR maps existing scientific records to canonical
+concepts, maturity levels, schema ownership, and capability stages. It does
+not rename existing schemas, execute solvers, run models, call APIs, or change
+v2.2 results.
+v2.3.2 adds `src/platform_core/pgir_conformance.py` and
+`src/platform_core/battery_pgir_adapters.py` for representation conformance
+gates and a Battery Observation / bounded operational State / Trajectory
+adapter pilot. The pilot reads existing processed battery summaries, exports
+compact tracked summaries, and writes row-level entity JSONL only under
+ignored `outputs/battery_pgir_v2_3/`. It does not infer latent
+electrochemical state, execute Arrhenius or diffusion mechanisms, train
+models, or make SOH/RUL claims.
+v2.3.3 adds `src/platform_core/mechanism_identifiability.py` for Battery
+mechanism-candidate requirements, evidence binding, condition/protocol
+coverage, confounding, and structural/practical/contextual identifiability
+audits. It selects only a descriptive capacity-trajectory consistency
+Evaluator candidate and does not fit parameters, execute solvers, infer hidden
+state, or make mechanism/prediction claims.
+v2.3.4 adds `src/platform_core/battery_trajectory_evaluator.py` for the one
+selected bounded capacity-trajectory Evaluator. Row-level results, findings,
+trust tables, reports, and plots stay under ignored
+`outputs/battery_trajectory_evaluator_v2_3/`; only identity-free aggregate
+summaries are tracked. The evaluator does not fit parameters, run a solver or
+model, identify a degradation mechanism, or predict SOH/RUL/lifetime.
+v2.3.5 adds `src/platform_core/battery_metadata_stability.py` for exact local
+source-metadata lineage, evidence-only metadata recovery, nine predeclared
+evaluator sensitivity policies, and bounded event consolidation. Cell/cycle
+lineage and per-policy event rows stay under ignored
+`outputs/battery_metadata_stability_v2_3/`; tracked outputs are aggregate and
+identity-free. The audit performs no network download, fitting, prediction, or
+mechanism attribution.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -254,7 +287,24 @@ compact tracked known-structure cohort, feature-set, paired-metric,
 uncertainty, predictive-value, feature-use, and report summaries. v2.2.6 adds
 compact tracked capability, evidence, claim, context, uncertainty, closeout
 decision, and closeout summary artifacts, plus platform-level capability and
-prediction-context registries. Row-level MP
+prediction-context registries. v2.3.1 adds compact tracked PGIR concept,
+mapping, representation-governance, schema-ownership, and capability-stage
+registries. v2.3.2 adds compact tracked Battery PGIR data-audit,
+representation-coverage, maturity, transition, mechanism-readiness, readiness
+decision, and report-summary artifacts. Row-level Battery PGIR observations,
+operational states, trajectories, and conformance details remain local-only
+under `outputs/battery_pgir_v2_3/`. v2.3.3 adds compact tracked Battery
+condition coverage, protocol comparability, mechanism-candidate,
+identifiability, evidence-gap, operator-selection, and report summaries.
+Detailed mechanism-audit inventories and decisions remain local-only under
+`outputs/battery_mechanism_audit_v2_3/`. v2.3.4 adds compact tracked evaluator
+execution, eligibility, finding, trust, decision, claim-evidence, and report
+summaries. Cell-level results, cycle-level findings, plots, and raw series stay
+local-only under `outputs/battery_trajectory_evaluator_v2_3/`. v2.3.5 adds
+compact source-lineage, metadata-recovery, policy-definition,
+evaluator-stability, event-stability, external-data, decision, and report
+summaries. Cell/cycle lineage and event clusters remain local-only under
+`outputs/battery_metadata_stability_v2_3/`. Row-level MP
 structure chunks, converted structure entities, descriptor rows, graph JSONL,
 alignment tables, known-structure matched cohorts, row-level predictions,
 split assignments, and plots remain local-only under

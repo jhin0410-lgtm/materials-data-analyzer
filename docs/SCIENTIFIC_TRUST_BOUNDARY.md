@@ -101,3 +101,35 @@ release-readiness verdict is `release_ready` for evidence and claim-boundary
 consistency, while the scientific model conclusion remains conservative:
 `performance_degraded` for composition features, `structure_predictive_value_limited`
 for known-structure descriptors, and no representative model.
+
+## v2.3.1 PGIR Claim Boundary
+
+PGIR governance is not a new evidence level for predictive performance. It can
+say that concepts, mappings, maturity levels, schema owners, and future-only
+capabilities are explicit. It cannot support physics-constrained modeling,
+hybrid physics/ML, graph-model evidence, calibrated scientific probability,
+causal mechanism, or production scientific-decision claims.
+
+## v2.3.2 Conformance And Battery Trust Boundary
+
+The new conformance gates can reject unsupported representation reuse, such as
+treating a battery Observation as complete State. The Battery pilot supports
+representation readiness and mechanism-readiness auditing only. It does not
+add SOH/RUL evidence, mechanism execution, or a predictive battery model.
+
+## v2.3.3 Battery Mechanism Trust Boundary
+
+The Battery mechanism audit records actual data sufficiency, protocol
+comparability, confounding, and structural/practical/contextual
+identifiability. It selects only a descriptive capacity-trajectory consistency
+Evaluator. This does not support Arrhenius behavior, activation energy,
+diffusion coefficient, causal temperature effect, SOH/RUL prediction, hidden
+state inference, or production battery decisions.
+
+## v2.3.4 Capacity-Trajectory Trust Boundary
+
+The actual evaluator run is trusted for bounded deterministic descriptive
+audit, with representation warnings and restricted interpretation. Detection
+thresholds are not uncertainty; cycle-index slopes are not physical-time
+rates; candidate findings are not mechanisms; and no independent or production
+validation is available.

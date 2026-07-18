@@ -1,0 +1,37 @@
+{
+  "schema_version": "2.3.5",
+  "schema_name": "battery_source_metadata_stability_config_schema_v1",
+  "status": "accepted_for_v2_3",
+  "owner_module": "src.platform_core.battery_metadata_stability",
+  "pgir_concept": "operator",
+  "current_version": "1",
+  "migration_policy": "additive_optional_fields",
+  "persistence_policy": "tracked_sanitized_config",
+  "payload_classification": "aggregate_configuration",
+  "security_classification": "tracked_compact_metadata",
+  "large_payload_policy": "no_row_level_payload",
+  "required_fields": [
+    "audit_id",
+    "source",
+    "inputs",
+    "network_policy",
+    "credential_policy",
+    "recovery_policy",
+    "stability_classification",
+    "sensitivity_policies",
+    "prohibited_actions"
+  ],
+  "policy_axes": [
+    "baseline",
+    "threshold",
+    "reference",
+    "window",
+    "gap"
+  ],
+  "security_rules": [
+    "No network access, credentials, absolute paths, path traversal, or external download.",
+    "Only exact source-key joins may recover metadata; defaults and inference are prohibited.",
+    "Sensitivity policies are predeclared and cannot be changed from observed findings.",
+    "Cell/cycle lineage and event records remain local-only."
+  ]
+}

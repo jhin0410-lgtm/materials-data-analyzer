@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.3.2",
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "declaration": {
+    "declaration_id": "example_battery_observation",
+    "declaration_version": "1",
+    "pgir_concept_id": "observation",
+    "representation_schema_id": "battery_cycle_observation_schema_v1",
+    "representation_schema_version": "1",
+    "entity_or_artifact_ref": "example_battery_observation",
+    "domain_context": "battery",
+    "measurement_context": "cycle_discharge_summary",
+    "temporal_context": "ordered_cycle_index",
+    "current_maturity_level": "dimensionally_valid",
+    "claimed_capabilities": [
+      "tabular_summary"
+    ],
+    "evidence_refs": [
+      "schema_validation",
+      "source_field_mapping",
+      "units_available_or_dimensionless"
+    ],
+    "uncertainty_refs": [
+      "source_uncertainty_unavailable"
+    ],
+    "provenance_refs": [
+      "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv"
+    ],
+    "limitations": [
+      "Observation is not complete electrochemical State"
+    ],
+    "prohibited_interpretations": [
+      "diffusion coefficient",
+      "lifetime prediction"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "2.3.2",
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "transition_id": "battery_cycle_observation_to_operational_state_v1",
+  "metadata_available": [
+    "cycle_index",
+    "capacity_observation",
+    "unit_metadata"
+  ],
+  "output_context": "operational_state_summary"
+}
