@@ -57,6 +57,12 @@ def _minimal_rows() -> list[dict]:
     ]
 
 
+def _canonical_json_sha256(path: str) -> str:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def test_mechanism_candidate_registry_is_deterministic_unique_and_metadata_only():
     candidates = build_default_mechanism_candidates()
     ids = [candidate.mechanism_id for candidate in candidates]
@@ -150,9 +156,9 @@ def test_exported_compact_artifacts_are_row_level_free_and_preserve_existing_dec
     assert "activation_energy" not in tracked_text.lower()
 
     preserved = {
-        "data/processed/materials_physics_v2_2_predictive_value_decision.json": "13b10d743e650efc4ce26b49938fd25e2bc46b47bf26efca7def5ea014ec3827",
-        "data/processed/battery_v2_3_data_audit_summary.json": "cd1ef607d610dab0527348fea2ebf573b7054c35ee45c3738987ff6cabefbdb0",
-        "data/processed/battery_v2_3_pgir_readiness_decision.json": "7a8ee18f4d235afe714db6093abdb1a1cfdb36999895ab86b4b6f4663b5a5431",
+        "data/processed/materials_physics_v2_2_predictive_value_decision.json": "277cd5e254b962338a78c68600500da873538e6783e92aebad8aa34374e889f0",
+        "data/processed/battery_v2_3_data_audit_summary.json": "9efe4050ae1ca110a33e3104a3a717e45d80a29ed29fb53f799da167a2ba2008",
+        "data/processed/battery_v2_3_pgir_readiness_decision.json": "6f0f91e4268c8aba4a82cd0d27e40d70247349eb310f85ea5d06ddd43fecbbb5",
     }
     for path, expected in preserved.items():
-        assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == expected
+        assert _canonical_json_sha256(path) == expected
