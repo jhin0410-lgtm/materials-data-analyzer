@@ -1,0 +1,31 @@
+{
+  "schema_version": "2.3.5",
+  "schema_name": "battery_evaluator_stability_result_schema_v1",
+  "status": "accepted_for_v2_3",
+  "owner_module": "src.platform_core.battery_metadata_stability",
+  "pgir_concept": "finding",
+  "current_version": "1",
+  "migration_policy": "additive_optional_fields",
+  "persistence_policy": "local_row_level_and_tracked_aggregate",
+  "payload_classification": "descriptive_policy_stability",
+  "security_classification": "tracked_compact_metadata",
+  "large_payload_policy": "row_level_events_local_only",
+  "required_fields": [
+    "policy_id",
+    "policy_axis",
+    "evaluated_trajectories",
+    "blocked_trajectories",
+    "total_findings",
+    "result_checksum"
+  ],
+  "finding_stability_statuses": [
+    "stable_across_policies",
+    "stable_with_restrictions",
+    "policy_sensitive",
+    "insufficient_support"
+  ],
+  "claim_boundary": [
+    "Policy stability is descriptive robustness evidence, not physical-mechanism evidence.",
+    "No lifetime, RUL, SOH, causal, uncertainty, or production claim is supported."
+  ]
+}

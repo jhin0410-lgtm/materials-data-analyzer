@@ -55,9 +55,11 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/battery_capacity_trajectory_finding_schema_v1.json"),
         Path("data/platform/battery_capacity_trajectory_result_schema_v1.json"),
         Path("data/platform/battery_capacity_trajectory_trust_schema_v1.json"),
+        Path("data/platform/battery_source_metadata_stability_config_schema_v1.json"),
+        Path("data/platform/battery_evaluator_stability_result_schema_v1.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1", "2.3.2", "2.3.3", "2.3.4"}
+        assert payload["schema_version"] in {"2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1", "2.3.2", "2.3.3", "2.3.4", "2.3.5"}
         assert payload["status"] in {"scaffold_stage", "release_ready", "accepted_for_v2_3"}
     registry_schema = json.loads(Path("data/platform/platform_registry_schema_v2.json").read_text(encoding="utf-8"))
     assert registry_schema["schema_version"] == "2.1"
@@ -124,6 +126,12 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["execution_policy"]["model_training_enabled"] is False
             assert payload["execution_policy"]["solver_enabled"] is False
             assert payload["execution_policy"]["parameter_fitting_enabled"] is False
+        elif payload.get("schema_version") == "2.3.5":
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["network_policy"]["network_access"] is False
+            assert payload["recovery_policy"]["allow_default_fill"] is False
+            assert payload["recovery_policy"]["allow_inference"] is False
         else:
             assert payload["dry_run"] is True
 

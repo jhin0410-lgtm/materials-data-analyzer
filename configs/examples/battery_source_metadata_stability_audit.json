@@ -1,0 +1,139 @@
+{
+  "schema_version": "2.3.5",
+  "case_study_id": "kaggle_battery",
+  "audit_id": "battery_source_metadata_recovery_and_stability_v1",
+  "source": {
+    "dataset_slug": "patrickfleith/nasa-battery-dataset",
+    "archive_path": "data/raw/kaggle/patrickfleith_nasa-battery-dataset/nasa-battery-dataset.zip",
+    "archive_sha256": "787ba917fc381c0bd354f515966b1831191ceb5b26985ee8b0000bb6bf96efee",
+    "archive_metadata_member": "cleaned_dataset/metadata.csv",
+    "metadata_path": "data/raw/kaggle/patrickfleith_nasa-battery-dataset/cleaned_dataset/metadata.csv",
+    "metadata_sha256": "182fcf36be0899db30ec0f7b04ed32e11fdf1cbd308241b22ea2a2722f5bc4f8",
+    "raw_cycle_root": "data/raw/kaggle/patrickfleith_nasa-battery-dataset/cleaned_dataset/data",
+    "protocol_document_root": "data/raw/kaggle/patrickfleith_nasa-battery-dataset/cleaned_dataset/extra_infos"
+  },
+  "inputs": {
+    "full_cycle_summary": "data/processed/kaggle_nasa_battery_cycle_summary.csv",
+    "analysis_ready_summary": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+    "discharge_feature_summary": "data/processed/kaggle_nasa_battery_discharge_features.csv",
+    "trajectory_artifact": "outputs/battery_pgir_v2_3/trajectories/battery_trajectories.jsonl",
+    "state_artifact": "outputs/battery_pgir_v2_3/states/operational_states.jsonl"
+  },
+  "output_root": "outputs/battery_metadata_stability_v2_3",
+  "network_policy": {
+    "automatic_download": false,
+    "network_access": false,
+    "credentials_required": false
+  },
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "recovery_policy": {
+    "exact_key_join_only": true,
+    "allow_default_fill": false,
+    "allow_inference": false,
+    "preserve_original_artifacts": true,
+    "protocol_granularity": "source_documented_cell_group",
+    "uncertainty_when_absent": "unavailable"
+  },
+  "stability_classification": {
+    "stable_across_policies_min_ratio": 1.0,
+    "stable_with_restrictions_min_ratio": 0.5,
+    "minimum_policy_support": 3,
+    "overlap_adjacency_cycles": 1
+  },
+  "sensitivity_policies": [
+    {
+      "policy_id": "baseline_v2_3_4",
+      "policy_axis": "baseline",
+      "description": "Exact v2.3.4 evaluator policy",
+      "overrides": {}
+    },
+    {
+      "policy_id": "threshold_relaxed_predeclared",
+      "policy_axis": "threshold",
+      "description": "Predeclared lower event and variability thresholds",
+      "overrides": {
+        "absolute_detection_floor": 0.0025,
+        "robust_scale_multiplier": 4.0,
+        "plateau_threshold": 0.015,
+        "accelerated_fade_threshold": 0.00125,
+        "high_variability_scale_threshold": 0.0075
+      }
+    },
+    {
+      "policy_id": "threshold_strict_predeclared",
+      "policy_axis": "threshold",
+      "description": "Predeclared higher event and variability thresholds",
+      "overrides": {
+        "absolute_detection_floor": 0.01,
+        "robust_scale_multiplier": 8.0,
+        "plateau_threshold": 0.005,
+        "accelerated_fade_threshold": 0.005,
+        "high_variability_scale_threshold": 0.02
+      }
+    },
+    {
+      "policy_id": "reference_first_valid_predeclared",
+      "policy_axis": "reference",
+      "description": "Earliest positive analysis-ready discharge capacity",
+      "overrides": {
+        "reference_capacity_policy": "first_valid_discharge_capacity",
+        "reference_window": 1
+      }
+    },
+    {
+      "policy_id": "reference_first_five_analysis_ready_predeclared",
+      "policy_axis": "reference",
+      "description": "Median of earliest five positive analysis-ready capacities",
+      "overrides": {
+        "reference_capacity_policy": "first_n_median_first_5",
+        "reference_window": 5
+      }
+    },
+    {
+      "policy_id": "window_three_predeclared",
+      "policy_axis": "window",
+      "description": "Three-observation descriptive window",
+      "overrides": {
+        "window_size": 3,
+        "minimum_window_support": 3
+      }
+    },
+    {
+      "policy_id": "window_seven_predeclared",
+      "policy_axis": "window",
+      "description": "Seven-observation descriptive window",
+      "overrides": {
+        "window_size": 7,
+        "minimum_window_support": 7
+      }
+    },
+    {
+      "policy_id": "gap_allow_two_predeclared",
+      "policy_axis": "gap",
+      "description": "Allow adjacent cycle-index gaps up to two",
+      "overrides": {
+        "gap_exclusion_threshold": 2
+      }
+    },
+    {
+      "policy_id": "gap_allow_three_predeclared",
+      "policy_axis": "gap",
+      "description": "Allow adjacent cycle-index gaps up to three",
+      "overrides": {
+        "gap_exclusion_threshold": 3
+      }
+    }
+  ],
+  "prohibited_actions": [
+    "network_download",
+    "mechanism_fitting",
+    "lifetime_prediction",
+    "threshold_optimization",
+    "post_hoc_reference_selection",
+    "missing_metadata_imputation",
+    "heterogeneous_dataset_combination"
+  ]
+}

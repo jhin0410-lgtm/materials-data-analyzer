@@ -51,10 +51,14 @@ solver, model retraining, or experiment recommendation.
 
 ## v2.3.5
 
-- Evaluate cross-run threshold sensitivity without tuning and obtain protocol,
-  physical-time, and measurement-uncertainty evidence before considering any
-  mechanism-specific residual analysis.
-- Keep mechanism attribution blocked if those evidence gaps remain.
+- Completed exact immediate-source lineage for 34 cells and recovered only
+  source-supported timestamp, ambient-temperature, duration, measured-signal,
+  group-protocol, and impedance-availability metadata.
+- Completed nine predeclared threshold, reference, window, and gap sensitivity
+  runs and consolidated overlapping findings into bounded descriptive events.
+- Result: `descriptive_evaluator_stable_with_policy_restrictions`; mechanism
+  attribution remains blocked, source uncertainty remains unavailable, and the
+  official original NASA snapshot/version remains unresolved.
 
 ## v2.3.6
 

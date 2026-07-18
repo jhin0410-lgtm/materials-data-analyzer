@@ -1,0 +1,13 @@
+metadata_field,source_evidence,expected_records,supported_records,recovery_status,integration_status,external_data_required,limitation
+cell_lineage,metadata.csv + protocol README + PGIR trajectory,34,34,recovered_exact,local_cell_lineage_only,false,immediate Kaggle package verified; original NASA snapshot version unresolved
+cycle_start_timestamp,metadata.csv:start_time,2495,2495,recovered_exact,local_cycle_metadata_only,false,timezone is unavailable
+ambient_temperature_c,metadata.csv:ambient_temperature,2495,2495,already_retained_and_verified,existing PGIR State,false,ambient condition is not measurement uncertainty
+physical_cycle_start_axis,metadata.csv:start_time,2495,2495,recovered_exact,local_cycle_metadata_only,false,evaluator still reports cycle-index findings
+discharge_duration_s,per-cycle CSV:Time via tracked feature summary,2495,2495,recovered_exact,local_cycle_metadata_only,false,within-cycle duration is not inter-cycle aging time
+measured_temperature_summary,per-cycle CSV:Temperature_measured via tracked feature summary,2495,2495,recovered_exact,local_cycle_metadata_only,false,summary statistics only
+measured_current_summary,per-cycle CSV:Current_measured via tracked feature summary,2495,2495,recovered_exact,local_cycle_metadata_only,false,observed current is not a commanded protocol log
+measured_voltage_summary,per-cycle CSV:Voltage_measured via tracked feature summary,2495,2495,recovered_exact,local_cycle_metadata_only,false,summary statistics only
+documented_protocol_group,nine local extra_infos README documents,34,34,recovered_with_group_granularity,local_cell_lineage_only,false,variable-condition groups lack a cycle-specific command log
+impedance_re_rct,metadata.csv impedance rows,1956,1947,available_with_missing_values_not_joined,metadata_audit_only,false,9 rows lack a complete Re/Rct pair; temporal alignment to discharge was not performed
+measurement_uncertainty,source package,2495,0,genuinely_unavailable,unavailable,true,zero uncertainty was not assigned
+official_original_snapshot_version,local package metadata,1,0,genuinely_unavailable,unavailable,true,immediate Kaggle source is known; official NASA snapshot/version is not

@@ -24,3 +24,13 @@ Temperature-condition status:
 
 Therefore temperature/capacity correlations must not be promoted to Arrhenius
 evidence or causal temperature effects.
+
+## v2.3.5 Source Recovery Update
+
+Nine local source protocol documents now map exactly to all 34 cells and
+provide group-level charge/discharge, temperature, cutoff, and impedance-sweep
+context. All 2,495 analysis-ready cycles also have observed current, voltage,
+temperature, and duration summaries. This improves lineage and descriptive
+context but does not establish cycle-specific commanded conditions for
+variable-condition groups. The v2.3.3 comparability decision therefore remains
+unchanged.

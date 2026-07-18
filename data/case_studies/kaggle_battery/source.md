@@ -1,12 +1,20 @@
-# Kaggle Battery Dataset Source Template
+# Kaggle Battery Dataset Source
 
 ## Source
 
-- Dataset slug:
-- Dataset URL:
-- License or terms:
-- Access date:
-- Redistribution allowed in this repository: yes/no/unclear
+- Immediate upstream dataset slug: `patrickfleith/nasa-battery-dataset`
+- Dataset URL: `https://www.kaggle.com/datasets/patrickfleith/nasa-battery-dataset`
+- Local archive size: 239,496,734 bytes
+- Local archive SHA256: `787ba917fc381c0bd354f515966b1831191ceb5b26985ee8b0000bb6bf96efee`
+- Local `metadata.csv` SHA256: `182fcf36be0899db30ec0f7b04ed32e11fdf1cbd308241b22ea2a2722f5bc4f8`
+- License or terms: not recorded in the local package metadata; unresolved
+- Retrieval timestamp: not recorded in the local package metadata
+- Redistribution allowed in this repository: unresolved; raw data remains local-only
+
+The immediate Kaggle package is verified by local checksums. The exact
+authoritative NASA PCoE snapshot/version from which that package was derived
+cannot be verified from the local files and is not asserted. See the
+[v2.3.5 source-metadata audit](../../../docs/BATTERY_SOURCE_METADATA_RECOVERY.md).
 
 ## Raw Data Policy
 
@@ -85,8 +93,10 @@ failed = 0 otherwise
 ```
 
 `internal_resistance_ohm` is intentionally left empty in this metadata-only
-version. Joining impedance rows (`Re`, `Rct`) into a cycle-level resistance
-summary is future work.
+version. v2.3.5 found 1,956 impedance rows across the 34 cells, with complete
+numeric `Re`/`Rct` pairs in 1,947 rows. They were not temporally aligned to
+discharge cycles, so joining them into cycle-level resistance remains future
+work.
 
 Raw discharge CSV files can be summarized into scalar physical features after
 the analysis-ready summary is created. This step reads only the

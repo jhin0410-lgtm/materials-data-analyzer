@@ -21,3 +21,10 @@ The resulting decision is
 not promote the underlying trajectory representation to a validated physical
 mechanism, and it does not unblock the v2.3.3 Arrhenius, diffusion, or
 resistance-growth conclusions.
+
+v2.3.5 preserves this decision and adds policy-stability evidence. Across nine
+predeclared threshold, reference, window, and gap configurations, 211 of 489
+consolidated descriptive events were stable across all eligible policies; 97
+were stable with restrictions, 50 were policy-sensitive, and 131 had
+insufficient support. This does not identify a mechanism. See
+[Battery Evaluator Stability Audit](BATTERY_EVALUATOR_STABILITY_AUDIT.md).

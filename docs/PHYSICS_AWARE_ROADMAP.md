@@ -121,3 +121,13 @@ mechanism candidates. Arrhenius and diffusion remain blocked by evidence gaps;
 the selected next step is a descriptive capacity-trajectory consistency
 Evaluator only. Any physics-aware battery model, parameter fit, or solver
 remains future work.
+
+## v2.3.4-v2.3.5 Battery Evaluator And Stability Audit
+
+v2.3.4 executes the selected descriptive capacity-trajectory Evaluator on 34
+actual trajectories, with 33 evaluated and one blocked. v2.3.5 verifies exact
+lineage to the immediate local Kaggle package, recovers source-supported
+metadata without inference, and measures sensitivity under nine predeclared
+threshold, reference, window, and gap policies. The result remains bounded
+descriptive evidence: no mechanism, SOH/RUL, lifetime, or production claim is
+promoted.

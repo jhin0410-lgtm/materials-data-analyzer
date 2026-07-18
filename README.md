@@ -238,6 +238,13 @@ The deterministic findings remain cycle-index descriptive candidates; they do
 not identify a mechanism, estimate a parameter, train a model, extrapolate
 lifetime, or support production decisions. See
 [`docs/BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md`](docs/BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md).
+v2.3.5 verifies exact lineage to the immediate local Kaggle package, recovers
+only source-supported metadata for 2,495 analysis-ready discharge rows, and
+audits nine predeclared threshold/reference/window/gap policies. Of 489
+consolidated descriptive events, 211 are stable across policies, 97 are stable
+with restrictions, 50 are policy-sensitive, and 131 have insufficient support.
+These are robustness classifications, not degradation mechanisms. See
+[`docs/BATTERY_EVALUATOR_STABILITY_AUDIT.md`](docs/BATTERY_EVALUATOR_STABILITY_AUDIT.md).
 
 Useful PGIR inspection commands:
 
@@ -251,6 +258,9 @@ python -m src.cli list-battery-mechanism-candidates
 python -m src.cli export-battery-mechanism-audit-summary --tracked-only
 python -m src.cli preview-battery-capacity-evaluation configs/examples/battery_capacity_trajectory_evaluator.json
 python -m src.cli export-battery-capacity-evaluator-summary --tracked-only
+python -m src.cli preview-battery-source-metadata-audit configs/examples/battery_source_metadata_stability_audit.json
+python -m src.cli run-battery-metadata-stability-audit configs/examples/battery_source_metadata_stability_audit.json --execute --tracked-only
+python -m src.cli validate-battery-metadata-stability
 python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
 ```
 
@@ -265,6 +275,12 @@ Battery v2.3.4 row-level trajectory findings, results, reports, and plots stay
 under `outputs/battery_trajectory_evaluator_v2_3/`; tracked outputs contain no
 cell IDs, cycle indices, capacities, or raw series. Its thresholds are fixed
 algorithmic detection rules, not measurement uncertainty.
+Battery v2.3.5 cell/cycle lineage, recovered metadata, per-policy findings,
+and consolidated event rows stay under ignored
+`outputs/battery_metadata_stability_v2_3/`. Tracked outputs contain aggregate
+coverage and stability summaries only. The official original NASA snapshot and
+source measurement uncertainty remain unresolved; no external data is
+downloaded automatically.
 
 ### Platform Scientific Execution
 

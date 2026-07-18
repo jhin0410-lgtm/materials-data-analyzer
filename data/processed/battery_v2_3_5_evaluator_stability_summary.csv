@@ -1,0 +1,10 @@
+policy_id,policy_axis,requested_trajectories,evaluated_trajectories,blocked_trajectories,total_findings,missing_cycle_gap_findings,abrupt_drop_findings,abrupt_rise_findings,plateau_findings,accelerated_fade_findings,decelerated_fade_findings,high_variability_findings,terminal_low_retention_findings,protocol_context_change_findings,result_checksum,model_or_solver_executed
+baseline_v2_3_4,baseline,34,33,1,383,28,26,53,66,65,62,13,17,0,f72d44b8879ef364b6cebd14f64635f848a2ab3e938a6ad2ef96922b55be6f83,false
+gap_allow_three_predeclared,gap,34,33,1,399,28,28,60,66,64,63,13,17,0,c36a2572c8dec2a3aeb2deff5af9a48fc06bb81d46a0ca3777a08f6ab0a90ce9,false
+gap_allow_two_predeclared,gap,34,33,1,397,28,28,59,66,64,63,13,17,0,cfd21ff414463303d368f4d85851eb5ed0a1c2c4258438c4f0dbf4298f5c07d8,false
+reference_first_five_analysis_ready_predeclared,reference,34,33,1,383,28,26,53,66,65,62,13,17,0,88241d05027414b47ed4d4c36bd14eb71bcc71c325ec94ad37168b877ccd654e,false
+reference_first_valid_predeclared,reference,34,33,1,375,28,26,53,64,65,61,13,12,0,80522de9a36b4680146bdc9faa575bede73b4d002c90ed81ef404569a50f7279,false
+threshold_relaxed_predeclared,threshold,34,33,1,462,28,37,81,73,70,62,13,17,0,6d4ccc56ca9ae1d0803e7f93e5323b042695e20537ec583a4f99b495c45bb7d6,false
+threshold_strict_predeclared,threshold,34,33,1,272,28,19,42,29,48,40,7,17,0,aa2e613ce15d19943b4e2d79d49d6a5aa89d36bd8fda6d91fe19a7cfd0c0f616,false
+window_seven_predeclared,window,34,33,1,301,28,26,53,28,45,38,13,17,0,54812288826ec3d57f418d2920b812e1e7383171b30fced1ed737eacade752a0,false
+window_three_predeclared,window,34,33,1,508,28,26,53,129,103,86,13,17,0,58754106a33bcf9eceff66066808c800ed5991aeef5d944f7a34fd0843f01671,false

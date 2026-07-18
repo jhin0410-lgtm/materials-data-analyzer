@@ -119,6 +119,15 @@ from .platform_core.battery_trajectory_evaluator import (
     run_battery_capacity_evaluator,
     validate_battery_capacity_evaluator_result,
 )
+from .platform_core.battery_metadata_stability import (
+    AUDIT_VERSION as BATTERY_METADATA_STABILITY_VERSION,
+    DEFAULT_CONFIG_PATH as DEFAULT_BATTERY_METADATA_STABILITY_CONFIG,
+    TRACKED_OUTPUTS as BATTERY_METADATA_STABILITY_OUTPUTS,
+    load_battery_v2_3_5_summary,
+    preview_battery_metadata_stability,
+    run_battery_metadata_stability_audit,
+    validate_battery_v2_3_5_artifacts,
+)
 from .platform_core.registry_service import RegistryService
 from .platform_core.run_registry import (
     DEFAULT_EXPORT_DIR,
@@ -4333,6 +4342,65 @@ def _cmd_export_battery_capacity_evaluator_summary(args: argparse.Namespace) -> 
     return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
 
 
+def _cmd_preview_battery_metadata_stability(args: argparse.Namespace) -> int:
+    try:
+        payload = preview_battery_metadata_stability(args.config, Path.cwd())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(
+        args,
+        payload,
+        ok=payload.get("status") in {"ready_for_local_execution", "blocked_missing_local_source"},
+    )
+
+
+def _cmd_run_battery_metadata_stability(args: argparse.Namespace) -> int:
+    if not args.execute:
+        payload = {
+            "schema_version": BATTERY_METADATA_STABILITY_VERSION,
+            "status": "blocked_explicit_execute_required",
+            "network_called": False,
+        }
+        return _emit_or_error(args, payload, ok=False)
+    try:
+        payload = run_battery_metadata_stability_audit(
+            args.config,
+            Path.cwd(),
+            write_local=not args.tracked_only,
+            write_tracked=True,
+        )
+    except (OSError, ValueError, json.JSONDecodeError, pd.errors.ParserError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(
+        args,
+        payload,
+        ok=payload.get("status", "").startswith("descriptive_evaluator_"),
+    )
+
+
+def _cmd_show_battery_metadata_stability(args: argparse.Namespace) -> int:
+    try:
+        payload = load_battery_v2_3_5_summary(Path.cwd())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "available")
+
+
+def _cmd_validate_battery_metadata_stability(args: argparse.Namespace) -> int:
+    payload = validate_battery_v2_3_5_artifacts(Path.cwd())
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_evaluate_battery_external_data_requirement(args: argparse.Namespace) -> int:
+    try:
+        path = Path(BATTERY_METADATA_STABILITY_OUTPUTS["external_data_decision"])
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["status"] = "evaluated"
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_METADATA_STABILITY_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "evaluated")
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -5392,6 +5460,41 @@ def build_parser() -> argparse.ArgumentParser:
     export_capacity_parser.add_argument("--tracked-only", action="store_true")
     export_capacity_parser.add_argument("--no-plots", action="store_true")
     export_capacity_parser.set_defaults(func=_cmd_export_battery_capacity_evaluator_summary)
+
+    preview_metadata_stability_parser = subparsers.add_parser(
+        "preview-battery-source-metadata-audit",
+        help="preview local Battery source-metadata recovery and policy stability inputs",
+    )
+    preview_metadata_stability_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_BATTERY_METADATA_STABILITY_CONFIG
+    )
+    preview_metadata_stability_parser.set_defaults(func=_cmd_preview_battery_metadata_stability)
+
+    run_metadata_stability_parser = subparsers.add_parser(
+        "run-battery-metadata-stability-audit",
+        help="run the local-only v2.3.5 metadata recovery and evaluator stability audit",
+    )
+    run_metadata_stability_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_BATTERY_METADATA_STABILITY_CONFIG
+    )
+    run_metadata_stability_parser.add_argument("--execute", action="store_true")
+    run_metadata_stability_parser.add_argument("--tracked-only", action="store_true")
+    run_metadata_stability_parser.set_defaults(func=_cmd_run_battery_metadata_stability)
+
+    subparsers.add_parser(
+        "show-battery-metadata-stability",
+        help="show tracked v2.3.5 Battery metadata and evaluator stability results",
+    ).set_defaults(func=_cmd_show_battery_metadata_stability)
+
+    subparsers.add_parser(
+        "validate-battery-metadata-stability",
+        help="validate tracked v2.3.5 Battery metadata and stability outputs",
+    ).set_defaults(func=_cmd_validate_battery_metadata_stability)
+
+    subparsers.add_parser(
+        "evaluate-battery-external-data-requirement",
+        help="show the evidence-bounded external battery data requirement decision",
+    ).set_defaults(func=_cmd_evaluate_battery_external_data_requirement)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

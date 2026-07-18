@@ -1,0 +1,10 @@
+policy_id,policy_axis,description,is_baseline,reference_policy,reference_window,absolute_detection_floor,robust_scale_multiplier,window_size,minimum_window_support,gap_exclusion_threshold,plateau_threshold,accelerated_fade_threshold,high_variability_scale_threshold,post_hoc_optimization_prohibited
+baseline_v2_3_4,baseline,Exact v2.3.4 evaluator policy,true,source_recorded_first_n_median_window_5,5,0.005,6.0,5,5,1,0.01,0.0025,0.01,true
+threshold_relaxed_predeclared,threshold,Predeclared lower event and variability thresholds,false,source_recorded_first_n_median_window_5,5,0.0025,4.0,5,5,1,0.015,0.00125,0.0075,true
+threshold_strict_predeclared,threshold,Predeclared higher event and variability thresholds,false,source_recorded_first_n_median_window_5,5,0.01,8.0,5,5,1,0.005,0.005,0.02,true
+reference_first_valid_predeclared,reference,Earliest positive analysis-ready discharge capacity,false,first_valid_discharge_capacity,1,0.005,6.0,5,5,1,0.01,0.0025,0.01,true
+reference_first_five_analysis_ready_predeclared,reference,Median of earliest five positive analysis-ready capacities,false,first_n_median_first_5,5,0.005,6.0,5,5,1,0.01,0.0025,0.01,true
+window_three_predeclared,window,Three-observation descriptive window,false,source_recorded_first_n_median_window_5,5,0.005,6.0,3,3,1,0.01,0.0025,0.01,true
+window_seven_predeclared,window,Seven-observation descriptive window,false,source_recorded_first_n_median_window_5,5,0.005,6.0,7,7,1,0.01,0.0025,0.01,true
+gap_allow_two_predeclared,gap,Allow adjacent cycle-index gaps up to two,false,source_recorded_first_n_median_window_5,5,0.005,6.0,5,5,2,0.01,0.0025,0.01,true
+gap_allow_three_predeclared,gap,Allow adjacent cycle-index gaps up to three,false,source_recorded_first_n_median_window_5,5,0.005,6.0,5,5,3,0.01,0.0025,0.01,true

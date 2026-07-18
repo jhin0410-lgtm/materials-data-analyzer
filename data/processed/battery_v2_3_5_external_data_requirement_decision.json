@@ -1,0 +1,49 @@
+{
+  "automatic_download_performed": false,
+  "decision_status": "selective_external_source_documentation_required",
+  "genuinely_unavailable_from_local_source": [
+    "per-measurement uncertainty and calibration uncertainty",
+    "official original NASA snapshot/version identifier",
+    "cycle-specific commanded protocol logs for variable-condition groups"
+  ],
+  "heterogeneous_dataset_combination_allowed": false,
+  "locally_recovered_without_external_data": [
+    "exact 34-cell immediate lineage",
+    "cycle start timestamps",
+    "ambient temperature",
+    "discharge duration",
+    "measured temperature/current/voltage summaries",
+    "cell-group protocol documents",
+    "impedance Re/Rct availability"
+  ],
+  "network_called": false,
+  "preferred_routing": [
+    {
+      "automatic_download": false,
+      "role": "preferred official protocol, source-version, calibration, and uncertainty evidence",
+      "source": "NASA PCoE"
+    },
+    {
+      "automatic_download": false,
+      "role": "dataset discovery and metadata catalog only",
+      "source": "NIST OAR"
+    },
+    {
+      "automatic_download": false,
+      "role": "possible external battery source only after a separate comparability audit",
+      "source": "CALCE"
+    },
+    {
+      "applicable": false,
+      "role": "not a substitute for cell protocol or measurement uncertainty",
+      "source": "NREL_API_KEY"
+    },
+    {
+      "applicable": false,
+      "role": "security CVE/CPE only; not battery scientific enrichment",
+      "source": "NVD_API_KEY"
+    }
+  ],
+  "schema_version": "2.3.5",
+  "source_lineage_checksum": "03d8a473a4292c358ba4185cbe148bb4eadb02d483fbbc2d004aa1f061cef3ba"
+}

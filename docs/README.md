@@ -25,6 +25,9 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Trajectory Findings and Thresholds](BATTERY_TRAJECTORY_FINDINGS_AND_THRESHOLDS.md): fixed gap-aware detection policy and interpretation limits.
 - [Battery Trajectory Evaluator Trust](BATTERY_TRAJECTORY_EVALUATOR_TRUST.md): representation, execution, interpretation, and external-validity boundaries.
 - [Battery v2.3.4 Scientific Boundary](BATTERY_V2_3_4_SCIENTIFIC_BOUNDARY.md): allowed and prohibited claims after execution.
+- [Battery Source-Metadata Recovery](BATTERY_SOURCE_METADATA_RECOVERY.md): v2.3.5 exact local lineage, recovered source evidence, and unresolved metadata.
+- [Battery Evaluator Stability Audit](BATTERY_EVALUATOR_STABILITY_AUDIT.md): predeclared threshold, reference, window, and gap sensitivity with bounded event consolidation.
+- [Battery v2.3.5 Scientific Boundary](BATTERY_V2_3_5_SCIENTIFIC_BOUNDARY.md): allowed claims and mechanism/prediction limits after the stability audit.
 - [Battery v2.3 Data and Representation Audit](BATTERY_V2_3_DATA_AND_REPRESENTATION_AUDIT.md): actual processed battery coverage and tracked/local output policy for the v2.3.2 pilot.
 - [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.

@@ -35,6 +35,18 @@
   production trust boundaries plus identity-free compact claim evidence. No
   mechanism, physical parameter, SOH/RUL, lifetime, causal, model, or
   production claim is added.
+- Added v2.3.5 exact lineage from all 34 Battery trajectories to the verified
+  local Kaggle package and recovered source-supported timestamp, ambient-
+  temperature, duration, measured-signal, protocol-group, and impedance
+  availability metadata without inference or external download.
+- Added nine predeclared threshold, reference, window, and gap sensitivity
+  configurations and consolidated overlapping findings into 489 bounded
+  descriptive events: 211 stable across policies, 97 stable with restrictions,
+  50 policy-sensitive, and 131 with insufficient support.
+- Recorded selective external documentation requirements only for unavailable
+  official NASA snapshot/version, cycle-specific command logs, and source
+  measurement/calibration uncertainty. Mechanism fitting, prediction, and
+  heterogeneous dataset combination remain prohibited.
 
 ## v2.2.0
 

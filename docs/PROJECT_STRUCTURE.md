@@ -152,6 +152,13 @@ trust tables, reports, and plots stay under ignored
 `outputs/battery_trajectory_evaluator_v2_3/`; only identity-free aggregate
 summaries are tracked. The evaluator does not fit parameters, run a solver or
 model, identify a degradation mechanism, or predict SOH/RUL/lifetime.
+v2.3.5 adds `src/platform_core/battery_metadata_stability.py` for exact local
+source-metadata lineage, evidence-only metadata recovery, nine predeclared
+evaluator sensitivity policies, and bounded event consolidation. Cell/cycle
+lineage and per-policy event rows stay under ignored
+`outputs/battery_metadata_stability_v2_3/`; tracked outputs are aggregate and
+identity-free. The audit performs no network download, fitting, prediction, or
+mechanism attribution.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -293,7 +300,11 @@ Detailed mechanism-audit inventories and decisions remain local-only under
 `outputs/battery_mechanism_audit_v2_3/`. v2.3.4 adds compact tracked evaluator
 execution, eligibility, finding, trust, decision, claim-evidence, and report
 summaries. Cell-level results, cycle-level findings, plots, and raw series stay
-local-only under `outputs/battery_trajectory_evaluator_v2_3/`. Row-level MP
+local-only under `outputs/battery_trajectory_evaluator_v2_3/`. v2.3.5 adds
+compact source-lineage, metadata-recovery, policy-definition,
+evaluator-stability, event-stability, external-data, decision, and report
+summaries. Cell/cycle lineage and event clusters remain local-only under
+`outputs/battery_metadata_stability_v2_3/`. Row-level MP
 structure chunks, converted structure entities, descriptor rows, graph JSONL,
 alignment tables, known-structure matched cohorts, row-level predictions,
 split assignments, and plots remain local-only under
