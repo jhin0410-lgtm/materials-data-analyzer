@@ -45,6 +45,9 @@ def test_capability_stage_registry_blocks_future_only_promotion():
     assert capabilities["graph_entity_artifact"].scientific_claim_supported == "representation_only"
     assert capabilities["composition_feature_candidates"].evidence_level == "v2_2_1_performance_degraded"
     assert capabilities["structure_descriptor_candidates"].evidence_level == "v2_2_5_structure_predictive_value_limited"
+    assert capabilities["battery_capacity_trajectory_evaluator"].capability_stage == "scientifically_evaluated"
+    assert capabilities["battery_capacity_trajectory_evaluator"].model_execution_performed is False
+    assert capabilities["battery_mechanism_identifiability_audit"].capability_stage == "adapter_available"
 
 
 def test_mapping_and_capability_compact_artifacts_parse_and_match_code():

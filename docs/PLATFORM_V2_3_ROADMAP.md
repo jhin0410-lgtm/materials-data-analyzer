@@ -41,15 +41,20 @@ solver, model retraining, or experiment recommendation.
 
 ## v2.3.4
 
-- Implement the selected bounded capacity-trajectory consistency Evaluator if
-  release gates still pass.
-- Not a general solver, Propagator, Arrhenius fit, diffusion model, or
-  predictive battery model.
+- Completed the selected bounded capacity-trajectory consistency Evaluator on
+  34 actual trajectories and 2,495 operational states.
+- Recorded 33 eligible-with-warning trajectories, one blocked short
+  trajectory, deterministic findings, separated trust dimensions, and compact
+  claim evidence.
+- Result: `descriptive_evaluator_executed_with_restrictions`; not a general
+  solver, Propagator, Arrhenius fit, diffusion model, or predictive model.
 
 ## v2.3.5
 
-- Mechanism residual and uncertainty validation.
-- Claim-boundary update from actual evidence.
+- Evaluate cross-run threshold sensitivity without tuning and obtain protocol,
+  physical-time, and measurement-uncertainty evidence before considering any
+  mechanism-specific residual analysis.
+- Keep mechanism attribution blocked if those evidence gaps remain.
 
 ## v2.3.6
 

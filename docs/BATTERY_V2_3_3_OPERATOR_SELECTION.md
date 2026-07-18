@@ -27,3 +27,11 @@ Allowed claims are limited to descriptive audit readiness and evidence-gap
 documentation. Prohibited claims include activation energy, diffusion
 coefficient, mechanism confirmation, causal temperature effect, SOH/RUL
 prediction, and production decision support.
+
+## v2.3.4 Execution Result
+
+The selected evaluator was executed without changing this selection decision.
+It produced deterministic descriptive findings for 33 eligible-with-warning
+trajectories and blocked one four-observation trajectory under the fixed
+minimum-five rule. This execution does not unblock or supersede any rejected
+mechanism candidate.

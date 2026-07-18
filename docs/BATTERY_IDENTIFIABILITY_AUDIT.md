@@ -22,3 +22,10 @@ Actual conclusion:
 The blocked Arrhenius and diffusion outcomes are intended scientific results,
 not failed implementation. Missing evidence is recorded instead of filled with
 defaults.
+
+## v2.3.4 Preservation
+
+Capacity-trajectory findings were generated as descriptive candidates only.
+Arrhenius, diffusion, and resistance-growth identifiability statuses remain
+`not_identifiable_from_current_data`; no parameter fitting or mechanism label
+was introduced.

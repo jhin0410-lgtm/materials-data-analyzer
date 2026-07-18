@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-OPERATOR_REGISTRY_VERSION = "2.2.4"
+OPERATOR_REGISTRY_VERSION = "2.3.4"
 ALLOWED_OPERATOR_STATUSES = ("registered", "metadata_only", "adapter_available", "validation_ready")
 
 
@@ -29,6 +29,11 @@ class ScientificOperatorMetadata:
     bounded_input_policy: str
     status: str = "registered"
     description: str = ""
+    operator_role: str = "unspecified"
+    mechanism_family: str = "unspecified"
+    target_access_policy: str = "no_target_access"
+    claim_boundary: tuple[str, ...] = ()
+    capability_stage: str = "registered"
 
     def __post_init__(self) -> None:
         if "/" in self.operator_id or "\\" in self.operator_id or ".." in self.operator_id:
@@ -54,6 +59,11 @@ class ScientificOperatorMetadata:
             "bounded_input_policy": self.bounded_input_policy,
             "status": self.status,
             "description": self.description,
+            "operator_role": self.operator_role,
+            "mechanism_family": self.mechanism_family,
+            "target_access_policy": self.target_access_policy,
+            "claim_boundary": list(self.claim_boundary),
+            "capability_stage": self.capability_stage,
         }
 
 
@@ -103,6 +113,11 @@ def _op(
     status: str = "registered",
     uncertainty_policy: str = "unavailable_if_source_not_provided",
     side_effect_policy: str = "none",
+    operator_role: str = "unspecified",
+    mechanism_family: str = "unspecified",
+    target_access_policy: str = "no_target_access",
+    claim_boundary: tuple[str, ...] = (),
+    capability_stage: str = "registered",
 ) -> ScientificOperatorMetadata:
     return ScientificOperatorMetadata(
         operator_id=operator_id,
@@ -118,6 +133,11 @@ def _op(
         bounded_input_policy="small_inline_or_artifact_backed_json_safe_records",
         status=status,
         description=description,
+        operator_role=operator_role,
+        mechanism_family=mechanism_family,
+        target_access_policy=target_access_policy,
+        claim_boundary=claim_boundary,
+        capability_stage=capability_stage,
     )
 
 
@@ -247,10 +267,21 @@ def build_default_scientific_operator_registry() -> ScientificOperatorRegistry:
         _op(
             "battery_capacity_trajectory_consistency_evaluator_v1",
             ("TrajectoryEntity",),
-            ("MechanismIdentifiabilityFinding",),
+            ("CapacityTrajectoryResult", "CapacityTrajectoryFinding", "CapacityTrajectoryTrustAssessment"),
             ("cycle_order", "discharge_capacity_ah", "reference_capacity_policy"),
             "Evaluate observed capacity trajectory consistency descriptively without mechanism confirmation or prediction.",
-            status="validation_ready",
+            status="adapter_available",
+            side_effect_policy="local_output_only",
+            operator_role="Evaluator",
+            mechanism_family="damage_and_degradation_descriptive_trajectory_evaluation",
+            target_access_policy="observed_capacity_only_no_predictive_target",
+            claim_boundary=(
+                "descriptive trajectory candidates only",
+                "no mechanism attribution",
+                "no parameter estimation",
+                "no prediction or extrapolation",
+            ),
+            capability_stage="scientifically_evaluated_as_descriptive_evaluator",
         ),
         _op(
             "battery_protocol_comparability_evaluator_v1",

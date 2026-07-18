@@ -108,6 +108,17 @@ from .platform_core.mechanism_identifiability import (
     select_bounded_evaluator,
     validate_battery_mechanism_audit_path,
 )
+from .platform_core.battery_trajectory_evaluator import (
+    BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+    CapacityTrajectoryEvaluatorConfig,
+    evaluator_contract as battery_capacity_evaluator_contract,
+    export_battery_capacity_evaluator_summary,
+    load_battery_capacity_evaluator_summary,
+    load_evaluator_config as load_battery_capacity_evaluator_config,
+    preview_battery_capacity_evaluation,
+    run_battery_capacity_evaluator,
+    validate_battery_capacity_evaluator_result,
+)
 from .platform_core.registry_service import RegistryService
 from .platform_core.run_registry import (
     DEFAULT_EXPORT_DIR,
@@ -4208,6 +4219,120 @@ def _cmd_export_battery_mechanism_audit_summary(args: argparse.Namespace) -> int
     return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
 
 
+def _battery_capacity_config(path: str | None) -> CapacityTrajectoryEvaluatorConfig:
+    if path is None:
+        return CapacityTrajectoryEvaluatorConfig()
+    config, _ = load_battery_capacity_evaluator_config(path)
+    return config
+
+
+def _cmd_inspect_battery_capacity_evaluator(args: argparse.Namespace) -> int:
+    payload = battery_capacity_evaluator_contract()
+    return _emit_or_error(args, payload)
+
+
+def _cmd_preview_battery_capacity_evaluation(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_capacity_config(args.config)
+        payload = preview_battery_capacity_evaluation(Path.cwd(), config=config)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "ready_for_bounded_descriptive_evaluation")
+
+
+def _cmd_run_battery_capacity_evaluator(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_capacity_config(args.config)
+        result = run_battery_capacity_evaluator(
+            Path.cwd(),
+            config=config,
+            write_local=True,
+            write_plots=not args.no_plots,
+        )
+        payload = {
+            "schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+            "status": result["decision"]["status"],
+            "aggregate": result["aggregate"],
+            "deterministic_rerun_match": result["deterministic_rerun_match"],
+            "local_outputs_written": True,
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status", "").startswith("descriptive_evaluator_executed"))
+
+
+def _cmd_validate_battery_capacity_evaluator_result(args: argparse.Namespace) -> int:
+    payload = validate_battery_capacity_evaluator_result(args.path)
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_show_battery_capacity_evaluator_summary(args: argparse.Namespace) -> int:
+    try:
+        if args.result:
+            payload = json.loads(Path(args.result).read_text(encoding="utf-8"))
+        else:
+            payload = load_battery_capacity_evaluator_summary(Path.cwd())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") not in {"invalid", "not_available"})
+
+
+def _cmd_show_battery_capacity_findings_summary(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result or "data/processed/battery_v2_3_4_finding_summary.csv")
+        rows = pd.read_csv(path).to_dict(orient="records")
+        payload = {
+            "schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+            "status": "available",
+            "finding_summary": rows,
+            "row_level_findings_loaded": False,
+        }
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "available")
+
+
+def _cmd_assess_battery_capacity_evaluator_trust(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result or "data/processed/battery_v2_3_4_trust_summary.csv")
+        rows = pd.read_csv(path).to_dict(orient="records")
+        payload = {
+            "schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION,
+            "status": "assessed",
+            "trust_assessments": rows,
+            "generic_confidence_score_generated": False,
+        }
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_evaluate_battery_capacity_claims(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result or "data/processed/battery_v2_3_4_claim_evidence.json")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["status"] = "evaluated"
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "evaluated")
+
+
+def _cmd_export_battery_capacity_evaluator_summary(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_capacity_config(args.config)
+        payload = export_battery_capacity_evaluator_summary(
+            Path.cwd(),
+            config=config,
+            write_local=not args.tracked_only,
+            write_plots=not args.no_plots and not args.tracked_only,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_TRAJECTORY_EVALUATOR_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -5203,6 +5328,70 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export_battery_mechanism_parser.add_argument("--tracked-only", action="store_true")
     export_battery_mechanism_parser.set_defaults(func=_cmd_export_battery_mechanism_audit_summary)
+
+    subparsers.add_parser(
+        "inspect-battery-capacity-evaluator",
+        help="inspect the selected bounded Battery capacity evaluator",
+    ).set_defaults(func=_cmd_inspect_battery_capacity_evaluator)
+
+    preview_capacity_parser = subparsers.add_parser(
+        "preview-battery-capacity-evaluation",
+        help="preview Battery capacity evaluation without writing results",
+    )
+    preview_capacity_parser.add_argument("config")
+    preview_capacity_parser.set_defaults(func=_cmd_preview_battery_capacity_evaluation)
+
+    run_capacity_parser = subparsers.add_parser(
+        "run-battery-capacity-evaluator",
+        help="run the bounded Battery capacity evaluator using local PGIR artifacts",
+    )
+    run_capacity_parser.add_argument("config")
+    run_capacity_parser.add_argument("--no-plots", action="store_true")
+    run_capacity_parser.set_defaults(func=_cmd_run_battery_capacity_evaluator)
+
+    validate_capacity_parser = subparsers.add_parser(
+        "validate-battery-capacity-evaluator-result",
+        help="validate a Battery capacity evaluator JSON, JSONL, or CSV result",
+    )
+    validate_capacity_parser.add_argument("path")
+    validate_capacity_parser.set_defaults(func=_cmd_validate_battery_capacity_evaluator_result)
+
+    show_capacity_parser = subparsers.add_parser(
+        "show-battery-capacity-evaluator-summary",
+        help="show tracked or selected Battery capacity evaluator summary",
+    )
+    show_capacity_parser.add_argument("result", nargs="?")
+    show_capacity_parser.set_defaults(func=_cmd_show_battery_capacity_evaluator_summary)
+
+    show_capacity_findings_parser = subparsers.add_parser(
+        "show-battery-capacity-findings-summary",
+        help="show aggregate Battery capacity finding counts",
+    )
+    show_capacity_findings_parser.add_argument("result", nargs="?")
+    show_capacity_findings_parser.set_defaults(func=_cmd_show_battery_capacity_findings_summary)
+
+    trust_capacity_parser = subparsers.add_parser(
+        "assess-battery-capacity-evaluator-trust",
+        help="show the separated Battery evaluator trust dimensions",
+    )
+    trust_capacity_parser.add_argument("result", nargs="?")
+    trust_capacity_parser.set_defaults(func=_cmd_assess_battery_capacity_evaluator_trust)
+
+    claims_capacity_parser = subparsers.add_parser(
+        "evaluate-battery-capacity-claims",
+        help="show allowed and prohibited Battery evaluator claims",
+    )
+    claims_capacity_parser.add_argument("result", nargs="?")
+    claims_capacity_parser.set_defaults(func=_cmd_evaluate_battery_capacity_claims)
+
+    export_capacity_parser = subparsers.add_parser(
+        "export-battery-capacity-evaluator-summary",
+        help="export compact v2.3.4 Battery capacity evaluator summaries",
+    )
+    export_capacity_parser.add_argument("--config", default="configs/examples/battery_capacity_trajectory_evaluator.json")
+    export_capacity_parser.add_argument("--tracked-only", action="store_true")
+    export_capacity_parser.add_argument("--no-plots", action="store_true")
+    export_capacity_parser.set_defaults(func=_cmd_export_battery_capacity_evaluator_summary)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

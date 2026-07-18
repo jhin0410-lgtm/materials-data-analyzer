@@ -21,6 +21,10 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Protocol and Condition Comparability](BATTERY_PROTOCOL_AND_CONDITION_COMPARABILITY.md): protocol metadata and temperature-condition limits.
 - [Battery Mechanism Evidence Gaps](BATTERY_MECHANISM_EVIDENCE_GAPS.md): missing evidence and prohibited workarounds.
 - [Battery v2.3.3 Operator Selection](BATTERY_V2_3_3_OPERATOR_SELECTION.md): selected descriptive evaluator and blocked mechanism claims.
+- [Battery Capacity-Trajectory Evaluator](BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md): actual v2.3.4 bounded execution and aggregate findings.
+- [Battery Trajectory Findings and Thresholds](BATTERY_TRAJECTORY_FINDINGS_AND_THRESHOLDS.md): fixed gap-aware detection policy and interpretation limits.
+- [Battery Trajectory Evaluator Trust](BATTERY_TRAJECTORY_EVALUATOR_TRUST.md): representation, execution, interpretation, and external-validity boundaries.
+- [Battery v2.3.4 Scientific Boundary](BATTERY_V2_3_4_SCIENTIFIC_BOUNDARY.md): allowed and prohibited claims after execution.
 - [Battery v2.3 Data and Representation Audit](BATTERY_V2_3_DATA_AND_REPRESENTATION_AUDIT.md): actual processed battery coverage and tracked/local output policy for the v2.3.2 pilot.
 - [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.

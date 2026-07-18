@@ -34,3 +34,10 @@ coverage, maturity, transition, mechanism-readiness, and decision summaries.
 The v2.3.3 audit treats the Trajectory as ordered cycle metadata. It can
 support descriptive capacity-trajectory checks, but it is not a diffusion
 trajectory, calendar-aging axis, or complete electrochemical state path.
+
+## v2.3.4 Evaluator Use
+
+The capacity evaluator consumes the local ordered State references and checks
+lineage before computation. It does not promote the Trajectory entity itself to
+PGIR L6; only the result artifact records bounded evaluator execution evidence.
+Cycle gaps remain ordering findings and are never interpreted as physical time.

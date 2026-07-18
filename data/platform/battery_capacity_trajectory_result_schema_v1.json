@@ -1,0 +1,31 @@
+{
+  "schema_version": "2.3.4",
+  "schema_name": "battery_capacity_trajectory_result_schema_v1",
+  "status": "accepted_for_v2_3",
+  "owner_module": "src.platform_core.battery_trajectory_evaluator",
+  "pgir_concept": "result",
+  "current_version": "1",
+  "migration_policy": "additive_optional_fields",
+  "persistence_policy": "local_trajectory_result_and_tracked_aggregate",
+  "payload_classification": "row_level_local_or_aggregate_tracked",
+  "security_classification": "local_or_tracked_compact_metadata",
+  "large_payload_policy": "row_level_local_aggregate_only_tracked",
+  "required_fields": [
+    "evaluator_id",
+    "eligibility_status",
+    "trust_status",
+    "valid_capacity_count",
+    "evaluable_transition_count",
+    "reference_policy_id",
+    "reference_selection_evidence",
+    "reference_unit",
+    "uncertainty_status",
+    "physical_elapsed_time_available",
+    "model_or_solver_executed",
+    "parameter_fitting_performed"
+  ],
+  "security_rules": [
+    "Tracked aggregates exclude cell IDs, cycle indices, capacities, raw series, and row-level findings.",
+    "Result status cannot imply a predictive model, physical parameter estimate, causal effect, or production decision."
+  ]
+}

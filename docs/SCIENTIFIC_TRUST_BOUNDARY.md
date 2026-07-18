@@ -125,3 +125,11 @@ identifiability. It selects only a descriptive capacity-trajectory consistency
 Evaluator. This does not support Arrhenius behavior, activation energy,
 diffusion coefficient, causal temperature effect, SOH/RUL prediction, hidden
 state inference, or production battery decisions.
+
+## v2.3.4 Capacity-Trajectory Trust Boundary
+
+The actual evaluator run is trusted for bounded deterministic descriptive
+audit, with representation warnings and restricted interpretation. Detection
+thresholds are not uncertainty; cycle-index slopes are not physical-time
+rates; candidate findings are not mechanisms; and no independent or production
+validation is available.

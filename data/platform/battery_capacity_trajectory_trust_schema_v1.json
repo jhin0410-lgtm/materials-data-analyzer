@@ -1,0 +1,31 @@
+{
+  "schema_version": "2.3.4",
+  "schema_name": "battery_capacity_trajectory_trust_schema_v1",
+  "status": "accepted_for_v2_3",
+  "owner_module": "src.platform_core.battery_trajectory_evaluator",
+  "pgir_concept": "result",
+  "current_version": "1",
+  "migration_policy": "additive_optional_fields",
+  "persistence_policy": "tracked_compact_metadata",
+  "payload_classification": "aggregate_trust_assessment",
+  "security_classification": "tracked_compact_metadata",
+  "large_payload_policy": "metadata_only",
+  "required_fields": [
+    "trust_dimension",
+    "status",
+    "evidence",
+    "limitations"
+  ],
+  "trust_dimensions": [
+    "representation_trust",
+    "execution_trust",
+    "scientific_interpretation_trust",
+    "external_validity",
+    "production_validity"
+  ],
+  "security_rules": [
+    "No generic confidence score is generated.",
+    "Execution trust does not automatically promote trajectory or mechanism maturity.",
+    "External and production validity remain separately bounded."
+  ]
+}

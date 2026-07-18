@@ -440,6 +440,39 @@
       "schema_version": "1",
       "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
       "uncertainty_support": "records unavailable source uncertainty without inventing intervals"
+    },
+    {
+      "current_domain_use": [
+        "battery_v2_3_4_capacity_trajectory_audit"
+      ],
+      "current_limitations": [
+        "cycle-index domain only",
+        "no external validation",
+        "no physical parameter fitting"
+      ],
+      "implementation_ref": "src.platform_core.battery_trajectory_evaluator",
+      "implementation_role": "Deterministic Battery capacity-trajectory consistency evaluator",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.battery_trajectory_evaluator",
+      "persisted_representation": "local row-level findings plus tracked compact aggregates",
+      "pgir_concepts": [
+        "operator",
+        "result",
+        "provenance",
+        "uncertainty"
+      ],
+      "prohibited_promotions": [
+        "degradation mechanism confirmation",
+        "SOH/RUL prediction",
+        "production decision"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "bounded descriptive evaluator",
+      "schema_id": "battery_capacity_trajectory_result_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "source uncertainty unavailable; thresholds are algorithmic detection policy"
     }
   ],
   "schema_version": "2.3.1",
@@ -447,7 +480,7 @@
   "validation": {
     "concept_count": 15,
     "errors": [],
-    "mapping_count": 15,
+    "mapping_count": 16,
     "status": "valid",
     "valid": true
   }

@@ -234,6 +234,7 @@ class PlatformReport:
     pgir_conformance_summary: dict[str, Any]
     battery_pgir_summary: dict[str, Any]
     battery_mechanism_audit_summary: dict[str, Any]
+    battery_capacity_evaluator_summary: dict[str, Any]
     testing_summary: dict[str, Any]
     security_boundaries: tuple[str, ...]
     limitations: tuple[str, ...]
@@ -263,6 +264,7 @@ class PlatformReport:
             "pgir_conformance_summary": self.pgir_conformance_summary,
             "battery_pgir_summary": self.battery_pgir_summary,
             "battery_mechanism_audit_summary": self.battery_mechanism_audit_summary,
+            "battery_capacity_evaluator_summary": self.battery_capacity_evaluator_summary,
             "testing_summary": self.testing_summary,
             "security_boundaries": list(self.security_boundaries),
             "limitations": list(self.limitations),

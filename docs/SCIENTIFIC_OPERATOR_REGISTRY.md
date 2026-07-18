@@ -64,3 +64,10 @@ readiness, and resistance/capacity applicability. Only
 `battery_capacity_trajectory_consistency_evaluator_v1` is selected for the
 next bounded descriptive step. None of these registrations perform fitting,
 solver execution, prediction, or mechanism confirmation.
+
+## v2.3.4 Executed Battery Evaluator
+
+`battery_capacity_trajectory_consistency_evaluator_v1` is now registered as an
+execution-capable bounded `Evaluator` with local-only row-level side effects.
+Its input, output, maturity, target-access, uncertainty, provenance, and claim
+policies are explicit. No other Battery mechanism candidate was executed.

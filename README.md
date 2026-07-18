@@ -230,7 +230,14 @@ The current v2.3 scaffold adds conformance gates, a Battery Observation /
 bounded operational State / Trajectory adapter pilot, and a v2.3.3 Battery
 mechanism-candidate identifiability audit over existing processed summaries
 only. The audit selects a descriptive capacity-trajectory consistency
-Evaluator candidate, not a mechanism fit or predictive battery model.
+Evaluator candidate, not a mechanism fit or predictive battery model. v2.3.4
+executes that one selected Evaluator against 34 local PGIR trajectories and
+2,495 operational states: 33 are eligible with warnings and one
+four-observation trajectory is blocked by the preconfigured minimum-five rule.
+The deterministic findings remain cycle-index descriptive candidates; they do
+not identify a mechanism, estimate a parameter, train a model, extrapolate
+lifetime, or support production decisions. See
+[`docs/BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md`](docs/BATTERY_CAPACITY_TRAJECTORY_EVALUATOR.md).
 
 Useful PGIR inspection commands:
 
@@ -242,6 +249,8 @@ python -m src.cli preview-battery-observation-build configs/examples/battery_obs
 python -m src.cli export-battery-pgir-summary
 python -m src.cli list-battery-mechanism-candidates
 python -m src.cli export-battery-mechanism-audit-summary --tracked-only
+python -m src.cli preview-battery-capacity-evaluation configs/examples/battery_capacity_trajectory_evaluator.json
+python -m src.cli export-battery-capacity-evaluator-summary --tracked-only
 python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
 ```
 
@@ -252,6 +261,10 @@ summaries. Battery mechanism-audit row-level/local detail remains under
 `outputs/battery_mechanism_audit_v2_3/`; tracked v2.3.3 outputs are compact
 condition, protocol, candidate, identifiability, evidence-gap, operator
 selection, and report summaries.
+Battery v2.3.4 row-level trajectory findings, results, reports, and plots stay
+under `outputs/battery_trajectory_evaluator_v2_3/`; tracked outputs contain no
+cell IDs, cycle indices, capacities, or raw series. Its thresholds are fixed
+algorithmic detection rules, not measurement uncertainty.
 
 ### Platform Scientific Execution
 

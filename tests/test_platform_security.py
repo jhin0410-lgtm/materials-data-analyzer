@@ -30,6 +30,7 @@ PLATFORM_FILES = [
     Path("src/platform_core/pgir_conformance.py"),
     Path("src/platform_core/battery_pgir_adapters.py"),
     Path("src/platform_core/mechanism_identifiability.py"),
+    Path("src/platform_core/battery_trajectory_evaluator.py"),
     Path("src/cli.py"),
 ]
 

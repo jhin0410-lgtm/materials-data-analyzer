@@ -146,6 +146,12 @@ coverage, confounding, and structural/practical/contextual identifiability
 audits. It selects only a descriptive capacity-trajectory consistency
 Evaluator candidate and does not fit parameters, execute solvers, infer hidden
 state, or make mechanism/prediction claims.
+v2.3.4 adds `src/platform_core/battery_trajectory_evaluator.py` for the one
+selected bounded capacity-trajectory Evaluator. Row-level results, findings,
+trust tables, reports, and plots stay under ignored
+`outputs/battery_trajectory_evaluator_v2_3/`; only identity-free aggregate
+summaries are tracked. The evaluator does not fit parameters, run a solver or
+model, identify a degradation mechanism, or predict SOH/RUL/lifetime.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -284,7 +290,10 @@ under `outputs/battery_pgir_v2_3/`. v2.3.3 adds compact tracked Battery
 condition coverage, protocol comparability, mechanism-candidate,
 identifiability, evidence-gap, operator-selection, and report summaries.
 Detailed mechanism-audit inventories and decisions remain local-only under
-`outputs/battery_mechanism_audit_v2_3/`. Row-level MP
+`outputs/battery_mechanism_audit_v2_3/`. v2.3.4 adds compact tracked evaluator
+execution, eligibility, finding, trust, decision, claim-evidence, and report
+summaries. Cell-level results, cycle-level findings, plots, and raw series stay
+local-only under `outputs/battery_trajectory_evaluator_v2_3/`. Row-level MP
 structure chunks, converted structure entities, descriptor rows, graph JSONL,
 alignment tables, known-structure matched cohorts, row-level predictions,
 split assignments, and plots remain local-only under

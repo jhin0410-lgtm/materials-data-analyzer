@@ -92,6 +92,7 @@ CURRENT_IMPLEMENTATION_REFS = (
     "src.platform_core.pgir_conformance",
     "src.platform_core.battery_pgir_adapters",
     "src.platform_core.mechanism_identifiability",
+    "src.platform_core.battery_trajectory_evaluator",
 )
 
 
@@ -767,6 +768,22 @@ def build_current_mapping_matrix() -> tuple[PGIRMappingRecord, ...]:
             prohibited_promotions=("Arrhenius fit", "diffusion coefficient", "SOH/RUL model evidence"),
             **common,
         ),
+        PGIRMappingRecord(
+            "src.platform_core.battery_trajectory_evaluator",
+            "Deterministic Battery capacity-trajectory consistency evaluator",
+            ("operator", "result", "provenance", "uncertainty"),
+            "partial",
+            "bounded descriptive evaluator",
+            "local row-level findings plus tracked compact aggregates",
+            "battery_capacity_trajectory_result_schema_v1",
+            "1",
+            ownership_module="src.platform_core.battery_trajectory_evaluator",
+            uncertainty_support="source uncertainty unavailable; thresholds are algorithmic detection policy",
+            current_domain_use=("battery_v2_3_4_capacity_trajectory_audit",),
+            current_limitations=("cycle-index domain only", "no external validation", "no physical parameter fitting"),
+            prohibited_promotions=("degradation mechanism confirmation", "SOH/RUL prediction", "production decision"),
+            **common,
+        ),
     )
 
 
@@ -830,6 +847,10 @@ def build_schema_ownership_registry() -> tuple[PGIRSchemaOwnershipRecord, ...]:
         PGIRSchemaOwnershipRecord("mechanism_identifiability_schema_v1", "1", "src.platform_core.mechanism_identifiability", "assess_identifiability", "IdentifiabilityAssessment.to_dict", "none", "data/platform/mechanism_identifiability_schema_v1.json", "stable", "active", "result", "metadata_only", "tracked_compact_metadata"),
         PGIRSchemaOwnershipRecord("mechanism_selection_decision_schema_v1", "1", "src.platform_core.mechanism_identifiability", "select_bounded_evaluator", "MechanismSelectionDecision.to_dict", "none", "data/platform/mechanism_selection_decision_schema_v1.json", "stable", "active", "result", "metadata_only", "tracked_compact_metadata"),
         PGIRSchemaOwnershipRecord("mechanism_evidence_gap_schema_v1", "1", "src.platform_core.mechanism_identifiability", "build_evidence_gap_registry", "EvidenceGapRecommendation.to_dict", "none", "data/platform/mechanism_evidence_gap_schema_v1.json", "stable", "active", "context", "metadata_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("battery_capacity_trajectory_evaluator_config_schema_v1", "1", "src.platform_core.battery_trajectory_evaluator", "CapacityTrajectoryEvaluatorConfig.from_mapping", "CapacityTrajectoryEvaluatorConfig.to_dict", "none", "data/platform/battery_capacity_trajectory_evaluator_config_schema_v1.json", "additive_optional_fields", "active", "operator", "metadata_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("battery_capacity_trajectory_finding_schema_v1", "1", "src.platform_core.battery_trajectory_evaluator", "validate_battery_capacity_evaluator_result", "CapacityTrajectoryFinding.to_dict", "none", "data/platform/battery_capacity_trajectory_finding_schema_v1.json", "additive_optional_fields", "active", "result", "artifact_backed_row_level_jsonl", "local_only_report"),
+        PGIRSchemaOwnershipRecord("battery_capacity_trajectory_result_schema_v1", "1", "src.platform_core.battery_trajectory_evaluator", "validate_battery_capacity_evaluator_result", "CapacityTrajectoryResult.to_dict", "none", "data/platform/battery_capacity_trajectory_result_schema_v1.json", "additive_optional_fields", "active", "result", "row_level_local_aggregate_only_tracked", "local_or_tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("battery_capacity_trajectory_trust_schema_v1", "1", "src.platform_core.battery_trajectory_evaluator", "assess_evaluator_trust", "CapacityTrajectoryTrustAssessment.to_dict", "none", "data/platform/battery_capacity_trajectory_trust_schema_v1.json", "additive_optional_fields", "active", "result", "metadata_only", "tracked_compact_metadata"),
     )
 
 
@@ -848,6 +869,7 @@ def build_capability_stage_registry() -> tuple[PGIRCapabilityStageRecord, ...]:
         PGIRCapabilityStageRecord("battery_trajectory_transformer", "state", "artifact_generated", "active_limited", "v2_3_2_ordered_cycle_trajectory_metadata", ("src.platform_core.battery_pgir_adapters",), False, False, "trajectory_representation_only", ("cycle index is not physical elapsed time",), ("RUL model evidence", "degradation mechanism proof")),
         PGIRCapabilityStageRecord("battery_mechanism_readiness_assessment", "result", "adapter_available", "active_limited", "v2_3_2_requirements_audit_only", ("src.platform_core.battery_pgir_adapters",), False, False, "readiness_audit_only", ("no Arrhenius fit", "no diffusion solve"), ("mechanism execution", "battery lifetime prediction")),
         PGIRCapabilityStageRecord("battery_mechanism_identifiability_audit", "result", "adapter_available", "active_limited", "v2_3_3_requirement_evidence_binding", ("src.platform_core.mechanism_identifiability",), False, False, "identifiability_audit_only", ("no parameter fitting", "no solver", "no mechanism confirmation"), ("Arrhenius activation energy", "diffusion coefficient", "SOH/RUL model")),
+        PGIRCapabilityStageRecord("battery_capacity_trajectory_evaluator", "result", "scientifically_evaluated", "active_bounded", "v2_3_4_deterministic_capacity_trajectory_findings", ("src.platform_core.battery_trajectory_evaluator",), False, False, "bounded_descriptive_audit_only", ("cycle index is not physical time", "source uncertainty unavailable", "no external validation"), ("degradation mechanism confirmation", "physical parameter estimate", "SOH/RUL prediction", "production decision")),
     )
 
 

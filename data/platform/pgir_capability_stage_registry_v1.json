@@ -266,12 +266,36 @@
         "SOH/RUL model"
       ],
       "scientific_claim_supported": "identifiability_audit_only"
+    },
+    {
+      "capability_id": "battery_capacity_trajectory_evaluator",
+      "capability_stage": "scientifically_evaluated",
+      "current_implementation_refs": [
+        "src.platform_core.battery_trajectory_evaluator"
+      ],
+      "current_status": "active_bounded",
+      "evidence_level": "v2_3_4_deterministic_capacity_trajectory_findings",
+      "future_only": false,
+      "limitations": [
+        "cycle index is not physical time",
+        "source uncertainty unavailable",
+        "no external validation"
+      ],
+      "model_execution_performed": false,
+      "pgir_concept": "result",
+      "prohibited_interpretations": [
+        "degradation mechanism confirmation",
+        "physical parameter estimate",
+        "SOH/RUL prediction",
+        "production decision"
+      ],
+      "scientific_claim_supported": "bounded_descriptive_audit_only"
     }
   ],
   "schema_version": "2.3.1",
   "status": "accepted_for_v2_3",
   "validation": {
-    "capability_count": 13,
+    "capability_count": 14,
     "errors": [],
     "future_only_capabilities": [
       "propagator_operator_role"

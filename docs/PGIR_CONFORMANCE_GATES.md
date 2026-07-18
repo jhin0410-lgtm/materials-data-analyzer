@@ -43,3 +43,10 @@ v2.3.3 adds mechanism requirement and identifiability audits on top of these
 gates. The audits can select a bounded descriptive Evaluator, but they still
 block Propagator, Estimator, Calibrator, Arrhenius fitting, diffusion solving,
 and predictive battery model claims when evidence is missing.
+
+## v2.3.4 Evaluator Gate
+
+The capacity-trajectory evaluator requires the existing schema, ordering,
+units, reference-policy, lineage, and `dimensionally_valid` maturity gates
+before execution. A valid run creates result evidence only; it does not promote
+the source trajectory to mechanism-compatible or independently validated.

@@ -25,6 +25,11 @@ def test_default_operator_registry_has_selected_operators_only():
     assert "battery_arrhenius_readiness_evaluator_v1" in operator_ids
     assert "battery_diffusion_readiness_evaluator_v1" in operator_ids
     assert "battery_resistance_capacity_relation_applicability_v1" in operator_ids
+    battery_evaluator = registry.get("battery_capacity_trajectory_consistency_evaluator_v1")
+    assert battery_evaluator.operator_role == "Evaluator"
+    assert battery_evaluator.capability_stage == "scientifically_evaluated_as_descriptive_evaluator"
+    assert battery_evaluator.target_access_policy == "observed_capacity_only_no_predictive_target"
+    assert battery_evaluator.side_effect_policy == "local_output_only"
     assert all(item["network_policy"] == "no_network" for item in snapshot)
     assert all("callable" not in item for item in snapshot)
 

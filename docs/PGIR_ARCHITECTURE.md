@@ -99,3 +99,11 @@ and contextual identifiability; records protocol and confounding limits; and
 selects only a descriptive capacity-trajectory consistency Evaluator for
 v2.3.4 consideration. It does not estimate mechanism parameters or execute a
 dynamic model.
+
+## v2.3.4 Bounded Evaluator Execution
+
+The selected Battery capacity-trajectory Evaluator is now implemented and
+executed as a deterministic descriptive operator. Its result artifact reaches
+`scientifically_evaluated` only for the bounded evaluator/context pair. The
+underlying trajectory does not gain mechanism compatibility, and blocked
+Arrhenius/diffusion capabilities remain blocked.

@@ -1,0 +1,49 @@
+{
+  "allowed_claims": [
+    "battery capacity trajectory evaluator registered",
+    "battery capacity trajectory evaluator executed",
+    "battery trajectory consistency findings generated",
+    "deterministic threshold policy recorded",
+    "PGIR conformance checked before execution",
+    "evaluator trust assessed",
+    "descriptive trajectory patterns summarized"
+  ],
+  "causal_effect_identified": false,
+  "degradation_mechanism_identified": false,
+  "deterministic_rerun_match": true,
+  "evaluator_executed": true,
+  "evaluator_id": "battery_capacity_trajectory_consistency_evaluator_v1",
+  "evaluator_role": "Evaluator",
+  "lifetime_estimation_supported": false,
+  "model_or_solver_executed": false,
+  "network_called": false,
+  "parameter_fitting_performed": false,
+  "physical_parameter_estimated": false,
+  "predictive_model_validated": false,
+  "production_decision_supported": false,
+  "prohibited_claims": [
+    "degradation mechanism identified",
+    "knee point physically confirmed",
+    "lithium plating detected",
+    "SEI growth detected",
+    "internal short detected",
+    "activation energy estimated",
+    "diffusion coefficient estimated",
+    "RUL predicted",
+    "SOH model validated",
+    "lifetime predicted",
+    "causal temperature effect",
+    "production battery decision"
+  ],
+  "representative_mechanism": "none",
+  "restrictions": [
+    "findings are deterministic descriptive candidates, not physical mechanisms",
+    "evaluation uses cycle index and does not estimate physical-time degradation rates",
+    "source measurement uncertainty is unavailable",
+    "results apply only to the current 34-cell source context",
+    "no external or production validation was performed"
+  ],
+  "result_checksum": "c61d907a7e178347fc5e3ab3f36f863957f86bf7331f0f4ab0e80495bd491e5f",
+  "schema_version": "2.3.4",
+  "status": "descriptive_evaluator_executed_with_restrictions"
+}

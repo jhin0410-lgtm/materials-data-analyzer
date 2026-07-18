@@ -25,6 +25,16 @@
   `battery_capacity_trajectory_consistency_evaluator_v1` selected for a
   bounded descriptive next step. Arrhenius, diffusion, resistance-mechanism,
   SOH/RUL, and predictive claims remain unsupported.
+- Added v2.3.4 deterministic execution of the selected Battery capacity-
+  trajectory consistency Evaluator over 34 trajectories and 2,495 operational
+  states, with one short trajectory blocked by the fixed eligibility rule.
+- Added gap-aware non-monotonic, abrupt-change, plateau, acceleration/
+  deceleration, variability, and terminal-retention candidate summaries using
+  fixed algorithmic thresholds that are explicitly not measurement uncertainty.
+- Added separated representation, execution, interpretation, external, and
+  production trust boundaries plus identity-free compact claim evidence. No
+  mechanism, physical parameter, SOH/RUL, lifetime, causal, model, or
+  production claim is added.
 
 ## v2.2.0
 

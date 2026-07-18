@@ -322,13 +322,69 @@
       "schema_id": "mechanism_evidence_gap_schema_v1",
       "security_classification": "tracked_compact_metadata",
       "serializer": "EvidenceGapRecommendation.to_dict"
+    },
+    {
+      "compatibility_status": "additive_optional_fields",
+      "current_version": "1",
+      "deprecation_status": "active",
+      "large_payload_policy": "metadata_only",
+      "migration_registry": "none",
+      "owner_module": "src.platform_core.battery_trajectory_evaluator",
+      "persistence_location": "data/platform/battery_capacity_trajectory_evaluator_config_schema_v1.json",
+      "pgir_concept": "operator",
+      "runtime_validator": "CapacityTrajectoryEvaluatorConfig.from_mapping",
+      "schema_id": "battery_capacity_trajectory_evaluator_config_schema_v1",
+      "security_classification": "tracked_compact_metadata",
+      "serializer": "CapacityTrajectoryEvaluatorConfig.to_dict"
+    },
+    {
+      "compatibility_status": "additive_optional_fields",
+      "current_version": "1",
+      "deprecation_status": "active",
+      "large_payload_policy": "artifact_backed_row_level_jsonl",
+      "migration_registry": "none",
+      "owner_module": "src.platform_core.battery_trajectory_evaluator",
+      "persistence_location": "data/platform/battery_capacity_trajectory_finding_schema_v1.json",
+      "pgir_concept": "result",
+      "runtime_validator": "validate_battery_capacity_evaluator_result",
+      "schema_id": "battery_capacity_trajectory_finding_schema_v1",
+      "security_classification": "local_only_report",
+      "serializer": "CapacityTrajectoryFinding.to_dict"
+    },
+    {
+      "compatibility_status": "additive_optional_fields",
+      "current_version": "1",
+      "deprecation_status": "active",
+      "large_payload_policy": "row_level_local_aggregate_only_tracked",
+      "migration_registry": "none",
+      "owner_module": "src.platform_core.battery_trajectory_evaluator",
+      "persistence_location": "data/platform/battery_capacity_trajectory_result_schema_v1.json",
+      "pgir_concept": "result",
+      "runtime_validator": "validate_battery_capacity_evaluator_result",
+      "schema_id": "battery_capacity_trajectory_result_schema_v1",
+      "security_classification": "local_or_tracked_compact_metadata",
+      "serializer": "CapacityTrajectoryResult.to_dict"
+    },
+    {
+      "compatibility_status": "additive_optional_fields",
+      "current_version": "1",
+      "deprecation_status": "active",
+      "large_payload_policy": "metadata_only",
+      "migration_registry": "none",
+      "owner_module": "src.platform_core.battery_trajectory_evaluator",
+      "persistence_location": "data/platform/battery_capacity_trajectory_trust_schema_v1.json",
+      "pgir_concept": "result",
+      "runtime_validator": "assess_evaluator_trust",
+      "schema_id": "battery_capacity_trajectory_trust_schema_v1",
+      "security_classification": "tracked_compact_metadata",
+      "serializer": "CapacityTrajectoryTrustAssessment.to_dict"
     }
   ],
   "status": "accepted_for_v2_3",
   "validation": {
     "errors": [],
-    "owner_count": 12,
-    "schema_count": 23,
+    "owner_count": 13,
+    "schema_count": 27,
     "status": "valid",
     "valid": true
   }

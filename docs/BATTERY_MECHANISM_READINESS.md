@@ -36,3 +36,10 @@ operator is the descriptive
 
 This selection is not mechanism confirmation. It only supports bounded
 trajectory-consistency auditing from observed capacity and cycle ordering.
+
+## v2.3.4 Bounded Evaluator
+
+The selected evaluator has now run on the actual 34 trajectories. Its status is
+`descriptive_evaluator_executed_with_restrictions`, not mechanism readiness.
+The execution provides data-quality and descriptive evidence artifacts while
+Arrhenius, diffusion, resistance-growth, SOH/RUL, and prediction remain blocked.
