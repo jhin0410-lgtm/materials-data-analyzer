@@ -73,6 +73,10 @@ CAPABILITY_REQUIREMENTS: dict[str, dict[str, Any]] = {
     "tabular_summary": {"minimum_maturity": "schema_valid"},
     "dimensional_comparison": {"minimum_maturity": "dimensionally_valid"},
     "bounded_physical_validation": {"minimum_maturity": "physically_admissible"},
+    "bounded_physical_propagation": {
+        "minimum_maturity": "physically_admissible",
+        "required_context": ("registered_model_contract", "registered_operator", "bounded_execution_policy"),
+    },
     "mechanism_applicability_assessment": {
         "minimum_maturity": "physically_admissible",
         "required_context": ("mechanism_requirements_metadata",),
@@ -149,6 +153,30 @@ REGISTERED_TRANSITIONS: dict[str, dict[str, Any]] = {
         "deterministic": True,
         "information_loss": "row_level_states_referenced_not_inlined",
         "maturity_result": "dimensionally_valid",
+    },
+    "one_dimensional_diffusion_exact_propagator_v1": {
+        "input_concept": "model",
+        "output_concept": "field",
+        "required_metadata": ("model_contract_id", "input_checksum", "exact_result_checksum"),
+        "deterministic": True,
+        "information_loss": "field arrays remain local-only while compact lineage is tracked",
+        "maturity_result": "scientifically_evaluated",
+    },
+    "one_dimensional_diffusion_ftcs_propagator_v1": {
+        "input_concept": "model",
+        "output_concept": "field",
+        "required_metadata": ("model_contract_id", "stability_ratio", "numerical_result_checksum"),
+        "deterministic": True,
+        "information_loss": "field arrays remain local-only while compact lineage is tracked",
+        "maturity_result": "scientifically_evaluated",
+    },
+    "one_dimensional_diffusion_benchmark_evaluator_v1": {
+        "input_concept": "field",
+        "output_concept": "result",
+        "required_metadata": ("exact_result_checksum", "numerical_result_checksum", "evaluation_metrics"),
+        "deterministic": True,
+        "information_loss": "compact error evidence summarizes local exact and numerical fields",
+        "maturity_result": "scientifically_evaluated",
     },
 }
 
@@ -470,7 +498,7 @@ def validate_transition(config: Mapping[str, Any]) -> PGIRTransitionAssessment:
             output_concept=str(config.get("output_concept", "unknown")),
             transition_allowed=False,
             maturity_result="raw_observed",
-            findings=(PGIRConformanceFinding("unregistered_transition", "error", "Transition requires a registered Transformer.", "transition"),),
+            findings=(PGIRConformanceFinding("unregistered_transition", "error", "Transition requires a registered operator.", "transition"),),
         )
     spec = REGISTERED_TRANSITIONS[transition_id]
     metadata = set(_as_tuple(config.get("metadata_available")))

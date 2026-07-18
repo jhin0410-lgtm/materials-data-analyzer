@@ -1,0 +1,18 @@
+{
+  "claim_evidence_status": "bounded_claim_evidence_recorded",
+  "cross_domain_physical_operator_reuse": false,
+  "independent_validation": false,
+  "limitations": [
+    "synthetic single-mode scalar field only",
+    "fixed zero Dirichlet absorbing boundaries",
+    "explicit FTCS backend only",
+    "no empirical parameter uncertainty",
+    "no Battery or real-material mechanism interpretation"
+  ],
+  "maturity": "scientifically_evaluated_bounded_result",
+  "physical_operator_execution_demonstrated": true,
+  "production_validation": false,
+  "schema_version": "2.4.2",
+  "status": "bounded_benchmark_validated",
+  "uncertainty_status": "empirical_uncertainty_unavailable_numerical_error_documented"
+}

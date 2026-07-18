@@ -857,6 +857,10 @@ def build_schema_ownership_registry() -> tuple[PGIRSchemaOwnershipRecord, ...]:
         PGIRSchemaOwnershipRecord("battery_capacity_trajectory_finding_schema_v1", "1", "src.platform_core.battery_trajectory_evaluator", "validate_battery_capacity_evaluator_result", "CapacityTrajectoryFinding.to_dict", "none", "data/platform/battery_capacity_trajectory_finding_schema_v1.json", "additive_optional_fields", "active", "result", "artifact_backed_row_level_jsonl", "local_only_report"),
         PGIRSchemaOwnershipRecord("battery_capacity_trajectory_result_schema_v1", "1", "src.platform_core.battery_trajectory_evaluator", "validate_battery_capacity_evaluator_result", "CapacityTrajectoryResult.to_dict", "none", "data/platform/battery_capacity_trajectory_result_schema_v1.json", "additive_optional_fields", "active", "result", "row_level_local_aggregate_only_tracked", "local_or_tracked_compact_metadata"),
         PGIRSchemaOwnershipRecord("battery_capacity_trajectory_trust_schema_v1", "1", "src.platform_core.battery_trajectory_evaluator", "assess_evaluator_trust", "CapacityTrajectoryTrustAssessment.to_dict", "none", "data/platform/battery_capacity_trajectory_trust_schema_v1.json", "additive_optional_fields", "active", "result", "metadata_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("pgir_model_contract_schema_v1", "1", "src.platform_core.pgir_model_contracts", "validate_pgir_model_contract", "PGIRModelContract.to_dict", "none", "data/platform/pgir_model_contract_schema_v1.json", "stable", "active", "model", "metadata_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("scalar_field_1d_result_schema_v1", "1", "src.platform_core.diffusion_1d_benchmark", "validate_diffusion_result", "canonical_json", "none", "data/platform/scalar_field_1d_result_schema_v1.json", "stable", "active", "field", "field_arrays_local_only_compact_metadata_tracked", "local_or_tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("physical_propagator_execution_schema_v1", "1", "src.platform_core.diffusion_1d_benchmark", "validate_diffusion_result", "canonical_json", "none", "data/platform/physical_propagator_execution_schema_v1.json", "stable", "active", "operator", "metadata_only", "tracked_compact_metadata"),
+        PGIRSchemaOwnershipRecord("analytical_numerical_benchmark_schema_v1", "1", "src.platform_core.diffusion_1d_benchmark", "evaluate_diffusion_benchmark", "canonical_json", "none", "data/platform/analytical_numerical_benchmark_schema_v1.json", "stable", "active", "result", "field_arrays_local_only_compact_error_evidence_tracked", "local_or_tracked_compact_metadata"),
     )
 
 
@@ -864,7 +868,7 @@ def build_capability_stage_registry() -> tuple[PGIRCapabilityStageRecord, ...]:
     return (
         PGIRCapabilityStageRecord("scientific_entity_records", "physical_entity", "schema_defined", "active", "schema_and_validator_available", ("src.platform_core.scientific_entities.ScientificEntity",), False, False, "metadata_contract_only", ("not a complete state ontology",), ("universal physics ontology",)),
         PGIRCapabilityStageRecord("graph_entity_artifact", "result", "artifact_generated", "v2_2_limited", "representation_artifact_generated", ("src.platform_core.scientific_entities.GraphEntity",), False, False, "representation_only", ("no GNN model was run", "not used as predictive evidence"), ("GNN evidence", "causal graph")),
-        PGIRCapabilityStageRecord("propagator_operator_role", "operator", "concept_defined", "future_only", "contract_only", ("src.platform_core.scientific_interfaces.Predictor",), True, False, "unsupported_future_capability", ("no PDE/ODE solver in v2.3.1",), ("diffusion simulation", "physics loss", "PINN")),
+        PGIRCapabilityStageRecord("propagator_operator_role", "operator", "operator_executed", "active_bounded_diffusion_benchmark", "v2_4_2_exact_and_ftcs_single_mode_benchmark", ("src.platform_core.pgir_model_contracts.PGIRModelContract", "src.platform_core.diffusion_1d_benchmark"), False, True, "bounded_synthetic_scalar_diffusion_evidence_only", ("single registered PDE and fixed numerical backend only", "no empirical material parameter", "no cross-domain operator reuse"), ("general PDE solver", "Battery diffusion mechanism", "real-material diffusivity", "independent validation", "production validation")),
         PGIRCapabilityStageRecord("composition_feature_candidates", "result", "scientifically_evaluated", "evaluated_negative", "v2_2_1_performance_degraded", ("src.analyzers.materials_physics_features",), False, True, "predictive_value_not_supported", ("composition-derived physics features degraded primary validation",), ("physics-aware model success", "representative model")),
         PGIRCapabilityStageRecord("structure_descriptor_candidates", "result", "scientifically_evaluated", "evaluated_limited", "v2_2_5_structure_predictive_value_limited", ("src.analyzers.materials_structure_prediction",), False, True, "limited_known_structure_evidence", ("known-structure context differs from pre-structure screening",), ("GNN evidence", "DFT replacement", "general structure-aware superiority")),
         PGIRCapabilityStageRecord("bounded_scientific_execution", "operator", "operator_executed", "active_bounded", "XRD scalar consistency examples", ("src.platform_core.scientific_execution",), False, False, "bounded_consistency_evidence_only", ("no arbitrary equation execution",), ("general solver", "phase identification")),
@@ -935,8 +939,11 @@ def validate_capability_stages(records: tuple[PGIRCapabilityStageRecord, ...] | 
             future_only.append(record.capability_id)
         if record.future_only and record.model_execution_performed:
             errors.append(f"{record.capability_id}:future_only_cannot_execute_model")
-        if record.capability_id == "propagator_operator_role" and record.capability_stage != "concept_defined":
-            errors.append("propagator_operator_role:must_remain_concept_defined")
+        if record.capability_id == "propagator_operator_role":
+            if record.capability_stage != "operator_executed" or record.future_only:
+                errors.append("propagator_operator_role:must_be_bounded_operator_execution")
+            if record.scientific_claim_supported != "bounded_synthetic_scalar_diffusion_evidence_only":
+                errors.append("propagator_operator_role:claim_boundary_too_broad")
         if record.capability_id == "graph_entity_artifact" and record.scientific_claim_supported != "representation_only":
             errors.append("graph_entity_artifact:must_remain_representation_only")
     return {
@@ -963,8 +970,13 @@ def evaluate_pgir_readiness() -> PGIRGovernanceDecision:
         "domain_semantics_preserved": True,
         "operator_taxonomy_explicit": set(("Evaluator", "Transformer", "Propagator")) <= set(VALID_OPERATOR_ROLES),
         "maturity_levels_explicit": len(VALID_MATURITY_LEVELS) == 9,
-        "future_only_capabilities_marked": "propagator_operator_role" in capability["future_only_capabilities"],
-        "no_solver_or_model_claim": True,
+        "bounded_propagator_scope_explicit": any(
+            record.capability_id == "propagator_operator_role"
+            and record.capability_stage == "operator_executed"
+            and not record.future_only
+            for record in build_capability_stage_registry()
+        ),
+        "general_solver_claim_prohibited": True,
     }
     errors = tuple(mapping["errors"] + schema["errors"] + capability["errors"])
     status = "pgir_governance_ready" if all(gates.values()) and not errors else "pgir_governance_ready_with_gaps"
@@ -982,6 +994,7 @@ def evaluate_pgir_readiness() -> PGIRGovernanceDecision:
             "scientific_recomputation_performed": False,
             "api_or_network_called": False,
             "model_or_solver_executed": False,
+            "bounded_physical_operator_execution_registered": True,
         },
     )
 
@@ -1043,6 +1056,22 @@ def registry_payloads() -> dict[str, Any]:
             "validation": validate_capability_stages(),
         },
     }
+
+
+def write_registry_payloads(repo_root: str | Path = ".") -> tuple[str, ...]:
+    """Write deterministic tracked PGIR registry snapshots."""
+
+    root = Path(repo_root)
+    written = []
+    for registry_id, payload in sorted(registry_payloads().items()):
+        relative_path = f"data/platform/{registry_id}.json"
+        target = root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_name(f".{target.name}.tmp")
+        temp.write_text(canonical_json(payload), encoding="utf-8", newline="\n")
+        temp.replace(target)
+        written.append(relative_path)
+    return tuple(written)
 
 
 def canonical_json(payload: Mapping[str, Any]) -> str:

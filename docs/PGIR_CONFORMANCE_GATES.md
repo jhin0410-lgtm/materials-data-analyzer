@@ -60,3 +60,12 @@ The local 838-entity audit applies existing schema, context, dimensional,
 admissibility, transition, and operator gates. A valid structure is not
 promoted to phase-stability evidence, experimental validation, GNN readiness,
 or predictive value.
+
+## v2.4.2 Bounded Propagator Gate
+
+The `bounded_physical_propagation` capability requires a registered model
+contract, registered operator, physically admissible input declaration, and a
+bounded execution policy. Exact, FTCS, and evaluator transitions are explicit.
+Their successful execution promotes only the benchmark field/result artifacts
+to bounded `scientifically_evaluated` maturity. It does not promote Battery
+data, other domains, or the platform to independent or production validation.

@@ -60,6 +60,12 @@ Prohibited without further evidence:
 - degradation mechanism confirmation
 - production scientific decision
 
+v2.4.2 adds a bounded exception for one synthetic scalar diffusion benchmark:
+registered exact and FTCS Propagators may produce software-level analytical-
+numerical evidence. This is not Battery mechanism evidence, a real-material
+parameter, cross-domain physical-operator reuse, independent validation, or
+production validation.
+
 v2.2.1 adds a narrow Materials exception for the claim
 `physics_informed_feature_used`: selected composition-derived feature builders
 were generated and included in matched validation. The resulting predictive

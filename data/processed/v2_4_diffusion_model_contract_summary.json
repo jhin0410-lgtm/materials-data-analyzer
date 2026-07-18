@@ -1,0 +1,30 @@
+{
+  "analytical_reference_available": true,
+  "boundary_condition_count": 2,
+  "field_arrays_tracked": false,
+  "governing_relation_id": "pgir.diffusion_1d.homogeneous_zero_dirichlet",
+  "model_contract_checksum": "8b63ce21abd65512d510e927de5b9fe7fd6d750815f9790989a6cd7a7fc1bc13",
+  "model_contract_id": "one_dimensional_diffusion_zero_dirichlet_v1",
+  "model_contract_version": "1",
+  "operator_ids": [
+    "one_dimensional_diffusion_exact_propagator_v1",
+    "one_dimensional_diffusion_ftcs_propagator_v1",
+    "one_dimensional_diffusion_benchmark_evaluator_v1"
+  ],
+  "parameter_count": 3,
+  "schema_version": "2.4.2",
+  "state_field": {
+    "coordinate_ids": [
+      "x",
+      "t"
+    ],
+    "dimension": "dimensionless",
+    "field_id": "scalar_field_c",
+    "persistence_policy": "large_arrays_local_only_compact_metadata_tracked",
+    "positive_benchmark_input": true,
+    "quantity_semantics": "abstract_dimensionless_scalar_field",
+    "symbol": "c",
+    "unit": "unitless"
+  },
+  "status": "registered_bounded_benchmark"
+}

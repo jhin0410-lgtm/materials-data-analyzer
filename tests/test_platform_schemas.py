@@ -140,6 +140,10 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["network_policy"]["network_access"] is False
             assert payload["recovery_policy"]["allow_default_fill"] is False
             assert payload["recovery_policy"]["allow_inference"] is False
+        elif payload.get("model_contract_id") == "one_dimensional_diffusion_zero_dirichlet_v1":
+            assert payload["schema_version"] == "1"
+            assert payload["synthetic_benchmark"] is True
+            assert payload["output_root"].startswith("outputs/v2_4_diffusion_benchmark")
         else:
             assert payload["dry_run"] is True
 

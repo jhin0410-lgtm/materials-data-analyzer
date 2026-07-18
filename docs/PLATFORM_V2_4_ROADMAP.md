@@ -1,6 +1,6 @@
 # Platform v2.4 Roadmap
 
-Status: `v2.4.1_completed_feature_stage`
+Status: `v2.4.2_bounded_model_benchmark_completed_feature_stage`
 
 ## v2.4.1
 
@@ -16,12 +16,14 @@ Status: `v2.4.1_completed_feature_stage`
 
 ## v2.4.2
 
-- Add source documentation and terms-resolution workflows that remain
-  dataset-specific.
-- Introduce explicit source-record lineage links in the local run registry.
-- Test one additional external dataset contract without broad generic clients.
-- Preserve current Battery official-snapshot and Materials named-snapshot gaps
-  unless new evidence resolves them.
+- Add the first strict executable PGIR Model Contract for one synthetic scalar
+  diffusion benchmark.
+- Execute registered exact and deterministic FTCS Propagators under explicit
+  dimensional, initial/boundary, stability, and resource gates.
+- Compare against the analytical single-mode solution and a predeclared
+  coarse/medium/fine refinement audit.
+- Keep physical execution bounded to this benchmark; cross-domain operator
+  reuse, independent validation, and production validation remain false.
 
 ## v2.4.3
 

@@ -168,4 +168,31 @@ def default_scientific_relations() -> tuple[ScientificRelation, ...]:
             execution_status="metadata_only",
             uncertainty_policy="not_applicable",
         ),
+        ScientificRelation(
+            relation_id="pgir.diffusion_1d.homogeneous_zero_dirichlet",
+            relation_version="1",
+            category="differential",
+            input_entity_types=("Model", "Field", "Parameter", "InitialCondition", "BoundaryCondition"),
+            output_entity_types=("Field", "Result"),
+            required_quantities=("domain_length", "diffusivity", "initial_amplitude", "time"),
+            assumptions=(
+                "constant positive diffusivity",
+                "one-dimensional uniform domain",
+                "homogeneous zero Dirichlet boundaries",
+                "single sine-mode initial condition",
+            ),
+            validity_conditions=(
+                "synthetic bounded benchmark only",
+                "numerical FTCS execution requires 0 < D*dt/dx^2 <= 0.5",
+            ),
+            operator_id="one_dimensional_diffusion_exact_propagator_v1",
+            execution_status="registered_operator_required",
+            uncertainty_policy="empirical_uncertainty_unavailable_numerical_error_evaluated_separately",
+            provenance_refs=("pgir_diffusion_1d_model_contract_v1",),
+            equation_display="dc/dt = D d2c/dx2",
+            metadata={
+                "analytical_solution": "A*sin(pi*x/L)*exp(-D*pi^2*t/L^2)",
+                "scientific_context": "synthetic_scalar_diffusion_software_benchmark",
+            },
+        ),
     )

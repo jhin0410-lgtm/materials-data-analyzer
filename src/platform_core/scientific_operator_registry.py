@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-OPERATOR_REGISTRY_VERSION = "2.3.4"
+OPERATOR_REGISTRY_VERSION = "2.4.2"
 ALLOWED_OPERATOR_STATUSES = ("registered", "metadata_only", "adapter_available", "validation_ready")
 
 
@@ -314,6 +314,54 @@ def build_default_scientific_operator_registry() -> ScientificOperatorRegistry:
             ("resistance_definition", "capacity_definition", "protocol_context"),
             "Audit resistance/capacity relation applicability without equivalent-circuit or impedance fitting.",
             status="validation_ready",
+        ),
+        _op(
+            "one_dimensional_diffusion_exact_propagator_v1",
+            ("Model", "Field", "Parameter", "InitialCondition", "BoundaryCondition"),
+            ("ScalarField1DResult", "PhysicalPropagatorExecution"),
+            ("length", "diffusivity", "amplitude", "x_grid", "time_grid"),
+            "Evaluate the registered single-mode 1D diffusion analytical solution.",
+            status="validation_ready",
+            operator_role="Propagator",
+            mechanism_family="synthetic_scalar_diffusion_benchmark",
+            target_access_policy="no_target_or_empirical_data_access",
+            claim_boundary=(
+                "bounded synthetic analytical reference only",
+                "not a Battery or real-material diffusion mechanism",
+            ),
+            capability_stage="operator_executed_for_bounded_benchmark",
+        ),
+        _op(
+            "one_dimensional_diffusion_ftcs_propagator_v1",
+            ("Model", "Field", "Parameter", "InitialCondition", "BoundaryCondition"),
+            ("ScalarField1DResult", "PhysicalPropagatorExecution"),
+            ("length", "diffusivity", "amplitude", "uniform_x_grid", "uniform_time_grid"),
+            "Execute deterministic FTCS for the registered bounded 1D diffusion benchmark.",
+            status="validation_ready",
+            operator_role="Propagator",
+            mechanism_family="synthetic_scalar_diffusion_benchmark",
+            target_access_policy="no_target_or_empirical_data_access",
+            claim_boundary=(
+                "requires 0 < D*dt/dx^2 <= 0.5 without silent adjustment",
+                "not a general PDE solver or material mechanism",
+            ),
+            capability_stage="operator_executed_for_bounded_benchmark",
+        ),
+        _op(
+            "one_dimensional_diffusion_benchmark_evaluator_v1",
+            ("ScalarField1DResult",),
+            ("AnalyticalNumericalBenchmarkResult",),
+            ("exact_field_checksum", "numerical_field_checksum", "grid_metadata"),
+            "Compare exact and FTCS scalar fields and record bounded numerical evidence.",
+            status="validation_ready",
+            operator_role="Evaluator",
+            mechanism_family="synthetic_scalar_diffusion_benchmark",
+            target_access_policy="analytical_reference_only_no_empirical_target",
+            claim_boundary=(
+                "software and numerical benchmark evidence only",
+                "no independent or production validation",
+            ),
+            capability_stage="scientifically_evaluated_for_bounded_benchmark",
         ),
     ):
         registry.register(operator)

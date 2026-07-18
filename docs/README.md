@@ -10,6 +10,10 @@ This directory collects project references, specifications, audits, policies, ca
 - [Platform Architecture](PLATFORM_ARCHITECTURE.md): v2 scaffold architecture, registries, config contract, CLI, and backward-compatibility boundary.
 - [PGIR Architecture](PGIR_ARCHITECTURE.md): v2.3 representation governance, canonical concepts, maturity levels, operator taxonomy, and non-goals.
 - [PGIR Conformance Gates](PGIR_CONFORMANCE_GATES.md): v2.3.2 representation declaration, maturity, context, transition, and capability gates.
+- [PGIR Model Contract](PGIR_MODEL_CONTRACT.md): strict v2.4.2 contract for one bounded executable physical benchmark.
+- [1D Diffusion Analytical Benchmark](DIFFUSION_1D_ANALYTICAL_BENCHMARK.md): exact problem, canonical FTCS result, and predeclared refinement evidence.
+- [Physical Propagator Validation](PHYSICAL_PROPAGATOR_VALIDATION.md): operator, stability, lineage, maturity, and validation gates.
+- [v2.4 Diffusion Scientific Boundary](V2_4_DIFFUSION_SCIENTIFIC_BOUNDARY.md): supported evidence and prohibited physical claims.
 - [PGIR Current Architecture Audit](PGIR_CURRENT_ARCHITECTURE_AUDIT.md): current scientific records mapped to PGIR concepts.
 - [Platform v2.3 Roadmap](PLATFORM_V2_3_ROADMAP.md): staged PGIR-to-dynamic-physics roadmap without solver or model claims in v2.3.1.
 - [External Source Current Architecture Audit](EXTERNAL_SOURCE_CURRENT_ARCHITECTURE_AUDIT.md): pre-v2.4 source, snapshot, checksum, authentication, and lineage audit.

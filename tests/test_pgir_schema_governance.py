@@ -39,7 +39,8 @@ def test_pgir_readiness_is_governance_ready_without_model_or_solver_execution():
     assert decision["readiness_summary"]["api_or_network_called"] is False
     assert decision["readiness_summary"]["model_or_solver_executed"] is False
     assert decision["gates"]["domain_semantics_preserved"] is True
-    assert decision["gates"]["future_only_capabilities_marked"] is True
+    assert decision["gates"]["bounded_propagator_scope_explicit"] is True
+    assert decision["gates"]["general_solver_claim_prohibited"] is True
 
 
 def test_schema_and_governance_compact_artifacts_parse():

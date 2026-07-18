@@ -1,0 +1,24 @@
+{
+  "benchmark_id": "pgir_diffusion_1d_canonical",
+  "boundary_condition_id": "homogeneous_zero_dirichlet",
+  "credential_policy": {"store_credentials": false},
+  "field_unit": "unitless",
+  "grid": {
+    "spatial_points": 21,
+    "spatial_unit": "m",
+    "time_steps": 40,
+    "time_unit": "s"
+  },
+  "initial_condition_id": "single_sine_mode_zero_dirichlet_v1",
+  "model_contract_id": "one_dimensional_diffusion_zero_dirichlet_v1",
+  "model_contract_version": "1",
+  "output_root": "outputs/v2_4_diffusion_benchmark",
+  "parameters": {
+    "amplitude": {"unit": "unitless", "value": 1.0},
+    "diffusivity": {"unit": "m^2/s", "value": 0.1},
+    "final_time": {"unit": "s", "value": 0.4},
+    "length": {"unit": "m", "value": 1.0}
+  },
+  "schema_version": "1",
+  "synthetic_benchmark": true
+}

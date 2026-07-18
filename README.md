@@ -63,8 +63,8 @@ The simulation workflow is a data-driven screening aid. It uses observed target-
 - State what each result can and cannot support before making claims.
 - Treat scientific constraints as explicit metadata contracts before using
   them as features, diagnostics, or model constraints.
-- Treat v2.3 PGIR as representation governance, not a completed physics
-  intelligence or solver system.
+- Treat PGIR physical execution as contract-specific evidence. v2.4.2 executes
+  one synthetic 1D diffusion benchmark, not a general physics or solver system.
 
 ## What This Project Is Not
 
@@ -77,6 +77,18 @@ This project is:
 - Not a replacement for engineering interpretation
 - Not a physics simulator
 - Not a tool for deciding final process conditions without domain review
+
+## Bounded Physical Benchmark
+
+v2.4.2 adds the first executable PGIR Model Contract: a synthetic scalar 1D
+diffusion problem with an exact single-mode solution and deterministic FTCS
+comparison. The canonical final-profile L2 error is `5.3068e-4`, and error
+decreases across predeclared coarse, medium, and fine grids. This demonstrates
+bounded physical-operator execution and lineage only. It is not a Battery
+mechanism, real-material diffusivity, general PDE solver, cross-domain operator
+reuse, independent validation, or production validation. See the
+[PGIR Model Contract](docs/PGIR_MODEL_CONTRACT.md) and
+[scientific boundary](docs/V2_4_DIFFUSION_SCIENTIFIC_BOUNDARY.md).
 
 ## Project Structure
 

@@ -47,9 +47,10 @@ Primary roles:
 - `Transformer`: converts one representation into another.
 - `Propagator`: advances state using initial/boundary conditions and parameters.
 
-In v2.3.1, `Propagator` is `concept_defined` only. No PDE/ODE solver,
-diffusion simulation, Arrhenius fitting, physics loss, GNN, or PINN is
-implemented.
+In v2.3.1, `Propagator` was `concept_defined` only. v2.4.2 permits exactly one
+bounded synthetic 1D diffusion contract with registered exact and FTCS
+Propagators. This does not create a general PDE/ODE solver and does not permit
+Arrhenius fitting, Battery mechanism inference, physics loss, GNN, or PINN.
 
 ## Architecture Flow
 
@@ -117,3 +118,14 @@ semantics, while Materials uses computed relaxed structures in the
 `known_structure_post_relaxation` context. Physical-operator reuse is not
 demonstrated, and no independent or production validation is promoted. See
 [Cross-Domain PGIR Reuse Evidence](CROSS_DOMAIN_PGIR_REUSE_EVIDENCE.md).
+
+## v2.4.2 Bounded Model Execution
+
+The first executable PGIR Model Contract declares a synthetic scalar field,
+dimensions, initial and zero Dirichlet boundary conditions, exact reference,
+FTCS backend, validation criteria, and claim boundary. The result artifact only
+reaches bounded `scientifically_evaluated` maturity. Physical-operator
+execution is demonstrated for this benchmark; cross-domain physical-operator
+reuse, independent validation, and production validation remain false. See
+[PGIR Model Contract](PGIR_MODEL_CONTRACT.md) and
+[Physical Propagator Validation](PHYSICAL_PROPAGATOR_VALIDATION.md).

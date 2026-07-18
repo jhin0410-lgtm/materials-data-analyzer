@@ -1,0 +1,25 @@
+{
+  "audit_id": "pgir_diffusion_1d_predeclared_refinement",
+  "boundary_condition_id": "homogeneous_zero_dirichlet",
+  "credential_policy": {"store_credentials": false},
+  "cases": [
+    {"case_id": "coarse", "spatial_points": 11, "time_steps": 10},
+    {"case_id": "medium", "spatial_points": 21, "time_steps": 40},
+    {"case_id": "fine", "spatial_points": 41, "time_steps": 160}
+  ],
+  "field_unit": "unitless",
+  "initial_condition_id": "single_sine_mode_zero_dirichlet_v1",
+  "model_contract_id": "one_dimensional_diffusion_zero_dirichlet_v1",
+  "model_contract_version": "1",
+  "output_root": "outputs/v2_4_diffusion_benchmark",
+  "parameters": {
+    "amplitude": {"unit": "unitless", "value": 1.0},
+    "diffusivity": {"unit": "m^2/s", "value": 0.1},
+    "final_time": {"unit": "s", "value": 0.4},
+    "length": {"unit": "m", "value": 1.0}
+  },
+  "schema_version": "1",
+  "spatial_unit": "m",
+  "synthetic_benchmark": true,
+  "time_unit": "s"
+}

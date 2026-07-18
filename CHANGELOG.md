@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Added v2.4.2's first strict executable PGIR Model Contract for a synthetic
+  one-dimensional scalar diffusion benchmark with explicit dimensions,
+  initial/boundary conditions, applicability, uncertainty, and claim policy.
+- Registered and executed exact and deterministic FTCS Propagators plus an
+  analytical-numerical Evaluator. Unstable `D*dt/dx^2 > 0.5` configurations
+  are blocked without silent grid or parameter adjustment.
+- Recorded canonical error/residual metrics and predeclared coarse/medium/fine
+  error reduction while keeping field arrays local-only. Physical-operator
+  execution is demonstrated only for this benchmark; Battery mechanism,
+  real-material, cross-domain reuse, independent-validation, and production-
+  validation claims remain unsupported.
+
 - Added v2.4.1 versioned metadata contracts for external source systems,
   logical datasets, snapshots, distribution artifacts, retrieval events,
   documentation, and provenance assessments without network access.
