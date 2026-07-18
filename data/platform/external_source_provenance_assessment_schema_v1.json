@@ -1,0 +1,36 @@
+{
+  "schema_id": "external_source_provenance_assessment_schema_v1",
+  "schema_version": "1",
+  "status": "active",
+  "required_fields": [
+    "assessment_id",
+    "source_system_id",
+    "subject_refs",
+    "status_entries",
+    "lineage_refs",
+    "overall_status",
+    "trust_score_used"
+  ],
+  "allowed_provenance_statuses": [
+    "authoritative_source_verified",
+    "authoritative_metadata_verified",
+    "official_distribution_verified",
+    "snapshot_identity_verified",
+    "immediate_upstream_verified",
+    "local_copy_checksum_verified",
+    "derived_lineage_verified",
+    "snapshot_identity_unresolved",
+    "official_original_not_locally_verified",
+    "license_or_terms_unresolved",
+    "documentation_incomplete",
+    "mirror_only",
+    "provenance_conflict"
+  ],
+  "status_entry_required_fields": ["status", "evidence_refs", "limitations"],
+  "trust_score_policy": "prohibited",
+  "compatibility_policy": {
+    "unknown_fields": "reject",
+    "unsupported_future_version": "reject",
+    "silent_field_drop": false
+  }
+}

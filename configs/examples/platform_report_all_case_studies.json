@@ -20,6 +20,8 @@
   "include_battery_pgir": true,
   "include_battery_mechanism_audit": true,
   "include_battery_capacity_evaluator": true,
+  "include_external_source_contract": true,
+  "include_second_domain_pgir_reuse": true,
   "output_dir": "outputs/platform_reports/platform_v2_all_case_studies",
   "overwrite": false,
   "credential_policy": {

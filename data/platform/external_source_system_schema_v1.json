@@ -1,0 +1,43 @@
+{
+  "schema_id": "external_source_system_schema_v1",
+  "schema_version": "1",
+  "status": "active",
+  "required_fields": [
+    "source_system_id",
+    "source_system_version",
+    "name",
+    "publisher",
+    "source_kind",
+    "domain_scope",
+    "official_landing_page",
+    "documentation_refs",
+    "access_modes",
+    "authentication_requirement",
+    "authentication_environment_variable",
+    "license_or_terms_refs",
+    "update_policy",
+    "status"
+  ],
+  "allowed_source_kinds": [
+    "authoritative_api",
+    "official_catalog",
+    "official_distribution",
+    "official_repository",
+    "verified_mirror",
+    "immediate_upstream_archive",
+    "community_mirror",
+    "local_experimental_source",
+    "security_database",
+    "energy_system_service"
+  ],
+  "authentication_policy": {
+    "allowed_requirements": ["none", "optional_api_key", "required_api_key", "record_dependent", "local_only"],
+    "allowed_environment_variable_names": ["MP_API_KEY", "NVD_API_KEY", "NREL_API_KEY"],
+    "credential_values_allowed": false
+  },
+  "compatibility_policy": {
+    "unknown_fields": "reject",
+    "unsupported_future_version": "reject",
+    "silent_field_drop": false
+  }
+}

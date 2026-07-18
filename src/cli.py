@@ -79,6 +79,20 @@ from .platform_core.pgir_conformance import (
     validate_declaration,
     validate_transition,
 )
+from .platform_core.external_source_contracts import (
+    build_external_source_contract_records,
+    build_external_source_contract_summary,
+    build_external_source_system_registry,
+    external_source_registry_payloads,
+    load_and_validate_external_source_contract,
+    validate_external_source_registries,
+)
+from .platform_core.materials_pgir_reuse import (
+    TRACKED_PATHS as V2_4_TRACKED_PATHS,
+    load_second_domain_pgir_reuse_summary,
+    preview_materials_pgir_reuse,
+    run_materials_pgir_reuse_audit,
+)
 from .platform_core.battery_pgir_adapters import (
     DEFAULT_OUTPUT_ROOT as BATTERY_PGIR_OUTPUT_ROOT,
     assess_battery_mechanism_readiness,
@@ -3905,6 +3919,184 @@ def _cmd_show_pgir_conformance_summary(args: argparse.Namespace) -> int:
     return _emit_or_error(args, payload, ok=payload.get("status") not in {"invalid", "blocked"})
 
 
+def _validate_v2_4_config(path: str) -> dict[str, Any]:
+    config = _load_pgir_json_config(path)
+    if config.get("network_enabled") is not False:
+        raise ValueError("v2.4.1 audit config must set network_enabled to false")
+    serialized = json.dumps(config, sort_keys=True).lower()
+    if any(key in serialized for key in ('"api_key"', '"authorization"', '"access_token"', '"secret"')):
+        raise ValueError("v2.4.1 config must not contain credential fields")
+    return config
+
+
+def _cmd_list_external_source_systems(args: argparse.Namespace) -> int:
+    records = build_external_source_system_registry()
+    payload = {
+        "schema_version": "1",
+        "status": "available",
+        "source_system_count": len(records),
+        "source_systems": [item.to_dict() for item in records],
+        "network_called": False,
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [f"{item.source_system_id}\t{item.source_kind}\t{item.status}" for item in records]
+        )
+    return 0
+
+
+def _cmd_inspect_external_source_system(args: argparse.Namespace) -> int:
+    for record in build_external_source_system_registry():
+        if record.source_system_id == args.source_system_id:
+            payload = {"schema_version": "1", **record.to_dict(), "network_called": False}
+            return _emit_or_error(args, payload)
+    return _emit_or_error(
+        args,
+        {"schema_version": "1", "status": "unknown_source_system", "source_system_id": args.source_system_id},
+        ok=False,
+    )
+
+
+def _cmd_validate_external_source_contract(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_pgir_json_config(args.path)
+        if "registry_id" in payload:
+            expected = external_source_registry_payloads().get(str(payload["registry_id"]))
+            if expected is None:
+                raise ValueError("unknown external source registry_id")
+            if payload != expected:
+                raise ValueError("external source registry does not match its deterministic registered payload")
+            result = {
+                "schema_version": "1",
+                "status": "valid",
+                "valid": True,
+                "registry_id": payload["registry_id"],
+                "validation": validate_external_source_registries(),
+            }
+        else:
+            record = load_and_validate_external_source_contract(args.path)
+            result = {
+                "schema_version": "1",
+                "status": "valid",
+                "valid": True,
+                "schema_id": record.schema_id,
+                "record_type": record.record_type,
+                "canonical_json_sha256": record.canonical_json_sha256,
+            }
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        result = {"schema_version": "1", "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, result, ok=bool(result.get("valid")))
+
+
+def _cmd_audit_external_source_provenance(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        records = build_external_source_contract_records()["provenance_assessments"]
+        payload = {
+            "schema_version": "1",
+            "status": "audited",
+            "assessment_count": len(records),
+            "assessments": [item.to_dict() for item in records],
+            "trust_score_used": False,
+            "network_called": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_show_external_source_contract_summary(args: argparse.Namespace) -> int:
+    path = Path(V2_4_TRACKED_PATHS["external_source_contract_summary"])
+    try:
+        payload = _load_pgir_json_config(path.as_posix()) if path.exists() else build_external_source_contract_summary().to_dict()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") != "invalid")
+
+
+def _cmd_export_external_source_contract_summary(args: argparse.Namespace) -> int:
+    try:
+        result = run_materials_pgir_reuse_audit(write_local=True, write_tracked=True)
+        payload = {
+            "schema_version": "2.4.1",
+            "status": "exported",
+            "output": V2_4_TRACKED_PATHS["external_source_contract_summary"],
+            "contract_status": result.tracked_payloads["external_source_contract_summary"]["status"],
+            "network_called": False,
+        }
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
+def _cmd_preview_materials_pgir_reuse(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        payload = preview_materials_pgir_reuse()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") in {"ready", "blocked_missing_local_materials_artifacts"})
+
+
+def _cmd_audit_materials_pgir_conformance(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        result = run_materials_pgir_reuse_audit(write_local=True, write_tracked=False)
+        decision = result.tracked_payloads["pgir_reuse_decision"]
+        payload = {
+            "schema_version": "2.4.1",
+            "status": "audited",
+            "decision_status": decision["decision_status"],
+            "actual_structure_entity_count": decision["actual_structure_entity_count"],
+            "conformant_structure_entity_count": decision["conformant_structure_entity_count"],
+            "local_output_count": len(result.local_output_paths),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_show_materials_pgir_reuse_summary(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result)
+        payload = _load_pgir_json_config(path.as_posix()) if path.exists() else load_second_domain_pgir_reuse_summary()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") not in {"invalid", "not_available"})
+
+
+def _cmd_evaluate_cross_domain_pgir_reuse(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        result = run_materials_pgir_reuse_audit(write_local=False, write_tracked=False)
+        payload = dict(result.tracked_payloads["cross_domain_reuse_evidence"])
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "cross_domain_reuse_audited")
+
+
+def _cmd_export_cross_domain_pgir_reuse_summary(args: argparse.Namespace) -> int:
+    try:
+        result = run_materials_pgir_reuse_audit(write_local=True, write_tracked=True)
+        decision = result.tracked_payloads["pgir_reuse_decision"]
+        payload = {
+            "schema_version": "2.4.1",
+            "status": "exported",
+            "decision_status": decision["decision_status"],
+            "tracked_output_count": len(V2_4_TRACKED_PATHS),
+            "local_output_count": len(result.local_output_paths),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
 def _battery_source_audit_payload(args: argparse.Namespace) -> dict[str, Any]:
     config = _load_pgir_json_config(args.config) if getattr(args, "config", None) else {}
     repo_root = config.get("repo_root", ".")
@@ -5495,6 +5687,79 @@ def build_parser() -> argparse.ArgumentParser:
         "evaluate-battery-external-data-requirement",
         help="show the evidence-bounded external battery data requirement decision",
     ).set_defaults(func=_cmd_evaluate_battery_external_data_requirement)
+
+    subparsers.add_parser(
+        "list-external-source-systems",
+        help="list versioned external source-system metadata without network access",
+    ).set_defaults(func=_cmd_list_external_source_systems)
+
+    inspect_external_source_parser = subparsers.add_parser(
+        "inspect-external-source-system",
+        help="inspect one external source-system metadata record",
+    )
+    inspect_external_source_parser.add_argument("source_system_id")
+    inspect_external_source_parser.set_defaults(func=_cmd_inspect_external_source_system)
+
+    validate_external_source_parser = subparsers.add_parser(
+        "validate-external-source-contract",
+        help="validate a persisted external source contract or registry",
+    )
+    validate_external_source_parser.add_argument("path")
+    validate_external_source_parser.set_defaults(func=_cmd_validate_external_source_contract)
+
+    audit_external_provenance_parser = subparsers.add_parser(
+        "audit-external-source-provenance",
+        help="audit registered source provenance without retrieval",
+    )
+    audit_external_provenance_parser.add_argument("config")
+    audit_external_provenance_parser.set_defaults(func=_cmd_audit_external_source_provenance)
+
+    subparsers.add_parser(
+        "show-external-source-contract-summary",
+        help="show the tracked v2.4 external source contract summary",
+    ).set_defaults(func=_cmd_show_external_source_contract_summary)
+
+    subparsers.add_parser(
+        "export-external-source-contract-summary",
+        help="export deterministic v2.4 external source compact artifacts",
+    ).set_defaults(func=_cmd_export_external_source_contract_summary)
+
+    preview_materials_reuse_parser = subparsers.add_parser(
+        "preview-materials-pgir-reuse",
+        help="preview read-only Materials PGIR reuse inputs and boundaries",
+    )
+    preview_materials_reuse_parser.add_argument("config")
+    preview_materials_reuse_parser.set_defaults(func=_cmd_preview_materials_pgir_reuse)
+
+    audit_materials_reuse_parser = subparsers.add_parser(
+        "audit-materials-pgir-conformance",
+        help="audit existing local Materials structure entities with PGIR gates",
+    )
+    audit_materials_reuse_parser.add_argument("config")
+    audit_materials_reuse_parser.set_defaults(func=_cmd_audit_materials_pgir_conformance)
+
+    show_materials_reuse_parser = subparsers.add_parser(
+        "show-materials-pgir-reuse-summary",
+        help="show a Materials PGIR reuse decision or tracked summary",
+    )
+    show_materials_reuse_parser.add_argument(
+        "result",
+        nargs="?",
+        default=V2_4_TRACKED_PATHS["pgir_reuse_decision"],
+    )
+    show_materials_reuse_parser.set_defaults(func=_cmd_show_materials_pgir_reuse_summary)
+
+    evaluate_cross_domain_parser = subparsers.add_parser(
+        "evaluate-cross-domain-pgir-reuse",
+        help="evaluate Battery/Materials framework reuse without scientific recomputation",
+    )
+    evaluate_cross_domain_parser.add_argument("config")
+    evaluate_cross_domain_parser.set_defaults(func=_cmd_evaluate_cross_domain_pgir_reuse)
+
+    subparsers.add_parser(
+        "export-cross-domain-pgir-reuse-summary",
+        help="export deterministic v2.4 PGIR reuse compact artifacts",
+    ).set_defaults(func=_cmd_export_cross_domain_pgir_reuse_summary)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

@@ -1,0 +1,53 @@
+{
+  "actual_dataset_ids": [
+    "materials_project_fe_si_existing_id_cohort",
+    "nasa_derived_battery_kaggle_archive"
+  ],
+  "actual_source_system_count": 2,
+  "case_study_version": "2.4.1",
+  "credentials_persisted": false,
+  "distribution_count": 2,
+  "future_declared_source_system_count": 3,
+  "future_declared_source_system_ids": [
+    "nist_oar",
+    "nrel_api",
+    "nvd"
+  ],
+  "limitations": [
+    "source contract is provenance governance, not data-quality certification",
+    "official publisher status does not imply independent validation of every record",
+    "Materials Project named snapshot and official NASA source snapshot remain unresolved"
+  ],
+  "materials_project_snapshot_status": "named_snapshot_identity_unresolved",
+  "no_network_execution": true,
+  "official_nasa_snapshot_status": "unresolved",
+  "provenance_assessment_ids": [
+    "materials_project_v2_2_4_provenance",
+    "nasa_battery_v2_3_5_provenance"
+  ],
+  "registered_source_system_ids": [
+    "materials_project",
+    "nasa_battery_kaggle_upstream",
+    "nist_oar",
+    "nrel_api",
+    "nvd"
+  ],
+  "retrieval_event_count": 2,
+  "schema_version": "1",
+  "snapshot_count": 2,
+  "status": "versioned_external_source_contract_ready_with_provenance_gaps",
+  "unresolved_snapshot_ids": [
+    "materials_project_existing_ids_retrieved_2026_07_16",
+    "nasa_battery_kaggle_local_archive_unresolved"
+  ],
+  "validation": {
+    "dataset_count": 2,
+    "distribution_count": 2,
+    "errors": [],
+    "provenance_assessment_count": 2,
+    "retrieval_event_count": 2,
+    "snapshot_count": 2,
+    "source_system_count": 5,
+    "valid": true
+  }
+}

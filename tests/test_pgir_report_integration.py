@@ -55,3 +55,29 @@ def test_platform_report_can_include_pgir_conformance_and_battery_summary():
     assert "Battery PGIR Representation Summary" in markdown
     assert "Battery Mechanism And Identifiability Audit" in markdown
     assert "Battery Capacity-Trajectory Evaluator" in markdown
+
+
+def test_platform_report_can_include_external_source_and_second_domain_reuse_compact_summaries():
+    report = build_platform_report(
+        {
+            "schema_version": "2.0",
+            "report_id": "test_v2_4_compact_report",
+            "formats": ["json", "markdown"],
+            "selected_case_studies": ["materials_project", "battery_archive"],
+            "output_dir": "outputs/platform_reports/test_v2_4_compact_report",
+            "credential_policy": {"store_credentials": False},
+            "include_external_source_contract": True,
+            "include_second_domain_pgir_reuse": True,
+        }
+    )
+    markdown = render_report_markdown(report)
+
+    assert report.scientific_recomputation_performed is False
+    assert report.external_source_contract_summary["status"] == "available"
+    assert report.external_source_contract_summary["credentials_persisted"] is False
+    assert report.external_source_contract_summary["network_called"] is False
+    assert report.second_domain_pgir_reuse_summary["status"] == "available"
+    assert report.second_domain_pgir_reuse_summary["physical_operator_reuse"] is False
+    assert report.second_domain_pgir_reuse_summary["model_or_solver_executed"] is False
+    assert "External Source Contract" in markdown
+    assert "Second-Domain PGIR Reuse" in markdown

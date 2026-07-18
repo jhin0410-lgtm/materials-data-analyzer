@@ -107,3 +107,13 @@ executed as a deterministic descriptive operator. Its result artifact reaches
 `scientifically_evaluated` only for the bounded evaluator/context pair. The
 underlying trajectory does not gain mechanism compatibility, and blocked
 Arrhenius/diffusion capabilities remain blocked.
+
+## v2.4.1 Second-Domain Reuse
+
+The same declaration, schema-ownership, maturity, conformance, transition, and
+operator-registry framework is now applied to 838 existing Materials
+`CrystalStructureEntity` records. Battery retains Observation/State/Trajectory
+semantics, while Materials uses computed relaxed structures in the
+`known_structure_post_relaxation` context. Physical-operator reuse is not
+demonstrated, and no independent or production validation is promoted. See
+[Cross-Domain PGIR Reuse Evidence](CROSS_DOMAIN_PGIR_REUSE_EVIDENCE.md).

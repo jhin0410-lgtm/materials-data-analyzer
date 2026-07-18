@@ -370,3 +370,26 @@ tests/
 ```
 
 It covers the core analyzer, data readiness helpers, loaders, optional connectors, script utilities, and simulation validation behavior.
+
+## v2.4.1 External Sources And Materials PGIR Reuse
+
+```text
+src/platform_core/
+  external_source_contracts.py
+  materials_pgir_reuse.py
+
+data/platform/
+  external_*_schema_v1.json
+  external_*_registry_v1.json
+
+data/processed/
+  v2_4_*_summary.*
+
+outputs/v2_4_external_source_pgir_reuse/
+  Local-only source records, Materials declarations, conformance rows,
+  cross-domain evidence, and reports.
+```
+
+Tracked v2.4 files contain compact aggregate metadata only. Existing API
+chunks, 838 entity records, descriptor rows, graph bodies, row-level targets,
+Battery IDs, credentials, and local paths remain outside Git.

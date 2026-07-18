@@ -12,6 +12,13 @@ This directory collects project references, specifications, audits, policies, ca
 - [PGIR Conformance Gates](PGIR_CONFORMANCE_GATES.md): v2.3.2 representation declaration, maturity, context, transition, and capability gates.
 - [PGIR Current Architecture Audit](PGIR_CURRENT_ARCHITECTURE_AUDIT.md): current scientific records mapped to PGIR concepts.
 - [Platform v2.3 Roadmap](PLATFORM_V2_3_ROADMAP.md): staged PGIR-to-dynamic-physics roadmap without solver or model claims in v2.3.1.
+- [External Source Current Architecture Audit](EXTERNAL_SOURCE_CURRENT_ARCHITECTURE_AUDIT.md): pre-v2.4 source, snapshot, checksum, authentication, and lineage audit.
+- [External Source Metadata Contract](EXTERNAL_SOURCE_METADATA_CONTRACT.md): v2.4.1 versioned source-system, dataset, snapshot, distribution, and retrieval contract.
+- [External Source Provenance Levels](EXTERNAL_SOURCE_PROVENANCE_LEVELS.md): evidence-bearing status taxonomy without a global trust score.
+- [Materials Structure PGIR Reuse](MATERIALS_STRUCTURE_PGIR_REUSE.md): actual 838-entity second-domain declaration and conformance audit.
+- [Cross-Domain PGIR Reuse Evidence](CROSS_DOMAIN_PGIR_REUSE_EVIDENCE.md): shared framework and domain-semantic boundaries.
+- [NIST, NREL, and NVD Source Boundaries](NIST_NREL_NVD_SOURCE_BOUNDARIES.md): future routing declarations with no integration claim.
+- [Platform v2.4 Roadmap](PLATFORM_V2_4_ROADMAP.md): provenance and cross-domain governance roadmap.
 - [Battery PGIR Mapping](BATTERY_PGIR_MAPPING.md): mapping existing battery cycle summaries to Observation, operational State, and Trajectory metadata.
 - [Battery Observation, State, and Trajectory](BATTERY_OBSERVATION_STATE_TRAJECTORY.md): representation boundary for cycle observations, operational state summaries, and trajectories.
 - [Battery Mechanism Readiness](BATTERY_MECHANISM_READINESS.md): requirements-only mechanism readiness audit for Arrhenius, diffusion, and empirical trajectory contexts.

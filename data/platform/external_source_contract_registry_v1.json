@@ -1,0 +1,348 @@
+{
+  "checksum_policy": {
+    "checksums_are_not_interchangeable": true,
+    "logical_json_or_text": "canonical_json_content_checksum",
+    "raw_distribution": "raw_byte_checksum_only"
+  },
+  "distributions": [
+    {
+      "access_url_ref": "Materials Project API materials summary collection",
+      "byte_size": null,
+      "canonical_content_checksum_algorithm": null,
+      "canonical_content_checksum_value": null,
+      "compression_or_container": "17 atomic JSONL chunks with per-chunk manifests",
+      "distribution_id": "materials_project_v2_2_4_api_chunks",
+      "format": "jsonl_chunk_set",
+      "local_artifact_ref": "outputs/materials_project_structure_v2_2/acquisition/chunks",
+      "manifest_refs": [
+        "outputs/materials_project_structure_v2_2/acquisition/acquisition_manifest.json",
+        "outputs/materials_project_structure_v2_2/acquisition/query_plan.json"
+      ],
+      "media_type": "application/x-ndjson",
+      "raw_checksum_algorithm": null,
+      "raw_checksum_value": null,
+      "security_classification": "local_only_raw_api_response",
+      "snapshot_id": "materials_project_existing_ids_retrieved_2026_07_16",
+      "status": "actual_local_distribution_manifested_per_chunk"
+    },
+    {
+      "access_url_ref": "https://www.kaggle.com/datasets/patrickfleith/nasa-battery-dataset",
+      "byte_size": 239496734,
+      "canonical_content_checksum_algorithm": null,
+      "canonical_content_checksum_value": null,
+      "compression_or_container": "zip archive",
+      "distribution_id": "nasa_battery_kaggle_zip_archive",
+      "format": "zip",
+      "local_artifact_ref": "data/raw/kaggle/patrickfleith_nasa-battery-dataset/nasa-battery-dataset.zip",
+      "manifest_refs": [
+        "data/processed/battery_v2_3_5_source_lineage_summary.json"
+      ],
+      "media_type": "application/zip",
+      "raw_checksum_algorithm": "sha256",
+      "raw_checksum_value": "787ba917fc381c0bd354f515966b1831191ceb5b26985ee8b0000bb6bf96efee",
+      "security_classification": "local_only_external_raw",
+      "snapshot_id": "nasa_battery_kaggle_local_archive_unresolved",
+      "status": "actual_local_archive_checksum_verified"
+    }
+  ],
+  "documentation_records": [
+    {
+      "authoritative_status": "publisher_documentation",
+      "covered_topics": [
+        "API access",
+        "materials summary records"
+      ],
+      "documentation_id": "materials_project_api_docs",
+      "documentation_kind": "api_documentation",
+      "limitations": [
+        "documentation version does not identify the retrieved dataset snapshot"
+      ],
+      "publication_or_update_date": null,
+      "reference": "https://docs.materialsproject.org",
+      "source_system_id": "materials_project",
+      "title": "Materials Project API documentation",
+      "version": "living_documentation_version_unresolved"
+    },
+    {
+      "authoritative_status": "immediate_upstream_documentation_only",
+      "covered_topics": [
+        "archive checksum",
+        "metadata checksum",
+        "lineage boundary"
+      ],
+      "documentation_id": "nasa_battery_local_source_record",
+      "documentation_kind": "local_source_lineage_document",
+      "limitations": [
+        "official NASA original snapshot and license remain unresolved"
+      ],
+      "publication_or_update_date": null,
+      "reference": "data/case_studies/kaggle_battery/source.md",
+      "source_system_id": "nasa_battery_kaggle_upstream",
+      "title": "Kaggle Battery Dataset Source",
+      "version": "v2.3.5"
+    }
+  ],
+  "existing_contract_mappings": [
+    {
+      "backward_compatibility_risk": "low",
+      "checksum_impact": "none_existing_payload_read_only",
+      "compatibility_adapter": "materials_project_acquisition_manifest_to_external_source_v1",
+      "current_schema_version": "2.2.4",
+      "existing_record": "MaterialsProjectAcquisitionManifest",
+      "external_source_concept": "RetrievalEvent",
+      "mapping_status": "compatible_adapter",
+      "migration_required": false,
+      "missing_fields": [
+        "named_dataset_snapshot_version",
+        "client_version"
+      ]
+    },
+    {
+      "backward_compatibility_risk": "low",
+      "checksum_impact": "none_existing_payload_read_only",
+      "compatibility_adapter": "battery_source_lineage_to_external_source_v1",
+      "current_schema_version": "2.3.5",
+      "existing_record": "battery_v2_3_5_source_lineage_summary",
+      "external_source_concept": "DistributionArtifact",
+      "mapping_status": "partial",
+      "migration_required": false,
+      "missing_fields": [
+        "retrieval_timestamp",
+        "official_nasa_snapshot_version",
+        "license_or_terms"
+      ]
+    },
+    {
+      "backward_compatibility_risk": "low",
+      "checksum_impact": "none_existing_payload_read_only",
+      "compatibility_adapter": "materials_structure_summary_external_lineage_v1",
+      "current_schema_version": "2.2.4",
+      "existing_record": "materials_project_v2_2_4_structure_enrichment_summary",
+      "external_source_concept": "LocalDerivedArtifact",
+      "mapping_status": "compatible_adapter",
+      "migration_required": false,
+      "missing_fields": []
+    }
+  ],
+  "future_source_policy": {
+    "dataset_snapshot_count": 0,
+    "retrieval_event_count": 0,
+    "source_system_ids": [
+      "nist_oar",
+      "nrel_api",
+      "nvd"
+    ],
+    "successful_integration_evidence": false
+  },
+  "provenance_assessments": [
+    {
+      "assessment_id": "materials_project_v2_2_4_provenance",
+      "lineage_refs": [
+        "v1.3_material_ids_to_v2.2.4_api_chunks",
+        "api_chunks_to_crystal_structure_entities"
+      ],
+      "overall_status": "authoritative_retrieval_with_unresolved_named_snapshot",
+      "source_system_id": "materials_project",
+      "status_entries": [
+        {
+          "evidence_refs": [
+            "outputs/materials_project_structure_v2_2/acquisition/acquisition_manifest.json"
+          ],
+          "limitations": [
+            "official publisher status does not independently validate every computed record"
+          ],
+          "status": "authoritative_source_verified"
+        },
+        {
+          "evidence_refs": [
+            "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json"
+          ],
+          "limitations": [
+            "derived entity, descriptor, and graph bodies remain local-only"
+          ],
+          "status": "derived_lineage_verified"
+        },
+        {
+          "evidence_refs": [
+            "data/processed/materials_project_v2_2_4_snapshot_alignment_summary.csv"
+          ],
+          "limitations": [
+            "API database/source version was unavailable for all 838 records"
+          ],
+          "status": "snapshot_identity_unresolved"
+        },
+        {
+          "evidence_refs": [
+            "data/case_studies/materials_project/source.md"
+          ],
+          "limitations": [
+            "access terms, license, citation requirements, and publication constraints require separate confirmation"
+          ],
+          "status": "license_or_terms_unresolved"
+        }
+      ],
+      "subject_refs": [
+        "materials_project_existing_ids_retrieved_2026_07_16",
+        "materials_project_v2_2_4_api_chunks",
+        "materials_project_structure_retrieval_2026_07_16"
+      ],
+      "trust_score_used": false
+    },
+    {
+      "assessment_id": "nasa_battery_v2_3_5_provenance",
+      "lineage_refs": [
+        "verified_kaggle_archive_to_34_battery_trajectories"
+      ],
+      "overall_status": "immediate_upstream_verified_official_original_unresolved",
+      "source_system_id": "nasa_battery_kaggle_upstream",
+      "status_entries": [
+        {
+          "evidence_refs": [
+            "data/processed/battery_v2_3_5_source_lineage_summary.json"
+          ],
+          "limitations": [
+            "Kaggle package is an intermediary and not the verified official NASA original"
+          ],
+          "status": "immediate_upstream_verified"
+        },
+        {
+          "evidence_refs": [
+            "data/processed/battery_v2_3_5_source_lineage_summary.json"
+          ],
+          "limitations": [
+            "checksum verifies the local archive bytes only"
+          ],
+          "status": "local_copy_checksum_verified"
+        },
+        {
+          "evidence_refs": [
+            "data/case_studies/kaggle_battery/source.md"
+          ],
+          "limitations": [
+            "official NASA snapshot/version cannot be recovered from local package metadata"
+          ],
+          "status": "snapshot_identity_unresolved"
+        },
+        {
+          "evidence_refs": [
+            "data/processed/battery_v2_3_5_metadata_recovery_summary.csv"
+          ],
+          "limitations": [
+            "no automatic external download or source substitution was performed"
+          ],
+          "status": "official_original_not_locally_verified"
+        },
+        {
+          "evidence_refs": [
+            "data/case_studies/kaggle_battery/source.md"
+          ],
+          "limitations": [
+            "raw data remains local-only and is not redistributed"
+          ],
+          "status": "license_or_terms_unresolved"
+        }
+      ],
+      "subject_refs": [
+        "nasa_battery_kaggle_local_archive_unresolved",
+        "nasa_battery_kaggle_zip_archive"
+      ],
+      "trust_score_used": false
+    }
+  ],
+  "registry_id": "external_source_contract_registry_v1",
+  "retrieval_events": [
+    {
+      "access_method": "bounded_existing_id_api",
+      "authentication_environment_variable": "MP_API_KEY",
+      "authentication_mode": "required_api_key",
+      "client_version": "unavailable_in_acquisition_manifest",
+      "code_commit": "unavailable_in_acquisition_manifest",
+      "distribution_id": "materials_project_v2_2_4_api_chunks",
+      "duplicate_count": 0,
+      "missing_count": 0,
+      "pagination_or_chunking": "17 deterministic chunks; maximum 838 records",
+      "parent_artifact_refs": [
+        "data/processed/materials_project_v1_3_acquired.csv"
+      ],
+      "request_query_filter_summary": "838 pre-existing material IDs, 12 allowlisted fields, chunks of 50",
+      "retrieval_id": "materials_project_structure_retrieval_2026_07_16",
+      "retrieval_timestamp": "2026-07-16T08:18:59+00:00",
+      "retry_or_cache_policy": "bounded retries and local atomic chunk cache",
+      "returned_count": 838,
+      "snapshot_id": "materials_project_existing_ids_retrieved_2026_07_16",
+      "source_refs": [
+        "materials_project_fe_si_existing_id_cohort"
+      ],
+      "source_system_id": "materials_project",
+      "status": "actual_historical_retrieval_no_network_in_v2_4_1"
+    },
+    {
+      "access_method": "existing_local_archive",
+      "authentication_environment_variable": null,
+      "authentication_mode": "record_dependent",
+      "client_version": "unavailable",
+      "code_commit": "unavailable_for_historical_retrieval",
+      "distribution_id": "nasa_battery_kaggle_zip_archive",
+      "duplicate_count": null,
+      "missing_count": null,
+      "pagination_or_chunking": "not_applicable_to_existing_local_zip",
+      "parent_artifact_refs": [
+        "data/processed/battery_v2_3_5_source_lineage_summary.json"
+      ],
+      "request_query_filter_summary": "retrieval request metadata unavailable; local archive audited by checksum",
+      "retrieval_id": "nasa_battery_kaggle_local_retrieval_unresolved",
+      "retrieval_timestamp": null,
+      "retry_or_cache_policy": "unavailable",
+      "returned_count": null,
+      "snapshot_id": "nasa_battery_kaggle_local_archive_unresolved",
+      "source_refs": [
+        "nasa_derived_battery_kaggle_archive"
+      ],
+      "source_system_id": "nasa_battery_kaggle_upstream",
+      "status": "historical_retrieval_metadata_incomplete"
+    }
+  ],
+  "schema_version": "1",
+  "snapshots": [
+    {
+      "authoritative_snapshot_status": "snapshot_identity_unresolved",
+      "dataset_id": "materials_project_fe_si_existing_id_cohort",
+      "declared_record_count": 838,
+      "immediate_upstream_ref": null,
+      "query_or_filter_scope": "existing 838 material IDs only; no broad query",
+      "reproducibility_limitations": [
+        "API database version was unavailable for all 838 records",
+        "retrieval timestamp does not establish a named dataset publication snapshot"
+      ],
+      "schema_version_refs": [
+        "materials_project_query_plan_schema_v2",
+        "scientific_entity_schema_v2"
+      ],
+      "snapshot_date": null,
+      "snapshot_id": "materials_project_existing_ids_retrieved_2026_07_16",
+      "snapshot_version": "api_database_version_unavailable",
+      "status": "actual_bounded_snapshot_scope_with_unresolved_version_identity",
+      "version_semantics": "current API documents at retrieval time; not a named database release"
+    },
+    {
+      "authoritative_snapshot_status": "snapshot_identity_unresolved",
+      "dataset_id": "nasa_derived_battery_kaggle_archive",
+      "declared_record_count": 34,
+      "immediate_upstream_ref": "nasa_battery_kaggle_upstream",
+      "query_or_filter_scope": "34 local cell lineages represented by the verified archive",
+      "reproducibility_limitations": [
+        "retrieval timestamp was not recorded",
+        "official NASA original snapshot/version is not verifiable from local package metadata"
+      ],
+      "schema_version_refs": [
+        "battery_cycle_observation_schema_v1"
+      ],
+      "snapshot_date": null,
+      "snapshot_id": "nasa_battery_kaggle_local_archive_unresolved",
+      "snapshot_version": "official_nasa_snapshot_unresolved",
+      "status": "actual_local_archive_snapshot_official_identity_unresolved",
+      "version_semantics": "local Kaggle archive identity fixed by checksum; official NASA source snapshot unresolved"
+    }
+  ],
+  "status": "active_with_unresolved_snapshot_identities"
+}

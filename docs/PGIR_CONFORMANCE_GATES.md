@@ -50,3 +50,13 @@ The capacity-trajectory evaluator requires the existing schema, ordering,
 units, reference-policy, lineage, and `dimensionally_valid` maturity gates
 before execution. A valid run creates result evidence only; it does not promote
 the source trajectory to mechanism-compatible or independently validated.
+
+## v2.4.1 Materials Gates
+
+Five Materials transitions are explicitly registered: MP structure document
+to crystal entity, structure integrity evaluation, composition consistency
+evaluation, descriptor transformation, and periodic graph transformation.
+The local 838-entity audit applies existing schema, context, dimensional,
+admissibility, transition, and operator gates. A valid structure is not
+promoted to phase-stability evidence, experimental validation, GNN readiness,
+or predictive value.

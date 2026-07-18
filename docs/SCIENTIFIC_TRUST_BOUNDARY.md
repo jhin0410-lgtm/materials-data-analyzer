@@ -133,3 +133,12 @@ audit, with representation warnings and restricted interpretation. Detection
 thresholds are not uncertainty; cycle-index slopes are not physical-time
 rates; candidate findings are not mechanisms; and no independent or production
 validation is available.
+
+## v2.4.1 Source And Reuse Trust Boundary
+
+External source status is recorded as evidence-bearing provenance states, not
+a global trust score. Second-domain PGIR reuse supports shared architecture,
+representation contracts, conformance, and operator metadata. It does not
+support physical-operator reuse, universal physics intelligence, experimental
+structure validation, DFT replacement, GNN evidence, predictive improvement,
+independent validation, or production validation.

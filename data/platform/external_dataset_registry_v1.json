@@ -1,0 +1,56 @@
+{
+  "datasets": [
+    {
+      "authoritative_identifier": "materials_project_existing_838_ids",
+      "calibration_metadata_availability": "not_applicable_to_computed_structure_records",
+      "citation": "Materials Project database; bounded local retrieval evidence recorded by v2.2.4",
+      "dataset_id": "materials_project_fe_si_existing_id_cohort",
+      "description": "The 838 existing material IDs used by the released v2.2 structure workflow.",
+      "domain_contexts": [
+        "composition_only_pre_structure",
+        "known_structure_post_relaxation"
+      ],
+      "expected_resource_types": [
+        "summary_document",
+        "crystal_structure"
+      ],
+      "identifiers": [
+        "material_id"
+      ],
+      "license_or_access_conditions": "not_confirmed_in_existing_repository_evidence; raw responses remain local-only",
+      "publisher": "Materials Project",
+      "source_system_id": "materials_project",
+      "status": "actual_existing_id_dataset",
+      "title": "Materials Project Fe/Si-containing multinary existing-ID cohort",
+      "uncertainty_availability": "source_does_not_provide_per_record_structure_uncertainty"
+    },
+    {
+      "authoritative_identifier": "patrickfleith/nasa-battery-dataset",
+      "calibration_metadata_availability": "genuinely_unavailable_in_local_package",
+      "citation": "Kaggle immediate upstream; exact official NASA snapshot unresolved",
+      "dataset_id": "nasa_derived_battery_kaggle_archive",
+      "description": "Immediate upstream archive for the 34-cell Battery PGIR workflow.",
+      "domain_contexts": [
+        "battery_cycle_measurements",
+        "battery_capacity_trajectory"
+      ],
+      "expected_resource_types": [
+        "zip_archive",
+        "metadata_csv",
+        "per_cycle_csv"
+      ],
+      "identifiers": [
+        "kaggle_dataset_slug"
+      ],
+      "license_or_access_conditions": "unresolved_from_local_package_metadata",
+      "publisher": "patrickfleith Kaggle dataset publisher",
+      "source_system_id": "nasa_battery_kaggle_upstream",
+      "status": "actual_immediate_upstream_dataset",
+      "title": "NASA-derived Battery Kaggle archive",
+      "uncertainty_availability": "genuinely_unavailable_in_local_package"
+    }
+  ],
+  "registry_id": "external_dataset_registry_v1",
+  "schema_version": "1",
+  "status": "actual_datasets_only"
+}

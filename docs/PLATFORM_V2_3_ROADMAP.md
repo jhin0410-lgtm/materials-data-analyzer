@@ -62,9 +62,11 @@ solver, model retraining, or experiment recommendation.
 
 ## v2.3.6
 
-- Deferred beyond v2.3.0: second-domain reuse feasibility.
-- No cross-domain mechanism claim is supported until separately executed and
-  validated.
+- Deferred beyond v2.3.0 and addressed in v2.4.1: second-domain
+  representation-governance reuse over existing Materials structure records.
+- v2.4.1 demonstrates architecture, representation-contract, conformance, and
+  operator-framework reuse with restrictions. It does not demonstrate a
+  cross-domain physical operator or mechanism.
 
 ## v2.3 Closeout
 

@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Added v2.4.1 versioned metadata contracts for external source systems,
+  logical datasets, snapshots, distribution artifacts, retrieval events,
+  documentation, and provenance assessments without network access.
+- Added actual contract mappings for the bounded Materials Project retrieval
+  and the verified NASA-derived Battery Kaggle immediate upstream while
+  preserving unresolved snapshot/version and license gaps.
+- Registered future NIST OAR, NVD, and NREL source boundaries as declarations
+  only, with no retrieval, snapshot, or integration evidence.
+- Reused the v2.3 PGIR declaration, maturity, conformance, transition, and
+  operator framework across 838 existing Materials structure entities. The
+  result is `second_domain_pgir_reuse_demonstrated_with_restrictions`;
+  physical-operator reuse, independent validation, and production validation
+  remain false.
+- Added compact source/PGIR reuse summaries, CLI inspection/audit commands,
+  and optional read-only platform-report sections. No acquisition, structure
+  or graph regeneration, model execution, GNN, DFT replacement, or new
+  predictive result is included.
+
 ## v2.3.0
 
 - Started v2.3.1 PGIR governance work with accepted architecture RFCs,

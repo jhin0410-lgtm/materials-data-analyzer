@@ -71,3 +71,11 @@ solver execution, prediction, or mechanism confirmation.
 execution-capable bounded `Evaluator` with local-only row-level side effects.
 Its input, output, maturity, target-access, uncertainty, provenance, and claim
 policies are explicit. No other Battery mechanism candidate was executed.
+
+## v2.4.1 Materials Operator Reuse Audit
+
+Seven released Materials adapter/Transformer/Evaluator records are reused by
+ID. Five corresponding transitions are conformance-tested using existing
+artifact evidence. This is operator-framework reuse, not common physical-
+operator reuse: no Propagator, DFT calculation, physics solver, descriptor or
+graph regeneration, GNN, or model execution occurs.

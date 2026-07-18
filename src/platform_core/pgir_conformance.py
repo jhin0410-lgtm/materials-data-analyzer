@@ -86,6 +86,46 @@ CAPABILITY_REQUIREMENTS: dict[str, dict[str, Any]] = {
 }
 
 REGISTERED_TRANSITIONS: dict[str, dict[str, Any]] = {
+    "mp_structure_to_crystal_entity_v1": {
+        "input_concept": "result",
+        "output_concept": "physical_entity",
+        "required_metadata": ("material_id", "structure", "source_record_checksum"),
+        "deterministic": True,
+        "information_loss": "runtime_materials_objects_are_converted_to_json_safe_entity_records",
+        "maturity_result": "semantically_mapped",
+    },
+    "crystal_structure_integrity_check_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("lattice", "sites", "integrity_status"),
+        "deterministic": True,
+        "information_loss": "evaluator_result_summarizes_integrity_without_replacing_structure_body",
+        "maturity_result": "physically_admissible",
+    },
+    "composition_structure_consistency_check_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("summary_composition", "structure_derived_composition", "consistency_status"),
+        "deterministic": True,
+        "information_loss": "comparison_status_does_not_assert_phase_or_experimental_validity",
+        "maturity_result": "physically_admissible",
+    },
+    "crystal_structure_to_descriptor_summary_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("descriptor_registry", "prediction_context", "target_access_policy"),
+        "deterministic": True,
+        "information_loss": "descriptors_are_bounded_transformed_representations",
+        "maturity_result": "semantically_mapped",
+    },
+    "crystal_structure_to_radius_graph_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("graph_builder", "cutoff_policy", "target_access_policy"),
+        "deterministic": True,
+        "information_loss": "graph_is_a_representation_artifact_not_physical_or_predictive_evidence",
+        "maturity_result": "semantically_mapped",
+    },
     "battery_source_record_to_cycle_observation_v1": {
         "input_concept": "result",
         "output_concept": "observation",

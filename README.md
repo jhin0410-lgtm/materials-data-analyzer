@@ -258,6 +258,9 @@ python -m src.cli list-battery-mechanism-candidates
 python -m src.cli export-battery-mechanism-audit-summary --tracked-only
 python -m src.cli preview-battery-capacity-evaluation configs/examples/battery_capacity_trajectory_evaluator.json
 python -m src.cli export-battery-capacity-evaluator-summary --tracked-only
+python -m src.cli list-external-source-systems
+python -m src.cli preview-materials-pgir-reuse configs/examples/materials_structure_pgir_reuse.json
+python -m src.cli evaluate-cross-domain-pgir-reuse configs/examples/cross_domain_pgir_reuse_audit.json
 python -m src.cli preview-battery-source-metadata-audit configs/examples/battery_source_metadata_stability_audit.json
 python -m src.cli run-battery-metadata-stability-audit configs/examples/battery_source_metadata_stability_audit.json --execute --tracked-only
 python -m src.cli validate-battery-metadata-stability
@@ -743,6 +746,24 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   representative mechanism.
 - See [`docs/PLATFORM_V2_3_ROADMAP.md`](docs/PLATFORM_V2_3_ROADMAP.md) and
   [`docs/releases/V2_3_0.md`](docs/releases/V2_3_0.md).
+
+### v2.4.1 Feature Stage: External Sources and Second-Domain PGIR Reuse
+
+- External source systems, logical datasets, snapshots, distributions, and
+  retrieval events now have separate versioned metadata contracts.
+- The actual Materials Project and NASA-derived Battery lineage is mapped
+  without rewriting v2.2/v2.3 artifacts. Materials has authoritative bounded
+  API evidence but an unresolved named snapshot; Battery has a verified
+  immediate Kaggle upstream but an unresolved official NASA snapshot.
+- The v2.3 PGIR declaration, maturity, conformance, transition, and operator
+  framework was reused over 838 existing Materials structure entities.
+- The result is `second_domain_pgir_reuse_demonstrated_with_restrictions`:
+  architecture and representation reuse are supported, physical-operator
+  reuse is not demonstrated, and independent/production validation is false.
+- No API call, descriptor/graph regeneration, model run, GNN, or new
+  predictive claim is part of v2.4.1. See
+  [`docs/EXTERNAL_SOURCE_METADATA_CONTRACT.md`](docs/EXTERNAL_SOURCE_METADATA_CONTRACT.md)
+  and [`docs/MATERIALS_STRUCTURE_PGIR_REUSE.md`](docs/MATERIALS_STRUCTURE_PGIR_REUSE.md).
 
 ### Later
 
