@@ -335,6 +335,9 @@ python -m src.cli list-scientific-feature-candidates
 python -m src.cli list-materials-feature-builders
 python -m src.cli build-materials-physics-features configs/examples/materials_physics_feature_build.json
 python -m src.cli run-materials-feature-comparison configs/examples/materials_physics_predictive_comparison.json
+python -m src.cli list-battery-mechanism-candidates
+python -m src.cli assess-battery-mechanism-identifiability configs/examples/battery_mechanism_candidate_audit.json
+python -m src.cli export-battery-mechanism-audit-summary --tracked-only
 python -m src.cli scientific-trust-validate
 python -m src.cli show-version
 ```
@@ -384,3 +387,11 @@ additive platform-core layer. The new commands validate declarations,
 transitions, capability gates, and Battery Observation/State/Trajectory
 artifacts, but they do not execute acquisition, solvers, models, or raw-data
 pipelines. Row-level Battery PGIR artifacts remain under ignored `outputs/`.
+
+## v2.3.3 Battery Mechanism Audit Add-On
+
+v2.3.3 adds a read-only mechanism-candidate and identifiability audit layer.
+It reads existing compact/processed Battery summaries, exports compact
+tracked audit summaries, and can write detailed local-only audit inventories
+under `outputs/battery_mechanism_audit_v2_3/`. It does not fit parameters,
+execute solvers, train models, infer hidden state, or call network services.

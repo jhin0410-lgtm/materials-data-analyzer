@@ -36,3 +36,10 @@ evidence.
 Tracked compact outputs live under `data/processed/battery_v2_3_*`. Row-level
 Observation, State, and Trajectory JSONL artifacts are generated only under
 ignored `outputs/battery_pgir_v2_3/`.
+
+## v2.3.3 Mechanism Audit Gates
+
+v2.3.3 adds mechanism requirement and identifiability audits on top of these
+gates. The audits can select a bounded descriptive Evaluator, but they still
+block Propagator, Estimator, Calibrator, Arrhenius fitting, diffusion solving,
+and predictive battery model claims when evidence is missing.

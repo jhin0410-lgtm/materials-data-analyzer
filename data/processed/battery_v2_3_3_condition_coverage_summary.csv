@@ -1,0 +1,6 @@
+condition_field,condition_value,cell_count,cycle_count,capacity_rows,duration_rows,measured_temperature_rows,status,condition_semantics
+ambient_temperature_c,22,3,120,120,120,120,condition_observed,ambient_metadata_not_confirmed_controlled
+ambient_temperature_c,24,14,1252,1252,1252,1252,condition_observed,ambient_metadata_not_confirmed_controlled
+ambient_temperature_c,4,16,961,961,961,961,condition_observed,ambient_metadata_not_confirmed_controlled
+ambient_temperature_c,43,4,160,160,160,160,condition_observed,ambient_metadata_not_confirmed_controlled
+ambient_temperature_c,44,1,2,2,2,2,condition_observed,ambient_metadata_not_confirmed_controlled

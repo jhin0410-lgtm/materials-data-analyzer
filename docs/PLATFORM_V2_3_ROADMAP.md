@@ -31,14 +31,20 @@ solver, model retraining, or experiment recommendation.
 
 ## v2.3.3
 
-- Dynamic mechanism candidate audit.
-- Diffusion versus Arrhenius feasibility comparison.
-- Data sufficiency and identifiability gates.
+- Dynamic mechanism candidate audit completed for Battery PGIR.
+- Diffusion versus Arrhenius feasibility comparison completed as an
+  evidence-gap and identifiability audit.
+- Data sufficiency and identifiability gates completed with actual Battery
+  coverage.
+- Outcome: `descriptive_evaluator_only`; no Arrhenius, diffusion, SOH/RUL, or
+  predictive mechanism claim.
 
 ## v2.3.4
 
-- One bounded mechanism Evaluator if readiness gates pass.
-- Not a general solver.
+- Implement the selected bounded capacity-trajectory consistency Evaluator if
+  release gates still pass.
+- Not a general solver, Propagator, Arrhenius fit, diffusion model, or
+  predictive battery model.
 
 ## v2.3.5
 

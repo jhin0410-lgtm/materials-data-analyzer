@@ -113,3 +113,11 @@ processed battery cycle summaries. This creates representation evidence for
 Observation, bounded operational State, and Trajectory metadata, plus a
 mechanism-readiness audit. It still does not run mechanisms, train predictors,
 fit degradation laws, or make physics-aware battery performance claims.
+
+## v2.3.3 Battery Mechanism Audit
+
+v2.3.3 completes a data-sufficiency and identifiability audit for Battery
+mechanism candidates. Arrhenius and diffusion remain blocked by evidence gaps;
+the selected next step is a descriptive capacity-trajectory consistency
+Evaluator only. Any physics-aware battery model, parameter fit, or solver
+remains future work.

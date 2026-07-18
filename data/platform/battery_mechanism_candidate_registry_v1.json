@@ -1,0 +1,534 @@
+{
+  "candidates": [
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "temperature_dependent_rate_relation",
+      "mechanism_id": "arrhenius_temperature_dependence",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "activation energy estimated",
+        "Arrhenius behavior proven",
+        "causal temperature effect"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "parameter",
+        "context",
+        "uncertainty"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "arrhenius_temperature_dependence",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using transient measured cell temperature as controlled ambient condition",
+          "required_concept": "context",
+          "required_evidence": "multiple controlled temperature groups with comparable cells",
+          "required_for_execution": true,
+          "requirement_id": "arrhenius_temperature_dependence.controlled_temperature_groups",
+          "requirement_type": "condition_diversity"
+        },
+        {
+          "mechanism_id": "arrhenius_temperature_dependence",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "treating capacity value itself as rate constant",
+          "required_concept": "result",
+          "required_evidence": "explicit rate-like response denominator and semantics",
+          "required_for_execution": true,
+          "requirement_id": "arrhenius_temperature_dependence.rate_like_response",
+          "requirement_type": "response_definition"
+        },
+        {
+          "mechanism_id": "arrhenius_temperature_dependence",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "assuming comparable protocols from missing metadata",
+          "required_concept": "context",
+          "required_evidence": "same or explicitly comparable protocol across temperature groups",
+          "required_for_execution": true,
+          "requirement_id": "arrhenius_temperature_dependence.protocol_comparability",
+          "requirement_type": "protocol"
+        },
+        {
+          "mechanism_id": "arrhenius_temperature_dependence",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "treating adjacent cycles as independent replicate cells",
+          "required_concept": "observation",
+          "required_evidence": "repeated cells or observations per temperature condition",
+          "required_for_execution": true,
+          "requirement_id": "arrhenius_temperature_dependence.replicates",
+          "requirement_type": "replication"
+        },
+        {
+          "mechanism_id": "arrhenius_temperature_dependence",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using zero uncertainty when source uncertainty is unavailable",
+          "required_concept": "uncertainty",
+          "required_evidence": "variability or measurement uncertainty policy",
+          "required_for_execution": false,
+          "requirement_id": "arrhenius_temperature_dependence.uncertainty",
+          "requirement_type": "uncertainty"
+        }
+      ],
+      "scientific_meaning": "Rate-like response varies with reciprocal absolute temperature under comparable protocol conditions."
+    },
+    {
+      "current_implementation_status": "bounded_descriptive_candidate",
+      "mechanism_family": "empirical_degradation_trajectory",
+      "mechanism_id": "capacity_fade_trajectory",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "SEI mechanism proven",
+        "lifetime prediction",
+        "physical law confirmed"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "capacity_fade_trajectory",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using hidden SOH as direct measurement",
+          "required_concept": "observation",
+          "required_evidence": "explicit discharge capacity values and units",
+          "required_for_execution": true,
+          "requirement_id": "capacity_fade_trajectory.capacity_definition",
+          "requirement_type": "observable"
+        },
+        {
+          "mechanism_id": "capacity_fade_trajectory",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "silently changing baseline after audit",
+          "required_concept": "context",
+          "required_evidence": "reference capacity policy",
+          "required_for_execution": true,
+          "requirement_id": "capacity_fade_trajectory.reference_policy",
+          "requirement_type": "normalization"
+        },
+        {
+          "mechanism_id": "capacity_fade_trajectory",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "treating cycle index as physical elapsed time",
+          "required_concept": "trajectory",
+          "required_evidence": "ordered cycle index with duplicate policy",
+          "required_for_execution": true,
+          "requirement_id": "capacity_fade_trajectory.cycle_order",
+          "requirement_type": "time_axis"
+        },
+        {
+          "mechanism_id": "capacity_fade_trajectory",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "assuming unobserved future failure-free behavior",
+          "required_concept": "context",
+          "required_evidence": "end-of-life/censoring policy",
+          "required_for_execution": true,
+          "requirement_id": "capacity_fade_trajectory.censoring",
+          "requirement_type": "context"
+        }
+      ],
+      "scientific_meaning": "Observed discharge capacity changes along ordered cycle trajectories."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "empirical_trajectory_shape",
+      "mechanism_id": "change_point_or_regime_transition",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "mechanism confirmed",
+        "causal relation proven",
+        "production decision supported"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "change_point_or_regime_transition",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using one or two cycles as regime evidence",
+          "required_concept": "trajectory",
+          "required_evidence": "sufficient ordered observations per cell",
+          "required_for_execution": true,
+          "requirement_id": "change_point_or_regime_transition.trajectory_length",
+          "requirement_type": "support"
+        },
+        {
+          "mechanism_id": "change_point_or_regime_transition",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "interpreting protocol change as mechanism transition",
+          "required_concept": "context",
+          "required_evidence": "protocol/condition stability audit",
+          "required_for_execution": true,
+          "requirement_id": "change_point_or_regime_transition.context_stability",
+          "requirement_type": "context"
+        }
+      ],
+      "scientific_meaning": "Potential regime transitions can be flagged descriptively when enough ordered observations exist."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "observable_balance_relation",
+      "mechanism_id": "charge_discharge_efficiency_relation",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "mechanism confirmed",
+        "causal relation proven",
+        "production decision supported"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "charge_discharge_efficiency_relation",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "reconstructing charge capacity from discharge only",
+          "required_concept": "observation",
+          "required_evidence": "charge capacity or charge energy",
+          "required_for_execution": true,
+          "requirement_id": "charge_discharge_efficiency_relation.charge_capacity",
+          "requirement_type": "observable"
+        },
+        {
+          "mechanism_id": "charge_discharge_efficiency_relation",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using capacity retention as energy efficiency",
+          "required_concept": "observation",
+          "required_evidence": "discharge capacity or discharge energy",
+          "required_for_execution": true,
+          "requirement_id": "charge_discharge_efficiency_relation.discharge_capacity",
+          "requirement_type": "observable"
+        }
+      ],
+      "scientific_meaning": "Charge/discharge capacity or energy balance can be audited only when both sides are observed."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "observational_coupling",
+      "mechanism_id": "cycle_duration_capacity_coupling",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "mechanism confirmed",
+        "causal relation proven",
+        "production decision supported"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "cycle_duration_capacity_coupling",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "treating duration as calendar age",
+          "required_concept": "observation",
+          "required_evidence": "discharge duration field and unit",
+          "required_for_execution": true,
+          "requirement_id": "cycle_duration_capacity_coupling.duration_metadata",
+          "requirement_type": "time_axis"
+        },
+        {
+          "mechanism_id": "cycle_duration_capacity_coupling",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using lifetime target as capacity",
+          "required_concept": "observation",
+          "required_evidence": "capacity value and unit",
+          "required_for_execution": true,
+          "requirement_id": "cycle_duration_capacity_coupling.capacity_definition",
+          "requirement_type": "observable"
+        },
+        {
+          "mechanism_id": "cycle_duration_capacity_coupling",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "assuming duration changes are mechanism evidence",
+          "required_concept": "context",
+          "required_evidence": "protocol/cutoff comparability audit",
+          "required_for_execution": true,
+          "requirement_id": "cycle_duration_capacity_coupling.protocol_context",
+          "requirement_type": "protocol"
+        }
+      ],
+      "scientific_meaning": "Capacity observations are summarized against discharge duration when available."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "transport_relation",
+      "mechanism_id": "diffusion_transport",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "diffusion coefficient inferred",
+        "transport mechanism confirmed",
+        "internal concentration reconstructed"
+      ],
+      "required_pgir_concepts": [
+        "state",
+        "field",
+        "parameter",
+        "context",
+        "operator"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "diffusion_transport",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "treating terminal voltage as concentration field",
+          "required_concept": "field",
+          "required_evidence": "concentration-linked state or observation model",
+          "required_for_execution": true,
+          "requirement_id": "diffusion_transport.transported_quantity",
+          "requirement_type": "state_definition"
+        },
+        {
+          "mechanism_id": "diffusion_transport",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using arbitrary default particle radius",
+          "required_concept": "physical_entity",
+          "required_evidence": "electrode geometry or characteristic length scale",
+          "required_for_execution": true,
+          "requirement_id": "diffusion_transport.geometry",
+          "requirement_type": "geometry"
+        },
+        {
+          "mechanism_id": "diffusion_transport",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "backfilling initial concentration from cycle index",
+          "required_concept": "state",
+          "required_evidence": "initial state definition at transient start",
+          "required_for_execution": true,
+          "requirement_id": "diffusion_transport.initial_conditions",
+          "requirement_type": "initial_condition"
+        },
+        {
+          "mechanism_id": "diffusion_transport",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "assuming boundary conditions from generic charge/discharge labels",
+          "required_concept": "context",
+          "required_evidence": "boundary condition and driving force",
+          "required_for_execution": true,
+          "requirement_id": "diffusion_transport.boundary_conditions",
+          "requirement_type": "boundary_condition"
+        },
+        {
+          "mechanism_id": "diffusion_transport",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using ordered cycle index as diffusion time",
+          "required_concept": "observation",
+          "required_evidence": "physical elapsed transient time",
+          "required_for_execution": true,
+          "requirement_id": "diffusion_transport.transient_time_axis",
+          "requirement_type": "time_axis"
+        },
+        {
+          "mechanism_id": "diffusion_transport",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "calling general discharge summaries GITT or PITT",
+          "required_concept": "context",
+          "required_evidence": "GITT/PITT/EIS or equivalent transport-identifying protocol",
+          "required_for_execution": true,
+          "requirement_id": "diffusion_transport.transport_protocol",
+          "requirement_type": "protocol"
+        }
+      ],
+      "scientific_meaning": "Internal transported quantity evolves over physical time and geometry with defined initial and boundary conditions."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "empirical_trajectory_shape",
+      "mechanism_id": "empirical_monotonic_degradation",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "mechanism confirmed",
+        "causal relation proven",
+        "production decision supported"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "empirical_monotonic_degradation",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using unordered rows",
+          "required_concept": "trajectory",
+          "required_evidence": "ordered cycle index with duplicate policy",
+          "required_for_execution": true,
+          "requirement_id": "empirical_monotonic_degradation.cycle_order",
+          "requirement_type": "time_axis"
+        },
+        {
+          "mechanism_id": "empirical_monotonic_degradation",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using hidden degradation state",
+          "required_concept": "observation",
+          "required_evidence": "capacity value and unit",
+          "required_for_execution": true,
+          "requirement_id": "empirical_monotonic_degradation.capacity_definition",
+          "requirement_type": "observable"
+        }
+      ],
+      "scientific_meaning": "Trajectory monotonicity or local reversals can be audited descriptively without a physical mechanism claim."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "representation_quality",
+      "mechanism_id": "observation_consistency_only",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "mechanism confirmed",
+        "causal relation proven",
+        "production decision supported"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "observation_consistency_only",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "inventing missing latent state",
+          "required_concept": "observation",
+          "required_evidence": "required source fields and units",
+          "required_for_execution": true,
+          "requirement_id": "observation_consistency_only.source_fields",
+          "requirement_type": "representation"
+        },
+        {
+          "mechanism_id": "observation_consistency_only",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using row order without cycle metadata",
+          "required_concept": "trajectory",
+          "required_evidence": "deterministic ordering and duplicate policy",
+          "required_for_execution": true,
+          "requirement_id": "observation_consistency_only.trajectory_order",
+          "requirement_type": "representation"
+        }
+      ],
+      "scientific_meaning": "Observation, State, and Trajectory records can be checked for consistency without mechanism execution."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "empirical_resistance_relation",
+      "mechanism_id": "resistance_growth_trajectory",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "charge-transfer resistance estimated",
+        "diffusion impedance estimated",
+        "equivalent-circuit parameter fitted"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "resistance_growth_trajectory",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using missing internal resistance as zero",
+          "required_concept": "observation",
+          "required_evidence": "direct resistance or impedance-derived scalar with definition",
+          "required_for_execution": true,
+          "requirement_id": "resistance_growth_trajectory.resistance_field",
+          "requirement_type": "observable"
+        },
+        {
+          "mechanism_id": "resistance_growth_trajectory",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "calling scalar resistance charge-transfer resistance",
+          "required_concept": "context",
+          "required_evidence": "resistance measurement or EIS protocol definition",
+          "required_for_execution": true,
+          "requirement_id": "resistance_growth_trajectory.measurement_protocol",
+          "requirement_type": "protocol"
+        },
+        {
+          "mechanism_id": "resistance_growth_trajectory",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "inferring EIS from one scalar field",
+          "required_concept": "observation",
+          "required_evidence": "frequency axis for impedance claims",
+          "required_for_execution": false,
+          "requirement_id": "resistance_growth_trajectory.frequency_axis",
+          "requirement_type": "protocol"
+        }
+      ],
+      "scientific_meaning": "Observed resistance or impedance-derived scalar changes along cycle trajectories."
+    },
+    {
+      "current_implementation_status": "requirements_audit_only",
+      "mechanism_family": "observational_coupling",
+      "mechanism_id": "temperature_capacity_coupling",
+      "possible_operator_role": "Evaluator",
+      "prohibited_interpretations": [
+        "mechanism confirmed",
+        "causal relation proven",
+        "production decision supported"
+      ],
+      "required_pgir_concepts": [
+        "observation",
+        "state",
+        "trajectory",
+        "context"
+      ],
+      "requirements": [
+        {
+          "mechanism_id": "temperature_capacity_coupling",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "treating response temperature as controlled condition",
+          "required_concept": "context",
+          "required_evidence": "temperature field with source semantics",
+          "required_for_execution": true,
+          "requirement_id": "temperature_capacity_coupling.temperature_metadata",
+          "requirement_type": "condition"
+        },
+        {
+          "mechanism_id": "temperature_capacity_coupling",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "using derived SOH as direct capacity",
+          "required_concept": "observation",
+          "required_evidence": "capacity value and unit",
+          "required_for_execution": true,
+          "requirement_id": "temperature_capacity_coupling.capacity_definition",
+          "requirement_type": "observable"
+        },
+        {
+          "mechanism_id": "temperature_capacity_coupling",
+          "minimum_status": "explicit_observed",
+          "prohibited_substitute": "promoting correlation to causality",
+          "required_concept": "context",
+          "required_evidence": "cycle age and protocol confounder audit",
+          "required_for_execution": true,
+          "requirement_id": "temperature_capacity_coupling.confounders",
+          "requirement_type": "context"
+        }
+      ],
+      "scientific_meaning": "Capacity observations are summarized against observed ambient or operating temperature metadata."
+    }
+  ],
+  "description": "Metadata-only Battery mechanism candidates and requirements for v2.3.3.",
+  "execution_boundary": {
+    "model_or_solver_executed": false,
+    "network_called": false,
+    "parameter_fitting_performed": false,
+    "row_level_payload_in_registry": false
+  },
+  "schema_version": "2.3.3",
+  "status": "accepted_for_v2_3"
+}

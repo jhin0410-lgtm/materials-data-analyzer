@@ -11,7 +11,7 @@ def test_default_operator_registry_has_selected_operators_only():
     operator_ids = {item["operator_id"] for item in snapshot}
 
     assert registry.validate()["valid"] is True
-    assert len(snapshot) == 15
+    assert len(snapshot) == 20
     assert "mp_structure_to_crystal_entity_v1" in operator_ids
     assert "crystal_structure_to_descriptor_summary_v1" in operator_ids
     assert "crystal_structure_to_radius_graph_v1" in operator_ids
@@ -20,6 +20,11 @@ def test_default_operator_registry_has_selected_operators_only():
     assert "battery_cycle_observation_to_operational_state_v1" in operator_ids
     assert "battery_operational_states_to_trajectory_v1" in operator_ids
     assert "battery_mechanism_readiness_assessment_v1" in operator_ids
+    assert "battery_capacity_trajectory_consistency_evaluator_v1" in operator_ids
+    assert "battery_protocol_comparability_evaluator_v1" in operator_ids
+    assert "battery_arrhenius_readiness_evaluator_v1" in operator_ids
+    assert "battery_diffusion_readiness_evaluator_v1" in operator_ids
+    assert "battery_resistance_capacity_relation_applicability_v1" in operator_ids
     assert all(item["network_policy"] == "no_network" for item in snapshot)
     assert all("callable" not in item for item in snapshot)
 

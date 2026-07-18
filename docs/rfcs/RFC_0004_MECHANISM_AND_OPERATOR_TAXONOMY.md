@@ -69,3 +69,11 @@ Validate capability stages and prohibit promotion of `Propagator` beyond
 The Battery pilot registers Transformer-style representation adapters and a
 requirements-audit operator. It does not promote any battery mechanism to an
 executed Evaluator or Propagator.
+
+## v2.3.3 Follow-up
+
+The Battery mechanism audit registers metadata-only Evaluator candidates and
+selects `battery_capacity_trajectory_consistency_evaluator_v1` as a bounded
+descriptive next step. Arrhenius and diffusion remain blocked by evidence and
+identifiability gaps. `Propagator`, parameter fitting, and solver execution
+remain out of scope.

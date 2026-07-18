@@ -90,3 +90,12 @@ Observation metadata, bounded operational State summaries, and per-cell
 Trajectory metadata. It produces compact tracked summaries and local-only
 row-level JSONL artifacts. It does not execute Arrhenius fitting, diffusion
 solving, SOH/RUL prediction, or any battery degradation model.
+
+## v2.3.3 Mechanism Identifiability Audit
+
+v2.3.3 adds a Battery mechanism-candidate registry, evidence-gap registry, and
+read-only identifiability audit. The audit separates structural, practical,
+and contextual identifiability; records protocol and confounding limits; and
+selects only a descriptive capacity-trajectory consistency Evaluator for
+v2.3.4 consideration. It does not estimate mechanism parameters or execute a
+dynamic model.

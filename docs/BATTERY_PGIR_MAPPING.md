@@ -35,3 +35,11 @@ uncertainty is recorded as unavailable, not zero.
 This mapping does not create complete electrochemical State, Field,
 mechanism-ready parameter, diffusion readiness, Arrhenius evidence, SOH/RUL
 model input evidence, or production battery-degradation claims.
+
+## v2.3.3 Mechanism-Audit Link
+
+The v2.3.3 mechanism audit reuses this mapping as evidence, but it does not
+promote cycle Observations or bounded operational State summaries into latent
+electrochemical State or concentration Field records. Requirement gaps remain
+explicit when geometry, boundary conditions, physical time, or protocol
+metadata are missing.

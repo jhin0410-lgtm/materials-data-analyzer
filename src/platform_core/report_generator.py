@@ -15,6 +15,7 @@ from .artifacts import ArtifactRegistry, build_default_artifact_registry, valida
 from .case_study_registry import CaseStudyRegistry, build_default_case_study_registry
 from .execution_policy import ExecutionPolicyRegistry, build_default_execution_policy_registry
 from .battery_pgir_adapters import load_battery_pgir_summary
+from .mechanism_identifiability import load_battery_mechanism_summary
 from .pgir_governance import governance_summary
 from .registry import PluginRegistry, build_default_plugin_registry
 from .report_extractors import extract_case_study_results
@@ -144,6 +145,8 @@ def validate_report_config(config: dict[str, Any]) -> None:
         raise ValueError("include_pgir_conformance must be a boolean")
     if "include_battery_pgir" in config and not isinstance(config["include_battery_pgir"], bool):
         raise ValueError("include_battery_pgir must be a boolean")
+    if "include_battery_mechanism_audit" in config and not isinstance(config["include_battery_mechanism_audit"], bool):
+        raise ValueError("include_battery_mechanism_audit must be a boolean")
     registry_path = config.get("registry_path")
     if registry_path is not None:
         if not isinstance(registry_path, str):
@@ -569,6 +572,32 @@ def _battery_pgir_summary(config: dict[str, Any], repo_root: Path) -> dict[str, 
     }
 
 
+def _battery_mechanism_audit_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_battery_mechanism_audit") is not True:
+        return {"status": "not_requested"}
+    summary = load_battery_mechanism_summary(repo_root)
+    if summary.get("status") != "available":
+        return summary
+    decision = summary["decision"]
+    source_inventory = decision.get("source_inventory", {})
+    return {
+        "status": "available",
+        "schema_version": summary["schema_version"],
+        "decision_status": decision["status"],
+        "selected_evaluator_id": decision.get("selected_evaluator_id"),
+        "selected_operator_role": decision.get("selected_operator_role"),
+        "cell_count": source_inventory.get("cell_count"),
+        "cycle_count": source_inventory.get("cycle_count"),
+        "ambient_temperature_unique_count": source_inventory.get("ambient_temperature_unique_count"),
+        "internal_resistance_available_rows": source_inventory.get("internal_resistance_available_rows"),
+        "mechanism_confirmation_supported": False,
+        "model_or_solver_executed": False,
+        "parameter_fitting_performed": False,
+        "allowed_claims": decision.get("allowed_claims", []),
+        "prohibited_claims": decision.get("prohibited_claims", []),
+    }
+
+
 def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = ".") -> PlatformReport:
     validate_report_config(config)
     root = Path(repo_root).resolve()
@@ -616,6 +645,7 @@ def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = "."
         pgir_governance_summary=_pgir_governance_summary(config),
         pgir_conformance_summary=_pgir_conformance_summary(config, root),
         battery_pgir_summary=_battery_pgir_summary(config, root),
+        battery_mechanism_audit_summary=_battery_mechanism_audit_summary(config, root),
         testing_summary=testing_summary,
         security_boundaries=(
             "no acquisition, normalization, feature engineering, model training, or trust rerun",
@@ -793,6 +823,11 @@ def render_report_markdown(report: PlatformReport) -> str:
         for key, value in sorted(report.battery_pgir_summary.items()):
             lines.append(f"- `{key}`: `{value}`")
         lines.append("- Battery PGIR summaries are representation readiness artifacts, not battery lifetime or mechanism predictions.")
+    if report.battery_mechanism_audit_summary.get("status") != "not_requested":
+        lines.extend(["", "## Battery Mechanism And Identifiability Audit"])
+        for key, value in sorted(report.battery_mechanism_audit_summary.items()):
+            lines.append(f"- `{key}`: `{value}`")
+        lines.append("- Battery mechanism audit summaries read compact artifacts only and do not execute fitting, solvers, or predictive models.")
     lines.extend(["", "## Case-Study Result Summaries"])
     for case in report.case_studies:
         lines.extend(

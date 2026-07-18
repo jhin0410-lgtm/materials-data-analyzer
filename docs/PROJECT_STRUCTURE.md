@@ -140,6 +140,12 @@ compact tracked summaries, and writes row-level entity JSONL only under
 ignored `outputs/battery_pgir_v2_3/`. It does not infer latent
 electrochemical state, execute Arrhenius or diffusion mechanisms, train
 models, or make SOH/RUL claims.
+v2.3.3 adds `src/platform_core/mechanism_identifiability.py` for Battery
+mechanism-candidate requirements, evidence binding, condition/protocol
+coverage, confounding, and structural/practical/contextual identifiability
+audits. It selects only a descriptive capacity-trajectory consistency
+Evaluator candidate and does not fit parameters, execute solvers, infer hidden
+state, or make mechanism/prediction claims.
 `src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
 existing scripts or execute acquisition/modeling pipelines.
 
@@ -274,7 +280,11 @@ registries. v2.3.2 adds compact tracked Battery PGIR data-audit,
 representation-coverage, maturity, transition, mechanism-readiness, readiness
 decision, and report-summary artifacts. Row-level Battery PGIR observations,
 operational states, trajectories, and conformance details remain local-only
-under `outputs/battery_pgir_v2_3/`. Row-level MP
+under `outputs/battery_pgir_v2_3/`. v2.3.3 adds compact tracked Battery
+condition coverage, protocol comparability, mechanism-candidate,
+identifiability, evidence-gap, operator-selection, and report summaries.
+Detailed mechanism-audit inventories and decisions remain local-only under
+`outputs/battery_mechanism_audit_v2_3/`. Row-level MP
 structure chunks, converted structure entities, descriptor rows, graph JSONL,
 alignment tables, known-structure matched cohorts, row-level predictions,
 split assignments, and plots remain local-only under

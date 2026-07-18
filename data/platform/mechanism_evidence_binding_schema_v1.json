@@ -1,0 +1,20 @@
+{
+  "description": "Battery mechanism audit metadata schema. This is a compact tracked contract, not a row-level payload.",
+  "required_fields": [
+    "mechanism_id",
+    "requirement_id",
+    "evidence_status",
+    "evidence_ref",
+    "maturity_level",
+    "limitation"
+  ],
+  "schema_name": "mechanism_evidence_binding_schema_v1",
+  "schema_version": "2.3.3",
+  "security_rules": [
+    "No raw cycle series, cell-level payload list, credentials, or local absolute paths.",
+    "No parameter fitting, solver execution, predictive model execution, or hidden-state inference.",
+    "Missing evidence must be represented explicitly and must not be silently satisfied by defaults.",
+    "Mechanism readiness must not be promoted to mechanism confirmation."
+  ],
+  "status": "accepted_for_v2_3"
+}

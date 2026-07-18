@@ -25,3 +25,14 @@ Reasons:
 The current Battery PGIR pilot does not support diffusion coefficients,
 Arrhenius parameters, electrochemical mechanism validation, SOH/RUL prediction,
 or lifetime forecasting.
+
+## v2.3.3 Follow-Up
+
+v2.3.3 expands readiness into a mechanism-candidate, evidence-binding, and
+identifiability audit. It records that Arrhenius and diffusion remain
+`not_identifiable_from_current_data`, while the only selected next-step
+operator is the descriptive
+`battery_capacity_trajectory_consistency_evaluator_v1`.
+
+This selection is not mechanism confirmation. It only supports bounded
+trajectory-consistency auditing from observed capacity and cycle ordering.

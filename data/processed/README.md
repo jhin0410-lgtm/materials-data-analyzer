@@ -62,6 +62,13 @@ battery_v2_3_transition_summary.csv
 battery_v2_3_mechanism_readiness.csv
 battery_v2_3_pgir_readiness_decision.json
 battery_v2_3_report_summary.md
+battery_v2_3_3_condition_coverage_summary.csv
+battery_v2_3_3_protocol_comparability_summary.csv
+battery_v2_3_3_mechanism_candidate_summary.csv
+battery_v2_3_3_identifiability_summary.csv
+battery_v2_3_3_evidence_gap_summary.csv
+battery_v2_3_3_operator_selection_decision.json
+battery_v2_3_3_report_summary.md
 ```
 
 The row-level Observation, operational State, and Trajectory JSONL artifacts
@@ -69,11 +76,14 @@ are local-only:
 
 ```text
 outputs/battery_pgir_v2_3/
+outputs/battery_mechanism_audit_v2_3/
 ```
 
 These files document representation readiness only. They do not contain a
 battery mechanism fit, SOH/RUL model, diffusion result, Arrhenius estimate, or
-production prediction output.
+production prediction output. The v2.3.3 mechanism-audit summaries document
+requirements, evidence gaps, identifiability, and descriptive evaluator
+selection only.
 
 ## Materials Project Case Study Summaries
 

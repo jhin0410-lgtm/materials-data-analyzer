@@ -18,6 +18,13 @@
   transition, mechanism-readiness, readiness-decision, and report-summary
   artifacts. This does not infer latent electrochemical state, execute
   Arrhenius/diffusion mechanisms, train models, or make SOH/RUL claims.
+- Added v2.3.3 Battery mechanism-candidate, evidence-binding, protocol
+  comparability, confounding, and identifiability audits over the existing
+  34-cell / 2,495-cycle processed Battery summaries.
+- Recorded the actual v2.3.3 decision as `descriptive_evaluator_only` with
+  `battery_capacity_trajectory_consistency_evaluator_v1` selected for a
+  bounded descriptive next step. Arrhenius, diffusion, resistance-mechanism,
+  SOH/RUL, and predictive claims remain unsupported.
 
 ## v2.2.0
 

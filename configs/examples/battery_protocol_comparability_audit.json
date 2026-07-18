@@ -1,0 +1,17 @@
+{
+  "schema_version": "2.3.3",
+  "case_study_id": "kaggle_battery",
+  "stage": "mechanism_audit",
+  "audit_scope": "protocol_comparability",
+  "source_path": "data/processed/kaggle_nasa_battery_analysis_ready_with_features.csv",
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "execution_policy": {
+    "fitting_enabled": false,
+    "solver_enabled": false,
+    "model_training_enabled": false
+  }
+}

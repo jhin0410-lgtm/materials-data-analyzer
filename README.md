@@ -226,9 +226,11 @@ structure entities, crystal graph artifacts, and bounded scientific evidence.
 `v2.3` is now in development as PGIR representation governance: it defines
 canonical concepts, maturity levels, schema ownership, and operator taxonomy
 without adding solvers, GNN/PINN, model retraining, or new predictive claims.
-The current v2.3.2 scaffold adds conformance gates and a Battery
-Observation / bounded operational State / Trajectory adapter pilot over
-existing processed summaries only.
+The current v2.3 scaffold adds conformance gates, a Battery Observation /
+bounded operational State / Trajectory adapter pilot, and a v2.3.3 Battery
+mechanism-candidate identifiability audit over existing processed summaries
+only. The audit selects a descriptive capacity-trajectory consistency
+Evaluator candidate, not a mechanism fit or predictive battery model.
 
 Useful PGIR inspection commands:
 
@@ -238,13 +240,18 @@ python -m src.cli evaluate-pgir-readiness
 python -m src.cli validate-pgir-representation configs/examples/pgir_representation_conformance.json
 python -m src.cli preview-battery-observation-build configs/examples/battery_observation_build.json
 python -m src.cli export-battery-pgir-summary
+python -m src.cli list-battery-mechanism-candidates
+python -m src.cli export-battery-mechanism-audit-summary --tracked-only
 python -m src.cli preview-report --config configs/examples/platform_report_all_case_studies.json
 ```
 
 Battery PGIR row-level Observation, State, and Trajectory JSONL files are
 local-only under `outputs/battery_pgir_v2_3/`; tracked outputs are compact
 coverage, maturity, transition, mechanism-readiness, and readiness-decision
-summaries.
+summaries. Battery mechanism-audit row-level/local detail remains under
+`outputs/battery_mechanism_audit_v2_3/`; tracked v2.3.3 outputs are compact
+condition, protocol, candidate, identifiability, evidence-gap, operator
+selection, and report summaries.
 
 ### Platform Scientific Execution
 

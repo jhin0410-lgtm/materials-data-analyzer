@@ -55,3 +55,12 @@ States to Trajectory metadata. It also registers a mechanism-readiness
 assessment operator. These are metadata and adapter operators only; they do
 not execute Arrhenius fitting, diffusion solving, degradation modeling, or
 prediction.
+
+## v2.3.3 Battery Evaluator Candidates
+
+v2.3.3 registers metadata-only Battery evaluator candidates for capacity
+trajectory consistency, protocol comparability, Arrhenius readiness, diffusion
+readiness, and resistance/capacity applicability. Only
+`battery_capacity_trajectory_consistency_evaluator_v1` is selected for the
+next bounded descriptive step. None of these registrations perform fitting,
+solver execution, prediction, or mechanism confirmation.

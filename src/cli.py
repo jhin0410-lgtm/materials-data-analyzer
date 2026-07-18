@@ -92,6 +92,22 @@ from .platform_core.battery_pgir_adapters import (
     run_battery_pgir_pipeline,
     validate_battery_entities,
 )
+from .platform_core.mechanism_identifiability import (
+    BATTERY_MECHANISM_AUDIT_VERSION,
+    assess_confounding as assess_battery_mechanism_confounding,
+    assess_identifiability as assess_battery_mechanism_identifiability,
+    audit_battery_evidence_inventory,
+    bind_mechanism_requirements,
+    build_default_mechanism_candidates,
+    build_evidence_gap_registry,
+    condition_coverage_summary,
+    export_battery_mechanism_audit_summary,
+    load_battery_mechanism_summary,
+    mechanism_candidate_registry_payload,
+    protocol_comparability_summary,
+    select_bounded_evaluator,
+    validate_battery_mechanism_audit_path,
+)
 from .platform_core.registry_service import RegistryService
 from .platform_core.run_registry import (
     DEFAULT_EXPORT_DIR,
@@ -4039,6 +4055,159 @@ def _cmd_export_battery_pgir_summary(args: argparse.Namespace) -> int:
     return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
 
 
+def _cmd_list_battery_mechanism_candidates(args: argparse.Namespace) -> int:
+    payload = {
+        "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+        "status": "available",
+        "candidates": [
+            {
+                "mechanism_id": candidate.mechanism_id,
+                "mechanism_family": candidate.mechanism_family,
+                "possible_operator_role": candidate.possible_operator_role,
+                "current_implementation_status": candidate.current_implementation_status,
+                "requirement_count": len(candidate.requirements),
+            }
+            for candidate in build_default_mechanism_candidates()
+        ],
+        "network_called": False,
+        "model_or_solver_executed": False,
+    }
+    return _emit_or_error(args, payload, ok=True)
+
+
+def _cmd_inspect_battery_mechanism_candidate(args: argparse.Namespace) -> int:
+    candidates = {candidate.mechanism_id: candidate for candidate in build_default_mechanism_candidates()}
+    candidate = candidates.get(args.mechanism_id)
+    if candidate is None:
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "unknown_mechanism_candidate",
+            "mechanism_id": args.mechanism_id,
+        }
+        return _emit_or_error(args, payload, ok=False)
+    payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "available", "candidate": candidate.to_dict()}
+    return _emit_or_error(args, payload, ok=True)
+
+
+def _battery_mechanism_config(args: argparse.Namespace) -> dict[str, Any]:
+    return _load_pgir_json_config(args.config) if getattr(args, "config", None) else {}
+
+
+def _cmd_audit_battery_condition_coverage(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "audited",
+            "rows": condition_coverage_summary(config.get("repo_root", "."), config.get("source_path")),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_audit_battery_protocol_comparability(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "audited",
+            "rows": protocol_comparability_summary(config.get("repo_root", "."), config.get("source_path")),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_assess_battery_mechanism_sufficiency(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        inventory = audit_battery_evidence_inventory(config.get("repo_root", "."), config.get("source_path"))
+        candidates = build_default_mechanism_candidates()
+        bindings = bind_mechanism_requirements(candidates, inventory, config.get("repo_root", "."))
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "assessed",
+            "inventory": inventory,
+            "candidate_count": len(candidates),
+            "evidence_bindings": [binding.to_dict() for binding in bindings],
+            "network_called": False,
+            "model_or_solver_executed": False,
+            "parameter_fitting_performed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_assess_battery_mechanism_identifiability(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args)
+        candidates = build_default_mechanism_candidates()
+        bindings = bind_mechanism_requirements(candidates, repo_root=config.get("repo_root", "."))
+        assessments = assess_battery_mechanism_identifiability(candidates, bindings, config.get("repo_root", "."))
+        confounding = assess_battery_mechanism_confounding(candidates)
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "assessed",
+            "identifiability": [item.to_dict() for item in assessments],
+            "confounding": [item.to_dict() for item in confounding],
+            "network_called": False,
+            "model_or_solver_executed": False,
+            "parameter_fitting_performed": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "assessed")
+
+
+def _cmd_show_battery_mechanism_evidence_gaps(args: argparse.Namespace) -> int:
+    try:
+        payload = {
+            "schema_version": BATTERY_MECHANISM_AUDIT_VERSION,
+            "status": "available",
+            "evidence_gaps": [gap.to_dict() for gap in build_evidence_gap_registry()],
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except ValueError as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "available")
+
+
+def _cmd_select_battery_bounded_evaluator(args: argparse.Namespace) -> int:
+    try:
+        config = _battery_mechanism_config(args) if getattr(args, "config", None) else {}
+        candidates = build_default_mechanism_candidates()
+        bindings = bind_mechanism_requirements(candidates, repo_root=config.get("repo_root", "."))
+        assessments = assess_battery_mechanism_identifiability(candidates, bindings, config.get("repo_root", "."))
+        decision = select_bounded_evaluator(assessments)
+        payload = decision.to_dict()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") != "invalid")
+
+
+def _cmd_validate_battery_mechanism_audit(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_battery_mechanism_audit_path(args.path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
+def _cmd_export_battery_mechanism_audit_summary(args: argparse.Namespace) -> int:
+    try:
+        payload = export_battery_mechanism_audit_summary(Path.cwd(), write_local=not args.tracked_only)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": BATTERY_MECHANISM_AUDIT_VERSION, "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -4966,6 +5135,74 @@ def build_parser() -> argparse.ArgumentParser:
         "export-battery-pgir-summary",
         help="export tracked compact Battery PGIR summaries",
     ).set_defaults(func=_cmd_export_battery_pgir_summary)
+
+    subparsers.add_parser(
+        "list-battery-mechanism-candidates",
+        help="list v2.3.3 Battery mechanism candidates and statuses",
+    ).set_defaults(func=_cmd_list_battery_mechanism_candidates)
+
+    inspect_battery_mechanism_parser = subparsers.add_parser(
+        "inspect-battery-mechanism-candidate",
+        help="inspect one Battery mechanism candidate and requirement set",
+    )
+    inspect_battery_mechanism_parser.add_argument("mechanism_id")
+    inspect_battery_mechanism_parser.set_defaults(func=_cmd_inspect_battery_mechanism_candidate)
+
+    battery_condition_parser = subparsers.add_parser(
+        "audit-battery-condition-coverage",
+        help="audit Battery condition coverage for mechanism sufficiency",
+    )
+    battery_condition_parser.add_argument("config")
+    battery_condition_parser.set_defaults(func=_cmd_audit_battery_condition_coverage)
+
+    battery_protocol_parser = subparsers.add_parser(
+        "audit-battery-protocol-comparability",
+        help="audit Battery protocol comparability for mechanism sufficiency",
+    )
+    battery_protocol_parser.add_argument("config")
+    battery_protocol_parser.set_defaults(func=_cmd_audit_battery_protocol_comparability)
+
+    battery_sufficiency_parser = subparsers.add_parser(
+        "assess-battery-mechanism-sufficiency",
+        help="bind Battery mechanism requirements to current evidence",
+    )
+    battery_sufficiency_parser.add_argument("config")
+    battery_sufficiency_parser.set_defaults(func=_cmd_assess_battery_mechanism_sufficiency)
+
+    battery_identifiability_parser = subparsers.add_parser(
+        "assess-battery-mechanism-identifiability",
+        help="assess structural, practical, and contextual Battery identifiability",
+    )
+    battery_identifiability_parser.add_argument("config")
+    battery_identifiability_parser.set_defaults(func=_cmd_assess_battery_mechanism_identifiability)
+
+    evidence_gap_parser = subparsers.add_parser(
+        "show-battery-mechanism-evidence-gaps",
+        help="show Battery mechanism evidence gaps and prohibited workarounds",
+    )
+    evidence_gap_parser.add_argument("result", nargs="?")
+    evidence_gap_parser.set_defaults(func=_cmd_show_battery_mechanism_evidence_gaps)
+
+    evaluator_parser = subparsers.add_parser(
+        "select-battery-bounded-evaluator",
+        help="select at most one bounded Battery evaluator candidate",
+    )
+    evaluator_parser.add_argument("config", nargs="?")
+    evaluator_parser.set_defaults(func=_cmd_select_battery_bounded_evaluator)
+
+    validate_mechanism_parser = subparsers.add_parser(
+        "validate-battery-mechanism-audit",
+        help="validate a Battery mechanism audit JSON or CSV artifact",
+    )
+    validate_mechanism_parser.add_argument("path")
+    validate_mechanism_parser.set_defaults(func=_cmd_validate_battery_mechanism_audit)
+
+    export_battery_mechanism_parser = subparsers.add_parser(
+        "export-battery-mechanism-audit-summary",
+        help="export v2.3.3 Battery mechanism audit compact summaries",
+    )
+    export_battery_mechanism_parser.add_argument("--tracked-only", action="store_true")
+    export_battery_mechanism_parser.set_defaults(func=_cmd_export_battery_mechanism_audit_summary)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

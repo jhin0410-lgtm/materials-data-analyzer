@@ -407,6 +407,39 @@
       "schema_version": "1",
       "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
       "uncertainty_support": "source uncertainty unavailable unless explicitly provided"
+    },
+    {
+      "current_domain_use": [
+        "battery_v2_3_3_mechanism_audit"
+      ],
+      "current_limitations": [
+        "no mechanism execution",
+        "no parameter estimation",
+        "no hidden state inference"
+      ],
+      "implementation_ref": "src.platform_core.mechanism_identifiability",
+      "implementation_role": "Battery mechanism requirement, evidence, and identifiability audit",
+      "mapping_status": "partial",
+      "mutable_policy": "runtime_helpers_are_ephemeral_persisted_records_are_immutable",
+      "ownership_module": "src.platform_core.mechanism_identifiability",
+      "persisted_representation": "JSON-safe requirement, evidence, and decision summaries",
+      "pgir_concepts": [
+        "operator",
+        "context",
+        "result",
+        "uncertainty"
+      ],
+      "prohibited_promotions": [
+        "Arrhenius fit",
+        "diffusion coefficient",
+        "SOH/RUL model evidence"
+      ],
+      "provenance_support": "explicit_refs_or_manifest_refs",
+      "runtime_role": "read-only audit implementation",
+      "schema_id": "mechanism_identifiability_schema_v1",
+      "schema_version": "1",
+      "supported_payload_scale": "small_json_inline_large_payloads_artifact_backed",
+      "uncertainty_support": "records unavailable source uncertainty without inventing intervals"
     }
   ],
   "schema_version": "2.3.1",
@@ -414,7 +447,7 @@
   "validation": {
     "concept_count": 15,
     "errors": [],
-    "mapping_count": 14,
+    "mapping_count": 15,
     "status": "valid",
     "valid": true
   }

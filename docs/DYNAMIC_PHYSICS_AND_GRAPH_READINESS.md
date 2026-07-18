@@ -52,3 +52,10 @@ cycle-index operational summaries. The current data does not provide spatial
 fields, boundary conditions, comparable multi-temperature response sets, or
 transport parameters, so Arrhenius and diffusion mechanisms remain
 not-identifiable from the current processed summaries.
+
+## v2.3.3 Battery Identifiability Boundary
+
+v2.3.3 records the actual mechanism-candidate audit and selects only a
+descriptive capacity-trajectory consistency Evaluator for possible v2.3.4
+implementation. This is still Evaluator readiness, not Propagator readiness,
+parameter estimation, hidden-state inference, or dynamic physics execution.

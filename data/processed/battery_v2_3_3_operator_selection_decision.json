@@ -1,0 +1,65 @@
+{
+  "actual_data_status": "actual_data_inventory_available",
+  "allowed_claims": [
+    "capacity trajectory consistency can be audited descriptively",
+    "mechanism requirements and evidence gaps were recorded",
+    "protocol and condition comparability limitations were identified"
+  ],
+  "model_or_solver_executed": false,
+  "network_called": false,
+  "parameter_fitting_performed": false,
+  "prohibited_claims": [
+    "degradation mechanism identified",
+    "Arrhenius behavior proven",
+    "activation energy estimated",
+    "diffusion coefficient inferred",
+    "SOH or RUL model validated",
+    "causal temperature effect established"
+  ],
+  "rationale": [
+    "capacity trajectories have explicit observed capacity values and cycle ordering",
+    "selection is descriptive and does not identify a degradation mechanism",
+    "no Arrhenius, diffusion, resistance, SOH, RUL, or production prediction claim is supported"
+  ],
+  "rejected_mechanisms": [
+    {
+      "mechanism_id": "arrhenius_temperature_dependence",
+      "reason": "missing rate-like response, comparable protocol, and controlled-temperature semantics"
+    },
+    {
+      "mechanism_id": "diffusion_transport",
+      "reason": "missing internal state, geometry, boundary conditions, and transport-identifying protocol"
+    },
+    {
+      "mechanism_id": "resistance_growth_trajectory",
+      "reason": "internal resistance/EIS measurement definition unavailable"
+    },
+    {
+      "mechanism_id": "temperature_capacity_coupling",
+      "reason": "observational coupling only with uncontrolled confounding"
+    }
+  ],
+  "result_checksum": "89bd2770d4bbfbbaa401253ac4b426ba25af9839daa08ebbe9d09a3aa44d67c2",
+  "schema_version": "2.3.3",
+  "selected_evaluator_id": "battery_capacity_trajectory_consistency_evaluator_v1",
+  "selected_mechanism_id": "capacity_fade_trajectory",
+  "selected_operator_role": "Evaluator",
+  "source_checksum": "2dc501221301a094f7075dfcae6677fa0ba4fe880322aab91592f8d24d7b779b",
+  "source_inventory": {
+    "ambient_temperature_unique_count": 5,
+    "cell_count": 34,
+    "cycle_count": 2495,
+    "internal_resistance_available_rows": 0,
+    "physical_elapsed_time_available": false
+  },
+  "status": "descriptive_evaluator_only",
+  "tracked_outputs": {
+    "condition_coverage": "data/processed/battery_v2_3_3_condition_coverage_summary.csv",
+    "evidence_gap": "data/processed/battery_v2_3_3_evidence_gap_summary.csv",
+    "identifiability": "data/processed/battery_v2_3_3_identifiability_summary.csv",
+    "mechanism_candidate": "data/processed/battery_v2_3_3_mechanism_candidate_summary.csv",
+    "operator_selection": "data/processed/battery_v2_3_3_operator_selection_decision.json",
+    "protocol_comparability": "data/processed/battery_v2_3_3_protocol_comparability_summary.csv",
+    "report_summary": "data/processed/battery_v2_3_3_report_summary.md"
+  }
+}

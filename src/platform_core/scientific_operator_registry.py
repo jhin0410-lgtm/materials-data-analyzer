@@ -244,6 +244,46 @@ def build_default_scientific_operator_registry() -> ScientificOperatorRegistry:
             "Audit readiness for Arrhenius, diffusion, and empirical degradation mechanisms without executing them.",
             status="validation_ready",
         ),
+        _op(
+            "battery_capacity_trajectory_consistency_evaluator_v1",
+            ("TrajectoryEntity",),
+            ("MechanismIdentifiabilityFinding",),
+            ("cycle_order", "discharge_capacity_ah", "reference_capacity_policy"),
+            "Evaluate observed capacity trajectory consistency descriptively without mechanism confirmation or prediction.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_protocol_comparability_evaluator_v1",
+            ("MeasurementSeriesEntity", "TrajectoryEntity"),
+            ("ProtocolComparabilityFinding",),
+            ("cycle_type", "current_profile", "voltage_window", "temperature_context"),
+            "Audit protocol comparability metadata for mechanism candidates without treating missing metadata as equality.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_arrhenius_readiness_evaluator_v1",
+            ("TrajectoryEntity",),
+            ("MechanismReadinessSummary",),
+            ("temperature_groups", "rate_like_response", "protocol_comparability"),
+            "Audit Arrhenius sufficiency and block activation-energy claims when current evidence is insufficient.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_diffusion_readiness_evaluator_v1",
+            ("TrajectoryEntity",),
+            ("MechanismReadinessSummary",),
+            ("internal_state", "geometry", "boundary_conditions", "transient_time_axis"),
+            "Audit diffusion sufficiency and block diffusion-coefficient claims when state, geometry, or boundary evidence is missing.",
+            status="validation_ready",
+        ),
+        _op(
+            "battery_resistance_capacity_relation_applicability_v1",
+            ("MeasurementSeriesEntity", "TrajectoryEntity"),
+            ("MechanismReadinessSummary",),
+            ("resistance_definition", "capacity_definition", "protocol_context"),
+            "Audit resistance/capacity relation applicability without equivalent-circuit or impedance fitting.",
+            status="validation_ready",
+        ),
     ):
         registry.register(operator)
     return registry

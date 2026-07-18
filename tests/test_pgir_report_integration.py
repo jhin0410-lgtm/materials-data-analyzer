@@ -33,6 +33,7 @@ def test_platform_report_can_include_pgir_conformance_and_battery_summary():
             "credential_policy": {"store_credentials": False},
             "include_pgir_conformance": True,
             "include_battery_pgir": True,
+            "include_battery_mechanism_audit": True,
         }
     )
     markdown = render_report_markdown(report)
@@ -42,4 +43,8 @@ def test_platform_report_can_include_pgir_conformance_and_battery_summary():
     assert report.battery_pgir_summary["status"] == "available"
     assert report.battery_pgir_summary["prediction_ready"] is False
     assert report.battery_pgir_summary["model_or_solver_executed"] is False
+    assert report.battery_mechanism_audit_summary["status"] == "available"
+    assert report.battery_mechanism_audit_summary["decision_status"] == "descriptive_evaluator_only"
+    assert report.battery_mechanism_audit_summary["model_or_solver_executed"] is False
     assert "Battery PGIR Representation Summary" in markdown
+    assert "Battery Mechanism And Identifiability Audit" in markdown

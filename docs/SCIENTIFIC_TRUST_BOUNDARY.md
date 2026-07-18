@@ -116,3 +116,12 @@ The new conformance gates can reject unsupported representation reuse, such as
 treating a battery Observation as complete State. The Battery pilot supports
 representation readiness and mechanism-readiness auditing only. It does not
 add SOH/RUL evidence, mechanism execution, or a predictive battery model.
+
+## v2.3.3 Battery Mechanism Trust Boundary
+
+The Battery mechanism audit records actual data sufficiency, protocol
+comparability, confounding, and structural/practical/contextual
+identifiability. It selects only a descriptive capacity-trajectory consistency
+Evaluator. This does not support Arrhenius behavior, activation energy,
+diffusion coefficient, causal temperature effect, SOH/RUL prediction, hidden
+state inference, or production battery decisions.

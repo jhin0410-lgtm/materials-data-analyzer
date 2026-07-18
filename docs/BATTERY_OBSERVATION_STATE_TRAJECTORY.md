@@ -28,3 +28,9 @@ cycle indices. The cycle-index axis is not treated as physical elapsed time.
 The row-level Observation, State, and Trajectory JSONL files are local-only
 outputs under `outputs/battery_pgir_v2_3/`. Tracked outputs are compact
 coverage, maturity, transition, mechanism-readiness, and decision summaries.
+
+## v2.3.3 Identifiability Boundary
+
+The v2.3.3 audit treats the Trajectory as ordered cycle metadata. It can
+support descriptive capacity-trajectory checks, but it is not a diffusion
+trajectory, calendar-aging axis, or complete electrochemical state path.
