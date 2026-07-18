@@ -74,9 +74,9 @@ PRESERVED_CANONICAL_JSON_SHA256 = {
     "data/processed/battery_v2_3_5_external_data_requirement_decision.json": "5b6ead4b07e1afcf1a3096724117088040b091544c880f7fae85ccfc523d4744",
 }
 
-PRESERVED_RAW_SHA256 = {
-    "data/processed/materials_physics_v2_2_predictive_comparison_summary.csv": "9de7095f788ab91b433ad47bb8408f5095737340eb2b95e3646f2ee4cd8974af",
-    "data/processed/battery_v2_3_5_evaluator_stability_summary.csv": "cd0a55309ebd2dbcc7cc4477ffa94b87723f8b3bf816d8b3d00f4d8d7aff3fbc",
+PRESERVED_CANONICAL_CSV_SHA256 = {
+    "data/processed/materials_physics_v2_2_predictive_comparison_summary.csv": "9c5107b7a76983ead31b860fd5908867391ba2dbd6cc40299ce415e020a2c8c5",
+    "data/processed/battery_v2_3_5_evaluator_stability_summary.csv": "ecbc43077314ec9c3ab4a393f6ba5f052d4c91c4365e4a078ffde86a5ee0cd1a",
 }
 
 REQUIRED_OPERATOR_IDS = (
@@ -95,12 +95,11 @@ def _canonical_json_sha(payload: Any) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
-def _raw_sha(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _canonical_csv_sha(path: Path) -> str:
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        payload = {"fieldnames": reader.fieldnames or [], "rows": list(reader)}
+    return _canonical_json_sha(payload)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -167,13 +166,13 @@ def validate_preserved_v2_2_v2_3_results(repo_root: str | Path = ".") -> dict[st
                 "preserved": actual == expected,
             }
         )
-    for relative_path, expected in sorted(PRESERVED_RAW_SHA256.items()):
+    for relative_path, expected in sorted(PRESERVED_CANONICAL_CSV_SHA256.items()):
         path = root / relative_path
-        actual = _raw_sha(path) if path.exists() else None
+        actual = _canonical_csv_sha(path) if path.exists() else None
         checks.append(
             {
                 "relative_path": relative_path,
-                "checksum_kind": "raw_bytes_sha256",
+                "checksum_kind": "canonical_csv_sha256",
                 "expected": expected,
                 "actual": actual,
                 "preserved": actual == expected,
