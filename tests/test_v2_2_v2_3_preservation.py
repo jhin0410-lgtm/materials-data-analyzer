@@ -10,7 +10,8 @@ from src.platform_core.materials_pgir_reuse import (
 def test_v2_2_and_v2_3_released_artifacts_remain_checksum_preserved():
     result = validate_preserved_v2_2_v2_3_results()
 
-    assert result["status"] == "preserved", result
+    mismatches = [item for item in result["checks"] if not item["preserved"]]
+    assert result["status"] == "preserved", mismatches
     assert result["check_count"] == 8
     assert all(item["preserved"] for item in result["checks"])
 
