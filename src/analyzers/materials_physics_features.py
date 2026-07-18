@@ -176,6 +176,7 @@ class MaterialsPredictiveComparisonRequest:
     output_dir: Path = DEFAULT_OUTPUT_DIR
     tracked_metric_summary_path: Path = Path("data/processed/materials_physics_v2_2_predictive_comparison_summary.csv")
     tracked_decision_path: Path = Path("data/processed/materials_physics_v2_2_predictive_value_decision.json")
+    tracked_evidence_path: Path = Path("data/processed/materials_physics_v2_2_feature_use_evidence.json")
     tracked_report_summary_path: Path = Path("data/processed/materials_physics_v2_2_report_summary.md")
     overwrite: bool = True
 
@@ -263,6 +264,12 @@ def comparison_request_from_config(config: dict[str, Any]) -> MaterialsPredictiv
             config.get(
                 "tracked_decision_path",
                 "data/processed/materials_physics_v2_2_predictive_value_decision.json",
+            )
+        ),
+        tracked_evidence_path=Path(
+            config.get(
+                "tracked_evidence_path",
+                "data/processed/materials_physics_v2_2_feature_use_evidence.json",
             )
         ),
         tracked_report_summary_path=Path(
@@ -983,10 +990,7 @@ def run_predictive_comparison(request: MaterialsPredictiveComparisonRequest) -> 
         "claim_boundary": decision["claim_boundary"],
     }
     _write_json(manifest, paths["local_manifest"], overwrite=request.overwrite)
-    _update_feature_use_evidence(
-        Path("data/processed/materials_physics_v2_2_feature_use_evidence.json"),
-        decision,
-    )
+    _update_feature_use_evidence(request.tracked_evidence_path, decision)
     for name, path in request.__dict__.items():
         if name.endswith("_path") and isinstance(path, Path) and path.exists():
             if _contains_sensitive_or_absolute_path(path.read_text(encoding="utf-8", errors="ignore")):
