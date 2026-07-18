@@ -1,6 +1,6 @@
 # Battery v2.3 Data And Representation Audit
 
-Status: `development_stage`
+Status: `v2.3.2_completed`
 
 The v2.3.2 pilot audits existing processed battery artifacts and exports
 compact PGIR representation summaries.

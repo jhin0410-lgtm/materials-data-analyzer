@@ -1,6 +1,6 @@
 # Battery Observation, Operational State, And Trajectory
 
-Status: `development_stage`
+Status: `v2.3.2_completed`
 
 v2.3.2 separates three battery representation levels.
 

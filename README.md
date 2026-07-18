@@ -221,12 +221,12 @@ archives, row-level predictions, or generated `outputs/` folders.
 
 ### Platform Governance Status
 
-`v2.2.0` is the current public release for Materials physics features,
-structure entities, crystal graph artifacts, and bounded scientific evidence.
-`v2.3` is now in development as PGIR representation governance: it defines
+`v2.3.0` is the current public release. It adds PGIR representation governance,
+conformance gates, and a bounded Battery trajectory evidence workflow while
+preserving the v2.2 Materials decisions. PGIR defines
 canonical concepts, maturity levels, schema ownership, and operator taxonomy
 without adding solvers, GNN/PINN, model retraining, or new predictive claims.
-The current v2.3 scaffold adds conformance gates, a Battery Observation /
+The v2.3 release adds a Battery Observation /
 bounded operational State / Trajectory adapter pilot, and a v2.3.3 Battery
 mechanism-candidate identifiability audit over existing processed summaries
 only. The audit selects a descriptive capacity-trajectory consistency
@@ -554,6 +554,15 @@ outputs/{run_name}/reports/
 
 ## Releases
 
+- v2.3.0: PGIR representation governance, Battery conformance and
+  identifiability audits, bounded descriptive trajectory evaluation,
+  source-metadata recovery, and evaluator policy-stability evidence. No
+  mechanism, SOH/RUL, lifetime, or production claim is made. See
+  [`docs/releases/V2_3_0.md`](docs/releases/V2_3_0.md).
+- v2.2.0: Materials composition features, controlled known-structure
+  enrichment, deterministic structure descriptors and graph artifacts, and a
+  bounded evidence closeout with no representative model selected. See
+  [`docs/releases/V2_2_0.md`](docs/releases/V2_2_0.md).
 - v2.1.0: Persistent run/artifact registry, reproducibility diagnostics,
   bounded scientific execution, scientific trust boundaries, and metadata-only
   feature eligibility. See [`docs/releases/V2_1_0.md`](docs/releases/V2_1_0.md).
@@ -715,6 +724,25 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   scientific results.
 - See [`docs/PLATFORM_V2_2_CLOSEOUT.md`](docs/PLATFORM_V2_2_CLOSEOUT.md) and
   [`docs/releases/V2_2_0.md`](docs/releases/V2_2_0.md).
+
+### v2.3 Complete: PGIR Governance and Battery Trajectory Evidence
+
+- v2.3.1 defines PGIR concepts, representation maturity, schema ownership,
+  operator roles, and capability-stage governance without introducing a
+  solver or model.
+- v2.3.2 adds conformance gates and maps 34 Battery trajectories and 2,495
+  operational states into bounded Observation / State / Trajectory metadata.
+- v2.3.3 finds Arrhenius, diffusion, and resistance mechanisms unidentifiable
+  from the available evidence and selects one descriptive evaluator only.
+- v2.3.4 executes that evaluator on 33 eligible trajectories; one short
+  trajectory remains blocked by the predeclared eligibility rule.
+- v2.3.5 verifies immediate local-source lineage, recovers only supported
+  metadata, and classifies 489 consolidated events across nine predeclared
+  policies. The result remains
+  `descriptive_evaluator_stable_with_policy_restrictions` with no
+  representative mechanism.
+- See [`docs/PLATFORM_V2_3_ROADMAP.md`](docs/PLATFORM_V2_3_ROADMAP.md) and
+  [`docs/releases/V2_3_0.md`](docs/releases/V2_3_0.md).
 
 ### Later
 

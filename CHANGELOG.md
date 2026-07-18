@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v2.3.0
+
 - Started v2.3.1 PGIR governance work with accepted architecture RFCs,
   canonical concepts, representation maturity levels, current implementation
   mapping, schema ownership registry, and capability-stage registry.

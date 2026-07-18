@@ -1,6 +1,6 @@
 # Battery PGIR Mapping
 
-Status: `development_stage`
+Status: `v2.3.2_completed`
 
 v2.3.2 maps existing processed battery cycle summaries into PGIR-compatible
 representation metadata without downloading data or recomputing battery

@@ -1,7 +1,7 @@
 # Platform Architecture
 
-Status: `release_ready` for the v2.2.0 public release and
-`development_stage` for v2.3.1 PGIR representation governance.
+Status: `released` through v2.3.0. PGIR representation governance and the
+bounded Battery trajectory evidence workflow are additive platform layers.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -395,3 +395,13 @@ It reads existing compact/processed Battery summaries, exports compact
 tracked audit summaries, and can write detailed local-only audit inventories
 under `outputs/battery_mechanism_audit_v2_3/`. It does not fit parameters,
 execute solvers, train models, infer hidden state, or call network services.
+
+## v2.3.4-v2.3.5 Battery Evidence Closeout
+
+v2.3.4 executes only the selected descriptive capacity-trajectory Evaluator:
+33 of 34 trajectories are evaluated and one is blocked by the fixed minimum
+support rule. v2.3.5 verifies immediate local-source lineage, recovers only
+source-supported metadata, and evaluates nine predeclared policies. The 489
+consolidated events are stability classifications, not degradation mechanisms.
+No solver, parameter fit, predictive model, SOH/RUL estimate, lifetime
+extrapolation, or production decision is introduced.

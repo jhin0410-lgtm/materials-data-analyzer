@@ -56,6 +56,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Materials v2.2 Claim Boundaries](MATERIALS_V2_2_CLAIM_BOUNDARIES.md): allowed, limited, unsupported, and prohibited Materials v2.2 scientific claims.
 - [Materials v2.2 Uncertainty Boundaries](MATERIALS_V2_2_UNCERTAINTY_BOUNDARIES.md): source uncertainty, numerical tolerance, prediction interval, split variation, and model-form limitations.
 - [v2.2.0 Release Notes](releases/V2_2_0.md): Materials composition features, structure entities/descriptors, graph artifacts, limited known-structure evidence, and trust-boundary release notes.
+- [v2.3.0 Release Notes](releases/V2_3_0.md): PGIR governance, Battery representation conformance, identifiability limits, bounded evaluator execution, source recovery, and policy-stability evidence.
 - [RFC 0001 PGIR Architecture](rfcs/RFC_0001_PGIR_ARCHITECTURE.md): accepted PGIR architecture decision.
 - [RFC 0002 Representation Maturity](rfcs/RFC_0002_REPRESENTATION_MATURITY.md): maturity levels and promotion rules.
 - [RFC 0003 Schema Ownership and Evolution](rfcs/RFC_0003_SCHEMA_OWNERSHIP_AND_EVOLUTION.md): ownership, compatibility, and migration policy.

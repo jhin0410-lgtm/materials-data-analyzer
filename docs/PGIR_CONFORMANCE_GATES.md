@@ -1,6 +1,6 @@
 # PGIR Conformance Gates
 
-Status: `development_stage`
+Status: `v2.3.2_completed`
 
 v2.3.2 turns the v2.3.1 PGIR registries into explicit conformance checks for
 representation-producing code. The gates validate concept/schema ownership,

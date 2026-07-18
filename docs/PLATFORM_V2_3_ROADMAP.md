@@ -1,6 +1,6 @@
 # Platform v2.3 Roadmap
 
-Status: `development_stage`
+Status: `released_as_v2.3.0`
 
 v2.3 moves from v2.2 scientific metadata and Materials structure evidence
 toward a Physically Grounded Intermediate Representation (PGIR). The roadmap is
@@ -62,12 +62,16 @@ solver, model retraining, or experiment recommendation.
 
 ## v2.3.6
 
-- Second-domain reuse feasibility.
-- No cross-domain mechanism claim until executed and validated.
+- Deferred beyond v2.3.0: second-domain reuse feasibility.
+- No cross-domain mechanism claim is supported until separately executed and
+  validated.
 
 ## v2.3 Closeout
 
-The closeout target is one dynamic-domain workflow with explicit mechanism
-evidence and claim boundaries. General physics intelligence, production
-scientific decisions, GNN/PINN, dashboard UI, and autonomous experiment
-recommendation remain out of scope unless separately implemented and validated.
+v2.3.0 closes one dynamic-domain workflow with explicit mechanism-evidence and
+claim boundaries. It preserves `descriptive_evaluator_stable_with_policy_restrictions`,
+selects no representative mechanism, and leaves source uncertainty and the
+official original NASA snapshot unresolved. General physics intelligence,
+production scientific decisions, GNN/PINN, dashboard UI, and autonomous
+experiment recommendation remain out of scope unless separately implemented
+and validated.
