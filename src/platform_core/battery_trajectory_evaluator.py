@@ -14,7 +14,7 @@ import math
 import statistics
 import tempfile
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Iterable, Mapping, Sequence
 
 import pandas as pd
@@ -127,10 +127,16 @@ def _file_checksum(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _is_absolute_or_drive_qualified(path: str | Path) -> bool:
+    normalized = str(path).replace("\\", "/")
+    windows_path = PureWindowsPath(normalized)
+    return Path(normalized).is_absolute() or windows_path.is_absolute() or bool(windows_path.drive)
+
+
 def _resolve_repo_path(repo_root: str | Path, relative_path: str | Path) -> Path:
     root = Path(repo_root).resolve()
     candidate = Path(str(relative_path).replace("\\", "/"))
-    if candidate.is_absolute() or ".." in candidate.parts:
+    if _is_absolute_or_drive_qualified(relative_path) or ".." in candidate.parts:
         raise ValueError("paths must be repository-relative and non-traversing")
     target = (root / candidate).resolve()
     try:
@@ -596,7 +602,7 @@ def load_evaluator_config(path: str | Path) -> tuple[CapacityTrajectoryEvaluator
     for field_name, expected in fixed_paths.items():
         value = str(payload.get(field_name, expected)).replace("\\", "/")
         candidate = Path(value)
-        if candidate.is_absolute() or ".." in candidate.parts:
+        if _is_absolute_or_drive_qualified(value) or ".." in candidate.parts:
             raise ValueError(f"{field_name} must be repository-relative and non-traversing")
         if value != expected:
             raise ValueError(f"v2.3.4 {field_name} must remain {expected}")
