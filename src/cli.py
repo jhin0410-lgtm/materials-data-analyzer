@@ -79,6 +79,36 @@ from .platform_core.pgir_conformance import (
     validate_declaration,
     validate_transition,
 )
+from .platform_core.pgir_model_contracts import (
+    PGIRModelContract,
+    build_diffusion_model_contract,
+    validate_pgir_model_contract,
+)
+from .platform_core.diffusion_1d_benchmark import (
+    TRACKED_PATHS as DIFFUSION_TRACKED_PATHS,
+    build_compact_execution_summary,
+    evaluate_diffusion_claims,
+    export_diffusion_benchmark_summary,
+    load_json as load_diffusion_json,
+    preview_diffusion_benchmark,
+    run_diffusion_benchmark,
+    run_refinement_audit,
+    validate_diffusion_result,
+)
+from .platform_core.external_source_contracts import (
+    build_external_source_contract_records,
+    build_external_source_contract_summary,
+    build_external_source_system_registry,
+    external_source_registry_payloads,
+    load_and_validate_external_source_contract,
+    validate_external_source_registries,
+)
+from .platform_core.materials_pgir_reuse import (
+    TRACKED_PATHS as V2_4_TRACKED_PATHS,
+    load_second_domain_pgir_reuse_summary,
+    preview_materials_pgir_reuse,
+    run_materials_pgir_reuse_audit,
+)
 from .platform_core.battery_pgir_adapters import (
     DEFAULT_OUTPUT_ROOT as BATTERY_PGIR_OUTPUT_ROOT,
     assess_battery_mechanism_readiness,
@@ -3905,6 +3935,292 @@ def _cmd_show_pgir_conformance_summary(args: argparse.Namespace) -> int:
     return _emit_or_error(args, payload, ok=payload.get("status") not in {"invalid", "blocked"})
 
 
+def _cmd_inspect_pgir_model_contract(args: argparse.Namespace) -> int:
+    contract = build_diffusion_model_contract()
+    payload = contract.to_dict()
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [
+                f"model_contract_id: {contract.model_contract_id}",
+                f"model_contract_version: {contract.model_contract_version}",
+                f"governing_relation_id: {contract.governing_relation_id}",
+                f"operator_count: {len(contract.operator_requirements)}",
+                f"status: {contract.status}",
+            ]
+        )
+    return 0
+
+
+def _cmd_validate_pgir_model_contract(args: argparse.Namespace) -> int:
+    try:
+        payload = load_diffusion_json(args.path)
+        result = validate_pgir_model_contract(PGIRModelContract.from_mapping(payload))
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        result = {"status": "blocked_invalid_model_contract", "valid": False, "errors": [str(exc)]}
+    return _emit_or_error(args, result, ok=bool(result.get("valid")))
+
+
+def _cmd_preview_diffusion_1d_benchmark(args: argparse.Namespace) -> int:
+    try:
+        payload = preview_diffusion_benchmark(load_diffusion_json(args.config))
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"status": "blocked_invalid_model_contract", "solver_executed": False, "errors": [str(exc)]}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "benchmark_preview_ready")
+
+
+def _cmd_run_diffusion_1d_benchmark(args: argparse.Namespace) -> int:
+    try:
+        execution = run_diffusion_benchmark(load_diffusion_json(args.config), write_local=True)
+        payload = (
+            build_compact_execution_summary(execution)
+            if execution.get("evaluation")
+            else {
+                "status": execution.get("execution_status"),
+                "solver_executed": execution.get("solver_executed", False),
+                "validation": execution.get("validation", {}),
+            }
+        )
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"status": "blocked_invalid_model_contract", "solver_executed": False, "errors": [str(exc)]}
+    return _emit_or_error(
+        args,
+        payload,
+        ok=payload.get("status") == "benchmark_executed_with_documented_numerical_error",
+    )
+
+
+def _cmd_validate_diffusion_1d_result(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_diffusion_result(load_diffusion_json(args.path))
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"status": "blocked_artifact_mismatch", "valid": False, "errors": [str(exc)]}
+    return _emit_or_error(args, payload, ok=bool(payload.get("valid")))
+
+
+def _cmd_show_diffusion_1d_benchmark_summary(args: argparse.Namespace) -> int:
+    try:
+        path = args.result or DIFFUSION_TRACKED_PATHS["execution_summary"]
+        source = load_diffusion_json(path)
+        payload = build_compact_execution_summary(source) if source.get("evaluation") else source
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"status": "blocked_artifact_mismatch", "errors": [str(exc)]}
+        return _emit_or_error(args, payload, ok=False)
+    return _emit_or_error(args, payload, ok=payload.get("status") not in {None, "blocked_artifact_mismatch"})
+
+
+def _cmd_run_diffusion_1d_refinement_audit(args: argparse.Namespace) -> int:
+    try:
+        payload = run_refinement_audit(load_diffusion_json(args.config), write_local=True)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"execution_status": "blocked_invalid_model_contract", "errors": [str(exc)]}
+    return _emit_or_error(
+        args,
+        payload,
+        ok=payload.get("execution_status") == "benchmark_executed_with_documented_numerical_error",
+    )
+
+
+def _cmd_evaluate_diffusion_1d_claims(args: argparse.Namespace) -> int:
+    try:
+        result = load_diffusion_json(args.result)
+        refinement = load_diffusion_json(args.refinement) if args.refinement else None
+        payload = evaluate_diffusion_claims(result, refinement)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"status": "insufficient_execution_evidence", "errors": [str(exc)]}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "bounded_claim_evidence_recorded")
+
+
+def _cmd_export_diffusion_1d_benchmark_summary(args: argparse.Namespace) -> int:
+    try:
+        payload = export_diffusion_benchmark_summary(
+            load_diffusion_json(args.config),
+            load_diffusion_json(args.refinement_config),
+        )
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"status": "blocked_artifact_mismatch", "errors": [str(exc)], "written": []}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "benchmark_summary_exported")
+
+
+def _validate_v2_4_config(path: str) -> dict[str, Any]:
+    config = _load_pgir_json_config(path)
+    if config.get("network_enabled") is not False:
+        raise ValueError("v2.4.1 audit config must set network_enabled to false")
+    serialized = json.dumps(config, sort_keys=True).lower()
+    if any(key in serialized for key in ('"api_key"', '"authorization"', '"access_token"', '"secret"')):
+        raise ValueError("v2.4.1 config must not contain credential fields")
+    return config
+
+
+def _cmd_list_external_source_systems(args: argparse.Namespace) -> int:
+    records = build_external_source_system_registry()
+    payload = {
+        "schema_version": "1",
+        "status": "available",
+        "source_system_count": len(records),
+        "source_systems": [item.to_dict() for item in records],
+        "network_called": False,
+    }
+    if args.json:
+        _emit_json(payload)
+    else:
+        _emit_lines(
+            [f"{item.source_system_id}\t{item.source_kind}\t{item.status}" for item in records]
+        )
+    return 0
+
+
+def _cmd_inspect_external_source_system(args: argparse.Namespace) -> int:
+    for record in build_external_source_system_registry():
+        if record.source_system_id == args.source_system_id:
+            payload = {"schema_version": "1", **record.to_dict(), "network_called": False}
+            return _emit_or_error(args, payload)
+    return _emit_or_error(
+        args,
+        {"schema_version": "1", "status": "unknown_source_system", "source_system_id": args.source_system_id},
+        ok=False,
+    )
+
+
+def _cmd_validate_external_source_contract(args: argparse.Namespace) -> int:
+    try:
+        payload = _load_pgir_json_config(args.path)
+        if "registry_id" in payload:
+            expected = external_source_registry_payloads().get(str(payload["registry_id"]))
+            if expected is None:
+                raise ValueError("unknown external source registry_id")
+            if payload != expected:
+                raise ValueError("external source registry does not match its deterministic registered payload")
+            result = {
+                "schema_version": "1",
+                "status": "valid",
+                "valid": True,
+                "registry_id": payload["registry_id"],
+                "validation": validate_external_source_registries(),
+            }
+        else:
+            record = load_and_validate_external_source_contract(args.path)
+            result = {
+                "schema_version": "1",
+                "status": "valid",
+                "valid": True,
+                "schema_id": record.schema_id,
+                "record_type": record.record_type,
+                "canonical_json_sha256": record.canonical_json_sha256,
+            }
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        result = {"schema_version": "1", "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, result, ok=bool(result.get("valid")))
+
+
+def _cmd_audit_external_source_provenance(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        records = build_external_source_contract_records()["provenance_assessments"]
+        payload = {
+            "schema_version": "1",
+            "status": "audited",
+            "assessment_count": len(records),
+            "assessments": [item.to_dict() for item in records],
+            "trust_score_used": False,
+            "network_called": False,
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_show_external_source_contract_summary(args: argparse.Namespace) -> int:
+    path = Path(V2_4_TRACKED_PATHS["external_source_contract_summary"])
+    try:
+        payload = _load_pgir_json_config(path.as_posix()) if path.exists() else build_external_source_contract_summary().to_dict()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") != "invalid")
+
+
+def _cmd_export_external_source_contract_summary(args: argparse.Namespace) -> int:
+    try:
+        result = run_materials_pgir_reuse_audit(write_local=True, write_tracked=True)
+        payload = {
+            "schema_version": "2.4.1",
+            "status": "exported",
+            "output": V2_4_TRACKED_PATHS["external_source_contract_summary"],
+            "contract_status": result.tracked_payloads["external_source_contract_summary"]["status"],
+            "network_called": False,
+        }
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
+def _cmd_preview_materials_pgir_reuse(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        payload = preview_materials_pgir_reuse()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") in {"ready", "blocked_missing_local_materials_artifacts"})
+
+
+def _cmd_audit_materials_pgir_conformance(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        result = run_materials_pgir_reuse_audit(write_local=True, write_tracked=False)
+        decision = result.tracked_payloads["pgir_reuse_decision"]
+        payload = {
+            "schema_version": "2.4.1",
+            "status": "audited",
+            "decision_status": decision["decision_status"],
+            "actual_structure_entity_count": decision["actual_structure_entity_count"],
+            "conformant_structure_entity_count": decision["conformant_structure_entity_count"],
+            "local_output_count": len(result.local_output_paths),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "audited")
+
+
+def _cmd_show_materials_pgir_reuse_summary(args: argparse.Namespace) -> int:
+    try:
+        path = Path(args.result)
+        payload = _load_pgir_json_config(path.as_posix()) if path.exists() else load_second_domain_pgir_reuse_summary()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") not in {"invalid", "not_available"})
+
+
+def _cmd_evaluate_cross_domain_pgir_reuse(args: argparse.Namespace) -> int:
+    try:
+        _validate_v2_4_config(args.config)
+        result = run_materials_pgir_reuse_audit(write_local=False, write_tracked=False)
+        payload = dict(result.tracked_payloads["cross_domain_reuse_evidence"])
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "cross_domain_reuse_audited")
+
+
+def _cmd_export_cross_domain_pgir_reuse_summary(args: argparse.Namespace) -> int:
+    try:
+        result = run_materials_pgir_reuse_audit(write_local=True, write_tracked=True)
+        decision = result.tracked_payloads["pgir_reuse_decision"]
+        payload = {
+            "schema_version": "2.4.1",
+            "status": "exported",
+            "decision_status": decision["decision_status"],
+            "tracked_output_count": len(V2_4_TRACKED_PATHS),
+            "local_output_count": len(result.local_output_paths),
+            "network_called": False,
+            "model_or_solver_executed": False,
+        }
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "2.4.1", "status": "invalid", "error": str(exc)}
+    return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
+
+
 def _battery_source_audit_payload(args: argparse.Namespace) -> dict[str, Any]:
     config = _load_pgir_json_config(args.config) if getattr(args, "config", None) else {}
     repo_root = config.get("repo_root", ".")
@@ -5261,6 +5577,75 @@ def build_parser() -> argparse.ArgumentParser:
     conformance_summary_parser.add_argument("result")
     conformance_summary_parser.set_defaults(func=_cmd_show_pgir_conformance_summary)
 
+    subparsers.add_parser(
+        "inspect-pgir-model-contract",
+        help="inspect the registered bounded PGIR diffusion model contract",
+    ).set_defaults(func=_cmd_inspect_pgir_model_contract)
+
+    validate_model_contract_parser = subparsers.add_parser(
+        "validate-pgir-model-contract",
+        help="validate a strict versioned PGIR model contract",
+    )
+    validate_model_contract_parser.add_argument("path")
+    validate_model_contract_parser.set_defaults(func=_cmd_validate_pgir_model_contract)
+
+    preview_diffusion_parser = subparsers.add_parser(
+        "preview-diffusion-1d-benchmark",
+        help="preview the bounded diffusion benchmark without solver execution",
+    )
+    preview_diffusion_parser.add_argument("config")
+    preview_diffusion_parser.set_defaults(func=_cmd_preview_diffusion_1d_benchmark)
+
+    run_diffusion_parser = subparsers.add_parser(
+        "run-diffusion-1d-benchmark",
+        help="run the registered exact and FTCS diffusion benchmark",
+    )
+    run_diffusion_parser.add_argument("config")
+    run_diffusion_parser.set_defaults(func=_cmd_run_diffusion_1d_benchmark)
+
+    validate_diffusion_result_parser = subparsers.add_parser(
+        "validate-diffusion-1d-result",
+        help="validate a local one-dimensional diffusion field result",
+    )
+    validate_diffusion_result_parser.add_argument("path")
+    validate_diffusion_result_parser.set_defaults(func=_cmd_validate_diffusion_1d_result)
+
+    show_diffusion_parser = subparsers.add_parser(
+        "show-diffusion-1d-benchmark-summary",
+        help="show a compact diffusion benchmark summary",
+    )
+    show_diffusion_parser.add_argument("result", nargs="?")
+    show_diffusion_parser.set_defaults(func=_cmd_show_diffusion_1d_benchmark_summary)
+
+    refinement_parser = subparsers.add_parser(
+        "run-diffusion-1d-refinement-audit",
+        help="run the predeclared coarse/medium/fine diffusion refinement audit",
+    )
+    refinement_parser.add_argument("config")
+    refinement_parser.set_defaults(func=_cmd_run_diffusion_1d_refinement_audit)
+
+    diffusion_claims_parser = subparsers.add_parser(
+        "evaluate-diffusion-1d-claims",
+        help="evaluate bounded claims from existing diffusion result artifacts",
+    )
+    diffusion_claims_parser.add_argument("result")
+    diffusion_claims_parser.add_argument("--refinement")
+    diffusion_claims_parser.set_defaults(func=_cmd_evaluate_diffusion_1d_claims)
+
+    export_diffusion_parser = subparsers.add_parser(
+        "export-diffusion-1d-benchmark-summary",
+        help="execute canonical bounded benchmark and export compact tracked evidence",
+    )
+    export_diffusion_parser.add_argument(
+        "--config",
+        default="configs/examples/pgir_diffusion_1d_benchmark.json",
+    )
+    export_diffusion_parser.add_argument(
+        "--refinement-config",
+        default="configs/examples/pgir_diffusion_1d_refinement_audit.json",
+    )
+    export_diffusion_parser.set_defaults(func=_cmd_export_diffusion_1d_benchmark_summary)
+
     battery_audit_parser = subparsers.add_parser(
         "audit-battery-pgir-source",
         help="audit local battery data availability for PGIR representation",
@@ -5495,6 +5880,79 @@ def build_parser() -> argparse.ArgumentParser:
         "evaluate-battery-external-data-requirement",
         help="show the evidence-bounded external battery data requirement decision",
     ).set_defaults(func=_cmd_evaluate_battery_external_data_requirement)
+
+    subparsers.add_parser(
+        "list-external-source-systems",
+        help="list versioned external source-system metadata without network access",
+    ).set_defaults(func=_cmd_list_external_source_systems)
+
+    inspect_external_source_parser = subparsers.add_parser(
+        "inspect-external-source-system",
+        help="inspect one external source-system metadata record",
+    )
+    inspect_external_source_parser.add_argument("source_system_id")
+    inspect_external_source_parser.set_defaults(func=_cmd_inspect_external_source_system)
+
+    validate_external_source_parser = subparsers.add_parser(
+        "validate-external-source-contract",
+        help="validate a persisted external source contract or registry",
+    )
+    validate_external_source_parser.add_argument("path")
+    validate_external_source_parser.set_defaults(func=_cmd_validate_external_source_contract)
+
+    audit_external_provenance_parser = subparsers.add_parser(
+        "audit-external-source-provenance",
+        help="audit registered source provenance without retrieval",
+    )
+    audit_external_provenance_parser.add_argument("config")
+    audit_external_provenance_parser.set_defaults(func=_cmd_audit_external_source_provenance)
+
+    subparsers.add_parser(
+        "show-external-source-contract-summary",
+        help="show the tracked v2.4 external source contract summary",
+    ).set_defaults(func=_cmd_show_external_source_contract_summary)
+
+    subparsers.add_parser(
+        "export-external-source-contract-summary",
+        help="export deterministic v2.4 external source compact artifacts",
+    ).set_defaults(func=_cmd_export_external_source_contract_summary)
+
+    preview_materials_reuse_parser = subparsers.add_parser(
+        "preview-materials-pgir-reuse",
+        help="preview read-only Materials PGIR reuse inputs and boundaries",
+    )
+    preview_materials_reuse_parser.add_argument("config")
+    preview_materials_reuse_parser.set_defaults(func=_cmd_preview_materials_pgir_reuse)
+
+    audit_materials_reuse_parser = subparsers.add_parser(
+        "audit-materials-pgir-conformance",
+        help="audit existing local Materials structure entities with PGIR gates",
+    )
+    audit_materials_reuse_parser.add_argument("config")
+    audit_materials_reuse_parser.set_defaults(func=_cmd_audit_materials_pgir_conformance)
+
+    show_materials_reuse_parser = subparsers.add_parser(
+        "show-materials-pgir-reuse-summary",
+        help="show a Materials PGIR reuse decision or tracked summary",
+    )
+    show_materials_reuse_parser.add_argument(
+        "result",
+        nargs="?",
+        default=V2_4_TRACKED_PATHS["pgir_reuse_decision"],
+    )
+    show_materials_reuse_parser.set_defaults(func=_cmd_show_materials_pgir_reuse_summary)
+
+    evaluate_cross_domain_parser = subparsers.add_parser(
+        "evaluate-cross-domain-pgir-reuse",
+        help="evaluate Battery/Materials framework reuse without scientific recomputation",
+    )
+    evaluate_cross_domain_parser.add_argument("config")
+    evaluate_cross_domain_parser.set_defaults(func=_cmd_evaluate_cross_domain_pgir_reuse)
+
+    subparsers.add_parser(
+        "export-cross-domain-pgir-reuse-summary",
+        help="export deterministic v2.4 PGIR reuse compact artifacts",
+    ).set_defaults(func=_cmd_export_cross_domain_pgir_reuse_summary)
 
     subparsers.add_parser("show-version", help="show platform scaffold version").set_defaults(func=_cmd_show_version)
     return parser

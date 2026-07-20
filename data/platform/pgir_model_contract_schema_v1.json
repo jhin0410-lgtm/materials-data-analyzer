@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pgir_model_contract_schema_v1",
+  "additionalProperties": false,
+  "properties": {
+    "model_contract_id": {"const": "one_dimensional_diffusion_zero_dirichlet_v1"},
+    "model_contract_version": {"const": "1"},
+    "schema_version": {"const": "1"},
+    "status": {"const": "registered_bounded_benchmark"},
+    "scientific_question": {"type": "string"},
+    "domain_context": {"const": "synthetic_scalar_diffusion_software_benchmark"},
+    "governing_relation_id": {"const": "pgir.diffusion_1d.homogeneous_zero_dirichlet"},
+    "governing_equation_display": {"type": "string"},
+    "scalar_field": {"type": "object"},
+    "spatial_domain": {"type": "object"},
+    "time_domain": {"type": "object"},
+    "parameters": {"type": "array", "minItems": 3},
+    "initial_condition": {"type": "object"},
+    "boundary_conditions": {"type": "array", "minItems": 2, "maxItems": 2},
+    "applicability_conditions": {"type": "array"},
+    "input_maturity_requirements": {"type": "array"},
+    "operator_requirements": {"type": "array", "minItems": 3, "maxItems": 3},
+    "analytical_reference_available": {"const": true},
+    "expected_result_schema_ids": {"type": "array"},
+    "validation_criteria": {"type": "array"},
+    "uncertainty_policy": {"type": "string"},
+    "provenance": {"type": "array"},
+    "allowed_claims": {"type": "array"},
+    "prohibited_claims": {"type": "array"}
+  },
+  "required": [
+    "model_contract_id", "model_contract_version", "schema_version", "status",
+    "scientific_question", "domain_context", "governing_relation_id",
+    "governing_equation_display", "scalar_field", "spatial_domain", "time_domain",
+    "parameters", "initial_condition", "boundary_conditions", "applicability_conditions",
+    "input_maturity_requirements", "operator_requirements", "analytical_reference_available",
+    "expected_result_schema_ids", "validation_criteria", "uncertainty_policy", "provenance",
+    "allowed_claims", "prohibited_claims"
+  ],
+  "title": "PGIR bounded model contract",
+  "type": "object"
+}

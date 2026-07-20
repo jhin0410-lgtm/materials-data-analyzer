@@ -54,3 +54,12 @@ The current mapping now includes `pgir_conformance` and
 checks and Battery representation metadata without changing the persisted
 scientific entity hierarchy, executing mechanisms, or promoting Battery cycle
 observations to complete electrochemical State.
+
+## v2.4.1 Materials Compatibility Mapping
+
+Released Materials records remain unchanged. Existing MP documents map through
+the registered structure adapter to `CrystalStructureEntity`; integrity and
+composition checks map to Evaluator results; descriptors and periodic graphs
+map to Transformer-derived representations. The graph remains
+representation-only. The actual local audit confirms 838 declarations without
+renaming schemas or importing a second entity hierarchy.

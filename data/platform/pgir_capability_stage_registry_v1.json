@@ -42,24 +42,29 @@
     },
     {
       "capability_id": "propagator_operator_role",
-      "capability_stage": "concept_defined",
+      "capability_stage": "operator_executed",
       "current_implementation_refs": [
-        "src.platform_core.scientific_interfaces.Predictor"
+        "src.platform_core.pgir_model_contracts.PGIRModelContract",
+        "src.platform_core.diffusion_1d_benchmark"
       ],
-      "current_status": "future_only",
-      "evidence_level": "contract_only",
-      "future_only": true,
+      "current_status": "active_bounded_diffusion_benchmark",
+      "evidence_level": "v2_4_2_exact_and_ftcs_single_mode_benchmark",
+      "future_only": false,
       "limitations": [
-        "no PDE/ODE solver in v2.3.1"
+        "single registered PDE and fixed numerical backend only",
+        "no empirical material parameter",
+        "no cross-domain operator reuse"
       ],
-      "model_execution_performed": false,
+      "model_execution_performed": true,
       "pgir_concept": "operator",
       "prohibited_interpretations": [
-        "diffusion simulation",
-        "physics loss",
-        "PINN"
+        "general PDE solver",
+        "Battery diffusion mechanism",
+        "real-material diffusivity",
+        "independent validation",
+        "production validation"
       ],
-      "scientific_claim_supported": "unsupported_future_capability"
+      "scientific_claim_supported": "bounded_synthetic_scalar_diffusion_evidence_only"
     },
     {
       "capability_id": "composition_feature_candidates",
@@ -297,9 +302,7 @@
   "validation": {
     "capability_count": 14,
     "errors": [],
-    "future_only_capabilities": [
-      "propagator_operator_role"
-    ],
+    "future_only_capabilities": [],
     "status": "valid",
     "valid": true
   }

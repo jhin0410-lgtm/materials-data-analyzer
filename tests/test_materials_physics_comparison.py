@@ -92,6 +92,10 @@ def _write_synthetic_comparison_inputs(tmp_path: Path) -> tuple[Path, Path, Path
 
 def test_predictive_comparison_uses_matched_rows_and_writes_summaries(tmp_path: Path, monkeypatch) -> None:
     feature_matrix_path, analysis_path, inventory_path, ambiguity_path, spec_path = _write_synthetic_comparison_inputs(tmp_path)
+    evidence_path = tmp_path / "feature_use_evidence.json"
+    evidence_path.write_bytes(
+        Path("data/processed/materials_physics_v2_2_feature_use_evidence.json").read_bytes()
+    )
     monkeypatch.setattr(
         mpf,
         "default_model_configs",
@@ -109,6 +113,7 @@ def test_predictive_comparison_uses_matched_rows_and_writes_summaries(tmp_path: 
         output_dir=tmp_path / "outputs",
         tracked_metric_summary_path=tmp_path / "comparison_summary.csv",
         tracked_decision_path=tmp_path / "decision.json",
+        tracked_evidence_path=evidence_path,
         tracked_report_summary_path=tmp_path / "report.md",
     )
 
@@ -118,6 +123,7 @@ def test_predictive_comparison_uses_matched_rows_and_writes_summaries(tmp_path: 
     assert manifest["claim_boundary"]["physics_informed_feature_used"] is True
     assert request.tracked_metric_summary_path.exists()
     assert request.tracked_decision_path.exists()
+    assert request.tracked_evidence_path.exists()
     summary = pd.read_csv(request.tracked_metric_summary_path)
     assert {"matched_baseline", "physics_only", "combined_baseline_physics"}.issubset(
         set(summary["feature_set_id"])

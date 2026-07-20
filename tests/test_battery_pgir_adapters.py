@@ -146,14 +146,20 @@ def test_battery_pipeline_writes_only_ignored_local_outputs(tmp_path):
     assert not (repo / "data/processed/battery_v2_3_representation_coverage.csv").exists()
 
 
-def test_tracked_summary_export_is_compact_and_row_level_free():
-    export = export_tracked_battery_pgir_summaries()
-    summary = load_battery_pgir_summary()
+def test_tracked_summary_export_is_compact_and_row_level_free(tmp_path):
+    source = tmp_path / DEFAULT_KAGGLE_SUMMARY
+    source.parent.mkdir(parents=True)
+    source.write_bytes(Path(DEFAULT_KAGGLE_SUMMARY).read_bytes())
+
+    export = export_tracked_battery_pgir_summaries(tmp_path)
+    summary = load_battery_pgir_summary(tmp_path)
 
     assert export["status"] == "exported"
     assert summary["status"] == "available"
     assert summary["readiness_decision"]["observation_count"] == 2495
-    tracked_text = Path("data/processed/battery_v2_3_pgir_readiness_decision.json").read_text(encoding="utf-8")
+    tracked_text = (tmp_path / "data/processed/battery_v2_3_pgir_readiness_decision.json").read_text(
+        encoding="utf-8"
+    )
     assert "battery_obs_" not in tracked_text
     assert ("C:" + "/") not in tracked_text
 

@@ -34,14 +34,15 @@ def test_mapping_preserves_graph_representation_only_and_runtime_persistence_bou
     assert "runtime object persistence" in entity_record.prohibited_promotions
 
 
-def test_capability_stage_registry_blocks_future_only_promotion():
+def test_capability_stage_registry_limits_propagator_to_bounded_execution():
     validation = validate_capability_stages()
     capabilities = {record.capability_id: record for record in build_capability_stage_registry()}
 
     assert validation["valid"] is True
-    assert capabilities["propagator_operator_role"].capability_stage == "concept_defined"
-    assert capabilities["propagator_operator_role"].future_only is True
-    assert capabilities["propagator_operator_role"].model_execution_performed is False
+    assert capabilities["propagator_operator_role"].capability_stage == "operator_executed"
+    assert capabilities["propagator_operator_role"].future_only is False
+    assert capabilities["propagator_operator_role"].model_execution_performed is True
+    assert capabilities["propagator_operator_role"].scientific_claim_supported == "bounded_synthetic_scalar_diffusion_evidence_only"
     assert capabilities["graph_entity_artifact"].scientific_claim_supported == "representation_only"
     assert capabilities["composition_feature_candidates"].evidence_level == "v2_2_1_performance_degraded"
     assert capabilities["structure_descriptor_candidates"].evidence_level == "v2_2_5_structure_predictive_value_limited"

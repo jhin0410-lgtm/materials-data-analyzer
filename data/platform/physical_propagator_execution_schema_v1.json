@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "physical_propagator_execution_schema_v1",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string"},
+    "execution_id": {"type": "string"},
+    "execution_status": {"type": "string"},
+    "model_contract_id": {"type": "string"},
+    "model_contract_checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "input_checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "operator_ids": {"type": "array", "minItems": 3, "maxItems": 3},
+    "exact_result_checksum": {"type": "string"},
+    "numerical_result_checksum": {"type": "string"},
+    "evaluator_result_checksum": {"type": "string"},
+    "solver_executed": {"type": "boolean"},
+    "physical_operator_execution_demonstrated": {"type": "boolean"},
+    "network_called": {"const": false},
+    "model_fitting_performed": {"const": false},
+    "cross_domain_physical_operator_reuse": {"const": false},
+    "independent_validation": {"const": false},
+    "production_validation": {"const": false},
+    "input": {"type": "object"},
+    "exact": {"type": "object"},
+    "numerical": {"type": "object"},
+    "evaluation": {"type": "object"},
+    "pgir_conformance": {"type": "object"},
+    "execution_checksum_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "required": ["schema_version", "execution_id", "execution_status", "model_contract_id", "model_contract_checksum", "input_checksum", "operator_ids", "exact_result_checksum", "numerical_result_checksum", "evaluator_result_checksum", "solver_executed", "physical_operator_execution_demonstrated", "network_called", "model_fitting_performed", "cross_domain_physical_operator_reuse", "independent_validation", "production_validation", "input", "exact", "numerical", "evaluation", "pgir_conformance", "execution_checksum_sha256"],
+  "title": "Bounded physical propagator execution",
+  "type": "object"
+}

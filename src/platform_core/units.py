@@ -32,6 +32,7 @@ SUPPORTED_DIMENSIONS = (
     "volume_per_site",
     "volume_per_atom",
     "density",
+    "diffusivity",
     "count",
     "category",
 )
@@ -155,6 +156,7 @@ def build_default_unit_registry() -> UnitRegistry:
     add("angstrom^3/site", "volume_per_site", 1.0, base="angstrom^3/site")
     add("angstrom^3/atom", "volume_per_atom", 1.0, base="angstrom^3/atom")
     add("g/cm^3", "density", 1.0, base="g/cm^3")
+    add("m^2/s", "diffusivity", 1.0, base="m^2/s")
     add("fraction", "dimensionless", 1.0, base="fraction")
     add("unitless", "dimensionless", 1.0, base="unitless")
     add("count", "count", 1.0, base="count")

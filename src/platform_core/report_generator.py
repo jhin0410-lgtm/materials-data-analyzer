@@ -17,6 +17,10 @@ from .execution_policy import ExecutionPolicyRegistry, build_default_execution_p
 from .battery_pgir_adapters import load_battery_pgir_summary
 from .mechanism_identifiability import load_battery_mechanism_summary
 from .battery_trajectory_evaluator import load_battery_capacity_evaluator_summary
+from .materials_pgir_reuse import (
+    load_external_source_contract_summary,
+    load_second_domain_pgir_reuse_summary,
+)
 from .pgir_governance import governance_summary
 from .registry import PluginRegistry, build_default_plugin_registry
 from .report_extractors import extract_case_study_results
@@ -150,6 +154,10 @@ def validate_report_config(config: dict[str, Any]) -> None:
         raise ValueError("include_battery_mechanism_audit must be a boolean")
     if "include_battery_capacity_evaluator" in config and not isinstance(config["include_battery_capacity_evaluator"], bool):
         raise ValueError("include_battery_capacity_evaluator must be a boolean")
+    if "include_external_source_contract" in config and not isinstance(config["include_external_source_contract"], bool):
+        raise ValueError("include_external_source_contract must be a boolean")
+    if "include_second_domain_pgir_reuse" in config and not isinstance(config["include_second_domain_pgir_reuse"], bool):
+        raise ValueError("include_second_domain_pgir_reuse must be a boolean")
     registry_path = config.get("registry_path")
     if registry_path is not None:
         if not isinstance(registry_path, str):
@@ -626,6 +634,18 @@ def _battery_capacity_evaluator_summary(config: dict[str, Any], repo_root: Path)
     }
 
 
+def _external_source_contract_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_external_source_contract") is not True:
+        return {"status": "not_requested"}
+    return load_external_source_contract_summary(repo_root)
+
+
+def _second_domain_pgir_reuse_summary(config: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    if config.get("include_second_domain_pgir_reuse") is not True:
+        return {"status": "not_requested"}
+    return load_second_domain_pgir_reuse_summary(repo_root)
+
+
 def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = ".") -> PlatformReport:
     validate_report_config(config)
     root = Path(repo_root).resolve()
@@ -675,6 +695,8 @@ def build_platform_report(config: dict[str, Any], *, repo_root: str | Path = "."
         battery_pgir_summary=_battery_pgir_summary(config, root),
         battery_mechanism_audit_summary=_battery_mechanism_audit_summary(config, root),
         battery_capacity_evaluator_summary=_battery_capacity_evaluator_summary(config, root),
+        external_source_contract_summary=_external_source_contract_summary(config, root),
+        second_domain_pgir_reuse_summary=_second_domain_pgir_reuse_summary(config, root),
         testing_summary=testing_summary,
         security_boundaries=(
             "no acquisition, normalization, feature engineering, model training, or trust rerun",
@@ -862,6 +884,16 @@ def render_report_markdown(report: PlatformReport) -> str:
         for key, value in sorted(report.battery_capacity_evaluator_summary.items()):
             lines.append(f"- `{key}`: `{value}`")
         lines.append("- Findings are cycle-index descriptive candidates, not mechanisms, physical-time rates, predictions, or production decisions.")
+    if report.external_source_contract_summary.get("status") != "not_requested":
+        lines.extend(["", "## External Source Contract"])
+        for key, value in sorted(report.external_source_contract_summary.items()):
+            lines.append(f"- `{key}`: `{value}`")
+        lines.append("- Source metadata records provenance boundaries; they do not certify scientific data quality or independently validate publisher records.")
+    if report.second_domain_pgir_reuse_summary.get("status") != "not_requested":
+        lines.extend(["", "## Second-Domain PGIR Reuse"])
+        for key, value in sorted(report.second_domain_pgir_reuse_summary.items()):
+            lines.append(f"- `{key}`: `{value}`")
+        lines.append("- Shared governance, representation, and operator frameworks do not establish physical-operator reuse, GNN evidence, or production validation.")
     lines.extend(["", "## Case-Study Result Summaries"])
     for case in report.case_studies:
         lines.extend(

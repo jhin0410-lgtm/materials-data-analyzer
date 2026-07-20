@@ -80,3 +80,12 @@ cycle summaries: cycle rows become `MeasurementSeriesEntity` Observation
 metadata, derived operational summaries become `StateEntity`, and ordered
 per-cell summaries become `TrajectoryEntity`. The State is explicitly bounded
 to operational summary variables and is not a latent electrochemical state.
+
+## v2.4.1 External Source And Materials Reuse
+
+External source contracts are provenance records, not new scientific entity
+types. They reference released Materials entities and Battery artifacts through
+stable IDs and compatibility adapters. The Materials reuse audit keeps all 838
+row-level declarations local-only and tracks only aggregate conformance counts.
+Runtime pymatgen objects, API responses, structure bodies, and graph bodies are
+not persisted in the source registry.

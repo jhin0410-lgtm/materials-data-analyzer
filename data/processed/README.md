@@ -308,6 +308,17 @@ reliability_v1_5_classification_predictions.csv
 reliability_v1_5_*_row_level.csv
 ```
 
+## PGIR Diffusion v2.4.2 Compact Evidence
+
+The tracked `v2_4_diffusion_*` JSON, CSV, and Markdown files contain only the
+versioned model-contract summary, canonical configuration metadata, checksums,
+error/residual metrics, predeclared refinement results, trust status, and claim
+evidence. Exact and FTCS field arrays and detailed result bodies remain under
+ignored `outputs/v2_4_diffusion_benchmark/`.
+
+The values are synthetic benchmark evidence. They are not Battery data,
+real-material parameters, independent validation, or production validation.
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.

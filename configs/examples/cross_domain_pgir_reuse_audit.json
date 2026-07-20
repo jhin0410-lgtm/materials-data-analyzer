@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.4.1",
+  "audit_id": "cross_domain_pgir_reuse_audit",
+  "domains": ["battery", "materials"],
+  "reuse_dimensions": [
+    "architecture",
+    "representation_contract",
+    "conformance_engine",
+    "operator_framework",
+    "physical_operator"
+  ],
+  "network_enabled": false,
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "model_or_solver_execution": false,
+  "output_root": "outputs/v2_4_external_source_pgir_reuse/cross_domain"
+}

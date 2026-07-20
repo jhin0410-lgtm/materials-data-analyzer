@@ -1,0 +1,50 @@
+{
+  "cross_domain_physical_operator_reuse": false,
+  "evidence": [
+    {
+      "claim_id": "bounded_model_contract_execution",
+      "status": "supported_bounded",
+      "supported": true
+    },
+    {
+      "claim_id": "analytical_numerical_comparison",
+      "status": "supported_bounded",
+      "supported": true
+    },
+    {
+      "claim_id": "declared_refinement_reduces_error",
+      "status": "supported_bounded",
+      "supported": true
+    },
+    {
+      "claim_id": "battery_diffusion_mechanism",
+      "status": "prohibited",
+      "supported": false
+    },
+    {
+      "claim_id": "real_material_diffusivity",
+      "status": "prohibited",
+      "supported": false
+    },
+    {
+      "claim_id": "cross_domain_physical_operator_reuse",
+      "status": "not_demonstrated",
+      "supported": false
+    },
+    {
+      "claim_id": "independent_validation",
+      "status": "not_demonstrated",
+      "supported": false
+    },
+    {
+      "claim_id": "production_validation",
+      "status": "prohibited",
+      "supported": false
+    }
+  ],
+  "independent_validation": false,
+  "physical_operator_execution_demonstrated": true,
+  "production_validation": false,
+  "schema_version": "2.4.2",
+  "status": "bounded_claim_evidence_recorded"
+}

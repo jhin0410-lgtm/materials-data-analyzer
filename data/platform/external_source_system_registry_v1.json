@@ -1,0 +1,135 @@
+{
+  "registry_id": "external_source_system_registry_v1",
+  "schema_version": "1",
+  "source_systems": [
+    {
+      "access_modes": [
+        "bounded_existing_id_api"
+      ],
+      "authentication_environment_variable": "MP_API_KEY",
+      "authentication_requirement": "required_api_key",
+      "documentation_refs": [
+        "https://docs.materialsproject.org"
+      ],
+      "domain_scope": [
+        "computed_materials",
+        "crystal_structures",
+        "calculated_properties"
+      ],
+      "license_or_terms_refs": [],
+      "name": "Materials Project",
+      "official_landing_page": "https://materialsproject.org",
+      "publisher": "Materials Project",
+      "source_kind": "authoritative_api",
+      "source_system_id": "materials_project",
+      "source_system_version": "service_version_unresolved",
+      "status": "actual_bounded_retrieval_evidence",
+      "update_policy": "living_database_snapshot_must_be_recorded_per_retrieval"
+    },
+    {
+      "access_modes": [
+        "local_verified_archive",
+        "kaggle_distribution"
+      ],
+      "authentication_environment_variable": null,
+      "authentication_requirement": "record_dependent",
+      "documentation_refs": [
+        "data/case_studies/kaggle_battery/source.md"
+      ],
+      "domain_scope": [
+        "battery_cycle_measurements",
+        "battery_protocol_metadata"
+      ],
+      "license_or_terms_refs": [],
+      "name": "NASA-derived Battery Kaggle immediate upstream",
+      "official_landing_page": "https://www.kaggle.com/datasets/patrickfleith/nasa-battery-dataset",
+      "publisher": "patrickfleith Kaggle dataset publisher; NASA lineage asserted but exact official snapshot unresolved",
+      "source_kind": "immediate_upstream_archive",
+      "source_system_id": "nasa_battery_kaggle_upstream",
+      "source_system_version": "snapshot_version_unresolved",
+      "status": "actual_immediate_upstream_evidence",
+      "update_policy": "local_archive_checksum_fixed_official_nasa_snapshot_unresolved"
+    },
+    {
+      "access_modes": [
+        "future_declared_only"
+      ],
+      "authentication_environment_variable": null,
+      "authentication_requirement": "record_dependent",
+      "documentation_refs": [],
+      "domain_scope": [
+        "research_data_catalog",
+        "distribution_discovery"
+      ],
+      "license_or_terms_refs": [],
+      "name": "NIST Open Access to Research",
+      "official_landing_page": "https://data.nist.gov/od/",
+      "publisher": "National Institute of Standards and Technology",
+      "source_kind": "official_catalog",
+      "source_system_id": "nist_oar",
+      "source_system_version": "not_audited",
+      "status": "future_declared_no_retrieval_or_integration_evidence",
+      "update_policy": "future_source_requires_dataset_specific_contract"
+    },
+    {
+      "access_modes": [
+        "future_declared_only"
+      ],
+      "authentication_environment_variable": "NREL_API_KEY",
+      "authentication_requirement": "required_api_key",
+      "documentation_refs": [
+        "https://developer.nrel.gov/docs/"
+      ],
+      "domain_scope": [
+        "energy_systems",
+        "weather",
+        "grid",
+        "renewables"
+      ],
+      "license_or_terms_refs": [],
+      "name": "NREL Developer APIs",
+      "official_landing_page": "https://developer.nrel.gov/",
+      "publisher": "National Renewable Energy Laboratory",
+      "source_kind": "energy_system_service",
+      "source_system_id": "nrel_api",
+      "source_system_version": "not_audited",
+      "status": "future_declared_no_retrieval_or_integration_evidence",
+      "update_policy": "future_dataset_specific_contract_required"
+    },
+    {
+      "access_modes": [
+        "future_declared_only"
+      ],
+      "authentication_environment_variable": "NVD_API_KEY",
+      "authentication_requirement": "optional_api_key",
+      "documentation_refs": [
+        "https://nvd.nist.gov/developers"
+      ],
+      "domain_scope": [
+        "cve",
+        "cpe",
+        "software_security"
+      ],
+      "license_or_terms_refs": [],
+      "name": "National Vulnerability Database",
+      "official_landing_page": "https://nvd.nist.gov/",
+      "publisher": "National Institute of Standards and Technology",
+      "source_kind": "security_database",
+      "source_system_id": "nvd",
+      "source_system_version": "not_audited",
+      "status": "future_declared_no_retrieval_or_integration_evidence",
+      "update_policy": "future_security_source_only"
+    }
+  ],
+  "status": "active_with_future_declared_entries",
+  "validation": {
+    "dataset_count": 2,
+    "distribution_count": 2,
+    "errors": [],
+    "provenance_assessment_count": 2,
+    "retrieval_event_count": 2,
+    "snapshot_count": 2,
+    "source_system_count": 5,
+    "valid": true
+  }
+}

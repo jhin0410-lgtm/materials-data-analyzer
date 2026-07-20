@@ -1,0 +1,32 @@
+{
+  "actual_structure_entity_count": 838,
+  "architecture_reuse": true,
+  "composition_predictive_decision_preserved": "performance_degraded",
+  "conformance_engine_reuse": true,
+  "conformant_structure_entity_count": 838,
+  "decision_status": "second_domain_pgir_reuse_demonstrated_with_restrictions",
+  "graph_artifact_status": "representation_only",
+  "independent_validation": false,
+  "limitations": [
+    "same governance framework does not imply common physical operators",
+    "Materials structures are computed relaxed records, not laboratory measurements",
+    "named Materials Project snapshot identity remains unresolved",
+    "no independent or production validation was performed"
+  ],
+  "operator_framework_reuse": true,
+  "physical_operator_reuse": false,
+  "production_validation": false,
+  "prohibited_claims": [
+    "universal physics platform",
+    "physical operator reuse",
+    "GNN evidence",
+    "DFT replacement",
+    "structure-aware predictive improvement"
+  ],
+  "registered_operator_count": 7,
+  "representation_contract_reuse": true,
+  "representative_model": "none",
+  "schema_version": "2.4.1",
+  "structure_predictive_decision_preserved": "structure_predictive_value_limited",
+  "transition_count": 5
+}

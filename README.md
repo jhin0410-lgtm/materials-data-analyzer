@@ -63,8 +63,8 @@ The simulation workflow is a data-driven screening aid. It uses observed target-
 - State what each result can and cannot support before making claims.
 - Treat scientific constraints as explicit metadata contracts before using
   them as features, diagnostics, or model constraints.
-- Treat v2.3 PGIR as representation governance, not a completed physics
-  intelligence or solver system.
+- Treat PGIR physical execution as contract-specific evidence. v2.4.2 executes
+  one synthetic 1D diffusion benchmark, not a general physics or solver system.
 
 ## What This Project Is Not
 
@@ -77,6 +77,18 @@ This project is:
 - Not a replacement for engineering interpretation
 - Not a physics simulator
 - Not a tool for deciding final process conditions without domain review
+
+## Bounded Physical Benchmark
+
+v2.4.2 adds the first executable PGIR Model Contract: a synthetic scalar 1D
+diffusion problem with an exact single-mode solution and deterministic FTCS
+comparison. The canonical final-profile L2 error is `5.3068e-4`, and error
+decreases across predeclared coarse, medium, and fine grids. This demonstrates
+bounded physical-operator execution and lineage only. It is not a Battery
+mechanism, real-material diffusivity, general PDE solver, cross-domain operator
+reuse, independent validation, or production validation. See the
+[PGIR Model Contract](docs/PGIR_MODEL_CONTRACT.md) and
+[scientific boundary](docs/V2_4_DIFFUSION_SCIENTIFIC_BOUNDARY.md).
 
 ## Project Structure
 
@@ -221,11 +233,17 @@ archives, row-level predictions, or generated `outputs/` folders.
 
 ### Platform Governance Status
 
-`v2.3.0` is the current public release. It adds PGIR representation governance,
-conformance gates, and a bounded Battery trajectory evidence workflow while
-preserving the v2.2 Materials decisions. PGIR defines
-canonical concepts, maturity levels, schema ownership, and operator taxonomy
-without adding solvers, GNN/PINN, model retraining, or new predictive claims.
+`v2.4.0` is the current public release. It adds versioned external-source
+governance, second-domain PGIR representation reuse over existing Materials
+structures, and the first bounded executable PGIR physical benchmark while
+preserving the v2.2 Materials and v2.3 Battery decisions.
+
+PGIR continues to define canonical concepts, maturity levels, schema ownership,
+and operator taxonomy. v2.4 executes only one synthetic one-dimensional scalar
+diffusion problem using an analytical Propagator and a deterministic FTCS
+Propagator under explicit dimensional, numerical-stability, provenance, and
+claim boundaries. This is not a general PDE solver, Battery mechanism, or
+real-material validation.
 The v2.3 release adds a Battery Observation /
 bounded operational State / Trajectory adapter pilot, and a v2.3.3 Battery
 mechanism-candidate identifiability audit over existing processed summaries
@@ -258,6 +276,9 @@ python -m src.cli list-battery-mechanism-candidates
 python -m src.cli export-battery-mechanism-audit-summary --tracked-only
 python -m src.cli preview-battery-capacity-evaluation configs/examples/battery_capacity_trajectory_evaluator.json
 python -m src.cli export-battery-capacity-evaluator-summary --tracked-only
+python -m src.cli list-external-source-systems
+python -m src.cli preview-materials-pgir-reuse configs/examples/materials_structure_pgir_reuse.json
+python -m src.cli evaluate-cross-domain-pgir-reuse configs/examples/cross_domain_pgir_reuse_audit.json
 python -m src.cli preview-battery-source-metadata-audit configs/examples/battery_source_metadata_stability_audit.json
 python -m src.cli run-battery-metadata-stability-audit configs/examples/battery_source_metadata_stability_audit.json --execute --tracked-only
 python -m src.cli validate-battery-metadata-stability
@@ -554,6 +575,8 @@ outputs/{run_name}/reports/
 
 ## Releases
 
+- v2.4.0: external-source governance, second-domain PGIR representation
+  reuse, and one bounded executable one-dimensional diffusion benchmark.
 - v2.3.0: PGIR representation governance, Battery conformance and
   identifiability audits, bounded descriptive trajectory evaluation,
   source-metadata recovery, and evaluator policy-stability evidence. No
@@ -743,6 +766,39 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   representative mechanism.
 - See [`docs/PLATFORM_V2_3_ROADMAP.md`](docs/PLATFORM_V2_3_ROADMAP.md) and
   [`docs/releases/V2_3_0.md`](docs/releases/V2_3_0.md).
+
+### v2.4 Complete: External Source Governance and Bounded Physical Execution
+
+- External source systems, logical datasets, snapshots, distributions, and
+  retrieval events now have separate versioned metadata contracts.
+- The actual Materials Project and NASA-derived Battery lineage is mapped
+  without rewriting v2.2/v2.3 artifacts. Materials has authoritative bounded
+  API evidence but an unresolved named snapshot; Battery has a verified
+  immediate Kaggle upstream but an unresolved official NASA snapshot.
+- The v2.3 PGIR declaration, maturity, conformance, transition, and operator
+  framework was reused over 838 existing Materials structure entities.
+- The result is `second_domain_pgir_reuse_demonstrated_with_restrictions`:
+  architecture and representation reuse are supported, physical-operator
+  reuse is not demonstrated, and independent/production validation is false.
+- No API call, descriptor/graph regeneration, model run, GNN, or new
+  predictive claim is part of v2.4.1. See
+  [`docs/EXTERNAL_SOURCE_METADATA_CONTRACT.md`](docs/EXTERNAL_SOURCE_METADATA_CONTRACT.md)
+  and [`docs/MATERIALS_STRUCTURE_PGIR_REUSE.md`](docs/MATERIALS_STRUCTURE_PGIR_REUSE.md).
+
+- v2.4.2 adds the first strict executable PGIR Model Contract for a
+  synthetic scalar one-dimensional diffusion benchmark.
+- Exact and FTCS Propagators execute under explicit dimension, initial-
+  condition, boundary-condition, stability, and artifact gates.
+- The numerical result is compared with the analytical single-mode solution.
+  Predeclared coarse/medium/fine refinement reduces the L2 error while field
+  arrays remain local-only.
+- Physical-operator execution is supported only for this benchmark.
+  Cross-domain physical-operator reuse, independent validation, production
+  validation, Battery diffusion, and real-material diffusivity claims remain
+  unsupported.
+- See [`docs/PGIR_MODEL_CONTRACT.md`](docs/PGIR_MODEL_CONTRACT.md),
+  [`docs/DIFFUSION_1D_ANALYTICAL_BENCHMARK.md`](docs/DIFFUSION_1D_ANALYTICAL_BENCHMARK.md),
+  and [`docs/releases/V2_4_0.md`](docs/releases/V2_4_0.md).
 
 ### Later
 

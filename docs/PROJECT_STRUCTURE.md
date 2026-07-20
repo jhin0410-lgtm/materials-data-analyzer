@@ -159,8 +159,15 @@ lineage and per-policy event rows stay under ignored
 `outputs/battery_metadata_stability_v2_3/`; tracked outputs are aggregate and
 identity-free. The audit performs no network download, fitting, prediction, or
 mechanism attribution.
-`src/cli.py` exposes this scaffold via `python -m src.cli`. It does not replace
-existing scripts or execute acquisition/modeling pipelines.
+v2.4.2 adds `src/platform_core/pgir_model_contracts.py` and
+`src/platform_core/diffusion_1d_benchmark.py` for one strict synthetic scalar
+diffusion contract, exact reference, deterministic FTCS execution, refinement,
+and bounded trust evidence. Large field arrays remain under ignored
+`outputs/v2_4_diffusion_benchmark/`; only compact contract, error, refinement,
+trust, and claim summaries are tracked. This is not a general PDE engine or a
+Battery/real-material mechanism model.
+`src/cli.py` exposes the platform via `python -m src.cli`. It does not replace
+existing scripts or execute case-study acquisition/modeling pipelines.
 
 ## Case Study Utilities
 
@@ -370,3 +377,26 @@ tests/
 ```
 
 It covers the core analyzer, data readiness helpers, loaders, optional connectors, script utilities, and simulation validation behavior.
+
+## v2.4.1 External Sources And Materials PGIR Reuse
+
+```text
+src/platform_core/
+  external_source_contracts.py
+  materials_pgir_reuse.py
+
+data/platform/
+  external_*_schema_v1.json
+  external_*_registry_v1.json
+
+data/processed/
+  v2_4_*_summary.*
+
+outputs/v2_4_external_source_pgir_reuse/
+  Local-only source records, Materials declarations, conformance rows,
+  cross-domain evidence, and reports.
+```
+
+Tracked v2.4 files contain compact aggregate metadata only. Existing API
+chunks, 838 entity records, descriptor rows, graph bodies, row-level targets,
+Battery IDs, credentials, and local paths remain outside Git.

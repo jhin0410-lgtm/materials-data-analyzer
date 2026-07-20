@@ -60,6 +60,12 @@ Prohibited without further evidence:
 - degradation mechanism confirmation
 - production scientific decision
 
+v2.4.2 adds a bounded exception for one synthetic scalar diffusion benchmark:
+registered exact and FTCS Propagators may produce software-level analytical-
+numerical evidence. This is not Battery mechanism evidence, a real-material
+parameter, cross-domain physical-operator reuse, independent validation, or
+production validation.
+
 v2.2.1 adds a narrow Materials exception for the claim
 `physics_informed_feature_used`: selected composition-derived feature builders
 were generated and included in matched validation. The resulting predictive
@@ -133,3 +139,12 @@ audit, with representation warnings and restricted interpretation. Detection
 thresholds are not uncertainty; cycle-index slopes are not physical-time
 rates; candidate findings are not mechanisms; and no independent or production
 validation is available.
+
+## v2.4.1 Source And Reuse Trust Boundary
+
+External source status is recorded as evidence-bearing provenance states, not
+a global trust score. Second-domain PGIR reuse supports shared architecture,
+representation contracts, conformance, and operator metadata. It does not
+support physical-operator reuse, universal physics intelligence, experimental
+structure validation, DFT replacement, GNN evidence, predictive improvement,
+independent validation, or production validation.

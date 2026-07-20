@@ -1,0 +1,38 @@
+{
+  "schema_id": "external_retrieval_event_schema_v1",
+  "schema_version": "1",
+  "status": "active",
+  "required_fields": [
+    "retrieval_id",
+    "source_system_id",
+    "snapshot_id",
+    "distribution_id",
+    "source_refs",
+    "retrieval_timestamp",
+    "access_method",
+    "request_query_filter_summary",
+    "authentication_mode",
+    "authentication_environment_variable",
+    "client_version",
+    "pagination_or_chunking",
+    "returned_count",
+    "missing_count",
+    "duplicate_count",
+    "retry_or_cache_policy",
+    "code_commit",
+    "parent_artifact_refs",
+    "status"
+  ],
+  "security_policy": {
+    "credential_values_allowed": false,
+    "authorization_headers_allowed": false,
+    "signed_url_secrets_allowed": false,
+    "live_http_objects_allowed": false,
+    "absolute_paths_allowed": false
+  },
+  "compatibility_policy": {
+    "unknown_fields": "reject",
+    "unsupported_future_version": "reject",
+    "silent_field_drop": false
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "benchmark_id": "pgir_diffusion_1d_canonical",
+  "cross_domain_physical_operator_reuse": false,
+  "evaluator_result_checksum": "b23c5a1c57144c29817194bf4a3be71fc7da2a789c8cab5a9a41c34eee944afb",
+  "exact_result_checksum": "8c949f426a26e33a1953c905e999baa9735ddc764d834a83d1173bde43911d69",
+  "execution_checksum_sha256": "590a0d95d4e0d2eef32e165c22466efacbe5e8f92270a05f85a3f153eedcf998",
+  "field_arrays_tracked": false,
+  "grid": {
+    "dt_s": 0.01,
+    "dx_m": 0.05,
+    "spatial_points": 21,
+    "stability_ratio": 0.3999999999999999,
+    "time_steps": 40
+  },
+  "independent_validation": false,
+  "input_checksum": "f66c00c863dd93dbf83ea6cc8a7d22ac9544d47eede90b7b62274fc8e751e0a1",
+  "metrics": {
+    "boundary_residual_max": 0.0,
+    "finite_value_check": true,
+    "initial_condition_residual_max": 1.2246467991473532e-16,
+    "l2_error_all_grid_points": 0.00034121645899975865,
+    "l2_error_final_profile": 0.000530682558161965,
+    "maximum_absolute_error_final_profile": 0.0007690320882955959,
+    "minimum_numerical_value": 0.0,
+    "nonnegative_field_check": true
+  },
+  "model_contract_checksum": "8b63ce21abd65512d510e927de5b9fe7fd6d750815f9790989a6cd7a7fc1bc13",
+  "model_contract_id": "one_dimensional_diffusion_zero_dirichlet_v1",
+  "model_fitting_performed": false,
+  "network_called": false,
+  "numerical_result_checksum": "a84144c604cb394a1330da2bd033a9e86b233d6ef0b59c886c427ec43163ca72",
+  "operator_ids": [
+    "one_dimensional_diffusion_exact_propagator_v1",
+    "one_dimensional_diffusion_ftcs_propagator_v1",
+    "one_dimensional_diffusion_benchmark_evaluator_v1"
+  ],
+  "parameters": {
+    "amplitude": {
+      "canonical_unit": "unitless",
+      "canonical_value": 1.0,
+      "dimension": "dimensionless",
+      "quantity_id": "amplitude",
+      "uncertainty": {
+        "assumptions": [],
+        "confidence_level": null,
+        "correlation_status": "unspecified",
+        "coverage_factor": null,
+        "distribution": null,
+        "interval": null,
+        "kind": "unavailable",
+        "method": "missing_uncertainty",
+        "provenance_refs": [],
+        "source": "metadata",
+        "unit": null,
+        "value": null
+      },
+      "unit": "unitless",
+      "value": 1.0
+    },
+    "diffusivity": {
+      "canonical_unit": "m^2/s",
+      "canonical_value": 0.1,
+      "dimension": "diffusivity",
+      "quantity_id": "diffusivity",
+      "uncertainty": {
+        "assumptions": [],
+        "confidence_level": null,
+        "correlation_status": "unspecified",
+        "coverage_factor": null,
+        "distribution": null,
+        "interval": null,
+        "kind": "unavailable",
+        "method": "missing_uncertainty",
+        "provenance_refs": [],
+        "source": "metadata",
+        "unit": null,
+        "value": null
+      },
+      "unit": "m^2/s",
+      "value": 0.1
+    },
+    "final_time": {
+      "canonical_unit": "s",
+      "canonical_value": 0.4,
+      "dimension": "time",
+      "quantity_id": "final_time",
+      "uncertainty": {
+        "assumptions": [],
+        "confidence_level": null,
+        "correlation_status": "unspecified",
+        "coverage_factor": null,
+        "distribution": null,
+        "interval": null,
+        "kind": "unavailable",
+        "method": "missing_uncertainty",
+        "provenance_refs": [],
+        "source": "metadata",
+        "unit": null,
+        "value": null
+      },
+      "unit": "s",
+      "value": 0.4
+    },
+    "length": {
+      "canonical_unit": "m",
+      "canonical_value": 1.0,
+      "dimension": "length",
+      "quantity_id": "length",
+      "uncertainty": {
+        "assumptions": [],
+        "confidence_level": null,
+        "correlation_status": "unspecified",
+        "coverage_factor": null,
+        "distribution": null,
+        "interval": null,
+        "kind": "unavailable",
+        "method": "missing_uncertainty",
+        "provenance_refs": [],
+        "source": "metadata",
+        "unit": null,
+        "value": null
+      },
+      "unit": "m",
+      "value": 1.0
+    }
+  },
+  "pgir_conformance": {
+    "capability_status": "eligible",
+    "declaration_count": 4,
+    "result_maturity": "scientifically_evaluated",
+    "status": "bounded_pgir_execution_conformant",
+    "transition_count": 3,
+    "transitions_allowed": true,
+    "valid": true
+  },
+  "physical_operator_execution_demonstrated": true,
+  "production_validation": false,
+  "schema_version": "2.4.2",
+  "stability_ratio": 0.3999999999999999,
+  "status": "benchmark_executed_with_documented_numerical_error"
+}

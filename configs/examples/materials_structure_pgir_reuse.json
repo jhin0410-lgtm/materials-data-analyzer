@@ -1,0 +1,16 @@
+{
+  "schema_version": "2.4.1",
+  "audit_id": "materials_structure_pgir_reuse",
+  "source_summary": "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json",
+  "local_entity_ref": "outputs/materials_project_structure_v2_2/entities/crystal_structure_entities.jsonl",
+  "prediction_context": "known_structure_post_relaxation",
+  "network_enabled": false,
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "regenerate_descriptors": false,
+  "regenerate_graphs": false,
+  "execute_model": false,
+  "output_root": "outputs/v2_4_external_source_pgir_reuse/materials"
+}

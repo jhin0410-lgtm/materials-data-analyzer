@@ -1,6 +1,6 @@
 # Scientific Operator Registry
 
-Status: `v2.2.5_complete`
+Status: `released_through_v2.4.0_with_bounded_diffusion_propagators`
 
 The selected scientific operator registry is an explicit metadata registry. It stores operator contracts, not arbitrary Python callables. It does not import config-supplied modules, scan the filesystem, call the network, train models, or execute acquisition.
 
@@ -71,3 +71,20 @@ solver execution, prediction, or mechanism confirmation.
 execution-capable bounded `Evaluator` with local-only row-level side effects.
 Its input, output, maturity, target-access, uncertainty, provenance, and claim
 policies are explicit. No other Battery mechanism candidate was executed.
+
+## v2.4.1 Materials Operator Reuse Audit
+
+Seven released Materials adapter/Transformer/Evaluator records are reused by
+ID. Five corresponding transitions are conformance-tested using existing
+artifact evidence. This is operator-framework reuse, not common physical-
+operator reuse: no Propagator, DFT calculation, physics solver, descriptor or
+graph regeneration, GNN, or model execution occurs.
+
+## v2.4.2 Diffusion Benchmark Operators
+
+Three operators are registered for one strict synthetic contract: an exact
+single-mode Propagator, a deterministic FTCS Propagator, and an analytical-
+numerical Evaluator. FTCS execution is blocked unless `0 < D*dt/dx^2 <= 0.5`;
+no value is silently adjusted. These records do not authorize arbitrary
+callables, a general PDE engine, Battery interpretation, parameter fitting, or
+cross-domain physical-operator reuse.

@@ -1,0 +1,44 @@
+{
+  "architecture_reuse": true,
+  "conformance_engine_reuse": true,
+  "descriptor_or_graph_regenerated": false,
+  "domain_specific_semantics": {
+    "battery": [
+      "cycle Observation and operational State",
+      "cycle-index Trajectory",
+      "measurement source with unavailable physical-time uncertainty"
+    ],
+    "materials": [
+      "computed relaxed CrystalStructureEntity",
+      "known_structure_post_relaxation context",
+      "descriptor and periodic graph representations"
+    ]
+  },
+  "domains": [
+    "battery",
+    "materials"
+  ],
+  "independent_validation": false,
+  "model_or_solver_executed": false,
+  "network_called": false,
+  "operator_framework_reuse": true,
+  "physical_operator_reuse": false,
+  "physical_operator_reuse_status": "not_demonstrated",
+  "production_validation": false,
+  "representation_contract_reuse": true,
+  "schema_version": "2.4.1",
+  "shared_framework": {
+    "claim_boundary": true,
+    "conformance_findings": true,
+    "context_compatibility": true,
+    "maturity_assessment": true,
+    "operator_eligibility_framework": true,
+    "pgir_concept_registry": true,
+    "provenance_lineage": true,
+    "representation_declaration": true,
+    "schema_ownership": true,
+    "transition_validation": true,
+    "uncertainty_boundary": true
+  },
+  "status": "cross_domain_reuse_audited"
+}

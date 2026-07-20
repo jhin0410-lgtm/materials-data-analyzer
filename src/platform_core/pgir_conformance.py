@@ -73,6 +73,10 @@ CAPABILITY_REQUIREMENTS: dict[str, dict[str, Any]] = {
     "tabular_summary": {"minimum_maturity": "schema_valid"},
     "dimensional_comparison": {"minimum_maturity": "dimensionally_valid"},
     "bounded_physical_validation": {"minimum_maturity": "physically_admissible"},
+    "bounded_physical_propagation": {
+        "minimum_maturity": "physically_admissible",
+        "required_context": ("registered_model_contract", "registered_operator", "bounded_execution_policy"),
+    },
     "mechanism_applicability_assessment": {
         "minimum_maturity": "physically_admissible",
         "required_context": ("mechanism_requirements_metadata",),
@@ -86,6 +90,46 @@ CAPABILITY_REQUIREMENTS: dict[str, dict[str, Any]] = {
 }
 
 REGISTERED_TRANSITIONS: dict[str, dict[str, Any]] = {
+    "mp_structure_to_crystal_entity_v1": {
+        "input_concept": "result",
+        "output_concept": "physical_entity",
+        "required_metadata": ("material_id", "structure", "source_record_checksum"),
+        "deterministic": True,
+        "information_loss": "runtime_materials_objects_are_converted_to_json_safe_entity_records",
+        "maturity_result": "semantically_mapped",
+    },
+    "crystal_structure_integrity_check_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("lattice", "sites", "integrity_status"),
+        "deterministic": True,
+        "information_loss": "evaluator_result_summarizes_integrity_without_replacing_structure_body",
+        "maturity_result": "physically_admissible",
+    },
+    "composition_structure_consistency_check_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("summary_composition", "structure_derived_composition", "consistency_status"),
+        "deterministic": True,
+        "information_loss": "comparison_status_does_not_assert_phase_or_experimental_validity",
+        "maturity_result": "physically_admissible",
+    },
+    "crystal_structure_to_descriptor_summary_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("descriptor_registry", "prediction_context", "target_access_policy"),
+        "deterministic": True,
+        "information_loss": "descriptors_are_bounded_transformed_representations",
+        "maturity_result": "semantically_mapped",
+    },
+    "crystal_structure_to_radius_graph_v1": {
+        "input_concept": "physical_entity",
+        "output_concept": "result",
+        "required_metadata": ("graph_builder", "cutoff_policy", "target_access_policy"),
+        "deterministic": True,
+        "information_loss": "graph_is_a_representation_artifact_not_physical_or_predictive_evidence",
+        "maturity_result": "semantically_mapped",
+    },
     "battery_source_record_to_cycle_observation_v1": {
         "input_concept": "result",
         "output_concept": "observation",
@@ -109,6 +153,30 @@ REGISTERED_TRANSITIONS: dict[str, dict[str, Any]] = {
         "deterministic": True,
         "information_loss": "row_level_states_referenced_not_inlined",
         "maturity_result": "dimensionally_valid",
+    },
+    "one_dimensional_diffusion_exact_propagator_v1": {
+        "input_concept": "model",
+        "output_concept": "field",
+        "required_metadata": ("model_contract_id", "input_checksum", "exact_result_checksum"),
+        "deterministic": True,
+        "information_loss": "field arrays remain local-only while compact lineage is tracked",
+        "maturity_result": "scientifically_evaluated",
+    },
+    "one_dimensional_diffusion_ftcs_propagator_v1": {
+        "input_concept": "model",
+        "output_concept": "field",
+        "required_metadata": ("model_contract_id", "stability_ratio", "numerical_result_checksum"),
+        "deterministic": True,
+        "information_loss": "field arrays remain local-only while compact lineage is tracked",
+        "maturity_result": "scientifically_evaluated",
+    },
+    "one_dimensional_diffusion_benchmark_evaluator_v1": {
+        "input_concept": "field",
+        "output_concept": "result",
+        "required_metadata": ("exact_result_checksum", "numerical_result_checksum", "evaluation_metrics"),
+        "deterministic": True,
+        "information_loss": "compact error evidence summarizes local exact and numerical fields",
+        "maturity_result": "scientifically_evaluated",
     },
 }
 
@@ -430,7 +498,7 @@ def validate_transition(config: Mapping[str, Any]) -> PGIRTransitionAssessment:
             output_concept=str(config.get("output_concept", "unknown")),
             transition_allowed=False,
             maturity_result="raw_observed",
-            findings=(PGIRConformanceFinding("unregistered_transition", "error", "Transition requires a registered Transformer.", "transition"),),
+            findings=(PGIRConformanceFinding("unregistered_transition", "error", "Transition requires a registered operator.", "transition"),),
         )
     spec = REGISTERED_TRANSITIONS[transition_id]
     metadata = set(_as_tuple(config.get("metadata_available")))

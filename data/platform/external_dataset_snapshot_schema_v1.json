@@ -1,0 +1,26 @@
+{
+  "schema_id": "external_dataset_snapshot_schema_v1",
+  "schema_version": "1",
+  "status": "active",
+  "required_fields": [
+    "snapshot_id",
+    "dataset_id",
+    "snapshot_version",
+    "snapshot_date",
+    "version_semantics",
+    "authoritative_snapshot_status",
+    "immediate_upstream_ref",
+    "schema_version_refs",
+    "declared_record_count",
+    "query_or_filter_scope",
+    "reproducibility_limitations",
+    "status"
+  ],
+  "time_policy": "retrieval_timestamp_must_not_be_used_as_publication_or_snapshot_date",
+  "unresolved_policy": "missing_named_snapshot_identity_remains_explicitly_unresolved",
+  "compatibility_policy": {
+    "unknown_fields": "reject",
+    "unsupported_future_version": "reject",
+    "silent_field_drop": false
+  }
+}

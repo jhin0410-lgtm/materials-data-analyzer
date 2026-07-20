@@ -1,7 +1,8 @@
 # Platform Reporting
 
-Status: `release_ready` through v2.3.0, including the optional PGIR governance
-section.
+Status: `released` through v2.4.0, including optional PGIR governance,
+external-source contract, second-domain representation-reuse, and bounded
+diffusion-benchmark sections.
 
 The platform report engine creates a local-only summary of v2 registry metadata
 and tracked compact case-study artifacts. It is read-only: it does not run

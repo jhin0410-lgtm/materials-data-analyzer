@@ -1,0 +1,36 @@
+{
+  "schema_id": "external_distribution_artifact_schema_v1",
+  "schema_version": "1",
+  "status": "active",
+  "required_fields": [
+    "distribution_id",
+    "snapshot_id",
+    "media_type",
+    "format",
+    "byte_size",
+    "raw_checksum_algorithm",
+    "raw_checksum_value",
+    "canonical_content_checksum_algorithm",
+    "canonical_content_checksum_value",
+    "access_url_ref",
+    "local_artifact_ref",
+    "compression_or_container",
+    "manifest_refs",
+    "security_classification",
+    "status"
+  ],
+  "checksum_policy": {
+    "raw_archive_or_binary": "raw_byte_checksum",
+    "logical_json_or_text": "canonical_content_checksum",
+    "checksum_types_interchangeable": false
+  },
+  "path_policy": {
+    "absolute_paths_allowed": false,
+    "path_traversal_allowed": false
+  },
+  "compatibility_policy": {
+    "unknown_fields": "reject",
+    "unsupported_future_version": "reject",
+    "silent_field_drop": false
+  }
+}

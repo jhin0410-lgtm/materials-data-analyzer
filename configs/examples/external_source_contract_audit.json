@@ -1,0 +1,18 @@
+{
+  "schema_version": "1",
+  "audit_id": "v2_4_external_source_contract_audit",
+  "source_system_ids": [
+    "materials_project",
+    "nasa_battery_kaggle_upstream",
+    "nist_oar",
+    "nrel_api",
+    "nvd"
+  ],
+  "network_enabled": false,
+  "dry_run": true,
+  "credential_policy": {
+    "store_credentials": false
+  },
+  "write_local": true,
+  "output_root": "outputs/v2_4_external_source_pgir_reuse/source_contracts"
+}

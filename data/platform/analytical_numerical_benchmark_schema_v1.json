@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "analytical_numerical_benchmark_schema_v1",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1"},
+    "evaluation_id": {"type": "string"},
+    "operator_id": {"const": "one_dimensional_diffusion_benchmark_evaluator_v1"},
+    "operator_role": {"const": "Evaluator"},
+    "execution_status": {"type": "string"},
+    "evaluator_executed": {"type": "boolean"},
+    "benchmark_id": {"type": "string"},
+    "exact_result_checksum": {"type": "string"},
+    "numerical_result_checksum": {"type": "string"},
+    "metrics": {"type": "object"},
+    "stability_ratio": {"type": "number"},
+    "uncertainty": {"type": "object"},
+    "claim_boundary": {"type": "object"},
+    "deterministic_checksum_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "required": ["schema_version", "evaluation_id", "operator_id", "operator_role", "execution_status", "evaluator_executed", "benchmark_id", "exact_result_checksum", "numerical_result_checksum", "metrics", "stability_ratio", "uncertainty", "claim_boundary", "deterministic_checksum_sha256"],
+  "title": "Analytical-numerical benchmark evaluation",
+  "type": "object"
+}

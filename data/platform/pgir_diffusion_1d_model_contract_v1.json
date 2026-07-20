@@ -1,0 +1,220 @@
+{
+  "allowed_claims": [
+    "bounded PGIR model-contract execution",
+    "analytical and deterministic numerical propagator comparison",
+    "software-level refinement evidence for this synthetic benchmark"
+  ],
+  "analytical_reference_available": true,
+  "applicability_conditions": [
+    "constant positive diffusivity",
+    "one-dimensional uniform domain",
+    "homogeneous zero Dirichlet boundaries",
+    "single sine-mode initial condition",
+    "synthetic benchmark parameters"
+  ],
+  "boundary_conditions": [
+    {
+      "applies_for": "t >= 0",
+      "boundary_type": "homogeneous_dirichlet",
+      "condition_id": "left_zero_dirichlet",
+      "coordinate_id": "x",
+      "field_id": "scalar_field_c",
+      "location": "lower_bound",
+      "value": 0.0,
+      "value_unit": "unitless"
+    },
+    {
+      "applies_for": "t >= 0",
+      "boundary_type": "homogeneous_dirichlet",
+      "condition_id": "right_zero_dirichlet",
+      "coordinate_id": "x",
+      "field_id": "scalar_field_c",
+      "location": "upper_bound",
+      "value": 0.0,
+      "value_unit": "unitless"
+    }
+  ],
+  "domain_context": "synthetic_scalar_diffusion_software_benchmark",
+  "expected_result_schema_ids": [
+    "scalar_field_1d_result_schema_v1",
+    "physical_propagator_execution_schema_v1",
+    "analytical_numerical_benchmark_schema_v1"
+  ],
+  "governing_equation_display": "dc/dt = D d2c/dx2 on x in [0,L]",
+  "governing_relation_id": "pgir.diffusion_1d.homogeneous_zero_dirichlet",
+  "initial_condition": {
+    "compatibility_requirements": [
+      "c(0,0)=0",
+      "c(L,0)=0"
+    ],
+    "condition_id": "initial_single_sine_mode",
+    "expression_id": "single_sine_mode_zero_dirichlet_v1",
+    "field_id": "scalar_field_c",
+    "parameter_refs": [
+      "amplitude",
+      "length"
+    ],
+    "reference_time": 0.0
+  },
+  "input_maturity_requirements": [
+    "schema_valid",
+    "semantically_mapped",
+    "dimensionally_valid"
+  ],
+  "model_contract_id": "one_dimensional_diffusion_zero_dirichlet_v1",
+  "model_contract_version": "1",
+  "operator_requirements": [
+    {
+      "backend_id": "closed_form_single_mode_v1",
+      "deterministic_required": true,
+      "maximum_spatial_points": 1001,
+      "maximum_time_steps": 100000,
+      "operator_id": "one_dimensional_diffusion_exact_propagator_v1",
+      "operator_role": "Propagator",
+      "stability_condition": "not_applicable",
+      "uniform_spatial_grid_required": false,
+      "uniform_time_grid_required": false
+    },
+    {
+      "backend_id": "explicit_ftcs_v1",
+      "deterministic_required": true,
+      "maximum_spatial_points": 1001,
+      "maximum_time_steps": 100000,
+      "operator_id": "one_dimensional_diffusion_ftcs_propagator_v1",
+      "operator_role": "Propagator",
+      "stability_condition": "0 < D*dt/dx^2 <= 0.5",
+      "uniform_spatial_grid_required": true,
+      "uniform_time_grid_required": true
+    },
+    {
+      "backend_id": "analytical_numerical_comparison_v1",
+      "deterministic_required": true,
+      "maximum_spatial_points": 1001,
+      "maximum_time_steps": 100000,
+      "operator_id": "one_dimensional_diffusion_benchmark_evaluator_v1",
+      "operator_role": "Evaluator",
+      "stability_condition": "not_applicable",
+      "uniform_spatial_grid_required": false,
+      "uniform_time_grid_required": false
+    }
+  ],
+  "parameters": [
+    {
+      "constraints": [
+        "value > 0"
+      ],
+      "dimension": "length",
+      "parameter_id": "length",
+      "provenance": "synthetic_config",
+      "quantity_semantics": "domain_length",
+      "symbol": "L",
+      "uncertainty_policy": "synthetic_value_no_empirical_uncertainty",
+      "unit": "m"
+    },
+    {
+      "constraints": [
+        "value > 0"
+      ],
+      "dimension": "diffusivity",
+      "parameter_id": "diffusivity",
+      "provenance": "synthetic_config",
+      "quantity_semantics": "abstract_diffusivity",
+      "symbol": "D",
+      "uncertainty_policy": "synthetic_value_no_empirical_uncertainty",
+      "unit": "m^2/s"
+    },
+    {
+      "constraints": [
+        "finite",
+        "value >= 0 for positive benchmark"
+      ],
+      "dimension": "dimensionless",
+      "parameter_id": "amplitude",
+      "provenance": "synthetic_config",
+      "quantity_semantics": "initial_field_amplitude",
+      "symbol": "A",
+      "uncertainty_policy": "synthetic_value_no_empirical_uncertainty",
+      "unit": "unitless"
+    }
+  ],
+  "prohibited_claims": [
+    "Battery diffusion mechanism",
+    "real-material diffusivity",
+    "fitted physical mechanism",
+    "validated industrial solver",
+    "cross-domain physical-operator reuse",
+    "independent validation",
+    "production validation"
+  ],
+  "provenance": [
+    "synthetic_config",
+    "analytical_single_mode_solution",
+    "deterministic_ftcs_implementation"
+  ],
+  "scalar_field": {
+    "coordinate_ids": [
+      "x",
+      "t"
+    ],
+    "dimension": "dimensionless",
+    "field_id": "scalar_field_c",
+    "persistence_policy": "large_arrays_local_only_compact_metadata_tracked",
+    "positive_benchmark_input": true,
+    "quantity_semantics": "abstract_dimensionless_scalar_field",
+    "symbol": "c",
+    "unit": "unitless"
+  },
+  "schema_version": "1",
+  "scientific_question": "Can PGIR execute and validate a deterministic bounded scalar diffusion benchmark against an exact solution?",
+  "spatial_domain": {
+    "coordinate_id": "x",
+    "dimension": "length",
+    "lower_bound": 0.0,
+    "minimum_grid_points": 3,
+    "symbol": "x",
+    "topology": "closed_interval",
+    "unit": "m",
+    "upper_bound_parameter_id": "length"
+  },
+  "status": "registered_bounded_benchmark",
+  "time_domain": {
+    "coordinate_id": "t",
+    "dimension": "time",
+    "end_execution_parameter_id": "final_time",
+    "minimum_grid_points": 2,
+    "start": 0.0,
+    "symbol": "t",
+    "unit": "s"
+  },
+  "uncertainty_policy": "source_uncertainty_unavailable_report_numerical_discretization_error_only",
+  "validation_criteria": [
+    {
+      "criterion_id": "finite_field_values",
+      "failure_status": "blocked_nonfinite_result",
+      "metric": "finite_value_check",
+      "requirement": "all values finite",
+      "threshold": 0.0
+    },
+    {
+      "criterion_id": "zero_boundary_residual",
+      "failure_status": "blocked_artifact_mismatch",
+      "metric": "boundary_residual",
+      "requirement": "maximum residual <= tolerance",
+      "threshold": 1e-12
+    },
+    {
+      "criterion_id": "initial_condition_residual",
+      "failure_status": "blocked_artifact_mismatch",
+      "metric": "initial_condition_residual",
+      "requirement": "maximum residual <= tolerance",
+      "threshold": 1e-12
+    },
+    {
+      "criterion_id": "refinement_error_decrease",
+      "failure_status": "blocked_artifact_mismatch",
+      "metric": "l2_error",
+      "requirement": "fine error lower than coarse error",
+      "threshold": null
+    }
+  ]
+}

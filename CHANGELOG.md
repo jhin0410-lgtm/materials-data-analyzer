@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## v2.4.0
+
+- Added v2.4.2's first strict executable PGIR Model Contract for a synthetic
+  one-dimensional scalar diffusion benchmark with explicit dimensions,
+  initial/boundary conditions, applicability, uncertainty, and claim policy.
+- Registered and executed exact and deterministic FTCS Propagators plus an
+  analytical-numerical Evaluator. Unstable `D*dt/dx^2 > 0.5` configurations
+  are blocked without silent grid or parameter adjustment.
+- Recorded canonical error/residual metrics and predeclared coarse/medium/fine
+  error reduction while keeping field arrays local-only. Physical-operator
+  execution is demonstrated only for this benchmark; Battery mechanism,
+  real-material, cross-domain reuse, independent-validation, and production-
+  validation claims remain unsupported.
+
+- Added v2.4.1 versioned metadata contracts for external source systems,
+  logical datasets, snapshots, distribution artifacts, retrieval events,
+  documentation, and provenance assessments without network access.
+- Added actual contract mappings for the bounded Materials Project retrieval
+  and the verified NASA-derived Battery Kaggle immediate upstream while
+  preserving unresolved snapshot/version and license gaps.
+- Registered future NIST OAR, NVD, and NREL source boundaries as declarations
+  only, with no retrieval, snapshot, or integration evidence.
+- Reused the v2.3 PGIR declaration, maturity, conformance, transition, and
+  operator framework across 838 existing Materials structure entities. The
+  result is `second_domain_pgir_reuse_demonstrated_with_restrictions`;
+  physical-operator reuse, independent validation, and production validation
+  remain false.
+- Added compact source/PGIR reuse summaries, CLI inspection/audit commands,
+  and optional read-only platform-report sections. No acquisition, structure
+  or graph regeneration, model execution, GNN, DFT replacement, or new
+  predictive result is included.
+
 ## v2.3.0
 
 - Started v2.3.1 PGIR governance work with accepted architecture RFCs,

@@ -1,7 +1,9 @@
 # Platform Architecture
 
-Status: `released` through v2.3.0. PGIR representation governance and the
-bounded Battery trajectory evidence workflow are additive platform layers.
+Status: `released` through v2.4.0. PGIR representation governance,
+bounded Battery trajectory evidence, versioned external-source contracts,
+second-domain Materials representation reuse, and one bounded executable
+diffusion benchmark are additive platform layers.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
@@ -405,3 +407,18 @@ source-supported metadata, and evaluates nine predeclared policies. The 489
 consolidated events are stability classifications, not degradation mechanisms.
 No solver, parameter fit, predictive model, SOH/RUL estimate, lifetime
 extrapolation, or production decision is introduced.
+
+## v2.4.1 External Source And PGIR Reuse Add-On
+
+- `src/platform_core/external_source_contracts.py` owns versioned source,
+  dataset, snapshot, distribution, retrieval, documentation, and provenance
+  contracts.
+- `src/platform_core/materials_pgir_reuse.py` performs the read-only
+  second-domain conformance audit over existing Materials compact/local
+  artifacts.
+- Platform reports can read the new compact summaries only; they do not call
+  APIs, load raw structures or graphs, regenerate features, or run models.
+
+The feature-stage verdict demonstrates architecture and representation reuse
+with restrictions. Physical-operator reuse, independent validation, and
+production validation remain false.
