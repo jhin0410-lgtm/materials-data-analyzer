@@ -233,11 +233,17 @@ archives, row-level predictions, or generated `outputs/` folders.
 
 ### Platform Governance Status
 
-`v2.3.0` is the current public release. It adds PGIR representation governance,
-conformance gates, and a bounded Battery trajectory evidence workflow while
-preserving the v2.2 Materials decisions. PGIR defines
-canonical concepts, maturity levels, schema ownership, and operator taxonomy
-without adding solvers, GNN/PINN, model retraining, or new predictive claims.
+`v2.4.0` is the current public release. It adds versioned external-source
+governance, second-domain PGIR representation reuse over existing Materials
+structures, and the first bounded executable PGIR physical benchmark while
+preserving the v2.2 Materials and v2.3 Battery decisions.
+
+PGIR continues to define canonical concepts, maturity levels, schema ownership,
+and operator taxonomy. v2.4 executes only one synthetic one-dimensional scalar
+diffusion problem using an analytical Propagator and a deterministic FTCS
+Propagator under explicit dimensional, numerical-stability, provenance, and
+claim boundaries. This is not a general PDE solver, Battery mechanism, or
+real-material validation.
 The v2.3 release adds a Battery Observation /
 bounded operational State / Trajectory adapter pilot, and a v2.3.3 Battery
 mechanism-candidate identifiability audit over existing processed summaries
@@ -569,6 +575,8 @@ outputs/{run_name}/reports/
 
 ## Releases
 
+- v2.4.0: external-source governance, second-domain PGIR representation
+  reuse, and one bounded executable one-dimensional diffusion benchmark.
 - v2.3.0: PGIR representation governance, Battery conformance and
   identifiability audits, bounded descriptive trajectory evaluation,
   source-metadata recovery, and evaluator policy-stability evidence. No
@@ -759,7 +767,7 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
 - See [`docs/PLATFORM_V2_3_ROADMAP.md`](docs/PLATFORM_V2_3_ROADMAP.md) and
   [`docs/releases/V2_3_0.md`](docs/releases/V2_3_0.md).
 
-### v2.4.1 Feature Stage: External Sources and Second-Domain PGIR Reuse
+### v2.4 Complete: External Source Governance and Bounded Physical Execution
 
 - External source systems, logical datasets, snapshots, distributions, and
   retrieval events now have separate versioned metadata contracts.
@@ -776,6 +784,21 @@ run registry, diagnostics, scientific trust boundaries, domain interface, and on
   predictive claim is part of v2.4.1. See
   [`docs/EXTERNAL_SOURCE_METADATA_CONTRACT.md`](docs/EXTERNAL_SOURCE_METADATA_CONTRACT.md)
   and [`docs/MATERIALS_STRUCTURE_PGIR_REUSE.md`](docs/MATERIALS_STRUCTURE_PGIR_REUSE.md).
+
+- v2.4.2 adds the first strict executable PGIR Model Contract for a
+  synthetic scalar one-dimensional diffusion benchmark.
+- Exact and FTCS Propagators execute under explicit dimension, initial-
+  condition, boundary-condition, stability, and artifact gates.
+- The numerical result is compared with the analytical single-mode solution.
+  Predeclared coarse/medium/fine refinement reduces the L2 error while field
+  arrays remain local-only.
+- Physical-operator execution is supported only for this benchmark.
+  Cross-domain physical-operator reuse, independent validation, production
+  validation, Battery diffusion, and real-material diffusivity claims remain
+  unsupported.
+- See [`docs/PGIR_MODEL_CONTRACT.md`](docs/PGIR_MODEL_CONTRACT.md),
+  [`docs/DIFFUSION_1D_ANALYTICAL_BENCHMARK.md`](docs/DIFFUSION_1D_ANALYTICAL_BENCHMARK.md),
+  and [`docs/releases/V2_4_0.md`](docs/releases/V2_4_0.md).
 
 ### Later
 

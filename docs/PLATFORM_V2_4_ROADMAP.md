@@ -1,6 +1,6 @@
 # Platform v2.4 Roadmap
 
-Status: `v2.4.2_bounded_model_benchmark_completed_feature_stage`
+Status: `released_as_v2.4.0`
 
 ## v2.4.1
 
@@ -25,23 +25,34 @@ Status: `v2.4.2_bounded_model_benchmark_completed_feature_stage`
 - Keep physical execution bounded to this benchmark; cross-domain operator
   reuse, independent validation, and production validation remain false.
 
-## v2.4.3
+## v2.4.0 Release Boundary
 
-- Add compatibility-adapter validation across multiple historical manifest
-  versions.
-- Add retrieval reproducibility comparisons using metadata and checksums only.
-- Avoid automatic acquisition and cross-source dataset merging.
+v2.4.0 closes two completed feature stages:
 
-## v2.4.4
+- v2.4.1: versioned external-source governance and restricted second-domain
+  PGIR representation reuse.
+- v2.4.2: one bounded executable physical Model Contract with analytical and
+  deterministic FTCS propagation.
 
-- Evaluate whether a separately justified scientific operator can be reused
-  across two domains. Representation-framework reuse alone is insufficient.
+The release does not claim cross-domain physical-operator reuse, independent
+validation, production validation, a general PDE framework, or real-material
+mechanism validation.
 
-## v2.4.5
+## Deferred Beyond v2.4.0
 
-- Close the v2.4 provenance and cross-domain governance release boundary.
-- Require independent evidence before any independent- or production-
-  validation status can be considered.
+The following work requires a separate justified scope and is not part of this
+release:
+
+- compatibility-adapter validation across historical manifest versions
+- retrieval reproducibility comparisons using metadata and checksums
+- evidence-backed resolution of currently unresolved source snapshots,
+  licensing, and documentation
+- evaluation of one scientific operator across two genuinely comparable
+  domain contexts
+- independent or production validation supported by independent evidence
+
+Automatic acquisition and heterogeneous cross-source dataset merging remain
+out of scope.
 
 ## Non-Goals
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v2.4.0
+
 - Added v2.4.2's first strict executable PGIR Model Contract for a synthetic
   one-dimensional scalar diffusion benchmark with explicit dimensions,
   initial/boundary conditions, applicability, uncertainty, and claim policy.

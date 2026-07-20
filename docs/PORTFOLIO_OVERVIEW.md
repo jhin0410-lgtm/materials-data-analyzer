@@ -153,8 +153,14 @@ optional backend, and controlled execution retains its clean-worktree guard.
 
 ## Next-Generation Roadmap
 
-After v2.3.0, the next useful step is a second-domain PGIR reuse audit and a
-versioned external-source metadata contract. Mechanism fitting should remain
-blocked until protocol, physical-time, calibration/uncertainty, and
-cross-dataset comparability evidence are available. The project does not claim
-to be a general physics intelligence system.
+v2.4.0 completes a second-domain PGIR representation-reuse audit, a versioned
+external-source metadata contract, and one bounded executable diffusion
+benchmark with analytical-reference validation. The next useful step is not a
+general solver expansion. It is a separately justified portability or
+provenance study with predeclared evidence requirements.
+
+Mechanism fitting remains blocked until protocol, physical-time,
+calibration/uncertainty, geometry, boundary-condition, and cross-dataset
+comparability evidence are available. The project does not claim to be a
+general physics intelligence system, a real-material diffusion model, or a
+production simulation platform.

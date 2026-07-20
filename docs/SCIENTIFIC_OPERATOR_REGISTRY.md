@@ -1,6 +1,6 @@
 # Scientific Operator Registry
 
-Status: `v2.4.2_bounded_propagator_added`
+Status: `released_through_v2.4.0_with_bounded_diffusion_propagators`
 
 The selected scientific operator registry is an explicit metadata registry. It stores operator contracts, not arbitrary Python callables. It does not import config-supplied modules, scan the filesystem, call the network, train models, or execute acquisition.
 

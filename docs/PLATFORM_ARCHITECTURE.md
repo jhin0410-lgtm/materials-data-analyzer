@@ -1,7 +1,9 @@
 # Platform Architecture
 
-Status: `released` through v2.3.0. PGIR representation governance and the
-bounded Battery trajectory evidence workflow are additive platform layers.
+Status: `released` through v2.4.0. PGIR representation governance,
+bounded Battery trajectory evidence, versioned external-source contracts,
+second-domain Materials representation reuse, and one bounded executable
+diffusion benchmark are additive platform layers.
 
 `materials_data_analyzer` remains a CLI-first tabular engineering-data
 analysis project. The v2 platform layer adds a registry and configuration
