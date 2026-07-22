@@ -62,6 +62,8 @@ lineage summary. The audit is a read-only compatibility replay, not a general
 migration system. It keeps Materials named-snapshot/client metadata unresolved
 and the Battery mapping partial. Other historical versions, source retrieval,
 and evidence-backed resolution of external metadata remain deferred.
+The detailed feature-stage boundary is recorded in the
+[Platform v2.5 Roadmap](PLATFORM_V2_5_ROADMAP.md).
 
 ## Non-Goals
 

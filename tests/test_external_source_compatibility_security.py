@@ -52,6 +52,12 @@ def test_config_rejects_unknown_fields_absolute_paths_traversal_and_secrets():
     with pytest.raises(ValueError, match="unknown fields"):
         validate_compatibility_config(payload)
 
+    for field in ("module_path", "callable_name"):
+        payload = _config()
+        payload[field] = "unregistered.user_input"
+        with pytest.raises(ValueError, match="unknown fields"):
+            validate_compatibility_config(payload)
+
     payload = _config()
     payload["artifacts"][0]["input_path"] = "C:/Users/example/source.json"
     with pytest.raises(ValueError, match="absolute local path|absolute path"):
@@ -145,6 +151,11 @@ def test_result_and_summary_validation_enforce_registered_adapter_contracts():
         artifact_kind=MATERIALS_ARTIFACT_KIND,
         expected_version="2.2.4",
     ).to_dict()
+    tampered_checksum = dict(result)
+    tampered_checksum["result_checksum_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        ExternalSourceCompatibilityResult.from_mapping(tampered_checksum)
+
     result["adapter_version"] = "2"
     without_checksum = dict(result)
     without_checksum.pop("result_checksum_sha256")
