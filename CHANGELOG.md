@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added v2.5.1 explicit, version-allowlisted compatibility adapters for the
+  tracked Materials v2.2.4 structure summary and Battery v2.3.5 source-lineage
+  summary without migration, source mutation, network access, or credentials.
+- Added deterministic raw-byte and canonical logical JSON checksum replay,
+  strict unresolved-field preservation, a compact compatibility summary, and
+  preview/run/validate CLI commands. Materials remains compatible with
+  restrictions and Battery remains partial; source truth and scientific
+  validity are not promoted.
+
 ## v2.4.0
 
 - Added v2.4.2's first strict executable PGIR Model Contract for a synthetic

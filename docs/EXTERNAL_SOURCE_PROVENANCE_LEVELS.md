@@ -40,6 +40,14 @@ not locally verified, retrieval time is unavailable, and terms are unresolved.
 These gaps remain explicit; the Kaggle checksum is not described as an
 official NASA checksum.
 
+## Compatibility Replay
+
+The v2.5.1 replay carries these statuses and limitations through explicit
+versioned adapters. It does not promote `snapshot_identity_unresolved` or
+`license_or_terms_unresolved`, and it introduces no numeric trust score. A
+successful replay means only that a supported historical compact artifact can
+be interpreted deterministically without being rewritten.
+
 ## Claim Boundary
 
 Provenance status does not establish measurement accuracy, calibration,

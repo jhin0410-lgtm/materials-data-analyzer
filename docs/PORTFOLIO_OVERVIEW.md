@@ -159,6 +159,13 @@ benchmark with analytical-reference validation. The next useful step is not a
 general solver expansion. It is a separately justified portability or
 provenance study with predeclared evidence requirements.
 
+The v2.5.1 feature-stage work performs that first bounded portability check:
+two historical compact artifacts are replayed through explicit versioned
+adapters with separate raw-byte and logical JSON checksums. The software
+compatibility result is supported, while provenance portability remains
+diagnostic because external snapshot, terms, uncertainty, and source-truth
+gaps are preserved rather than inferred.
+
 Mechanism fitting remains blocked until protocol, physical-time,
 calibration/uncertainty, geometry, boundary-condition, and cross-dataset
 comparability evidence are available. The project does not claim to be a

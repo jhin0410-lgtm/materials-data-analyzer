@@ -400,3 +400,24 @@ outputs/v2_4_external_source_pgir_reuse/
 Tracked v2.4 files contain compact aggregate metadata only. Existing API
 chunks, 838 entity records, descriptor rows, graph bodies, row-level targets,
 Battery IDs, credentials, and local paths remain outside Git.
+
+## v2.5.1 External Source Compatibility Replay
+
+```text
+src/platform_core/
+  external_source_compatibility.py
+
+configs/examples/
+  external_source_compatibility_audit.json
+
+data/processed/
+  external_source_compatibility_audit_summary_v1.json
+
+outputs/v2_5_external_source_compatibility/
+  Local-only deterministic per-adapter results.
+```
+
+The module has an explicit two-entry adapter registry and does not scan for or
+execute arbitrary migration code. It reads the released compact source
+summaries without modification; raw data and local acquisition artifacts are
+not required.

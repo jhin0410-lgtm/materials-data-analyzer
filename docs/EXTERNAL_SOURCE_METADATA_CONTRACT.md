@@ -33,6 +33,11 @@ JSON checksum.
   are not rewritten.
 - Future changes require an explicit compatibility adapter or migration.
 
+The bounded v2.5.1 follow-on implements the two tracked-summary adapters as an
+exact artifact/version allowlist. It records raw-byte and canonical logical
+JSON checksums separately and rejects unknown or future versions. See the
+[External Source Compatibility Audit](EXTERNAL_SOURCE_COMPATIBILITY_AUDIT.md).
+
 The six schema contracts and three compact registries live under
 `data/platform/`. Their ownership is registered in the PGIR schema-ownership
 registry.
@@ -68,3 +73,8 @@ The v2.4.1 contract build performs no network call, acquisition, descriptor or
 graph generation, model run, solver execution, source mutation, or credential
 read. Local audit output is ignored under
 `outputs/v2_4_external_source_pgir_reuse/`.
+
+The v2.5.1 compatibility replay has the same no-network and no-credential
+boundary. It reads only the two tracked compact summaries; detailed replay
+records remain local-only under
+`outputs/v2_5_external_source_compatibility/`.
