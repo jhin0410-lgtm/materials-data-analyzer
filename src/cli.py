@@ -103,6 +103,13 @@ from .platform_core.external_source_contracts import (
     load_and_validate_external_source_contract,
     validate_external_source_registries,
 )
+from .platform_core.external_source_compatibility import (
+    DEFAULT_CONFIG_PATH as DEFAULT_EXTERNAL_SOURCE_COMPATIBILITY_CONFIG,
+    load_compatibility_config,
+    preview_external_source_compatibility,
+    run_external_source_compatibility_audit,
+    validate_external_source_compatibility_file,
+)
 from .platform_core.materials_pgir_reuse import (
     TRACKED_PATHS as V2_4_TRACKED_PATHS,
     load_second_domain_pgir_reuse_summary,
@@ -4155,6 +4162,70 @@ def _cmd_export_external_source_contract_summary(args: argparse.Namespace) -> in
     return _emit_or_error(args, payload, ok=payload.get("status") == "exported")
 
 
+def _cmd_preview_external_source_compatibility(args: argparse.Namespace) -> int:
+    try:
+        payload = preview_external_source_compatibility(load_compatibility_config(args.config))
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": "2.5.1",
+            "status": "invalid",
+            "writes_performed": False,
+            "network_called": False,
+            "error": str(exc),
+        }
+    return _emit_or_error(args, payload, ok=payload.get("status") == "ready")
+
+
+def _cmd_run_external_source_compatibility(args: argparse.Namespace) -> int:
+    if not args.execute:
+        return _emit_or_error(
+            args,
+            {
+                "schema_version": "2.5.1",
+                "status": "execution_not_authorized",
+                "network_called": False,
+                "source_mutation_performed": False,
+                "error": "explicit --execute is required",
+            },
+            ok=False,
+        )
+    try:
+        result = run_external_source_compatibility_audit(
+            load_compatibility_config(args.config),
+            execute=True,
+            write_local=not args.tracked_only,
+            write_tracked=True,
+        )
+        payload = {
+            "schema_version": "2.5.1",
+            "status": result["status"],
+            "summary": result["summary"],
+            "written": result["written"],
+            "network_called": result["network_called"],
+            "credentials_read": result["credentials_read"],
+            "credentials_persisted": result["credentials_persisted"],
+            "source_mutation_performed": result["source_mutation_performed"],
+            "model_executed": result["model_executed"],
+        }
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": "2.5.1",
+            "status": "invalid",
+            "network_called": False,
+            "source_mutation_performed": False,
+            "error": str(exc),
+        }
+    return _emit_or_error(args, payload, ok=payload.get("status") == "completed")
+
+
+def _cmd_validate_external_source_compatibility(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_external_source_compatibility_file(args.path)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"schema_version": "1", "status": "invalid", "valid": False, "error": str(exc)}
+    return _emit_or_error(args, payload, ok=bool(payload.get("valid")))
+
+
 def _cmd_preview_materials_pgir_reuse(args: argparse.Namespace) -> int:
     try:
         _validate_v2_4_config(args.config)
@@ -5916,6 +5987,39 @@ def build_parser() -> argparse.ArgumentParser:
         "export-external-source-contract-summary",
         help="export deterministic v2.4 external source compact artifacts",
     ).set_defaults(func=_cmd_export_external_source_contract_summary)
+
+    preview_external_compatibility_parser = subparsers.add_parser(
+        "preview-external-source-compatibility",
+        help="preview the allowlisted external-source compatibility replay without writes",
+    )
+    preview_external_compatibility_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_EXTERNAL_SOURCE_COMPATIBILITY_CONFIG
+    )
+    preview_external_compatibility_parser.set_defaults(
+        func=_cmd_preview_external_source_compatibility
+    )
+
+    run_external_compatibility_parser = subparsers.add_parser(
+        "run-external-source-compatibility-audit",
+        help="execute the bounded read-only compatibility audit over tracked summaries",
+    )
+    run_external_compatibility_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_EXTERNAL_SOURCE_COMPATIBILITY_CONFIG
+    )
+    run_external_compatibility_parser.add_argument("--execute", action="store_true")
+    run_external_compatibility_parser.add_argument("--tracked-only", action="store_true")
+    run_external_compatibility_parser.set_defaults(
+        func=_cmd_run_external_source_compatibility
+    )
+
+    validate_external_compatibility_parser = subparsers.add_parser(
+        "validate-external-source-compatibility",
+        help="validate a deterministic compatibility adapter result or compact summary",
+    )
+    validate_external_compatibility_parser.add_argument("path")
+    validate_external_compatibility_parser.set_defaults(
+        func=_cmd_validate_external_source_compatibility
+    )
 
     preview_materials_reuse_parser = subparsers.add_parser(
         "preview-materials-pgir-reuse",

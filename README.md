@@ -238,6 +238,13 @@ governance, second-domain PGIR representation reuse over existing Materials
 structures, and the first bounded executable PGIR physical benchmark while
 preserving the v2.2 Materials and v2.3 Battery decisions.
 
+The additive v2.5.1 feature-stage audit executes two allowlisted historical
+compatibility mappings without changing the public version. It supports
+deterministic software replay of the tracked Materials v2.2.4 and Battery
+v2.3.5 summaries while preserving unresolved source metadata and scientific
+claim limits. See the
+[`External Source Compatibility Audit`](docs/EXTERNAL_SOURCE_COMPATIBILITY_AUDIT.md).
+
 PGIR continues to define canonical concepts, maturity levels, schema ownership,
 and operator taxonomy. v2.4 executes only one synthetic one-dimensional scalar
 diffusion problem using an analytical Propagator and a deterministic FTCS

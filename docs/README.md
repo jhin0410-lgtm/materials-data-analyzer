@@ -19,6 +19,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [External Source Current Architecture Audit](EXTERNAL_SOURCE_CURRENT_ARCHITECTURE_AUDIT.md): pre-v2.4 source, snapshot, checksum, authentication, and lineage audit.
 - [External Source Metadata Contract](EXTERNAL_SOURCE_METADATA_CONTRACT.md): v2.4.1 versioned source-system, dataset, snapshot, distribution, and retrieval contract.
 - [External Source Provenance Levels](EXTERNAL_SOURCE_PROVENANCE_LEVELS.md): evidence-bearing status taxonomy without a global trust score.
+- [External Source Compatibility Audit](EXTERNAL_SOURCE_COMPATIBILITY_AUDIT.md): v2.5.1 deterministic replay of two allowlisted historical compact artifacts without migration or network access.
 - [Materials Structure PGIR Reuse](MATERIALS_STRUCTURE_PGIR_REUSE.md): actual 838-entity second-domain declaration and conformance audit.
 - [Cross-Domain PGIR Reuse Evidence](CROSS_DOMAIN_PGIR_REUSE_EVIDENCE.md): shared framework and domain-semantic boundaries.
 - [NIST, NREL, and NVD Source Boundaries](NIST_NREL_NVD_SOURCE_BOUNDARIES.md): future routing declarations with no integration claim.

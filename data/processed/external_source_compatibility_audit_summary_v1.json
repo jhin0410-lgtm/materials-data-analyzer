@@ -1,0 +1,71 @@
+{
+  "adapter_count": 2,
+  "adapter_results": [
+    {
+      "adapter_id": "battery_source_lineage_to_external_source_v1",
+      "adapter_version": "1",
+      "compatibility_status": "partial",
+      "declared_mapping_status": "partial",
+      "input_artifact_kind": "battery_v2_3_5_source_lineage_summary",
+      "input_artifact_ref": "data/processed/battery_v2_3_5_source_lineage_summary.json",
+      "input_artifact_version": "2.3.5",
+      "input_canonical_json_sha256": "fa43443ecc82f147fdc7117524c911d4ffd63be9b657993736f3bfd30c58e87a",
+      "input_raw_bytes_sha256": "c392bf6a1a6ded87714e6038331ca7b7fb38bf54eabe36a1724cf5c2d36f284c",
+      "result_checksum_sha256": "d00d1a1c49426477fe204bf5096c5af210386952d1dfc2d95a6b62e392412a54",
+      "unresolved_fields": [
+        "calibration_metadata",
+        "license_or_terms",
+        "measurement_uncertainty",
+        "official_nasa_snapshot_version",
+        "original_retrieval_timestamp"
+      ]
+    },
+    {
+      "adapter_id": "materials_structure_summary_external_lineage_v1",
+      "adapter_version": "1",
+      "compatibility_status": "compatible_with_restrictions",
+      "declared_mapping_status": "compatible_adapter",
+      "input_artifact_kind": "materials_project_v2_2_4_structure_enrichment_summary",
+      "input_artifact_ref": "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json",
+      "input_artifact_version": "2.2.4",
+      "input_canonical_json_sha256": "0cb63a1da65c0e25bbc94995a907b583b7028cbd79c32bf1fc3fcda2d7503a38",
+      "input_raw_bytes_sha256": "3eb562668272daefb3893f725717856da1706b5c71771d51cd5f2fd74583ee92",
+      "result_checksum_sha256": "14d07610641b7874187dcc5374f6ec9d13fa062b1732120054a60dacd49b9cf5",
+      "unresolved_fields": [
+        "api_client_version",
+        "license_or_terms",
+        "named_dataset_snapshot_version",
+        "source_database_version"
+      ]
+    }
+  ],
+  "audit_id": "external_source_compatibility_replay_v1",
+  "claim_boundary": [
+    "compatibility does not independently verify external source authenticity or data correctness",
+    "compatibility does not establish scientific comparability, mechanism validity, independent validation, or production validation"
+  ],
+  "compatibility_meaning": "allowlisted adapters can interpret historical compact artifacts without rewriting them; supported evidence is preserved and missing evidence remains explicit",
+  "compatibility_status_counts": {
+    "blocked": 0,
+    "compatible_with_restrictions": 1,
+    "fully_compatible": 0,
+    "partial": 1,
+    "unsupported": 0
+  },
+  "credentials_persisted": false,
+  "credentials_read": false,
+  "feature_version": "2.5.1",
+  "input_artifacts_unchanged": true,
+  "local_detail_policy": "per_adapter_results_under_ignored_outputs_only",
+  "model_executed": false,
+  "network_called": false,
+  "schema_id": "external_source_compatibility_summary_v1",
+  "schema_version": "1",
+  "scientific_provenance_portability": "diagnostic",
+  "software_validation": "supported",
+  "source_mutation_performed": false,
+  "status": "partial",
+  "summary_checksum_sha256": "2afed5aa101f3026ef0d2dc211407459961bdceffbd36e566d8ddea72b772333",
+  "target_contract_version": "1",
+  "trust_score_used": false
+}

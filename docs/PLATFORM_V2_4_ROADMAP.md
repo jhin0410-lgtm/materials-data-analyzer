@@ -54,6 +54,15 @@ release:
 Automatic acquisition and heterogeneous cross-source dataset merging remain
 out of scope.
 
+## Post-Release v2.5.1 Follow-On
+
+The first deferred item is now exercised for exactly two tracked summaries:
+the Materials v2.2.4 structure-enrichment summary and Battery v2.3.5 source-
+lineage summary. The audit is a read-only compatibility replay, not a general
+migration system. It keeps Materials named-snapshot/client metadata unresolved
+and the Battery mapping partial. Other historical versions, source retrieval,
+and evidence-backed resolution of external metadata remain deferred.
+
 ## Non-Goals
 
 No automatic network access, universal source client, source trust score,

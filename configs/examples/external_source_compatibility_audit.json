@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    {
+      "adapter_id": "materials_structure_summary_external_lineage_v1",
+      "artifact_kind": "materials_project_v2_2_4_structure_enrichment_summary",
+      "expected_version": "2.2.4",
+      "input_path": "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json"
+    },
+    {
+      "adapter_id": "battery_source_lineage_to_external_source_v1",
+      "artifact_kind": "battery_v2_3_5_source_lineage_summary",
+      "expected_version": "2.3.5",
+      "input_path": "data/processed/battery_v2_3_5_source_lineage_summary.json"
+    }
+  ],
+  "audit_id": "external_source_compatibility_replay_v1",
+  "credential_policy": {
+    "read_credentials": false,
+    "store_credentials": false
+  },
+  "dry_run": true,
+  "model_execution_enabled": false,
+  "network_enabled": false,
+  "output_root": "outputs/v2_5_external_source_compatibility",
+  "schema_version": "1",
+  "source_mutation_enabled": false,
+  "target_contract_version": "1",
+  "tracked_summary_policy": {
+    "path": "data/processed/external_source_compatibility_audit_summary_v1.json",
+    "write_tracked_summary": true
+  }
+}

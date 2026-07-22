@@ -319,6 +319,19 @@ ignored `outputs/v2_4_diffusion_benchmark/`.
 The values are synthetic benchmark evidence. They are not Battery data,
 real-material parameters, independent validation, or production validation.
 
+## External Source Compatibility v2.5.1 Compact Evidence
+
+`external_source_compatibility_audit_summary_v1.json` records deterministic
+adapter IDs, exact source versions, separate raw-byte and canonical JSON
+checksums, compatibility statuses, unresolved fields, and claim boundaries for
+the tracked Materials v2.2.4 and Battery v2.3.5 summaries. Detailed adapter
+results remain local-only under
+`outputs/v2_5_external_source_compatibility/`.
+
+The summary is software compatibility evidence, not independent source,
+scientific, mechanism, model, or production validation. The two historical
+input summaries are not rewritten.
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.
