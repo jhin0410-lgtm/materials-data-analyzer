@@ -28,12 +28,13 @@ Each adapter records two distinct checksums:
 - the SHA-256 of the exact input bytes;
 - the SHA-256 of canonical logical JSON.
 
-The Materials raw-byte checksum is
-`3eb562668272daefb3893f725717856da1706b5c71771d51cd5f2fd74583ee92`;
-the Battery raw-byte checksum is
-`c392bf6a1a6ded87714e6038331ca7b7fb38bf54eabe36a1724cf5c2d36f284c`.
-Repeated runs reproduce the same adapter and summary checksums. The input
-files remain byte-for-byte unchanged.
+Exact-byte checksums remain in ignored per-adapter records and verify that an
+audit run does not mutate its inputs. Because Git may check out JSON with LF
+or CRLF line endings, the tracked aggregate intentionally uses only canonical
+JSON checksums. Its source identities and summary checksum are therefore
+stable across supported operating systems without relabeling checkout bytes
+as portable provenance. The input files remain byte-for-byte unchanged by
+each run.
 
 The Materials result retains the unresolved named dataset snapshot, source
 database version, API client version, and license/terms fields. Its

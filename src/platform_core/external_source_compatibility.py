@@ -882,12 +882,10 @@ def build_compatibility_audit_summary(
                 "input_artifact_kind": item.input_artifact_kind,
                 "input_artifact_ref": item.input_artifact_ref,
                 "input_artifact_version": item.input_artifact_version,
-                "input_raw_bytes_sha256": item.input_raw_bytes_sha256,
                 "input_canonical_json_sha256": item.input_canonical_json_sha256,
                 "compatibility_status": item.compatibility_status,
                 "declared_mapping_status": item.declared_mapping_status,
                 "unresolved_fields": list(item.unresolved_fields),
-                "result_checksum_sha256": item.result_checksum_sha256,
             }
             for item in ordered
         ],
@@ -957,12 +955,10 @@ def validate_compatibility_summary(payload: Mapping[str, Any]) -> dict[str, Any]
         "input_artifact_kind",
         "input_artifact_ref",
         "input_artifact_version",
-        "input_raw_bytes_sha256",
         "input_canonical_json_sha256",
         "compatibility_status",
         "declared_mapping_status",
         "unresolved_fields",
-        "result_checksum_sha256",
     }
     adapter_results = payload["adapter_results"]
     if not isinstance(adapter_results, list):
@@ -1001,11 +997,7 @@ def validate_compatibility_summary(payload: Mapping[str, Any]) -> dict[str, Any]
         if row["compatibility_status"] != expected_status:
             raise ValueError(f"adapter_results[{index}] compatibility status mismatch")
         observed_counts[row["compatibility_status"]] += 1
-        for name in (
-            "input_raw_bytes_sha256",
-            "input_canonical_json_sha256",
-            "result_checksum_sha256",
-        ):
+        for name in ("input_canonical_json_sha256",):
             if not re.fullmatch(r"[0-9a-f]{64}", str(row[name])):
                 raise ValueError(f"adapter_results[{index}].{name} must be lowercase SHA-256")
     if payload["adapter_count"] != len(adapter_results):

@@ -15,6 +15,7 @@ from src.platform_core.external_source_compatibility import (
     validate_compatibility_adapter_registry,
     validate_compatibility_summary,
 )
+from src.platform_core.external_source_contracts import canonical_json_sha256
 
 
 MATERIALS_PATH = Path("data/processed/materials_project_v2_2_4_structure_enrichment_summary.json")
@@ -23,6 +24,10 @@ BATTERY_PATH = Path("data/processed/battery_v2_3_5_source_lineage_summary.json")
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _canonical_sha(path: Path) -> str:
+    return canonical_json_sha256(json.loads(path.read_text(encoding="utf-8")))
 
 
 def test_adapter_registry_is_explicit_unique_and_deterministic():
@@ -102,6 +107,8 @@ def test_tracked_summary_matches_runtime_generation():
     tracked = json.loads(Path(TRACKED_SUMMARY_PATH).read_text(encoding="utf-8"))
 
     assert tracked == expected
+    assert all("input_raw_bytes_sha256" not in row for row in tracked["adapter_results"])
+    assert all("result_checksum_sha256" not in row for row in tracked["adapter_results"])
     assert validate_compatibility_summary(tracked)["valid"] is True
     assert tracked["compatibility_status_counts"] == {
         "blocked": 0,
@@ -134,6 +141,6 @@ def test_clean_checkout_audit_requires_only_two_tracked_compact_inputs(tmp_path)
     assert (tmp_path / TRACKED_SUMMARY_PATH).is_file()
 
 
-def test_v2_2_and_v2_3_source_artifacts_keep_canonical_raw_checksums():
-    assert _sha(MATERIALS_PATH) == "3eb562668272daefb3893f725717856da1706b5c71771d51cd5f2fd74583ee92"
-    assert _sha(BATTERY_PATH) == "c392bf6a1a6ded87714e6038331ca7b7fb38bf54eabe36a1724cf5c2d36f284c"
+def test_v2_2_and_v2_3_source_artifacts_keep_canonical_json_checksums():
+    assert _canonical_sha(MATERIALS_PATH) == "0cb63a1da65c0e25bbc94995a907b583b7028cbd79c32bf1fc3fcda2d7503a38"
+    assert _canonical_sha(BATTERY_PATH) == "fa43443ecc82f147fdc7117524c911d4ffd63be9b657993736f3bfd30c58e87a"
