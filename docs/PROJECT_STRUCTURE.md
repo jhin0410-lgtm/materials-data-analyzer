@@ -159,6 +159,14 @@ lineage and per-policy event rows stay under ignored
 `outputs/battery_metadata_stability_v2_3/`; tracked outputs are aggregate and
 identity-free. The audit performs no network download, fitting, prediction, or
 mechanism attribution.
+v2.6.1 adds `src/platform_core/battery_forecasting.py` as a focused,
+additive warm-start cross-battery forecasting benchmark. It builds exact
+five-cycle targets and trailing lag features from the tracked Battery
+analysis-ready table, holds out battery identities with GroupKFold, and
+compares persistence with a train-only Ridge pipeline. Detailed predictions
+remain under `outputs/v2_6_battery_generalization/`; the compact tracked
+summary preserves the actual unsupported conclusion without row-level battery
+identities.
 v2.4.2 adds `src/platform_core/pgir_model_contracts.py` and
 `src/platform_core/diffusion_1d_benchmark.py` for one strict synthetic scalar
 diffusion contract, exact reference, deterministic FTCS execution, refinement,

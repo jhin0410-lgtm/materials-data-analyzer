@@ -84,6 +84,7 @@ battery_v2_3_5_event_stability_summary.csv
 battery_v2_3_5_external_data_requirement_decision.json
 battery_v2_3_5_decision.json
 battery_v2_3_5_report_summary.md
+battery_v2_6_1_generalization_forecast_summary.json
 ```
 
 The row-level Observation, operational State, and Trajectory JSONL artifacts
@@ -104,6 +105,13 @@ selection only.
 The v2.3.4 and v2.3.5 summaries contain identity-free evaluator and policy-
 stability aggregates only. Source/cell lineage, recovered cycle metadata,
 per-policy findings, and bounded event rows remain local-only.
+
+The v2.6.1 compact forecast summary is reproducible from the tracked
+2,495-row analysis-ready table. Detailed predictions, split rows, and
+per-battery metrics remain local-only under
+`outputs/v2_6_battery_generalization/`. The fixed Ridge benchmark is recorded
+as `unsupported` relative to persistence; this is not a zero-shot, SOH/RUL,
+mechanism, or production result.
 
 ## Materials Project Case Study Summaries
 

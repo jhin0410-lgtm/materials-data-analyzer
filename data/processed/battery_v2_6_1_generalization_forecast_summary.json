@@ -1,0 +1,121 @@
+{
+  "aggregate_metrics": [
+    {
+      "battery_mae_max": 47.81192314949711,
+      "battery_mae_mean": 4.75906940048389,
+      "battery_mae_median": 2.702965453989821,
+      "evaluated_group_count": 33,
+      "mae": 3.425575369058076,
+      "model": "persistence",
+      "prediction_count": 2100,
+      "r2": 0.7430406290939264,
+      "rmse": 11.57285420986917
+    },
+    {
+      "battery_mae_max": 45.77990517411751,
+      "battery_mae_mean": 5.423775660407191,
+      "battery_mae_median": 2.6230588741069036,
+      "evaluated_group_count": 33,
+      "mae": 4.15369918179312,
+      "model": "ridge",
+      "prediction_count": 2100,
+      "r2": 0.7583707243049393,
+      "rmse": 11.222329810780126
+    }
+  ],
+  "artifact_kind": "battery_generalization_forecast_compact_summary",
+  "baseline_comparison": {
+    "baseline": "persistence",
+    "evaluated_group_count": 33,
+    "improved_group_count": 13,
+    "mae_absolute_difference": 0.7281238127350438,
+    "mae_improvement_percent": -21.25551868780673,
+    "model": "ridge",
+    "not_improved_group_count": 20
+  },
+  "benchmark_id": "battery_warm_start_cross_battery_forecast_v1",
+  "credentials_read": false,
+  "deterministic_rerun_match": true,
+  "deterministic_result_checksum": "9bcc58b0f7df95cc996aee6f509aac6a9293f753186b50d8b1635bb6ad392d42",
+  "eligible_prediction_rows": 2100,
+  "evaluable_trajectory_count": 33,
+  "evaluation_scenario": "warm_start_cross_battery",
+  "excluded_rows": 395,
+  "exclusion_reasons": {
+    "horizon_target_unavailable": 204,
+    "insufficient_history": 32,
+    "missing_current_target": 0,
+    "missing_required_lag": 159
+  },
+  "first_run_checksum": "f3f11fd2b5cbebda0322deb720421e0df9e4c95e2fe85f71768bef9bb24eae2b",
+  "fold_count": 5,
+  "forecast_horizon_cycles": 5,
+  "group_overlap_count": 0,
+  "leakage_checks": {
+    "centered_rolling_used": false,
+    "feature_cutoff_not_after_origin": true,
+    "full_trajectory_statistic_used": false,
+    "future_feature_accessed": false,
+    "group_overlap_count": 0,
+    "preprocessing_fit_scope": "training_partition_only",
+    "random_row_split_used": false,
+    "status": "passed",
+    "target_direct_feature_used": false,
+    "target_horizon_alignment_valid": true
+  },
+  "model_executed": true,
+  "network_called": false,
+  "physical_plausibility_checks": [
+    {
+      "large_origin_change_count": 0,
+      "model": "persistence",
+      "negative_prediction_count": 0,
+      "non_finite_prediction_count": 0,
+      "outside_plausibility_bounds_count": 0,
+      "outside_training_target_range_count": 36,
+      "prediction_clipping_performed": false,
+      "prediction_count": 2100
+    },
+    {
+      "large_origin_change_count": 0,
+      "model": "ridge",
+      "negative_prediction_count": 3,
+      "non_finite_prediction_count": 0,
+      "outside_plausibility_bounds_count": 3,
+      "outside_training_target_range_count": 26,
+      "prediction_clipping_performed": false,
+      "prediction_count": 2100
+    }
+  ],
+  "schema_version": "2.6.1",
+  "scientific_assessment": {
+    "engineering_decision_allowed": false,
+    "evaluation_scenario": "warm_start_cross_battery",
+    "lifetime_or_rul_claim_allowed": false,
+    "mechanism_claim_allowed": false,
+    "observed_history_conditioned": true,
+    "reason": "ridge did not improve on persistence under the registered rules",
+    "status": "unsupported",
+    "unseen_battery_identity_generalization": true,
+    "zero_shot": false
+  },
+  "scientific_limitations": [
+    "retrieval reproducibility remains insufficient_evidence",
+    "official NASA source snapshot and calibration metadata remain unresolved",
+    "test-battery pre-origin history is required; this is not zero-shot",
+    "cross-institution and independent external validation are unavailable",
+    "battery chemistry and protocol comparability remain restricted",
+    "capacity forecasting does not identify a degradation mechanism"
+  ],
+  "second_run_checksum": "f3f11fd2b5cbebda0322deb720421e0df9e4c95e2fe85f71768bef9bb24eae2b",
+  "software_validation": "passed",
+  "source_dataset_reference": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "source_lineage_reference": "data/processed/battery_v2_3_5_source_lineage_summary.json",
+  "source_mutation_performed": false,
+  "source_rows": 2495,
+  "source_sha256": "cf67c7210036e11032e140385864ce68bb8445e2f282e57259aa5b314ed1f7ce",
+  "source_trajectory_count": 34,
+  "split_method": "group_kfold",
+  "target_column": "capacity_retention_percent",
+  "target_unit": "percent"
+}

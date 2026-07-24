@@ -43,6 +43,10 @@ uncertainty, or calibration metadata is inferred.
 Physical-operator portability remains lower priority until two genuinely
 comparable domain contexts and their required evidence are available.
 
+The subsequent Battery forecasting feature stage is documented separately in
+the [Platform v2.6 roadmap](PLATFORM_V2_6_ROADMAP.md); it does not change the
+v2.5 compatibility or retrieval-reproducibility conclusions.
+
 ## Non-Goals
 
 v2.5 does not add a general migration framework, automatic network

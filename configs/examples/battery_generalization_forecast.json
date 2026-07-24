@@ -1,0 +1,38 @@
+{
+  "schema_version": "2.6.1",
+  "benchmark_id": "battery_warm_start_cross_battery_forecast_v1",
+  "case_study_id": "kaggle_battery",
+  "input_path": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "source_lineage_path": "data/processed/battery_v2_3_5_source_lineage_summary.json",
+  "group_column": "battery_id",
+  "time_column": "cycle_index",
+  "target_column": "capacity_retention_percent",
+  "target_unit": "percent",
+  "horizon": 5,
+  "lags": [
+    1,
+    2,
+    3
+  ],
+  "rolling_window": 5,
+  "minimum_history": 5,
+  "split_method": "group_kfold",
+  "n_splits": 5,
+  "random_seed": 42,
+  "models": [
+    "persistence",
+    "ridge"
+  ],
+  "ridge_alpha": 1.0,
+  "plausibility_min": 0.0,
+  "plausibility_max": 150.0,
+  "large_change_threshold": 25.0,
+  "duplicate_cycle_policy": "reject_trajectory",
+  "unordered_cycle_policy": "stable_sort_with_audit",
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "output_root": "outputs/v2_6_battery_generalization",
+  "output_policy": "local_details_and_tracked_compact_summary"
+}

@@ -90,6 +90,17 @@ reuse, independent validation, or production validation. See the
 [PGIR Model Contract](docs/PGIR_MODEL_CONTRACT.md) and
 [scientific boundary](docs/V2_4_DIFFUSION_SCIENTIFIC_BOUNDARY.md).
 
+## Battery Forecasting Feature Stage
+
+v2.6.1 adds a leakage-safe, exact five-cycle
+`warm_start_cross_battery` capacity-retention benchmark over 33 evaluable
+batteries. The fixed Ridge model did not improve pooled MAE over persistence
+(`4.1537` versus `3.4256`) and improved 13 of 33 batteries, so the registered
+scientific assessment is `unsupported`. The implementation demonstrates
+battery-disjoint validation and train-only preprocessing; it does not support
+zero-shot, lifetime, SOH/RUL, mechanism, or engineering-decision claims. See
+[Battery-Level Generalization Forecasting](docs/BATTERY_GENERALIZATION_FORECASTING.md).
+
 ## Project Structure
 
 ```text
