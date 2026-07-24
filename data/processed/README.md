@@ -332,6 +332,19 @@ The summary is software compatibility evidence, not independent source,
 scientific, mechanism, model, or production validation. The two historical
 input summaries are not rewritten.
 
+## Retrieval Reproducibility v2.5.2 Compact Evidence
+
+`retrieval_reproducibility_audit_summary_v1.json` records portable canonical
+identities, case-study readiness, missing paired evidence, and claim
+boundaries. It intentionally excludes checkout-dependent raw hashes. Detailed
+raw-byte evidence and optional local pair results remain under ignored
+`outputs/v2_5_retrieval_reproducibility/`.
+
+Materials and Battery are not compared with one another. Each has one tracked
+evidence point and no independent second retrieval event, so both remain
+`insufficient_evidence`. This is not source-truth, scientific-comparability,
+mechanism, independent-validation, or production evidence.
+
 ## Policy
 
 - Raw downloaded datasets, source archives, full API responses, and credentials do not belong in `data/processed/`.

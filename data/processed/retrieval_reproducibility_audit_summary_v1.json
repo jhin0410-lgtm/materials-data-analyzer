@@ -1,0 +1,118 @@
+{
+  "audit_id": "retrieval_reproducibility_evidence_audit_v1",
+  "case_study_results": [
+    {
+      "assessment_status": "insufficient_evidence",
+      "available_evidence": [
+        "artifact_schema_version",
+        "canonical_logical_checksum",
+        "source_distribution_raw_checksum",
+        "tracked_aggregate_provenance_boundary"
+      ],
+      "case_study_id": "battery",
+      "claim_boundary": "the tracked artifact establishes one bounded evidence point; it does not establish real-world retrieval reproducibility",
+      "compatibility_status": "partial",
+      "evidence_id": "battery_tracked_retrieval_evidence_v1",
+      "input_artifact_ref": "data/processed/battery_v2_3_5_source_lineage_summary.json",
+      "input_artifact_version": "2.3.5",
+      "input_canonical_logical_sha256": "fa43443ecc82f147fdc7117524c911d4ffd63be9b657993736f3bfd30c58e87a",
+      "minimum_additional_evidence": [
+        "an independent second retrieval event for the same artifact role",
+        "a complete and comparable source/snapshot/retrieval metadata record",
+        "checksums for both independently retrieved artifacts"
+      ],
+      "missing_evidence": [
+        "calibration_metadata",
+        "client_name",
+        "client_version",
+        "endpoint_or_method",
+        "independent_second_retrieval_event",
+        "license_or_terms",
+        "measurement_uncertainty",
+        "official_nasa_snapshot_version",
+        "original_retrieval_timestamp",
+        "query_or_parameters",
+        "requested_entity_identifiers",
+        "retrieval_event_ref",
+        "retrieval_timestamp",
+        "snapshot_ref"
+      ],
+      "valid_comparison_pair_exists": false
+    },
+    {
+      "assessment_status": "insufficient_evidence",
+      "available_evidence": [
+        "artifact_schema_version",
+        "canonical_logical_checksum",
+        "tracked_aggregate_provenance_boundary"
+      ],
+      "case_study_id": "materials_project",
+      "claim_boundary": "the tracked artifact establishes one bounded evidence point; it does not establish real-world retrieval reproducibility",
+      "compatibility_status": "compatible_with_restrictions",
+      "evidence_id": "materials_project_tracked_retrieval_evidence_v1",
+      "input_artifact_ref": "data/processed/materials_project_v2_2_4_structure_enrichment_summary.json",
+      "input_artifact_version": "2.2.4",
+      "input_canonical_logical_sha256": "0cb63a1da65c0e25bbc94995a907b583b7028cbd79c32bf1fc3fcda2d7503a38",
+      "minimum_additional_evidence": [
+        "an independent second retrieval event for the same artifact role",
+        "a complete and comparable source/snapshot/retrieval metadata record",
+        "checksums for both independently retrieved artifacts"
+      ],
+      "missing_evidence": [
+        "api_client_version",
+        "client_version",
+        "distribution_ref",
+        "independent_second_retrieval_event",
+        "license_or_terms",
+        "named_dataset_snapshot_version",
+        "requested_entity_identifiers",
+        "retrieval_timestamp",
+        "snapshot_ref",
+        "source_database_version"
+      ],
+      "valid_comparison_pair_exists": false
+    }
+  ],
+  "claim_boundary": [
+    "one tracked evidence point per case study cannot establish retrieval reproducibility",
+    "Materials and Battery are separate domains and are never treated as a retrieval pair",
+    "compatibility and checksum evidence do not establish source truth, scientific comparability, mechanism validity, independent validation, or production validation"
+  ],
+  "comparison_status_counts": {
+    "content_changed": 0,
+    "exact_reproducible": 0,
+    "insufficient_evidence": 0,
+    "logically_reproducible": 0,
+    "metadata_mismatch": 0,
+    "not_comparable": 0
+  },
+  "compatibility_context": {
+    "battery_status": "partial",
+    "materials_status": "compatible_with_restrictions",
+    "scientific_provenance_portability": "diagnostic",
+    "software_validation": "supported",
+    "summary_canonical_json_sha256": "0ae3d6b36060e305016d60a25cb619d53feda5fbdece575ed97e9ee3fe150185"
+  },
+  "credentials_read": false,
+  "cross_domain_comparison_performed": false,
+  "declared_pair_count": 0,
+  "evaluated_pair_count": 0,
+  "evidence_record_count": 2,
+  "exact_byte_reproducibility_established": false,
+  "feature_version": "2.5.2",
+  "input_artifacts_unchanged": true,
+  "logical_content_reproducibility_established": false,
+  "metadata_reproducibility_established": false,
+  "model_executed": false,
+  "network_called": false,
+  "raw_checksum_policy": "checkout-dependent input raw hashes remain in ignored local detail; the tracked summary stores canonical logical identity only",
+  "schema_id": "retrieval_reproducibility_summary_v1",
+  "schema_version": "1",
+  "scientific_validation": "insufficient_paired_retrieval_evidence",
+  "self_comparison_used": false,
+  "software_validation": "supported",
+  "source_mutation_performed": false,
+  "source_truth_verified": false,
+  "status": "insufficient_evidence",
+  "summary_checksum_sha256": "d4e6b28782ae88709a6127b04ec3f8df0371e9477413e4a03c7815fcab0db357"
+}

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added v2.5.2 bounded retrieval-reproducibility evidence records, comparison
+  outcomes, readiness summaries, and preview/run/validate CLI commands.
+  Exact bytes, canonical logical content, metadata agreement, and insufficient
+  evidence are separate outcomes; cross-domain and same-file comparisons are
+  prohibited.
+- Audited the tracked Materials and Battery evidence without network,
+  credentials, source mutation, migration, or model execution. Both remain
+  `insufficient_evidence` because no independent second retrieval event is
+  present; the v2.5.1 compatibility outcomes remain unchanged.
 - Added v2.5.1 explicit, version-allowlisted compatibility adapters for the
   tracked Materials v2.2.4 structure summary and Battery v2.3.5 source-lineage
   summary without migration, source mutation, network access, or credentials.
