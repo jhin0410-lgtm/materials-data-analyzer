@@ -48,6 +48,16 @@ versioned adapters. It does not promote `snapshot_identity_unresolved` or
 successful replay means only that a supported historical compact artifact can
 be interpreted deterministically without being rewritten.
 
+## Retrieval Reproducibility
+
+The v2.5.2 audit keeps retrieval reproducibility separate from compatibility.
+Exact bytes, canonical logical content, and retrieval metadata are evaluated
+as different evidence classes. A real-world reproducibility claim requires
+two independent same-domain, same-role retrieval events. The current
+Materials and Battery records each provide only one bounded evidence point, so
+both conclude `insufficient_evidence`; they are not compared with one another
+or with themselves.
+
 ## Claim Boundary
 
 Provenance status does not establish measurement accuracy, calibration,

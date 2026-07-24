@@ -421,3 +421,24 @@ The module has an explicit two-entry adapter registry and does not scan for or
 execute arbitrary migration code. It reads the released compact source
 summaries without modification; raw data and local acquisition artifacts are
 not required.
+
+## v2.5.2 Retrieval Reproducibility Evidence
+
+```text
+src/platform_core/
+  retrieval_reproducibility.py
+
+configs/examples/
+  retrieval_reproducibility_audit.json
+
+data/processed/
+  retrieval_reproducibility_audit_summary_v1.json
+
+outputs/v2_5_retrieval_reproducibility/
+  Local-only evidence and optional paired-comparison records.
+```
+
+The module distinguishes raw-byte identity from canonical logical JSON and
+requires independent, same-domain retrieval events plus complete comparable
+metadata. The tracked Materials and Battery artifacts are separate readiness
+inputs, not a pair; both currently conclude `insufficient_evidence`.

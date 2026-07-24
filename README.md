@@ -245,6 +245,14 @@ v2.3.5 summaries while preserving unresolved source metadata and scientific
 claim limits. See the
 [`External Source Compatibility Audit`](docs/EXTERNAL_SOURCE_COMPATIBILITY_AUDIT.md).
 
+The v2.5.2
+[`Retrieval Reproducibility Audit`](docs/RETRIEVAL_REPRODUCIBILITY_AUDIT.md)
+separates exact-byte, canonical logical-content, and retrieval-metadata
+evidence. Materials and Battery each remain `insufficient_evidence` because no
+independent second retrieval event is present; they are never treated as a
+comparison pair. The audit performs no network access, source mutation,
+credential access, migration, or model execution.
+
 PGIR continues to define canonical concepts, maturity levels, schema ownership,
 and operator taxonomy. v2.4 executes only one synthetic one-dimensional scalar
 diffusion problem using an analytical Propagator and a deterministic FTCS

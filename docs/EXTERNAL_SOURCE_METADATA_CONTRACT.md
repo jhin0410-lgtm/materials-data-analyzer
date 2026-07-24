@@ -37,6 +37,10 @@ The bounded v2.5.1 follow-on implements the two tracked-summary adapters as an
 exact artifact/version allowlist. It records raw-byte and canonical logical
 JSON checksums separately and rejects unknown or future versions. See the
 [External Source Compatibility Audit](EXTERNAL_SOURCE_COMPATIBILITY_AUDIT.md).
+The v2.5.2
+[Retrieval Reproducibility Audit](RETRIEVAL_REPRODUCIBILITY_AUDIT.md) then
+requires independent retrieval events and complete comparable metadata before
+those checksums can support a reproducibility assessment.
 
 The six schema contracts and three compact registries live under
 `data/platform/`. Their ownership is registered in the PGIR schema-ownership
@@ -78,3 +82,7 @@ The v2.5.1 compatibility replay has the same no-network and no-credential
 boundary. It reads only the two tracked compact summaries; detailed replay
 records remain local-only under
 `outputs/v2_5_external_source_compatibility/`.
+
+The v2.5.2 audit adds the tracked compatibility summary as context and keeps
+detailed evidence under `outputs/v2_5_retrieval_reproducibility/`. It does not
+retrieve sources, read credentials, mutate inputs, or run models.

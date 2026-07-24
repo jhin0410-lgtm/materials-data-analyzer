@@ -1,12 +1,11 @@
 # Platform v2.5 Roadmap
 
-Status: `v2.5.1_external_source_compatibility_feature_stage_complete`
+Status: `v2.5.2_retrieval_reproducibility_feature_stage_complete`
 
 ## Release Boundary
 
-`v2.4.0` remains the current public release. v2.5.1 is a completed feature
-stage on its feature branch; it is not a public release, tag, or release-note
-scope.
+`v2.4.0` remains the current public release. v2.5.1 and v2.5.2 are completed
+feature stages; they are not public releases, tags, or release-note scope.
 
 ## v2.5.1 Compatibility Evidence
 
@@ -34,13 +33,18 @@ validation, or production validation.
 
 ## Next Stage
 
-The next bounded stage is a metadata- and checksum-based retrieval
-reproducibility audit. Physical-operator portability remains lower priority
-until two genuinely comparable domain contexts and their required evidence
-are available.
+v2.5.2 implements the metadata- and checksum-based
+[retrieval reproducibility audit](RETRIEVAL_REPRODUCIBILITY_AUDIT.md). Both
+Materials and Battery remain `insufficient_evidence`: the repository has one
+bounded evidence point for each case study, not two independent comparable
+retrieval events. No missing snapshot, timestamp, client, license,
+uncertainty, or calibration metadata is inferred.
+
+Physical-operator portability remains lower priority until two genuinely
+comparable domain contexts and their required evidence are available.
 
 ## Non-Goals
 
-v2.5.1 does not add a general migration framework, automatic network
+v2.5 does not add a general migration framework, automatic network
 acquisition, NIST/NREL/NVD integration, heterogeneous data merging, model or
 solver execution, GNN or PINN execution, or a user interface.

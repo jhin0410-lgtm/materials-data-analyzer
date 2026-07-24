@@ -89,3 +89,8 @@ two explicitly tested historical artifacts. Provenance portability remains
 but does not independently verify source authenticity, data correctness,
 scientific comparability, mechanism validity, predictive models, independent
 validation, or production readiness. No numeric trust score is used.
+
+The follow-on
+[Retrieval Reproducibility Audit](RETRIEVAL_REPRODUCIBILITY_AUDIT.md) applies
+the stricter independent-event and metadata-evidence gate. It does not change
+these compatibility outcomes.

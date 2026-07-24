@@ -166,6 +166,13 @@ compatibility result is supported, while provenance portability remains
 diagnostic because external snapshot, terms, uncertainty, and source-truth
 gaps are preserved rather than inferred.
 
+The v2.5.2 feature stage adds a stricter retrieval-evidence gate. Raw-byte
+identity, canonical logical identity, and metadata comparability are separate
+checks, and a real-world conclusion requires two independent same-domain
+events. The current Materials and Battery evidence therefore remains
+`insufficient_evidence`; equal checksums from one artifact or a self-comparison
+are not presented as reproducibility.
+
 Mechanism fitting remains blocked until protocol, physical-time,
 calibration/uncertainty, geometry, boundary-condition, and cross-dataset
 comparability evidence are available. The project does not claim to be a

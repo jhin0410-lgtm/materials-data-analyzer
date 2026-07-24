@@ -110,6 +110,13 @@ from .platform_core.external_source_compatibility import (
     run_external_source_compatibility_audit,
     validate_external_source_compatibility_file,
 )
+from .platform_core.retrieval_reproducibility import (
+    DEFAULT_CONFIG_PATH as DEFAULT_RETRIEVAL_REPRODUCIBILITY_CONFIG,
+    load_retrieval_reproducibility_config,
+    preview_retrieval_reproducibility_audit,
+    run_retrieval_reproducibility_audit,
+    validate_retrieval_reproducibility_file,
+)
 from .platform_core.materials_pgir_reuse import (
     TRACKED_PATHS as V2_4_TRACKED_PATHS,
     load_second_domain_pgir_reuse_summary,
@@ -4226,6 +4233,77 @@ def _cmd_validate_external_source_compatibility(args: argparse.Namespace) -> int
     return _emit_or_error(args, payload, ok=bool(payload.get("valid")))
 
 
+def _cmd_preview_retrieval_reproducibility(args: argparse.Namespace) -> int:
+    try:
+        payload = preview_retrieval_reproducibility_audit(
+            load_retrieval_reproducibility_config(args.config)
+        )
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": "2.5.2",
+            "status": "invalid",
+            "writes_performed": False,
+            "network_called": False,
+            "error": str(exc),
+        }
+    return _emit_or_error(args, payload, ok=payload.get("status") == "ready")
+
+
+def _cmd_run_retrieval_reproducibility(args: argparse.Namespace) -> int:
+    if not args.execute:
+        return _emit_or_error(
+            args,
+            {
+                "schema_version": "2.5.2",
+                "status": "execution_not_authorized",
+                "network_called": False,
+                "source_mutation_performed": False,
+                "error": "explicit --execute is required",
+            },
+            ok=False,
+        )
+    try:
+        result = run_retrieval_reproducibility_audit(
+            load_retrieval_reproducibility_config(args.config),
+            execute=True,
+            write_local=not args.tracked_only,
+            write_tracked=True,
+        )
+        payload = {
+            "schema_version": "2.5.2",
+            "status": result["status"],
+            "assessment": result["assessment"],
+            "summary": result["summary"],
+            "written": result["written"],
+            "network_called": result["network_called"],
+            "credentials_read": result["credentials_read"],
+            "source_mutation_performed": result["source_mutation_performed"],
+            "model_executed": result["model_executed"],
+        }
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": "2.5.2",
+            "status": "invalid",
+            "network_called": False,
+            "source_mutation_performed": False,
+            "error": str(exc),
+        }
+    return _emit_or_error(args, payload, ok=payload.get("status") == "completed")
+
+
+def _cmd_validate_retrieval_reproducibility(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_retrieval_reproducibility_file(args.path)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": "1",
+            "status": "invalid",
+            "valid": False,
+            "error": str(exc),
+        }
+    return _emit_or_error(args, payload, ok=bool(payload.get("valid")))
+
+
 def _cmd_preview_materials_pgir_reuse(args: argparse.Namespace) -> int:
     try:
         _validate_v2_4_config(args.config)
@@ -6019,6 +6097,37 @@ def build_parser() -> argparse.ArgumentParser:
     validate_external_compatibility_parser.add_argument("path")
     validate_external_compatibility_parser.set_defaults(
         func=_cmd_validate_external_source_compatibility
+    )
+
+    preview_retrieval_parser = subparsers.add_parser(
+        "preview-retrieval-reproducibility-audit",
+        help="preview bounded retrieval-reproducibility evidence without writes",
+    )
+    preview_retrieval_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_RETRIEVAL_REPRODUCIBILITY_CONFIG
+    )
+    preview_retrieval_parser.set_defaults(
+        func=_cmd_preview_retrieval_reproducibility
+    )
+
+    run_retrieval_parser = subparsers.add_parser(
+        "run-retrieval-reproducibility-audit",
+        help="audit paired retrieval evidence without network or source mutation",
+    )
+    run_retrieval_parser.add_argument(
+        "config", nargs="?", default=DEFAULT_RETRIEVAL_REPRODUCIBILITY_CONFIG
+    )
+    run_retrieval_parser.add_argument("--execute", action="store_true")
+    run_retrieval_parser.add_argument("--tracked-only", action="store_true")
+    run_retrieval_parser.set_defaults(func=_cmd_run_retrieval_reproducibility)
+
+    validate_retrieval_parser = subparsers.add_parser(
+        "validate-retrieval-reproducibility-audit",
+        help="validate retrieval evidence, comparison, or compact summary",
+    )
+    validate_retrieval_parser.add_argument("path")
+    validate_retrieval_parser.set_defaults(
+        func=_cmd_validate_retrieval_reproducibility
     )
 
     preview_materials_reuse_parser = subparsers.add_parser(
