@@ -117,8 +117,24 @@ These importance values should be interpreted as model-specific screening signal
 
 ## 9. Next Steps
 
-- Add lagged forecasting features so earlier cycles can predict later-cycle retention.
-- Add battery- and protocol-aware features to better separate battery-to-battery differences.
-- Join impedance-derived features in a controlled next step.
-- Build a Streamlit demo later, after the case study tables and validation story are stable.
+- Require independent, protocol-comparable battery evidence before adding
+  model complexity.
+- Audit whether external calibration and uncertainty metadata can support a
+  scientifically stronger forecasting comparison.
+- Keep impedance alignment separate until cycle-level comparability is
+  established.
 
+## 10. v2.6.1 Lagged Forecasting Closeout
+
+v2.6.1 evaluates 2,100 exact five-cycle origins across 33 batteries using only
+current and earlier retention history. Deterministic GroupKFold partitions
+have zero train/test battery overlap. The scenario is
+`warm_start_cross_battery`, not zero-shot, because each held-out battery
+contributes its own pre-origin history.
+
+Persistence achieved pooled MAE 3.4256; the fixed train-only Ridge pipeline
+achieved 4.1537 and improved 13 of 33 batteries. The scientific assessment is
+therefore `unsupported`. Three Ridge predictions were negative and were
+reported without clipping. See
+[Battery-Level Generalization Forecasting](../../../docs/BATTERY_GENERALIZATION_FORECASTING.md)
+for the complete feature, split, leakage, plausibility, and claim boundary.

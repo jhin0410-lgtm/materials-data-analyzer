@@ -22,6 +22,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [External Source Compatibility Audit](EXTERNAL_SOURCE_COMPATIBILITY_AUDIT.md): v2.5.1 deterministic replay of two allowlisted historical compact artifacts without migration or network access.
 - [Retrieval Reproducibility Audit](RETRIEVAL_REPRODUCIBILITY_AUDIT.md): v2.5.2 exact-byte, logical-content, metadata, and insufficient-evidence contract over bounded tracked inputs.
 - [Platform v2.5 Roadmap](PLATFORM_V2_5_ROADMAP.md): completed v2.5.1 compatibility and v2.5.2 retrieval-evidence feature-stage boundaries.
+- [Platform v2.6 Roadmap](PLATFORM_V2_6_ROADMAP.md): Battery-level leakage-safe forecasting feature stage and negative baseline result.
 - [Materials Structure PGIR Reuse](MATERIALS_STRUCTURE_PGIR_REUSE.md): actual 838-entity second-domain declaration and conformance audit.
 - [Cross-Domain PGIR Reuse Evidence](CROSS_DOMAIN_PGIR_REUSE_EVIDENCE.md): shared framework and domain-semantic boundaries.
 - [NIST, NREL, and NVD Source Boundaries](NIST_NREL_NVD_SOURCE_BOUNDARIES.md): future routing declarations with no integration claim.
@@ -42,6 +43,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Source-Metadata Recovery](BATTERY_SOURCE_METADATA_RECOVERY.md): v2.3.5 exact local lineage, recovered source evidence, and unresolved metadata.
 - [Battery Evaluator Stability Audit](BATTERY_EVALUATOR_STABILITY_AUDIT.md): predeclared threshold, reference, window, and gap sensitivity with bounded event consolidation.
 - [Battery v2.3.5 Scientific Boundary](BATTERY_V2_3_5_SCIENTIFIC_BOUNDARY.md): allowed claims and mechanism/prediction limits after the stability audit.
+- [Battery-Level Generalization Forecasting](BATTERY_GENERALIZATION_FORECASTING.md): exact five-cycle warm-start cross-battery benchmark, leakage controls, persistence comparison, and unsupported conclusion.
 - [Battery v2.3 Data and Representation Audit](BATTERY_V2_3_DATA_AND_REPRESENTATION_AUDIT.md): actual processed battery coverage and tracked/local output policy for the v2.3.2 pilot.
 - [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.

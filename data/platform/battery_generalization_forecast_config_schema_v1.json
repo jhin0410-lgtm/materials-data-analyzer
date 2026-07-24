@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_generalization_forecast_config_schema_v1",
+  "title": "Battery Generalization Forecast Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "benchmark_id",
+    "case_study_id",
+    "input_path",
+    "source_lineage_path",
+    "group_column",
+    "time_column",
+    "target_column",
+    "target_unit",
+    "horizon",
+    "lags",
+    "rolling_window",
+    "minimum_history",
+    "split_method",
+    "n_splits",
+    "random_seed",
+    "models",
+    "ridge_alpha",
+    "plausibility_min",
+    "plausibility_max",
+    "large_change_threshold",
+    "duplicate_cycle_policy",
+    "unordered_cycle_policy",
+    "credential_policy",
+    "output_root",
+    "output_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.6.1"
+    },
+    "benchmark_id": {
+      "const": "battery_warm_start_cross_battery_forecast_v1"
+    },
+    "case_study_id": {
+      "const": "kaggle_battery"
+    },
+    "input_path": {
+      "type": "string"
+    },
+    "source_lineage_path": {
+      "type": "string"
+    },
+    "group_column": {
+      "type": "string"
+    },
+    "time_column": {
+      "type": "string"
+    },
+    "target_column": {
+      "type": "string"
+    },
+    "target_unit": {
+      "const": "percent"
+    },
+    "horizon": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "lags": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "rolling_window": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 100
+    },
+    "minimum_history": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "split_method": {
+      "const": "group_kfold"
+    },
+    "n_splits": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 20
+    },
+    "random_seed": {
+      "type": "integer"
+    },
+    "models": {
+      "const": [
+        "persistence",
+        "ridge"
+      ]
+    },
+    "ridge_alpha": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "plausibility_min": {
+      "type": "number"
+    },
+    "plausibility_max": {
+      "type": "number"
+    },
+    "large_change_threshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "duplicate_cycle_policy": {
+      "const": "reject_trajectory"
+    },
+    "unordered_cycle_policy": {
+      "const": "stable_sort_with_audit"
+    },
+    "credential_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "store_credentials",
+        "network_access_required"
+      ],
+      "properties": {
+        "store_credentials": {
+          "const": false
+        },
+        "network_access_required": {
+          "const": false
+        }
+      }
+    },
+    "output_root": {
+      "const": "outputs/v2_6_battery_generalization"
+    },
+    "output_policy": {
+      "const": "local_details_and_tracked_compact_summary"
+    }
+  }
+}

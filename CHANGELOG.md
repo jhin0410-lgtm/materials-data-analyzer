@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added v2.6.1 leakage-safe five-cycle Battery capacity-retention forecasting
+  with battery-disjoint GroupKFold validation, persistence and fixed Ridge
+  baselines, train-only preprocessing, deterministic checksums, and
+  preview/run/validate CLI commands.
+- Recorded the actual result as `unsupported`: Ridge pooled MAE is `4.1537`
+  versus persistence `3.4256`, with improvement on 13 of 33 evaluated
+  batteries. No zero-shot, SOH/RUL, mechanism, or engineering claim is made.
 - Added v2.5.2 bounded retrieval-reproducibility evidence records, comparison
   outcomes, readiness summaries, and preview/run/validate CLI commands.
   Exact bytes, canonical logical content, metadata agreement, and insufficient

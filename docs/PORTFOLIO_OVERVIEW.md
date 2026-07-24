@@ -65,6 +65,7 @@ source-metadata recovery, and policy-stability auditing.
 | v1.5 | Reliability / Backblaze | 2013 hard-drive daily SMART records | Asset/time-aware 7-day failure-risk ranking | Diagnostic-only; no representative model |
 | v2.2 | Materials Project | 838 Fe/Si-containing multinary MP rows | Composition features, structure descriptors, graph artifacts, and known-structure validation | Composition evidence degraded; known-structure evidence limited; no representative model |
 | v2.3 | Kaggle NASA Battery | 34 trajectories / 2,495 discharge states | PGIR conformance, identifiability, bounded evaluator, source recovery, and policy stability | Descriptive evidence with restrictions; no representative mechanism or predictive claim |
+| v2.6.1 feature stage | Kaggle NASA Battery | 34 trajectories / 2,495 discharge states | Exact five-cycle warm-start cross-battery forecasting with persistence and Ridge | `unsupported`; Ridge pooled MAE exceeded persistence and no engineering claim is allowed |
 
 For the Backblaze v1.5 closeout, the best primary median PR-AUC is 0.0998 and
 the best combined asset/time PR-AUC is 0.1119. The reference combined top 1%
@@ -172,6 +173,12 @@ checks, and a real-world conclusion requires two independent same-domain
 events. The current Materials and Battery evidence therefore remains
 `insufficient_evidence`; equal checksums from one artifact or a self-comparison
 are not presented as reproducibility.
+
+The v2.6.1 feature stage then tests a narrower predictive question without
+changing that provenance conclusion. Its battery-disjoint, history-conditioned
+Ridge benchmark performs worse than persistence on pooled MAE and improves only
+13 of 33 evaluated batteries. This is retained as a software-validated negative
+result, not promoted through extra tuning or model complexity.
 
 Mechanism fitting remains blocked until protocol, physical-time,
 calibration/uncertainty, geometry, boundary-condition, and cross-dataset
