@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_external_cohort_admission_result_schema_v1.json",
+  "title": "Battery External Cohort Admission Result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "artifact_kind",
+    "gate_id",
+    "case_study_id",
+    "candidate_id",
+    "required_evidence_fields",
+    "admission_stages",
+    "admission_matrix",
+    "coverage_summary",
+    "admission_decision",
+    "preservation_checks",
+    "scientific_closeout",
+    "network_called",
+    "credentials_read",
+    "raw_data_read",
+    "archives_extracted",
+    "filename_metadata_parsed",
+    "source_mutation_performed",
+    "model_trained",
+    "model_evaluated",
+    "metrics_recomputed",
+    "data_inference_performed",
+    "deterministic_result_checksum"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.6.4"},
+    "artifact_kind": {
+      "enum": [
+        "battery_external_cohort_admission_result",
+        "battery_external_cohort_admission_compact_summary"
+      ]
+    },
+    "gate_id": {"const": "battery_external_cohort_admission_gate_v1"},
+    "candidate_id": {"type": "string", "minLength": 1},
+    "required_evidence_fields": {"type": "array", "minItems": 8, "maxItems": 8},
+    "admission_stages": {"type": "array", "minItems": 3, "maxItems": 3},
+    "admission_matrix": {"type": "array", "minItems": 8, "maxItems": 8},
+    "coverage_summary": {"type": "object"},
+    "admission_decision": {"type": "object"},
+    "preservation_checks": {"type": "object"},
+    "scientific_closeout": {"type": "object"},
+    "network_called": {"const": false},
+    "credentials_read": {"const": false},
+    "raw_data_read": {"const": false},
+    "archives_extracted": {"const": false},
+    "filename_metadata_parsed": {"const": false},
+    "source_mutation_performed": {"const": false},
+    "model_trained": {"const": false},
+    "model_evaluated": {"const": false},
+    "metrics_recomputed": {"const": false},
+    "data_inference_performed": {"const": false},
+    "deterministic_result_checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
