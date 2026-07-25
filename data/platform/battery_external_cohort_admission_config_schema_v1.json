@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_external_cohort_admission_config_schema_v1.json",
+  "title": "Battery External Cohort Admission Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "gate_id",
+    "case_study_id",
+    "candidate_manifest_path",
+    "source_comparability_summary_path",
+    "source_inventory_audit_path",
+    "source_case_study_spec_path",
+    "expected_comparability_checksum",
+    "expected_persistence_mae",
+    "expected_ridge_mae",
+    "required_evidence_fields",
+    "admission_stages",
+    "credential_policy",
+    "output_root",
+    "tracked_summary_path",
+    "output_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.6.4"},
+    "gate_id": {"const": "battery_external_cohort_admission_gate_v1"},
+    "case_study_id": {"type": "string", "minLength": 1},
+    "candidate_manifest_path": {"type": "string", "minLength": 1},
+    "source_comparability_summary_path": {"type": "string", "minLength": 1},
+    "source_inventory_audit_path": {"type": "string", "minLength": 1},
+    "source_case_study_spec_path": {"type": "string", "minLength": 1},
+    "expected_comparability_checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expected_persistence_mae": {"type": "number", "minimum": 0},
+    "expected_ridge_mae": {"type": "number", "minimum": 0},
+    "required_evidence_fields": {
+      "const": [
+        "chemistry",
+        "nominal_capacity",
+        "ambient_temperature",
+        "charge_protocol",
+        "discharge_protocol",
+        "cutoff_voltage",
+        "measurement_calibration",
+        "source_snapshot"
+      ]
+    },
+    "admission_stages": {
+      "const": [
+        "inventory_review",
+        "cross_cohort_comparability",
+        "predictive_validation"
+      ]
+    },
+    "credential_policy": {
+      "const": {
+        "store_credentials": false,
+        "network_access_required": false
+      }
+    },
+    "output_root": {
+      "const": "outputs/v2_6_battery_external_cohort_admission"
+    },
+    "tracked_summary_path": {
+      "const": "data/processed/battery_v2_6_4_external_cohort_admission_summary.json"
+    },
+    "output_policy": {
+      "const": "local_details_and_tracked_compact_summary"
+    }
+  }
+}
