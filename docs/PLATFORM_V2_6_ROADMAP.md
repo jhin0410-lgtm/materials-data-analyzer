@@ -1,10 +1,10 @@
 # Platform v2.6 Roadmap
 
-Status: `v2.6.5_snl_lfp_source_evidence_recovery_feature_stage_complete`
+Status: `v2.6.6_snl_lfp_artifact_binding_feature_stage_complete`
 
 ## Release Boundary
 
-`v2.4.0` remains the current public release. v2.6.1 through v2.6.5 are
+`v2.4.0` remains the current public release. v2.6.1 through v2.6.6 are
 feature-stage work and do not create a tag, release, or public version change.
 
 ## v2.6.1 Scope
@@ -109,6 +109,30 @@ The recorded decision is:
 
 See [Battery SNL LFP Source Evidence Recovery](BATTERY_SNL_LFP_SOURCE_EVIDENCE_RECOVERY.md).
 
+## v2.6.6 SNL LFP Artifact Binding
+
+v2.6.6 implements the bounded archive identity audit authorized by v2.6.5. It
+may stream `SNL LFP.zip` to compute SHA-256 and read its ZIP central directory to
+record entry names, sizes, CRC values, safe paths, cycle/time-series pairing,
+and filename-label provenance. It does not read entry payloads or CSV rows and
+does not extract the archive.
+
+The raw archive is ignored by Git and is unavailable in the GitHub execution
+context. The tracked result therefore records:
+
+- local artifact inventory binding: `pending_local_artifact`;
+- document-to-archive binding: `not_established`;
+- official distribution snapshot: `not_established`;
+- cross-cohort comparability: `not_admitted`;
+- predictive validation: `blocked`.
+
+A local run may produce `local_artifact_inventory_bound` only when the archive
+matches the expected 60-entry, 30-pair contract and has no traversal, duplicate,
+or encrypted entries. That result still does not promote filename labels to
+scientific metadata or establish an official source snapshot.
+
+See [Battery SNL LFP Artifact Binding Audit](BATTERY_SNL_LFP_ARTIFACT_BINDING_AUDIT.md).
+
 The v2.5 compatibility and retrieval-reproducibility conclusions are unchanged.
 Battery retrieval reproducibility remains `insufficient_evidence`, and no
 network, credential, acquisition, source mutation, model training, metric
@@ -116,15 +140,16 @@ recomputation, or public-version change is added.
 
 ## Next Evidence
 
-The next useful step is a bounded `SNL LFP.zip` artifact-binding audit. It may
-compute the local archive checksum and inspect only the zip central directory to
-record entry names, sizes, CRC values, and explicit filename-label provenance.
-It must not extract the archive or read CSV rows.
+Run v2.6.6 in a local checkout that contains the ignored
+`data/raw/battery_archive/SNL LFP.zip`. Retain the resulting archive checksum and
+central-directory manifest as local evidence. Do not commit the raw archive or
+row-level manifest.
 
-That audit must determine whether the local archive can be tied to the documented
-SNL study without inference. If the archive still lacks a versioned official
-snapshot identity, per-entry study binding, calibration/uncertainty, or exact
-target alignment, the v2.6.4 gate remains closed.
+If the local inventory binds successfully, the next scientific task is not a
+loader. It is a source-to-entry binding review that seeks an independently
+verifiable official distribution identity and explicit mapping from documented
+study cells and conditions to archive entries. CSV row or header inspection must
+remain deferred until that review defines a justified, bounded read contract.
 
 ## Non-Goals
 
