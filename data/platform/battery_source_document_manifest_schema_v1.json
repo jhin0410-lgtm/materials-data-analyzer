@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_source_document_manifest_schema_v1.json",
+  "title": "Battery Source Document Manifest",
+  "schema_version": "1",
+  "status": "active",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "manifest_id", "bounded_source_id", "candidate_archive_scope",
+    "selection_rationale", "retrieval_recorded_on", "documents", "evidence_claims",
+    "target_contract", "claim_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "manifest_id": {"type": "string", "minLength": 1},
+    "bounded_source_id": {"type": "string", "minLength": 1},
+    "candidate_archive_scope": {"type": "string", "minLength": 1},
+    "selection_rationale": {"type": "string", "minLength": 1},
+    "retrieval_recorded_on": {"type": "string", "format": "date"},
+    "documents": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": [
+          "document_id", "document_kind", "publisher", "authoritative_scope",
+          "stable_identifiers", "independent_publication_record",
+          "versioned_dataset_snapshot", "local_document_copy_committed"
+        ],
+        "properties": {
+          "document_id": {"type": "string", "minLength": 1},
+          "document_kind": {"type": "string", "minLength": 1},
+          "publisher": {"type": "string", "minLength": 1},
+          "authoritative_scope": {"type": "string", "minLength": 1},
+          "stable_identifiers": {
+            "type": "object", "additionalProperties": false,
+            "required": ["url", "doi", "osti_id", "sand_number"],
+            "properties": {
+              "url": {"type": "string", "format": "uri"},
+              "doi": {"type": ["string", "null"]},
+              "osti_id": {"type": ["string", "null"]},
+              "sand_number": {"type": ["string", "null"]}
+            }
+          },
+          "independent_publication_record": {"type": "boolean"},
+          "versioned_dataset_snapshot": {"const": false},
+          "local_document_copy_committed": {"const": false}
+        }
+      }
+    },
+    "evidence_claims": {
+      "type": "array", "minItems": 8, "maxItems": 8,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": [
+          "evidence_field", "recovery_status", "claim_scope", "documented_value",
+          "source_document_ids", "source_backed", "battery_file_binding_established",
+          "cycle_condition_binding_established", "instrument_channel_binding_established",
+          "official_distribution_snapshot_established", "limitation"
+        ],
+        "properties": {
+          "evidence_field": {"type": "string"},
+          "recovery_status": {"type": "string"},
+          "claim_scope": {"type": "string"},
+          "documented_value": {"type": "string"},
+          "source_document_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "source_backed": {"type": "boolean"},
+          "battery_file_binding_established": {"const": false},
+          "cycle_condition_binding_established": {"const": false},
+          "instrument_channel_binding_established": {"const": false},
+          "official_distribution_snapshot_established": {"const": false},
+          "limitation": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "target_contract": {"type": "object"},
+    "claim_policy": {"type": "object"}
+  }
+}

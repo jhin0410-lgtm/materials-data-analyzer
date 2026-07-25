@@ -1,0 +1,158 @@
+{
+  "archives_extracted": false,
+  "artifact_kind": "battery_snl_lfp_source_evidence_recovery_compact_summary",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "case_study_id": "battery_archive_snl_lfp",
+  "coverage_summary": {
+    "authoritative_document_count": 4,
+    "document_evidence_recovered_count": 7,
+    "partial_document_evidence_count": 5,
+    "promotion_requirement_satisfied_count": 0,
+    "remaining_blocking_field_count": 8,
+    "required_field_count": 8,
+    "versioned_dataset_snapshot_count": 0
+  },
+  "credentials_read": false,
+  "data_inference_performed": false,
+  "deterministic_result_checksum": "b6e0c950f11cb1edfbd3afdd15776af25c76b092d130d6038b6653ecd63ba846",
+  "evidence_statuses": [
+    {
+      "evidence_field": "chemistry",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "recovered_document_level"
+    },
+    {
+      "evidence_field": "nominal_capacity",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "recovered_document_level"
+    },
+    {
+      "evidence_field": "ambient_temperature",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "partial_protocol_group"
+    },
+    {
+      "evidence_field": "charge_protocol",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "partial_protocol_group"
+    },
+    {
+      "evidence_field": "discharge_protocol",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "partial_protocol_group"
+    },
+    {
+      "evidence_field": "cutoff_voltage",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "partial_regime_specific"
+    },
+    {
+      "evidence_field": "measurement_calibration",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "partial_instrumentation_only"
+    },
+    {
+      "evidence_field": "source_snapshot",
+      "promotion_requirement_satisfied": false,
+      "recovery_status": "unresolved_document_identity_only"
+    }
+  ],
+  "local_file_binding_inferred": false,
+  "metrics_recomputed": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_called": false,
+  "package_id": "battery_snl_lfp_source_evidence_recovery_v1",
+  "preservation_checks": {
+    "model_metrics_unchanged": true,
+    "model_or_metric_change_performed": false,
+    "preserved_metrics": [
+      {
+        "mae": 3.425575369058076,
+        "model": "persistence"
+      },
+      {
+        "mae": 4.15369918179312,
+        "model": "ridge"
+      }
+    ],
+    "prior_overall_status": "not_admitted_for_cross_cohort_validation",
+    "prior_overall_status_preserved": true,
+    "v2_6_4_admission_checksum_verified": true
+  },
+  "raw_data_read": false,
+  "recommendations": [
+    "limit the next step to checksum and central-directory binding for SNL LFP.zip",
+    "do not extract archives, read CSV rows, merge cohorts, or run a model"
+  ],
+  "recovery_decision": {
+    "bounded_inventory_binding": {
+      "allowed_scope": [
+        "SNL LFP.zip checksum",
+        "zip central-directory inventory",
+        "parsed-label provenance manifest"
+      ],
+      "archive_extraction_allowed": false,
+      "csv_row_read_allowed": false,
+      "status": "eligible_for_read_only_inventory_binding"
+    },
+    "cross_cohort_comparability": {
+      "blocking_fields": [
+        "chemistry",
+        "nominal_capacity",
+        "ambient_temperature",
+        "charge_protocol",
+        "discharge_protocol",
+        "cutoff_voltage",
+        "measurement_calibration",
+        "source_snapshot"
+      ],
+      "status": "not_admitted"
+    },
+    "overall_status": "source_evidence_recovered_gate_not_passed",
+    "predictive_validation": {
+      "status": "blocked",
+      "target_definition_ready": false
+    },
+    "source_document_recovery": "completed_with_remaining_binding_gaps"
+  },
+  "schema_version": "2.6.5",
+  "scientific_closeout": {
+    "evidence_level": "authoritative_study_documentation_without_local_artifact_binding",
+    "primary_limitation": "No checksum-verified mapping connects local SNL LFP entries to documented cells and conditions; calibration, uncertainty, snapshot identity, and target alignment remain unresolved.",
+    "result": "source_document_evidence_partially_recovered",
+    "status": "diagnostic",
+    "strongest_evidence": "Official Battery Archive, OSTI, and Sandia records document the bounded SNL cell model, nominal capacity, equipment, protocol groups, and regime-specific LFP voltage limits.",
+    "suitable_for": [
+      "bounded inventory-binding design",
+      "metadata provenance contract",
+      "evidence-gap prioritization"
+    ],
+    "unsuitable_for": [
+      "CSV row analysis",
+      "cross-cohort equivalence",
+      "predictive validation",
+      "model selection",
+      "mechanism claims",
+      "engineering decisions"
+    ]
+  },
+  "source_document_manifest_checksum": "524f7d327811c6874c6b3d71bcaf7e192af20aec010a957f09f699298b3f9c55",
+  "source_document_manifest_id": "battery_snl_lfp_source_document_manifest_v1",
+  "source_mutation_performed": false,
+  "source_references": {
+    "admission": "data/processed/battery_v2_6_4_external_cohort_admission_summary.json",
+    "manifest": "data/platform/battery_snl_lfp_source_document_manifest_v1.json"
+  },
+  "target_contract_assessment": {
+    "aligned_to_v2_6_1_five_cycle_target": false,
+    "alignment_limitation": "The source study metric does not by itself establish the exact five-cycle-ahead target construction used in v2.6.1.",
+    "predictive_target_ready": false,
+    "source_document_ids": [
+      "battery_archive_snl_study_page",
+      "osti_1650174_article_record"
+    ],
+    "source_metric": "capacity retention relative to nominal capacity, with 80% used as an end-of-life benchmark",
+    "source_metric_documented": true
+  }
+}

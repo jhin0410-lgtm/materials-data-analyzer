@@ -63,6 +63,9 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/battery_capacity_trajectory_trust_schema_v1.json"),
         Path("data/platform/battery_source_metadata_stability_config_schema_v1.json"),
         Path("data/platform/battery_evaluator_stability_result_schema_v1.json"),
+        Path("data/platform/battery_source_document_manifest_schema_v1.json"),
+        Path("data/platform/battery_source_evidence_recovery_config_schema_v1.json"),
+        Path("data/platform/battery_source_evidence_recovery_result_schema_v1.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["schema_version"] in {"1", "2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1", "2.3.2", "2.3.3", "2.3.4", "2.3.5"}
@@ -159,14 +162,8 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["credential_policy"]["network_access_required"] is False
             assert payload["output_root"] == "outputs/v2_6_battery_comparability"
             assert payload["required_evidence_fields"] == [
-                "chemistry",
-                "nominal_capacity",
-                "ambient_temperature",
-                "charge_protocol",
-                "discharge_protocol",
-                "cutoff_voltage",
-                "measurement_calibration",
-                "source_snapshot",
+                "chemistry", "nominal_capacity", "ambient_temperature", "charge_protocol",
+                "discharge_protocol", "cutoff_voltage", "measurement_calibration", "source_snapshot",
             ]
         elif payload.get("schema_version") == "2.6.4":
             assert payload["gate_id"] == "battery_external_cohort_admission_gate_v1"
@@ -174,19 +171,23 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["credential_policy"]["network_access_required"] is False
             assert payload["output_root"] == "outputs/v2_6_battery_external_cohort_admission"
             assert payload["admission_stages"] == [
-                "inventory_review",
-                "cross_cohort_comparability",
-                "predictive_validation",
+                "inventory_review", "cross_cohort_comparability", "predictive_validation",
             ]
             assert payload["required_evidence_fields"] == [
-                "chemistry",
-                "nominal_capacity",
-                "ambient_temperature",
-                "charge_protocol",
-                "discharge_protocol",
-                "cutoff_voltage",
-                "measurement_calibration",
-                "source_snapshot",
+                "chemistry", "nominal_capacity", "ambient_temperature", "charge_protocol",
+                "discharge_protocol", "cutoff_voltage", "measurement_calibration", "source_snapshot",
+            ]
+        elif payload.get("schema_version") == "2.6.5":
+            assert payload["package_id"] == "battery_snl_lfp_source_evidence_recovery_v1"
+            assert payload["bounded_source_id"] == "snl_lfp_commercial_18650_study"
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["output_root"] == "outputs/v2_6_battery_snl_lfp_source_evidence"
+            assert payload["required_document_ids"] == [
+                "battery_archive_snl_study_page",
+                "battery_archive_metadata_rules",
+                "osti_1650174_article_record",
+                "sandia_sand2020_8433j_publication_record",
             ]
         elif payload.get("model_contract_id") == "one_dimensional_diffusion_zero_dirichlet_v1":
             assert payload["schema_version"] == "1"

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_source_evidence_recovery_result_schema_v1.json",
+  "title": "Battery Source Evidence Recovery Result",
+  "schema_version": "1",
+  "status": "active",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version", "artifact_kind", "package_id", "bounded_source_id",
+    "source_document_register", "recovery_matrix", "coverage_summary",
+    "target_contract_assessment", "recovery_decision", "preservation_checks",
+    "scientific_closeout", "network_called", "credentials_read", "raw_data_read",
+    "archives_extracted", "source_mutation_performed", "model_trained",
+    "model_evaluated", "metrics_recomputed", "data_inference_performed",
+    "local_file_binding_inferred", "deterministic_result_checksum"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.6.5"},
+    "artifact_kind": {"enum": [
+      "battery_snl_lfp_source_evidence_recovery_result",
+      "battery_snl_lfp_source_evidence_recovery_compact_summary"
+    ]},
+    "package_id": {"const": "battery_snl_lfp_source_evidence_recovery_v1"},
+    "bounded_source_id": {"const": "snl_lfp_commercial_18650_study"},
+    "source_document_register": {"type": "array", "minItems": 4, "maxItems": 4},
+    "recovery_matrix": {"type": "array", "minItems": 8, "maxItems": 8},
+    "coverage_summary": {"type": "object"},
+    "target_contract_assessment": {"type": "object"},
+    "recovery_decision": {"type": "object"},
+    "preservation_checks": {"type": "object"},
+    "scientific_closeout": {"type": "object"},
+    "network_called": {"const": false},
+    "credentials_read": {"const": false},
+    "raw_data_read": {"const": false},
+    "archives_extracted": {"const": false},
+    "source_mutation_performed": {"const": false},
+    "model_trained": {"const": false},
+    "model_evaluated": {"const": false},
+    "metrics_recomputed": {"const": false},
+    "data_inference_performed": {"const": false},
+    "local_file_binding_inferred": {"const": false},
+    "deterministic_result_checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
