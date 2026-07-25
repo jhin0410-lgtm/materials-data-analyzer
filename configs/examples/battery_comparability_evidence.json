@@ -1,0 +1,31 @@
+{
+  "schema_version": "2.6.3",
+  "package_id": "battery_comparability_evidence_package_v1",
+  "case_study_id": "kaggle_battery",
+  "source_analysis_ready_path": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "source_lineage_path": "data/processed/battery_v2_3_5_source_lineage_summary.json",
+  "metadata_recovery_summary_path": "data/processed/battery_v2_3_5_metadata_recovery_summary.csv",
+  "source_benchmark_summary_path": "data/processed/battery_v2_6_1_generalization_forecast_summary.json",
+  "source_diagnostic_summary_path": "data/processed/battery_v2_6_2_forecast_failure_diagnostic_summary.json",
+  "expected_benchmark_checksum": "9bcc58b0f7df95cc996aee6f509aac6a9293f753186b50d8b1635bb6ad392d42",
+  "expected_diagnostic_checksum": "a9977c7e88c65955c5b073d8383724c40c5122093e3c95d9b636929eebd9f7dc",
+  "group_column": "battery_id",
+  "temperature_column": "ambient_temperature_c",
+  "required_evidence_fields": [
+    "chemistry",
+    "nominal_capacity",
+    "ambient_temperature",
+    "charge_protocol",
+    "discharge_protocol",
+    "cutoff_voltage",
+    "measurement_calibration",
+    "source_snapshot"
+  ],
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "output_root": "outputs/v2_6_battery_comparability",
+  "tracked_summary_path": "data/processed/battery_v2_6_3_comparability_evidence_summary.json",
+  "output_policy": "local_details_and_tracked_compact_summary"
+}
