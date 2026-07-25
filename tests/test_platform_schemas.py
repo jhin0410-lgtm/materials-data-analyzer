@@ -168,6 +168,26 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
                 "measurement_calibration",
                 "source_snapshot",
             ]
+        elif payload.get("schema_version") == "2.6.4":
+            assert payload["gate_id"] == "battery_external_cohort_admission_gate_v1"
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["output_root"] == "outputs/v2_6_battery_external_cohort_admission"
+            assert payload["admission_stages"] == [
+                "inventory_review",
+                "cross_cohort_comparability",
+                "predictive_validation",
+            ]
+            assert payload["required_evidence_fields"] == [
+                "chemistry",
+                "nominal_capacity",
+                "ambient_temperature",
+                "charge_protocol",
+                "discharge_protocol",
+                "cutoff_voltage",
+                "measurement_calibration",
+                "source_snapshot",
+            ]
         elif payload.get("model_contract_id") == "one_dimensional_diffusion_zero_dirichlet_v1":
             assert payload["schema_version"] == "1"
             assert payload["synthetic_benchmark"] is True
