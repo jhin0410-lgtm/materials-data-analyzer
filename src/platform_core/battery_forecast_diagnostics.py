@@ -159,6 +159,10 @@ COMPACT_FIELDS = {
     "source_mutation_performed",
     "model_retrained",
     "source_benchmark_model_reexecuted",
+    "source_benchmark_regenerated",
+    "source_benchmark_checksum_verified",
+    "diagnostic_model_trained",
+    "model_tuned",
     "first_run_checksum",
     "second_run_checksum",
     "deterministic_rerun_match",
@@ -1912,6 +1916,13 @@ def preview_diagnostics(
             config.source_benchmark_execution_status
             == "reexecuted_same_config_for_diagnostics"
         ),
+        "source_benchmark_regenerated": (
+            config.source_benchmark_execution_status
+            == "reexecuted_same_config_for_diagnostics"
+        ),
+        "source_benchmark_checksum_verified": True,
+        "diagnostic_model_trained": False,
+        "model_tuned": False,
         "network_called": False,
         "credentials_read": False,
     }
@@ -1959,6 +1970,12 @@ def compact_summary(result: Mapping[str, Any]) -> dict[str, Any]:
     compact["artifact_kind"] = (
         "battery_forecast_failure_diagnostic_compact_summary"
     )
+    compact["source_benchmark_regenerated"] = bool(
+        result["source_benchmark_model_reexecuted"]
+    )
+    compact["source_benchmark_checksum_verified"] = True
+    compact["diagnostic_model_trained"] = False
+    compact["model_tuned"] = False
     compact["deterministic_result_checksum"] = canonical_checksum(compact)
     return _json_safe(compact)
 
@@ -2083,6 +2100,13 @@ def run_diagnostics(
         "credentials_read": False,
         "source_mutation_performed": False,
         "model_retrained": False,
+        "source_benchmark_regenerated": (
+            config.source_benchmark_execution_status
+            == "reexecuted_same_config_for_diagnostics"
+        ),
+        "source_benchmark_checksum_verified": True,
+        "diagnostic_model_trained": False,
+        "model_tuned": False,
     }
 
 
@@ -2169,6 +2193,17 @@ def validate_result_payload(
         errors.append("forecast horizon changed")
     if payload.get("model_retrained") is not False:
         errors.append("diagnostic model retraining is prohibited")
+    if artifact_kind == "battery_forecast_failure_diagnostic_compact_summary":
+        if payload.get("source_benchmark_regenerated") is not payload.get(
+            "source_benchmark_model_reexecuted"
+        ):
+            errors.append("source benchmark regeneration provenance mismatch")
+        if payload.get("source_benchmark_checksum_verified") is not True:
+            errors.append("source benchmark checksum was not verified")
+        if payload.get("diagnostic_model_trained") is not False:
+            errors.append("diagnostic model training is prohibited")
+        if payload.get("model_tuned") is not False:
+            errors.append("diagnostic model tuning is prohibited")
     if payload.get("network_called") is not False:
         errors.append("network execution is prohibited")
     if payload.get("credentials_read") is not False:

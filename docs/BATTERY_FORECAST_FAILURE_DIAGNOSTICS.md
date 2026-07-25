@@ -26,6 +26,21 @@ The existing benchmark was re-executed with the same config and seed because
 its local prediction artifact had been removed. Both checksums matched; the
 v2.6.1 tracked summary was not changed.
 
+The tracked compact diagnostic separates benchmark regeneration from
+diagnostic execution explicitly:
+
+- `source_benchmark_regenerated=true`: the missing local v2.6.1 detailed
+  artifact and predictions were recreated with the locked v2.6.1 config;
+- `source_benchmark_checksum_verified=true`: the recreated benchmark matched
+  the expected source and canonical result checksums;
+- `diagnostic_model_trained=false`: v2.6.2 only analyzed the existing
+  predictions and benchmark result;
+- `model_tuned=false`: no model, feature, horizon, split, or threshold was
+  adjusted.
+
+The retained `model_retrained=false` field refers to the v2.6.2 diagnostic
+execution, not to the earlier benchmark-artifact regeneration.
+
 ## Predeclared Diagnostics
 
 The audit uses fixed rules:

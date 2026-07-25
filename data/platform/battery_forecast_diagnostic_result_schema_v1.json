@@ -159,6 +159,18 @@
     "source_benchmark_model_reexecuted": {
       "type": "boolean"
     },
+    "source_benchmark_regenerated": {
+      "type": "boolean"
+    },
+    "source_benchmark_checksum_verified": {
+      "const": true
+    },
+    "diagnostic_model_trained": {
+      "const": false
+    },
+    "model_tuned": {
+      "const": false
+    },
     "first_run_checksum": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
@@ -180,5 +192,24 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "artifact_kind": {
+            "const": "battery_forecast_failure_diagnostic_compact_summary"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "source_benchmark_regenerated",
+          "source_benchmark_checksum_verified",
+          "diagnostic_model_trained",
+          "model_tuned"
+        ]
+      }
+    }
+  ]
 }

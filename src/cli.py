@@ -5003,6 +5003,16 @@ def _cmd_run_battery_forecast_diagnostics(args: argparse.Namespace) -> int:
             "credentials_read": execution["credentials_read"],
             "source_mutation_performed": execution["source_mutation_performed"],
             "model_retrained": execution["model_retrained"],
+            "source_benchmark_regenerated": execution[
+                "source_benchmark_regenerated"
+            ],
+            "source_benchmark_checksum_verified": execution[
+                "source_benchmark_checksum_verified"
+            ],
+            "diagnostic_model_trained": execution[
+                "diagnostic_model_trained"
+            ],
+            "model_tuned": execution["model_tuned"],
         }
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         payload = {
@@ -5012,6 +5022,10 @@ def _cmd_run_battery_forecast_diagnostics(args: argparse.Namespace) -> int:
             "credentials_read": False,
             "source_mutation_performed": False,
             "model_retrained": False,
+            "source_benchmark_regenerated": False,
+            "source_benchmark_checksum_verified": False,
+            "diagnostic_model_trained": False,
+            "model_tuned": False,
             "error": str(exc),
         }
     return _emit_or_error(args, payload, ok=payload.get("status") == "completed")

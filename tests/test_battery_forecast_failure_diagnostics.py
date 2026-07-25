@@ -307,6 +307,10 @@ def test_deterministic_source_non_mutating_and_no_model_retraining(tmp_path):
     assert hashlib.sha256(source_path.read_bytes()).hexdigest() == before
     assert result["model_retrained"] is False
     assert execution["model_retrained"] is False
+    assert execution["source_benchmark_regenerated"] is False
+    assert execution["source_benchmark_checksum_verified"] is True
+    assert execution["diagnostic_model_trained"] is False
+    assert execution["model_tuned"] is False
     assert validate_result_payload(result, repo_root=tmp_path)["valid"] is True
 
 
@@ -329,6 +333,10 @@ def test_preview_is_side_effect_free(tmp_path):
     assert preview["status"] == "ready"
     assert preview["writes_performed"] is False
     assert preview["model_retrained"] is False
+    assert preview["source_benchmark_regenerated"] is False
+    assert preview["source_benchmark_checksum_verified"] is True
+    assert preview["diagnostic_model_trained"] is False
+    assert preview["model_tuned"] is False
     assert before == after
 
 
@@ -349,6 +357,10 @@ def test_cli_run_and_validate_writes_only_registered_outputs(
     ) == 0
     run_payload = json.loads(capsys.readouterr().out)
     assert len(run_payload["written"]) == 8
+    assert run_payload["source_benchmark_regenerated"] is False
+    assert run_payload["source_benchmark_checksum_verified"] is True
+    assert run_payload["diagnostic_model_trained"] is False
+    assert run_payload["model_tuned"] is False
     result_path = "outputs/v2_6_battery_diagnostics/diagnostic_summary.json"
     assert main(
         ["--json", "validate-battery-forecast-diagnostics", result_path]
@@ -469,6 +481,10 @@ def test_actual_compact_summary_matches_diagnostic_closeout():
     assert payload["comparability_readiness"]["status"] == (
         "comparability_not_established"
     )
+    assert payload["source_benchmark_regenerated"] is True
+    assert payload["source_benchmark_checksum_verified"] is True
+    assert payload["diagnostic_model_trained"] is False
+    assert payload["model_tuned"] is False
     assert "battery_id" not in path.read_text(encoding="utf-8")
 
 
