@@ -1,0 +1,128 @@
+{
+  "schema_version": "1",
+  "manifest_id": "battery_archive_local_bundle_manifest_v1",
+  "candidate_id": "battery_archive_local_bundle_v1",
+  "candidate_kind": "external_battery_cohort_bundle",
+  "intended_use": "cross_cohort_validation",
+  "source_bundle": {
+    "archive_count": 9,
+    "cycle_file_count": 196,
+    "timeseries_file_count": 196,
+    "dedicated_metadata_sidecar_present": false,
+    "official_snapshot_identifier_present": false,
+    "raw_inventory_verified": true
+  },
+  "evidence_declarations": [
+    {
+      "evidence_field": "chemistry",
+      "availability_status": "filename_encoded_label_only",
+      "evidence_basis": "archive_and_entry_filename_tokens",
+      "granularity": "filename_label",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": false,
+      "inference_required": true,
+      "filename_derived": true,
+      "commanded_condition_evidence": false,
+      "limitation": "Filename tokens are parsing labels, not battery-level source records for chemistry."
+    },
+    {
+      "evidence_field": "nominal_capacity",
+      "availability_status": "absent",
+      "evidence_basis": "no_dedicated_metadata_sidecar",
+      "granularity": "none",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": false,
+      "inference_required": false,
+      "filename_derived": false,
+      "commanded_condition_evidence": false,
+      "limitation": "No source-backed nominal-capacity field was identified in the audited bundle."
+    },
+    {
+      "evidence_field": "ambient_temperature",
+      "availability_status": "filename_label_and_observed_timeseries_signal",
+      "evidence_basis": "filename_token_or_environment_temperature_column",
+      "granularity": "observed_timeseries_signal",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": true,
+      "inference_required": false,
+      "filename_derived": false,
+      "commanded_condition_evidence": false,
+      "limitation": "Observed environment temperature is not a cycle-specific commanded or controlled-condition record."
+    },
+    {
+      "evidence_field": "charge_protocol",
+      "availability_status": "filename_encoded_rate_label_only",
+      "evidence_basis": "filename_c_rate_token",
+      "granularity": "filename_label",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": false,
+      "inference_required": true,
+      "filename_derived": true,
+      "commanded_condition_evidence": false,
+      "limitation": "Filename C-rate labels do not establish cycle-specific commanded charge steps."
+    },
+    {
+      "evidence_field": "discharge_protocol",
+      "availability_status": "filename_encoded_rate_label_and_observed_current",
+      "evidence_basis": "filename_c_rate_token_or_measured_current",
+      "granularity": "filename_label_plus_observed_signal",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": false,
+      "inference_required": true,
+      "filename_derived": true,
+      "commanded_condition_evidence": false,
+      "limitation": "Measured current and filename rates are not cycle-specific commanded discharge logs."
+    },
+    {
+      "evidence_field": "cutoff_voltage",
+      "availability_status": "observed_min_max_voltage_only",
+      "evidence_basis": "cycle_summary_minimum_and_maximum_voltage",
+      "granularity": "observed_cycle_summary",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": false,
+      "inference_required": true,
+      "filename_derived": false,
+      "commanded_condition_evidence": false,
+      "limitation": "Observed minimum and maximum voltage cannot be substituted for cutoff policy."
+    },
+    {
+      "evidence_field": "measurement_calibration",
+      "availability_status": "absent",
+      "evidence_basis": "no_calibration_or_uncertainty_sidecar",
+      "granularity": "none",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": false,
+      "inference_required": false,
+      "filename_derived": false,
+      "commanded_condition_evidence": false,
+      "limitation": "Instrument calibration, accuracy, and measurement uncertainty were not identified."
+    },
+    {
+      "evidence_field": "source_snapshot",
+      "availability_status": "local_archive_bundle_without_official_snapshot_id",
+      "evidence_basis": "local_zip_inventory",
+      "granularity": "local_distribution_bundle",
+      "source_reference": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+      "source_backed": false,
+      "inference_required": false,
+      "filename_derived": false,
+      "commanded_condition_evidence": false,
+      "limitation": "The local archives do not establish independently verifiable official snapshot identities for the constituent datasets."
+    }
+  ],
+  "validation_plan": {
+    "evaluation_scenario": "cross_cohort_external_validation",
+    "target_definition_status": "unresolved",
+    "target_source_reference": null,
+    "predeclared_before_model_evaluation": true,
+    "model_training_requested": false,
+    "model_evaluation_requested": false,
+    "harmonization_requested": false
+  },
+  "claim_policy": {
+    "filename_labels_are_source_evidence": false,
+    "derived_reference_is_nominal_capacity": false,
+    "observed_signal_is_commanded_protocol": false,
+    "missing_metadata_may_be_inferred": false
+  }
+}
