@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.6.6",
+  "package_id": "battery_snl_lfp_artifact_binding_audit_v1",
+  "case_study_id": "battery_archive_snl_lfp",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "archive_path": "data/raw/battery_archive/SNL LFP.zip",
+  "source_evidence_summary_path": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json",
+  "expected_source_evidence_checksum": "b6e0c950f11cb1edfbd3afdd15776af25c76b092d130d6038b6653ecd63ba846",
+  "expected_archive_filename": "SNL LFP.zip",
+  "expected_root_prefix": "SNL LFP/",
+  "expected_inventory": {
+    "entry_count": 60,
+    "cycle_csv_count": 30,
+    "timeseries_csv_count": 30
+  },
+  "required_evidence_fields": [
+    "chemistry",
+    "nominal_capacity",
+    "ambient_temperature",
+    "charge_protocol",
+    "discharge_protocol",
+    "cutoff_voltage",
+    "measurement_calibration",
+    "source_snapshot"
+  ],
+  "read_policy": {
+    "allow_archive_sha256": true,
+    "allow_zip_central_directory": true,
+    "allow_entry_payload_read": false,
+    "allow_archive_extraction": false,
+    "allow_csv_row_read": false
+  },
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "output_root": "outputs/v2_6_battery_snl_lfp_artifact_binding",
+  "tracked_summary_path": "data/processed/battery_v2_6_6_snl_lfp_artifact_binding_summary.json",
+  "output_policy": "local_details_and_tracked_compact_summary",
+  "dry_run": true
+}
