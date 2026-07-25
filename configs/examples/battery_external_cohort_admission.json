@@ -1,0 +1,34 @@
+{
+  "schema_version": "2.6.4",
+  "gate_id": "battery_external_cohort_admission_gate_v1",
+  "case_study_id": "battery_archive_candidate",
+  "candidate_manifest_path": "data/platform/battery_archive_candidate_manifest_v1.json",
+  "source_comparability_summary_path": "data/processed/battery_v2_6_3_comparability_evidence_summary.json",
+  "source_inventory_audit_path": "docs/BATTERY_ARCHIVE_DATA_AUDIT.md",
+  "source_case_study_spec_path": "docs/V1_1_BATTERY_ARCHIVE_CASE_STUDY_SPEC.md",
+  "expected_comparability_checksum": "c8a91f9b561f68a474401f6f2cb051d115875f8df78f1ba92c4a20dec57d17a8",
+  "expected_persistence_mae": 3.425575369058076,
+  "expected_ridge_mae": 4.15369918179312,
+  "required_evidence_fields": [
+    "chemistry",
+    "nominal_capacity",
+    "ambient_temperature",
+    "charge_protocol",
+    "discharge_protocol",
+    "cutoff_voltage",
+    "measurement_calibration",
+    "source_snapshot"
+  ],
+  "admission_stages": [
+    "inventory_review",
+    "cross_cohort_comparability",
+    "predictive_validation"
+  ],
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "output_root": "outputs/v2_6_battery_external_cohort_admission",
+  "tracked_summary_path": "data/processed/battery_v2_6_4_external_cohort_admission_summary.json",
+  "output_policy": "local_details_and_tracked_compact_summary"
+}
