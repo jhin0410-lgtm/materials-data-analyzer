@@ -85,6 +85,7 @@ battery_v2_3_5_external_data_requirement_decision.json
 battery_v2_3_5_decision.json
 battery_v2_3_5_report_summary.md
 battery_v2_6_1_generalization_forecast_summary.json
+battery_v2_6_2_forecast_failure_diagnostic_summary.json
 ```
 
 The row-level Observation, operational State, and Trajectory JSONL artifacts
@@ -112,6 +113,12 @@ per-battery metrics remain local-only under
 `outputs/v2_6_battery_generalization/`. The fixed Ridge benchmark is recorded
 as `unsupported` relative to persistence; this is not a zero-shot, SOH/RUL,
 mechanism, or production result.
+
+The v2.6.2 compact diagnostic summary is regenerated from that tracked source
+plus the deterministic v2.6.1 local prediction artifact. Per-battery
+influence, trajectory-quality, regime, and comparability rows remain
+local-only under `outputs/v2_6_battery_diagnostics/`. The closeout is
+`diagnostic`; it does not change the v2.6.1 metrics or add a model claim.
 
 ## Materials Project Case Study Summaries
 

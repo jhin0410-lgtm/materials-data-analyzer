@@ -66,6 +66,7 @@ source-metadata recovery, and policy-stability auditing.
 | v2.2 | Materials Project | 838 Fe/Si-containing multinary MP rows | Composition features, structure descriptors, graph artifacts, and known-structure validation | Composition evidence degraded; known-structure evidence limited; no representative model |
 | v2.3 | Kaggle NASA Battery | 34 trajectories / 2,495 discharge states | PGIR conformance, identifiability, bounded evaluator, source recovery, and policy stability | Descriptive evidence with restrictions; no representative mechanism or predictive claim |
 | v2.6.1 feature stage | Kaggle NASA Battery | 34 trajectories / 2,495 discharge states | Exact five-cycle warm-start cross-battery forecasting with persistence and Ridge | `unsupported`; Ridge pooled MAE exceeded persistence and no engineering claim is allowed |
+| v2.6.2 feature stage | Kaggle NASA Battery | 33 evaluated batteries / 2,100 origins | Influence, trajectory-quality, regime, plausibility, and comparability diagnostics | `diagnostic`; no single battery reverses the negative result and comparability remains unestablished |
 
 For the Backblaze v1.5 closeout, the best primary median PR-AUC is 0.0998 and
 the best combined asset/time PR-AUC is 0.1119. The reference combined top 1%
@@ -179,6 +180,15 @@ changing that provenance conclusion. Its battery-disjoint, history-conditioned
 Ridge benchmark performs worse than persistence on pooled MAE and improves only
 13 of 33 evaluated batteries. This is retained as a software-validated negative
 result, not promoted through extra tuning or model complexity.
+
+v2.6.2 then diagnoses that negative result without changing the benchmark.
+Ridge excess error is concentrated across several batteries, but no
+leave-one-battery-out result reverses persistence superiority, and Ridge is
+worse in all three predeclared cycle regimes. Sparse groups, abrupt-transition
+proximity, and nonphysical predictions are not primary aggregate drivers.
+Because chemistry, nominal capacity, cycle-specific protocol, cutoff,
+calibration, and the official NASA snapshot remain unresolved, the closeout is
+diagnostic rather than causal or predictive evidence.
 
 Mechanism fitting remains blocked until protocol, physical-time,
 calibration/uncertainty, geometry, boundary-condition, and cross-dataset

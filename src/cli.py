@@ -180,6 +180,14 @@ from .platform_core.battery_forecasting import (
     run_benchmark as run_battery_forecast,
     validate_result_file as validate_battery_forecast_result,
 )
+from .platform_core.battery_forecast_diagnostics import (
+    DEFAULT_CONFIG_PATH as DEFAULT_BATTERY_FORECAST_DIAGNOSTIC_CONFIG,
+    DIAGNOSTIC_VERSION as BATTERY_FORECAST_DIAGNOSTIC_VERSION,
+    load_config as load_battery_forecast_diagnostic_config,
+    preview_diagnostics as preview_battery_forecast_diagnostics,
+    run_diagnostics as run_battery_forecast_diagnostics,
+    validate_result_file as validate_battery_forecast_diagnostic_result,
+)
 from .platform_core.registry_service import RegistryService
 from .platform_core.run_registry import (
     DEFAULT_EXPORT_DIR,
@@ -4949,6 +4957,82 @@ def _cmd_validate_battery_generalization_forecast(args: argparse.Namespace) -> i
     return _emit_or_error(args, payload, ok=payload.get("valid") is True)
 
 
+def _cmd_preview_battery_forecast_diagnostics(args: argparse.Namespace) -> int:
+    try:
+        config = load_battery_forecast_diagnostic_config(args.config, Path.cwd())
+        payload = preview_battery_forecast_diagnostics(config, Path.cwd())
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": BATTERY_FORECAST_DIAGNOSTIC_VERSION,
+            "status": "invalid",
+            "writes_performed": False,
+            "model_retrained": False,
+            "network_called": False,
+            "credentials_read": False,
+            "error": str(exc),
+        }
+    return _emit_or_error(args, payload, ok=payload.get("status") == "ready")
+
+
+def _cmd_run_battery_forecast_diagnostics(args: argparse.Namespace) -> int:
+    try:
+        config = load_battery_forecast_diagnostic_config(args.config, Path.cwd())
+        execution = run_battery_forecast_diagnostics(
+            config,
+            Path.cwd(),
+            write_outputs=True,
+            write_tracked_summary=not args.local_only,
+        )
+        result = execution["result"]
+        payload = {
+            "schema_version": BATTERY_FORECAST_DIAGNOSTIC_VERSION,
+            "status": execution["status"],
+            "scientific_closeout": result["scientific_closeout"],
+            "battery_count": result["battery_count"],
+            "prediction_count": result["prediction_count"],
+            "influence_summary": result["influence_summary"],
+            "physical_violation_analysis": result[
+                "physical_violation_analysis"
+            ],
+            "comparability_readiness": result["comparability_readiness"],
+            "deterministic_result_checksum": result[
+                "deterministic_result_checksum"
+            ],
+            "written": execution["written"],
+            "network_called": execution["network_called"],
+            "credentials_read": execution["credentials_read"],
+            "source_mutation_performed": execution["source_mutation_performed"],
+            "model_retrained": execution["model_retrained"],
+        }
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": BATTERY_FORECAST_DIAGNOSTIC_VERSION,
+            "status": "invalid",
+            "network_called": False,
+            "credentials_read": False,
+            "source_mutation_performed": False,
+            "model_retrained": False,
+            "error": str(exc),
+        }
+    return _emit_or_error(args, payload, ok=payload.get("status") == "completed")
+
+
+def _cmd_validate_battery_forecast_diagnostics(args: argparse.Namespace) -> int:
+    try:
+        payload = validate_battery_forecast_diagnostic_result(
+            args.path,
+            Path.cwd(),
+        )
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        payload = {
+            "schema_version": BATTERY_FORECAST_DIAGNOSTIC_VERSION,
+            "status": "invalid",
+            "valid": False,
+            "errors": [str(exc)],
+        }
+    return _emit_or_error(args, payload, ok=payload.get("valid") is True)
+
+
 def _cmd_show_version(args: argparse.Namespace) -> int:
     payload = {"platform_version": PLATFORM_VERSION}
     if args.json:
@@ -6151,6 +6235,46 @@ def build_parser() -> argparse.ArgumentParser:
     validate_battery_forecast_parser.add_argument("path")
     validate_battery_forecast_parser.set_defaults(
         func=_cmd_validate_battery_generalization_forecast
+    )
+
+    preview_battery_diagnostic_parser = subparsers.add_parser(
+        "preview-battery-forecast-diagnostics",
+        help="preview deterministic diagnostics for the fixed battery benchmark",
+    )
+    preview_battery_diagnostic_parser.add_argument(
+        "config",
+        nargs="?",
+        default=DEFAULT_BATTERY_FORECAST_DIAGNOSTIC_CONFIG,
+    )
+    preview_battery_diagnostic_parser.set_defaults(
+        func=_cmd_preview_battery_forecast_diagnostics
+    )
+
+    run_battery_diagnostic_parser = subparsers.add_parser(
+        "run-battery-forecast-diagnostics",
+        help="diagnose battery-level forecast failures without fitting a model",
+    )
+    run_battery_diagnostic_parser.add_argument(
+        "config",
+        nargs="?",
+        default=DEFAULT_BATTERY_FORECAST_DIAGNOSTIC_CONFIG,
+    )
+    run_battery_diagnostic_parser.add_argument(
+        "--local-only",
+        action="store_true",
+        help="write local details without refreshing the tracked compact summary",
+    )
+    run_battery_diagnostic_parser.set_defaults(
+        func=_cmd_run_battery_forecast_diagnostics
+    )
+
+    validate_battery_diagnostic_parser = subparsers.add_parser(
+        "validate-battery-forecast-diagnostics",
+        help="validate a battery forecast diagnostic JSON artifact",
+    )
+    validate_battery_diagnostic_parser.add_argument("path")
+    validate_battery_diagnostic_parser.set_defaults(
+        func=_cmd_validate_battery_forecast_diagnostics
     )
 
     subparsers.add_parser(

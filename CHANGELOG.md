@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added v2.6.2 deterministic Battery forecast-failure diagnostics over the
+  unchanged v2.6.1 predictions. Influence, leave-one-battery-out,
+  trajectory-quality, fixed-cycle regime, local-trend, physical-plausibility,
+  and metadata-comparability audits retain the `unsupported` benchmark result.
+- Recorded a `diagnostic` closeout: excess error is concentrated but no
+  single-battery exclusion reverses persistence superiority, and
+  source/test-condition comparability remains unestablished. No model,
+  feature, tuning, clipping, acquisition, or public-version change was added.
 - Added v2.6.1 leakage-safe five-cycle Battery capacity-retention forecasting
   with battery-disjoint GroupKFold validation, persistence and fixed Ridge
   baselines, train-only preprocessing, deterministic checksums, and

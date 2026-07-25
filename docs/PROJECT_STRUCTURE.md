@@ -167,6 +167,12 @@ compares persistence with a train-only Ridge pipeline. Detailed predictions
 remain under `outputs/v2_6_battery_generalization/`; the compact tracked
 summary preserves the actual unsupported conclusion without row-level battery
 identities.
+v2.6.2 adds `src/platform_core/battery_forecast_diagnostics.py` as a read-only
+diagnostic layer over those fixed predictions. Per-battery influence,
+leave-one-out sensitivity, trajectory quality, fixed-cycle regimes, local
+trends, and comparability details remain under
+`outputs/v2_6_battery_diagnostics/`; a compact tracked summary preserves the
+diagnostic closeout without changing the v2.6.1 result.
 v2.4.2 adds `src/platform_core/pgir_model_contracts.py` and
 `src/platform_core/diffusion_1d_benchmark.py` for one strict synthetic scalar
 diffusion contract, exact reference, deterministic FTCS execution, refinement,

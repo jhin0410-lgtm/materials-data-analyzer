@@ -44,6 +44,7 @@ This directory collects project references, specifications, audits, policies, ca
 - [Battery Evaluator Stability Audit](BATTERY_EVALUATOR_STABILITY_AUDIT.md): predeclared threshold, reference, window, and gap sensitivity with bounded event consolidation.
 - [Battery v2.3.5 Scientific Boundary](BATTERY_V2_3_5_SCIENTIFIC_BOUNDARY.md): allowed claims and mechanism/prediction limits after the stability audit.
 - [Battery-Level Generalization Forecasting](BATTERY_GENERALIZATION_FORECASTING.md): exact five-cycle warm-start cross-battery benchmark, leakage controls, persistence comparison, and unsupported conclusion.
+- [Battery Forecast Failure Diagnostics](BATTERY_FORECAST_FAILURE_DIAGNOSTICS.md): v2.6.2 influence, trajectory-quality, regime, physical-plausibility, and comparability diagnostics without model changes.
 - [Battery v2.3 Data and Representation Audit](BATTERY_V2_3_DATA_AND_REPRESENTATION_AUDIT.md): actual processed battery coverage and tracked/local output policy for the v2.3.2 pilot.
 - [Case Study Interface](CASE_STUDY_INTERFACE.md): v2.0.4 case-study lifecycle metadata, registry, and current coverage matrix.
 - [New Domain Onboarding](NEW_DOMAIN_ONBOARDING.md): metadata-only contract for adding a future dataset/domain without execution.
