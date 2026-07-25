@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.6.5",
+  "package_id": "battery_snl_lfp_source_evidence_recovery_v1",
+  "case_study_id": "battery_archive_snl_lfp",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "source_document_manifest_path": "data/platform/battery_snl_lfp_source_document_manifest_v1.json",
+  "source_admission_summary_path": "data/processed/battery_v2_6_4_external_cohort_admission_summary.json",
+  "expected_admission_checksum": "2776bc152c0e4655f0c90ec6513883aea3758cac7fac687e02e5685c72dfdb6f",
+  "expected_candidate_id": "battery_archive_local_bundle_v1",
+  "required_evidence_fields": [
+    "chemistry",
+    "nominal_capacity",
+    "ambient_temperature",
+    "charge_protocol",
+    "discharge_protocol",
+    "cutoff_voltage",
+    "measurement_calibration",
+    "source_snapshot"
+  ],
+  "required_document_ids": [
+    "battery_archive_snl_study_page",
+    "battery_archive_metadata_rules",
+    "osti_1650174_article_record",
+    "sandia_sand2020_8433j_publication_record"
+  ],
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "output_root": "outputs/v2_6_battery_snl_lfp_source_evidence",
+  "tracked_summary_path": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json",
+  "output_policy": "local_details_and_tracked_compact_summary"
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_source_evidence_recovery_config_schema_v1.json",
+  "title": "Battery Source Evidence Recovery Config",
+  "schema_version": "1",
+  "status": "active",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "package_id", "case_study_id", "bounded_source_id",
+    "source_document_manifest_path", "source_admission_summary_path",
+    "expected_admission_checksum", "expected_candidate_id", "required_evidence_fields",
+    "required_document_ids", "credential_policy", "output_root", "tracked_summary_path",
+    "output_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.6.5"},
+    "package_id": {"const": "battery_snl_lfp_source_evidence_recovery_v1"},
+    "case_study_id": {"type": "string", "minLength": 1},
+    "bounded_source_id": {"const": "snl_lfp_commercial_18650_study"},
+    "source_document_manifest_path": {"type": "string", "minLength": 1},
+    "source_admission_summary_path": {"type": "string", "minLength": 1},
+    "expected_admission_checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_candidate_id": {"const": "battery_archive_local_bundle_v1"},
+    "required_evidence_fields": {"const": [
+      "chemistry", "nominal_capacity", "ambient_temperature", "charge_protocol",
+      "discharge_protocol", "cutoff_voltage", "measurement_calibration", "source_snapshot"
+    ]},
+    "required_document_ids": {"const": [
+      "battery_archive_snl_study_page", "battery_archive_metadata_rules",
+      "osti_1650174_article_record", "sandia_sand2020_8433j_publication_record"
+    ]},
+    "credential_policy": {"const": {"store_credentials": false, "network_access_required": false}},
+    "output_root": {"const": "outputs/v2_6_battery_snl_lfp_source_evidence"},
+    "tracked_summary_path": {"const": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json"},
+    "output_policy": {"const": "local_details_and_tracked_compact_summary"}
+  }
+}

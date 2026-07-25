@@ -1,0 +1,190 @@
+{
+  "schema_version": "1",
+  "manifest_id": "battery_snl_lfp_source_document_manifest_v1",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "candidate_archive_scope": "SNL LFP.zip only",
+  "selection_rationale": "The SNL LFP archive is one bounded source with an official Battery Archive study page and a peer-reviewed Sandia publication. The package does not extend evidence across the other eight archives.",
+  "retrieval_recorded_on": "2026-07-26",
+  "documents": [
+    {
+      "document_id": "battery_archive_snl_study_page",
+      "document_kind": "official_study_description",
+      "publisher": "Battery Archive",
+      "authoritative_scope": "study design, tested chemistry families, equipment, protocol groups, and regime-specific voltage limits",
+      "stable_identifiers": {
+        "url": "https://www.batteryarchive.org/snl_study.html",
+        "doi": null,
+        "osti_id": null,
+        "sand_number": null
+      },
+      "independent_publication_record": false,
+      "versioned_dataset_snapshot": false,
+      "local_document_copy_committed": false
+    },
+    {
+      "document_id": "battery_archive_metadata_rules",
+      "document_kind": "official_metadata_rules",
+      "publisher": "Battery Archive",
+      "authoritative_scope": "meaning and limitations of cell-ID chemistry, temperature, SOC-window, and C-rate labels",
+      "stable_identifiers": {
+        "url": "https://batteryarchive.org/metadata.html",
+        "doi": null,
+        "osti_id": null,
+        "sand_number": null
+      },
+      "independent_publication_record": false,
+      "versioned_dataset_snapshot": false,
+      "local_document_copy_committed": false
+    },
+    {
+      "document_id": "osti_1650174_article_record",
+      "document_kind": "official_bibliographic_record",
+      "publisher": "U.S. Department of Energy Office of Scientific and Technical Information",
+      "authoritative_scope": "peer-reviewed article identity, DOI, authorship, research organization, and study abstract",
+      "stable_identifiers": {
+        "url": "https://www.osti.gov/pages/biblio/1650174",
+        "doi": "10.1149/1945-7111/abae37",
+        "osti_id": "1650174",
+        "sand_number": "SAND2020-8433J"
+      },
+      "independent_publication_record": true,
+      "versioned_dataset_snapshot": false,
+      "local_document_copy_committed": false
+    },
+    {
+      "document_id": "sandia_sand2020_8433j_publication_record",
+      "document_kind": "official_research_publication_record",
+      "publisher": "Sandia National Laboratories",
+      "authoritative_scope": "Sandia publication identity, SAND number, DOI, journal, and study summary",
+      "stable_identifiers": {
+        "url": "https://www.sandia.gov/research/publications/details/degradation-of-commercial-lithium-ion-cells-as-a-function-of-chemistry-and-2020-01-09/",
+        "doi": "10.1149/1945-7111/abae37",
+        "osti_id": "1650174",
+        "sand_number": "SAND2020-8433J"
+      },
+      "independent_publication_record": true,
+      "versioned_dataset_snapshot": false,
+      "local_document_copy_committed": false
+    }
+  ],
+  "evidence_claims": [
+    {
+      "evidence_field": "chemistry",
+      "recovery_status": "recovered_document_level",
+      "claim_scope": "bounded_study_cell_model",
+      "documented_value": "Commercial 18650 LiFePO4 cell from A123 Systems, part APR18650M1A",
+      "source_document_ids": ["battery_archive_snl_study_page", "osti_1650174_article_record"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "The documents identify the bounded study cell model, but the local archive entries have not been checksum-bound to those documented cells."
+    },
+    {
+      "evidence_field": "nominal_capacity",
+      "recovery_status": "recovered_document_level",
+      "claim_scope": "bounded_study_cell_model",
+      "documented_value": "1.1 Ah nominal capacity for APR18650M1A",
+      "source_document_ids": ["osti_1650174_article_record", "sandia_sand2020_8433j_publication_record"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "The nominal capacity is documented for the study cell model, but no verified local file-to-cell binding has been performed."
+    },
+    {
+      "evidence_field": "ambient_temperature",
+      "recovery_status": "partial_protocol_group",
+      "claim_scope": "study_condition_group",
+      "documented_value": "Cells were equilibrated in environmental chambers at designated cycling temperatures and cell-skin temperature was monitored by a K-type thermocouple.",
+      "source_document_ids": ["battery_archive_snl_study_page", "battery_archive_metadata_rules"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "The documents describe study-level thermal control, but no cycle-specific local command or chamber-setpoint binding is established."
+    },
+    {
+      "evidence_field": "charge_protocol",
+      "recovery_status": "partial_protocol_group",
+      "claim_scope": "study_condition_group",
+      "documented_value": "All cells used 0.5C charging; 0-100% SOC cycling used CCCV with a 30-minute or 0.05 A taper termination, and capacity checks used three 0.5C charge/discharge cycles.",
+      "source_document_ids": ["battery_archive_snl_study_page"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "Study protocols are documented, but cycle-specific commanded charge steps are not bound to local records."
+    },
+    {
+      "evidence_field": "discharge_protocol",
+      "recovery_status": "partial_protocol_group",
+      "claim_scope": "study_condition_group",
+      "documented_value": "The study varied discharge rate and DOD; 40-60% SOC used capacity limits, 20-80% SOC used voltage limits established from fresh-cell discharge curves, and capacity checks used 0.5C discharge.",
+      "source_document_ids": ["battery_archive_snl_study_page"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "Protocol groups are documented, but the local cycles have no verified commanded discharge-step binding."
+    },
+    {
+      "evidence_field": "cutoff_voltage",
+      "recovery_status": "partial_regime_specific",
+      "claim_scope": "study_condition_group",
+      "documented_value": "For the 100% DOD regime, LFP cells were cycled from 2.0 V to 3.6 V.",
+      "source_document_ids": ["battery_archive_snl_study_page"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "The voltage limits are regime-specific and are not a verified cutoff policy for every local file or cycle."
+    },
+    {
+      "evidence_field": "measurement_calibration",
+      "recovery_status": "partial_instrumentation_only",
+      "claim_scope": "study_equipment",
+      "documented_value": "Cycling used Arbin SCTS and Arbin LBT21084 systems, SPX Tenney T10C-1.5 chambers, and K-type thermocouples attached to cell skins.",
+      "source_document_ids": ["battery_archive_snl_study_page"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "Equipment identity is documented, but channel mapping, calibration certificates, accuracy, drift, and measurement uncertainty are absent."
+    },
+    {
+      "evidence_field": "source_snapshot",
+      "recovery_status": "unresolved_document_identity_only",
+      "claim_scope": "publication_and_study_documentation",
+      "documented_value": "DOI 10.1149/1945-7111/abae37, OSTI 1650174, and SAND2020-8433J identify the study publication.",
+      "source_document_ids": ["osti_1650174_article_record", "sandia_sand2020_8433j_publication_record"],
+      "source_backed": true,
+      "battery_file_binding_established": false,
+      "cycle_condition_binding_established": false,
+      "instrument_channel_binding_established": false,
+      "official_distribution_snapshot_established": false,
+      "limitation": "Publication identifiers do not identify a versioned Battery Archive distribution or prove that the local SNL LFP.zip is an exact official snapshot."
+    }
+  ],
+  "target_contract": {
+    "source_metric_documented": true,
+    "source_metric": "capacity retention relative to nominal capacity, with 80% used as an end-of-life benchmark",
+    "source_document_ids": ["battery_archive_snl_study_page", "osti_1650174_article_record"],
+    "aligned_to_v2_6_1_five_cycle_target": false,
+    "alignment_limitation": "The source study metric does not by itself establish the exact five-cycle-ahead target construction used in v2.6.1."
+  },
+  "claim_policy": {
+    "document_identity_is_dataset_snapshot": false,
+    "study_protocol_is_cycle_command_log": false,
+    "study_cell_model_is_local_file_binding": false,
+    "equipment_identity_is_calibration_evidence": false,
+    "source_target_is_current_benchmark_alignment": false
+  }
+}

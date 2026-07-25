@@ -1,12 +1,11 @@
 # Platform v2.6 Roadmap
 
-Status: `v2.6.4_battery_external_cohort_admission_feature_stage_complete`
+Status: `v2.6.5_snl_lfp_source_evidence_recovery_feature_stage_complete`
 
 ## Release Boundary
 
-`v2.4.0` remains the current public release. v2.6.1, v2.6.2, v2.6.3, and
-v2.6.4 are feature-stage work and do not create a tag, release, or public
-version change.
+`v2.4.0` remains the current public release. v2.6.1 through v2.6.5 are
+feature-stage work and do not create a tag, release, or public version change.
 
 ## v2.6.1 Scope
 
@@ -86,6 +85,30 @@ No raw archive is read or extracted, no filename metadata is parsed, and no mode
 or metric is executed or changed. See
 [Battery External Cohort Admission Gate](BATTERY_EXTERNAL_COHORT_ADMISSION_GATE.md).
 
+## v2.6.5 SNL LFP Source Evidence Recovery
+
+v2.6.5 narrows the nine-archive candidate to `SNL LFP.zip` and records official
+source documentation from Battery Archive, DOE OSTI, and Sandia. The bounded
+study documents the commercial A123 APR18650M1A LFP cell, 1.1 Ah nominal
+capacity, study equipment, protocol groups, capacity-check procedure, and the
+2.0-3.6 V range for the 100% DOD LFP regime.
+
+This evidence remains document-level. It is not yet checksum-bound to local
+archive entries, cycles, command logs, or instrument channels. A publication DOI,
+OSTI ID, and SAND number identify the study but not a versioned data distribution.
+The source 80% capacity benchmark is also not treated as the v2.6.1 five-cycle
+target.
+
+The recorded decision is:
+
+- source document recovery: `completed_with_remaining_binding_gaps`;
+- bounded inventory binding: `eligible_for_read_only_inventory_binding`;
+- cross-cohort comparability: `not_admitted`;
+- predictive validation: `blocked`;
+- overall: `source_evidence_recovered_gate_not_passed`.
+
+See [Battery SNL LFP Source Evidence Recovery](BATTERY_SNL_LFP_SOURCE_EVIDENCE_RECOVERY.md).
+
 The v2.5 compatibility and retrieval-reproducibility conclusions are unchanged.
 Battery retrieval reproducibility remains `insufficient_evidence`, and no
 network, credential, acquisition, source mutation, model training, metric
@@ -93,13 +116,15 @@ recomputation, or public-version change is added.
 
 ## Next Evidence
 
-Do not implement a Battery Archive loader for cross-cohort validation yet. The
-next useful step is source-document recovery for one bounded candidate source,
-not bulk ingestion of all nine archives. Recover stable official dataset and
-snapshot identifiers, battery-level chemistry and nominal capacity,
-cycle-specific commanded protocol and cutoff records, calibration/uncertainty,
-and a source-defined target contract. Re-run the v2.6.4 gate before reading raw
-candidate data or selecting a validation experiment.
+The next useful step is a bounded `SNL LFP.zip` artifact-binding audit. It may
+compute the local archive checksum and inspect only the zip central directory to
+record entry names, sizes, CRC values, and explicit filename-label provenance.
+It must not extract the archive or read CSV rows.
+
+That audit must determine whether the local archive can be tied to the documented
+SNL study without inference. If the archive still lacks a versioned official
+snapshot identity, per-entry study binding, calibration/uncertainty, or exact
+target alignment, the v2.6.4 gate remains closed.
 
 ## Non-Goals
 
