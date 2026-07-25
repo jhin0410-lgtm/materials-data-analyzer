@@ -1,0 +1,316 @@
+{
+  "aggregate_metrics": [
+    {
+      "mae": 3.425575369058076,
+      "model": "persistence",
+      "prediction_count": 2100,
+      "r2": 0.7430406290939264,
+      "rmse": 11.57285420986917,
+      "source_benchmark_metric_preserved": true
+    },
+    {
+      "mae": 4.15369918179312,
+      "model": "ridge",
+      "prediction_count": 2100,
+      "r2": 0.7583707243049392,
+      "rmse": 11.222329810780126,
+      "source_benchmark_metric_preserved": true
+    }
+  ],
+  "artifact_kind": "battery_forecast_failure_diagnostic_compact_summary",
+  "battery_count": 33,
+  "case_study_id": "kaggle_battery",
+  "comparability_readiness": {
+    "battery_count": 34,
+    "cycle_specific_protocol_status": "variable-condition groups lack a cycle-specific command log",
+    "official_original_snapshot_status": "not_verifiable_from_local_package_metadata",
+    "recorded_temperature_count": 5,
+    "same_condition_assumption_made": false,
+    "status": "comparability_not_established",
+    "unresolved_fields": [
+      "ambient_temperature",
+      "charge_protocol",
+      "chemistry",
+      "cutoff_voltage",
+      "discharge_protocol",
+      "measurement_method",
+      "nominal_capacity",
+      "source_package"
+    ],
+    "variable_temperature_battery_count": 4
+  },
+  "credentials_read": false,
+  "degradation_regime_metrics": [
+    {
+      "assignment_basis": "prediction_origin_fixed_cycle_boundary",
+      "future_target_used_for_assignment": false,
+      "persistence_mae": 3.7366886485013313,
+      "persistence_physical_violation_count": 0,
+      "persistence_rmse": 11.803484866304396,
+      "prediction_count": 1009,
+      "regime": "early",
+      "ridge_mae": 4.15923764693693,
+      "ridge_minus_persistence_mae": 0.42254899843559857,
+      "ridge_physical_violation_count": 3,
+      "ridge_relative_improvement_percent": -11.308113631706236,
+      "ridge_rmse": 11.69138291245945
+    },
+    {
+      "assignment_basis": "prediction_origin_fixed_cycle_boundary",
+      "future_target_used_for_assignment": false,
+      "persistence_mae": 3.723226788336433,
+      "persistence_physical_violation_count": 0,
+      "persistence_rmse": 13.345668527382575,
+      "prediction_count": 635,
+      "regime": "middle",
+      "ridge_mae": 4.947328233170147,
+      "ridge_minus_persistence_mae": 1.224101444833714,
+      "ridge_physical_violation_count": 0,
+      "ridge_relative_improvement_percent": -32.87743439825894,
+      "ridge_rmse": 12.4941413084108
+    },
+    {
+      "assignment_basis": "prediction_origin_fixed_cycle_boundary",
+      "future_target_used_for_assignment": false,
+      "persistence_mae": 2.322676355461581,
+      "persistence_physical_violation_count": 0,
+      "persistence_rmse": 7.7771860238389285,
+      "prediction_count": 456,
+      "regime": "late",
+      "ridge_mae": 3.0362808507525116,
+      "ridge_minus_persistence_mae": 0.7136044952909306,
+      "ridge_physical_violation_count": 0,
+      "ridge_relative_improvement_percent": -30.72337192450204,
+      "ridge_rmse": 7.756017191497283
+    }
+  ],
+  "deterministic_rerun_match": true,
+  "deterministic_result_checksum": "a9977c7e88c65955c5b073d8383724c40c5122093e3c95d9b636929eebd9f7dc",
+  "diagnostic_id": "battery_forecast_failure_diagnostics_v1",
+  "diagnostic_model_trained": false,
+  "diagnostic_thresholds": {
+    "abrupt_change_threshold_percent_points": 10.0,
+    "flat_range_threshold_percent_points": 0.5,
+    "flat_window": 5,
+    "high_local_volatility_threshold_percent_points": 5.0,
+    "high_target_std_threshold_percent_points": 15.0,
+    "low_target_std_threshold_percent_points": 1.0,
+    "physical_bounds_percent": [
+      0.0,
+      150.0
+    ],
+    "sparse_prediction_max": 10
+  },
+  "dominant_failure_modes": [
+    {
+      "battery_count": 33,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "metadata_comparability_unresolved",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 21,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "abrupt_transition",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 20,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "baseline_dominant",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 8,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "possible_data_quality_issue",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 7,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "high_target_volatility",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 7,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "model_form_mismatch",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 6,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "sparse_evaluation",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 4,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "no_clear_failure_mode",
+      "mechanism_diagnosis": false
+    },
+    {
+      "battery_count": 3,
+      "classification_basis": "predeclared_deterministic_rules",
+      "failure_mode": "physical_extrapolation",
+      "mechanism_diagnosis": false
+    }
+  ],
+  "evaluation_scenario": "warm_start_cross_battery",
+  "first_run_checksum": "86acb7ecb0a6273804b706f8f215aba8b7936ae6585f06248fd46b62804324b9",
+  "forecast_horizon_cycles": 5,
+  "influence_summary": {
+    "analysis_role": "diagnostic_sensitivity_only",
+    "leave_one_out_conclusion_change_count": 0,
+    "leave_one_out_ridge_minus_persistence_mae_max": 0.8229356466401057,
+    "leave_one_out_ridge_minus_persistence_mae_min": 0.5794201776890779,
+    "outlier_removal_performed": false,
+    "sparse_battery_count": 6,
+    "sparse_excess_error_share": -0.0002864433059241644,
+    "sparse_prediction_count": 30,
+    "sparse_prediction_share": 0.014285714285714285,
+    "top_five_excess_error_concentration": 0.9035180314965432,
+    "top_five_excess_error_contributors": [
+      {
+        "group_reference": "battery_ref_5ffc1ed92630",
+        "ridge_excess_error_share": 0.24174344339497986,
+        "ridge_minus_persistence_absolute_error": 369.64023118774696
+      },
+      {
+        "group_reference": "battery_ref_92c40bd3b435",
+        "ridge_excess_error_share": 0.22107637422480234,
+        "ridge_minus_persistence_absolute_error": 338.03904226302507
+      },
+      {
+        "group_reference": "battery_ref_211968a53feb",
+        "ridge_excess_error_share": 0.2183965171774064,
+        "ridge_minus_persistence_absolute_error": 333.941380028062
+      },
+      {
+        "group_reference": "battery_ref_769fbde03caf",
+        "ridge_excess_error_share": 0.1446510006486855,
+        "ridge_minus_persistence_absolute_error": 221.18006002734634
+      },
+      {
+        "group_reference": "battery_ref_1b01ffb2e8a2",
+        "ridge_excess_error_share": 0.07765069605066918,
+        "ridge_minus_persistence_absolute_error": 118.73257382688081
+      }
+    ],
+    "top_five_ridge_error_concentration": 0.5679568099394996,
+    "top_five_ridge_error_contributors": [
+      {
+        "group_reference": "battery_ref_92c40bd3b435",
+        "ridge_absolute_error_contribution": 0.15202362211246928,
+        "ridge_minus_persistence_absolute_error": 338.03904226302507
+      },
+      {
+        "group_reference": "battery_ref_5ffc1ed92630",
+        "ridge_absolute_error_contribution": 0.15129343997997655,
+        "ridge_minus_persistence_absolute_error": 369.64023118774696
+      },
+      {
+        "group_reference": "battery_ref_211968a53feb",
+        "ridge_absolute_error_contribution": 0.14973692716288858,
+        "ridge_minus_persistence_absolute_error": 333.941380028062
+      },
+      {
+        "group_reference": "battery_ref_63885a41c764",
+        "ridge_absolute_error_contribution": 0.05836858150656738,
+        "ridge_minus_persistence_absolute_error": 76.13077261107208
+      },
+      {
+        "group_reference": "battery_ref_c9262bba9e2d",
+        "ridge_absolute_error_contribution": 0.05653423917759784,
+        "ridge_minus_persistence_absolute_error": -44.3929496322902
+      }
+    ],
+    "top_one_ridge_error_concentration": 0.15202362211246928,
+    "top_three_excess_error_concentration": 0.6812163347971886,
+    "top_three_ridge_error_concentration": 0.45305398925533436,
+    "worst_group_exclusion_changes_conclusion": false,
+    "worst_group_prediction_count": 7,
+    "worst_persistence_mae": 47.81192314949711,
+    "worst_ridge_mae": 45.77990517411751,
+    "worst_ridge_mae_group_reference": "battery_ref_14c990fd50cc"
+  },
+  "model_retrained": false,
+  "model_tuned": false,
+  "network_called": false,
+  "physical_violation_analysis": {
+    "major_aggregate_failure_driver": false,
+    "persistence_violation_count": 0,
+    "prediction_clipping_performed": false,
+    "ridge_negative_prediction_count": 3,
+    "ridge_violation_absolute_error_share": 0.002433852275106732,
+    "ridge_violation_count": 3,
+    "ridge_violation_excess_error_share": 0.01302389397268325
+  },
+  "prediction_count": 2100,
+  "prohibited_claims": [
+    "degradation mechanism identified",
+    "battery-level predictive generalization validated",
+    "SOH, RUL, or lifetime predicted",
+    "bad batteries justify exclusion",
+    "source conditions are comparable",
+    "engineering or production decision supported"
+  ],
+  "recommendations": [
+    "retain persistence as the benchmark reference",
+    "do not exclude high-error batteries from the official benchmark",
+    "resolve protocol, chemistry, cutoff, and calibration comparability",
+    "audit abrupt transitions against source measurements",
+    "predeclare any future model family and external validation"
+  ],
+  "regime_policy": {
+    "early": "prediction_origin <= 50",
+    "future_target_used": false,
+    "late": "prediction_origin > 100",
+    "middle": "50 < prediction_origin <= 100"
+  },
+  "schema_version": "2.6.2",
+  "scientific_closeout": {
+    "abrupt_proximity_excess_error_share": 0.060918023637088675,
+    "abrupt_proximity_prediction_count": 104,
+    "abrupt_transitions_are_primary_driver": false,
+    "comparability_status": "comparability_not_established",
+    "concentration_interpretation": "excess error is concentrated, but no single-battery exclusion changes persistence superiority",
+    "engineering_claim_allowed": false,
+    "evidence_level": "diagnostic_pattern_without_causal_explanation",
+    "mechanism_claim_allowed": false,
+    "most_supported_explanation": "short-horizon persistence strength plus battery-dependent linear model mismatch; heterogeneous source conditions remain unresolved",
+    "next_model_experiment_status": "not_justified_without_comparability_metadata_and_predeclared_validation",
+    "persistence_mae": 3.425575369058076,
+    "physical_violations_are_primary_driver": false,
+    "predictive_generalization_claim_allowed": false,
+    "regime_count": 3,
+    "ridge_failure_concentrated_in_few_batteries": true,
+    "ridge_mae": 4.15369918179312,
+    "ridge_relative_mae_worsening_percent": 21.25551868780673,
+    "ridge_worse_regime_count": 3,
+    "sparse_groups_are_primary_driver": false,
+    "status": "diagnostic",
+    "worst_battery_exclusion_preserves_persistence_advantage": true
+  },
+  "second_run_checksum": "86acb7ecb0a6273804b706f8f215aba8b7936ae6585f06248fd46b62804324b9",
+  "source_analysis_ready_reference": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "source_analysis_ready_sha256": "cf67c7210036e11032e140385864ce68bb8445e2f282e57259aa5b314ed1f7ce",
+  "source_benchmark_checksum": "9bcc58b0f7df95cc996aee6f509aac6a9293f753186b50d8b1635bb6ad392d42",
+  "source_benchmark_checksum_verified": true,
+  "source_benchmark_model_reexecuted": true,
+  "source_benchmark_reference": "data/processed/battery_v2_6_1_generalization_forecast_summary.json",
+  "source_benchmark_regenerated": true,
+  "source_benchmark_result_checksum": "5e565dfe7f4b183bbca3531f46190071732f395afd0f7fa0f63c4896e502e906",
+  "source_mutation_performed": false,
+  "source_predictions_sha256": "b6f68e958bb9abff4e669a34ca88807286be8e877197cb8fbf30bd1160e835ea",
+  "unresolved_information": [
+    "official original NASA snapshot/version",
+    "battery chemistry",
+    "nominal capacity",
+    "cycle-specific charge and discharge command logs",
+    "cutoff voltage policy",
+    "measurement calibration and uncertainty",
+    "independent external battery validation"
+  ]
+}

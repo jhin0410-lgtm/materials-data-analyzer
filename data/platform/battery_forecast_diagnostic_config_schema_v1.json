@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_forecast_diagnostic_config_schema_v1.json",
+  "title": "Battery Forecast Failure Diagnostic Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "diagnostic_id",
+    "case_study_id",
+    "source_benchmark_config_path",
+    "source_benchmark_summary_path",
+    "source_benchmark_result_path",
+    "source_predictions_path",
+    "source_analysis_ready_path",
+    "source_lineage_path",
+    "metadata_recovery_summary_path",
+    "expected_benchmark_summary_checksum",
+    "expected_benchmark_result_checksum",
+    "group_column",
+    "time_column",
+    "target_column",
+    "models",
+    "horizon",
+    "local_window",
+    "regime_early_max_cycle",
+    "regime_middle_max_cycle",
+    "sparse_prediction_max",
+    "abrupt_change_threshold",
+    "high_target_std_threshold",
+    "low_target_std_threshold",
+    "high_local_volatility_threshold",
+    "flat_range_threshold",
+    "flat_window",
+    "physical_min",
+    "physical_max",
+    "source_benchmark_execution_status",
+    "credential_policy",
+    "output_root",
+    "tracked_summary_path",
+    "output_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.6.2"
+    },
+    "diagnostic_id": {
+      "const": "battery_forecast_failure_diagnostics_v1"
+    },
+    "case_study_id": {
+      "const": "kaggle_battery"
+    },
+    "source_benchmark_config_path": {
+      "type": "string"
+    },
+    "source_benchmark_summary_path": {
+      "type": "string"
+    },
+    "source_benchmark_result_path": {
+      "type": "string"
+    },
+    "source_predictions_path": {
+      "type": "string"
+    },
+    "source_analysis_ready_path": {
+      "type": "string"
+    },
+    "source_lineage_path": {
+      "type": "string"
+    },
+    "metadata_recovery_summary_path": {
+      "type": "string"
+    },
+    "expected_benchmark_summary_checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expected_benchmark_result_checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "group_column": {
+      "const": "battery_id"
+    },
+    "time_column": {
+      "const": "cycle_index"
+    },
+    "target_column": {
+      "const": "capacity_retention_percent"
+    },
+    "models": {
+      "const": [
+        "persistence",
+        "ridge"
+      ]
+    },
+    "horizon": {
+      "const": 5
+    },
+    "local_window": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 20
+    },
+    "regime_early_max_cycle": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "regime_middle_max_cycle": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "sparse_prediction_max": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "abrupt_change_threshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "high_target_std_threshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "low_target_std_threshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "high_local_volatility_threshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "flat_range_threshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "flat_window": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 20
+    },
+    "physical_min": {
+      "type": "number"
+    },
+    "physical_max": {
+      "type": "number"
+    },
+    "source_benchmark_execution_status": {
+      "enum": [
+        "existing_local_output_reused",
+        "reexecuted_same_config_for_diagnostics"
+      ]
+    },
+    "credential_policy": {
+      "const": {
+        "store_credentials": false,
+        "network_access_required": false
+      }
+    },
+    "output_root": {
+      "const": "outputs/v2_6_battery_diagnostics"
+    },
+    "tracked_summary_path": {
+      "const": "data/processed/battery_v2_6_2_forecast_failure_diagnostic_summary.json"
+    },
+    "output_policy": {
+      "const": "local_details_and_tracked_compact_summary"
+    }
+  }
+}

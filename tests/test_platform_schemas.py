@@ -146,6 +146,13 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["credential_policy"]["network_access_required"] is False
             assert payload["output_root"] == "outputs/v2_6_battery_generalization"
             assert payload["split_method"] == "group_kfold"
+        elif payload.get("schema_version") == "2.6.2":
+            assert payload["diagnostic_id"] == "battery_forecast_failure_diagnostics_v1"
+            assert payload["credential_policy"]["store_credentials"] is False
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["output_root"] == "outputs/v2_6_battery_diagnostics"
+            assert payload["models"] == ["persistence", "ridge"]
+            assert payload["horizon"] == 5
         elif payload.get("model_contract_id") == "one_dimensional_diffusion_zero_dirichlet_v1":
             assert payload["schema_version"] == "1"
             assert payload["synthetic_benchmark"] is True

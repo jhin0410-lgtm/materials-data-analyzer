@@ -1,0 +1,42 @@
+{
+  "schema_version": "2.6.2",
+  "diagnostic_id": "battery_forecast_failure_diagnostics_v1",
+  "case_study_id": "kaggle_battery",
+  "source_benchmark_config_path": "configs/examples/battery_generalization_forecast.json",
+  "source_benchmark_summary_path": "data/processed/battery_v2_6_1_generalization_forecast_summary.json",
+  "source_benchmark_result_path": "outputs/v2_6_battery_generalization/forecast_summary.json",
+  "source_predictions_path": "outputs/v2_6_battery_generalization/predictions.csv",
+  "source_analysis_ready_path": "data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv",
+  "source_lineage_path": "data/processed/battery_v2_3_5_source_lineage_summary.json",
+  "metadata_recovery_summary_path": "data/processed/battery_v2_3_5_metadata_recovery_summary.csv",
+  "expected_benchmark_summary_checksum": "9bcc58b0f7df95cc996aee6f509aac6a9293f753186b50d8b1635bb6ad392d42",
+  "expected_benchmark_result_checksum": "5e565dfe7f4b183bbca3531f46190071732f395afd0f7fa0f63c4896e502e906",
+  "group_column": "battery_id",
+  "time_column": "cycle_index",
+  "target_column": "capacity_retention_percent",
+  "models": [
+    "persistence",
+    "ridge"
+  ],
+  "horizon": 5,
+  "local_window": 5,
+  "regime_early_max_cycle": 50,
+  "regime_middle_max_cycle": 100,
+  "sparse_prediction_max": 10,
+  "abrupt_change_threshold": 10.0,
+  "high_target_std_threshold": 15.0,
+  "low_target_std_threshold": 1.0,
+  "high_local_volatility_threshold": 5.0,
+  "flat_range_threshold": 0.5,
+  "flat_window": 5,
+  "physical_min": 0.0,
+  "physical_max": 150.0,
+  "source_benchmark_execution_status": "reexecuted_same_config_for_diagnostics",
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "output_root": "outputs/v2_6_battery_diagnostics",
+  "tracked_summary_path": "data/processed/battery_v2_6_2_forecast_failure_diagnostic_summary.json",
+  "output_policy": "local_details_and_tracked_compact_summary"
+}

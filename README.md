@@ -101,6 +101,15 @@ battery-disjoint validation and train-only preprocessing; it does not support
 zero-shot, lifetime, SOH/RUL, mechanism, or engineering-decision claims. See
 [Battery-Level Generalization Forecasting](docs/BATTERY_GENERALIZATION_FORECASTING.md).
 
+v2.6.2 keeps that benchmark unchanged and audits why Ridge failed. Excess
+error is concentrated across several batteries, but no single-battery
+exclusion changes persistence superiority; Ridge is also worse in every
+predeclared cycle regime. Sparse groups, abrupt-transition proximity, and
+three nonphysical predictions are not primary aggregate drivers, while
+source/test-condition comparability remains unresolved. The closeout is
+`diagnostic`, not a new predictive or mechanism claim. See
+[Battery Forecast Failure Diagnostics](docs/BATTERY_FORECAST_FAILURE_DIAGNOSTICS.md).
+
 ## Project Structure
 
 ```text
