@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_external_cohort_manifest_schema_v1.json",
+  "title": "Battery External Cohort Candidate Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "candidate_id",
+    "candidate_kind",
+    "intended_use",
+    "source_bundle",
+    "evidence_declarations",
+    "validation_plan",
+    "claim_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "manifest_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "candidate_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "candidate_kind": {"const": "external_battery_cohort_bundle"},
+    "intended_use": {"const": "cross_cohort_validation"},
+    "source_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archive_count",
+        "cycle_file_count",
+        "timeseries_file_count",
+        "dedicated_metadata_sidecar_present",
+        "official_snapshot_identifier_present",
+        "raw_inventory_verified"
+      ],
+      "properties": {
+        "archive_count": {"type": "integer", "minimum": 0},
+        "cycle_file_count": {"type": "integer", "minimum": 0},
+        "timeseries_file_count": {"type": "integer", "minimum": 0},
+        "dedicated_metadata_sidecar_present": {"type": "boolean"},
+        "official_snapshot_identifier_present": {"type": "boolean"},
+        "raw_inventory_verified": {"type": "boolean"}
+      }
+    },
+    "evidence_declarations": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_field",
+          "availability_status",
+          "evidence_basis",
+          "granularity",
+          "source_reference",
+          "source_backed",
+          "inference_required",
+          "filename_derived",
+          "commanded_condition_evidence",
+          "limitation"
+        ],
+        "properties": {
+          "evidence_field": {
+            "enum": [
+              "chemistry",
+              "nominal_capacity",
+              "ambient_temperature",
+              "charge_protocol",
+              "discharge_protocol",
+              "cutoff_voltage",
+              "measurement_calibration",
+              "source_snapshot"
+            ]
+          },
+          "availability_status": {"type": "string", "minLength": 1},
+          "evidence_basis": {"type": "string", "minLength": 1},
+          "granularity": {"type": "string", "minLength": 1},
+          "source_reference": {"type": "string", "minLength": 1},
+          "source_backed": {"type": "boolean"},
+          "inference_required": {"type": "boolean"},
+          "filename_derived": {"type": "boolean"},
+          "commanded_condition_evidence": {"type": "boolean"},
+          "limitation": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "validation_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluation_scenario",
+        "target_definition_status",
+        "target_source_reference",
+        "predeclared_before_model_evaluation",
+        "model_training_requested",
+        "model_evaluation_requested",
+        "harmonization_requested"
+      ],
+      "properties": {
+        "evaluation_scenario": {"const": "cross_cohort_external_validation"},
+        "target_definition_status": {"type": "string", "minLength": 1},
+        "target_source_reference": {"type": ["string", "null"]},
+        "predeclared_before_model_evaluation": {"const": true},
+        "model_training_requested": {"type": "boolean"},
+        "model_evaluation_requested": {"type": "boolean"},
+        "harmonization_requested": {"type": "boolean"}
+      }
+    },
+    "claim_policy": {
+      "const": {
+        "filename_labels_are_source_evidence": false,
+        "derived_reference_is_nominal_capacity": false,
+        "observed_signal_is_commanded_protocol": false,
+        "missing_metadata_may_be_inferred": false
+      }
+    }
+  }
+}
