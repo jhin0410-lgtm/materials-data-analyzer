@@ -1,0 +1,94 @@
+{
+  "archive_audit": {
+    "archive_present": false,
+    "central_directory_read": false,
+    "expected_archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+    "observed_archive_sha256": null,
+    "status": "pending_local_artifact"
+  },
+  "archive_bytes_read_for_checksum": false,
+  "archive_extracted": false,
+  "archive_path": "data/raw/battery_archive/SNL LFP.zip",
+  "artifact_kind": "battery_snl_lfp_bounded_schema_read_compact_summary",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "capacity_check_classification_promoted": false,
+  "case_study_id": "battery_archive_snl_lfp",
+  "cohort_merge_performed": false,
+  "contract_checksum": "cf60c391939b0d33826b043a0c84a575c164724183ca97e98107655812e3a0c4",
+  "contract_id": "battery_snl_lfp_bounded_schema_read_contract_v1",
+  "credentials_read": false,
+  "csv_data_rows_read": false,
+  "csv_headers_read": false,
+  "cycle_command_binding_inferred": false,
+  "deterministic_result_checksum": "65d97bfd16ce6c9a22d31efe93953e8a019d65f3ee85d6b0bf70ad90e8ac3d6e",
+  "file_observations": [],
+  "full_csv_read": false,
+  "instrument_channel_binding_inferred": false,
+  "metrics_recomputed": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_called": false,
+  "nonrepresentative_entry_read": false,
+  "package_id": "battery_snl_lfp_bounded_schema_read_v1",
+  "physical_cell_binding_inferred": false,
+  "preservation_checks": {
+    "archive_sha256_preserved": true,
+    "model_or_metric_change_performed": false,
+    "prior_binding_gate_preserved": true,
+    "v2_6_6_checksum_verified": true,
+    "v2_6_7_checksum_verified": true
+  },
+  "recommendations": [
+    "run the bounded audit in the local checkout containing SNL LFP.zip",
+    "commit only the compact schema observation after validation",
+    "do not expand the read set or row limit without a new contract"
+  ],
+  "representative_entry_payloads_read": false,
+  "representative_read_summary": {
+    "declared_entry_count": 6,
+    "header_count": 0,
+    "opened_entry_count": 0,
+    "sample_data_row_count": 0,
+    "schema_contract_match_count": 0,
+    "schema_contract_mismatch_count": 0,
+    "status": "pending_local_artifact"
+  },
+  "schema_read_decision": {
+    "bounded_schema_observation": "pending_local_artifact",
+    "capacity_check_vs_bulk_cycle_discrimination": "not_established",
+    "cross_cohort_comparability": "not_admitted",
+    "cycle_command_to_rows": "not_established",
+    "instrument_channel_to_columns": "not_established",
+    "official_distribution_snapshot": "not_established",
+    "overall_status": "pending_local_artifact",
+    "physical_cell_to_entry": "not_established",
+    "predictive_validation": "blocked"
+  },
+  "schema_version": "2.6.8",
+  "scientific_closeout": {
+    "evidence_level": "contract_defined_without_local_payload_observation",
+    "primary_limitation": "GitHub cannot access the ignored local archive, so no CSV header or bounded sample row has been observed.",
+    "result": "pending_bounded_local_schema_read",
+    "status": "inconclusive",
+    "strongest_evidence": "The exact six representative entries and bounded read limits are predeclared against the v2.6.6 archive identity.",
+    "suitable_for": [
+      "schema-read execution planning",
+      "read-boundary validation"
+    ],
+    "unsuitable_for": [
+      "capacity-check classification",
+      "cycle-command binding",
+      "instrument-channel binding",
+      "cohort comparison",
+      "predictive validation",
+      "engineering decisions"
+    ]
+  },
+  "source_mutation_performed": false,
+  "source_references": {
+    "contract": "data/platform/battery_snl_lfp_bounded_schema_read_contract_v1.json",
+    "v2_6_6_summary": "data/processed/battery_v2_6_6_snl_lfp_artifact_binding_summary.json",
+    "v2_6_7_summary": "data/processed/battery_v2_6_7_snl_lfp_source_entry_binding_summary.json"
+  },
+  "zip_central_directory_read": false
+}
