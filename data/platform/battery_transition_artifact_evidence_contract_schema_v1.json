@@ -1,0 +1,23 @@
+{
+  "$id": "battery_transition_artifact_evidence_contract_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bounded_source_id": {"const": "snl_lfp_commercial_18650_study"},
+    "claim_policy": {"additionalProperties": {"const": false}, "type": "object"},
+    "contract_id": {"const": "battery_snl_lfp_transition_artifact_evidence_contract_v1"},
+    "contract_recorded_on": {"type": "string"},
+    "decision_policy": {"type": "object"},
+    "representative_scope": {"type": "object"},
+    "schema_version": {"const": "1"},
+    "scientific_question": {"type": "string"},
+    "source_evidence": {"type": "object"},
+    "stop_rules": {"items": {"type": "string"}, "type": "array"},
+    "upstream_identity": {"type": "object"}
+  },
+  "required": ["schema_version", "contract_id", "bounded_source_id", "contract_recorded_on", "scientific_question", "upstream_identity", "source_evidence", "representative_scope", "decision_policy", "claim_policy", "stop_rules"],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Transition Artifact Evidence Contract",
+  "type": "object"
+}
