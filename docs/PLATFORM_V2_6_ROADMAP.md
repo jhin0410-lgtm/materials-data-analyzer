@@ -1,10 +1,10 @@
 # Platform v2.6 Roadmap
 
-Status: `v2.6.6_snl_lfp_artifact_binding_feature_stage_complete`
+Status: `v2.6.7_snl_lfp_source_entry_binding_feature_stage_complete`
 
 ## Release Boundary
 
-`v2.4.0` remains the current public release. v2.6.1 through v2.6.6 are
+`v2.4.0` remains the current public release. v2.6.1 through v2.6.7 are
 feature-stage work and do not create a tag, release, or public version change.
 
 ## v2.6.1 Scope
@@ -111,40 +111,59 @@ See [Battery SNL LFP Source Evidence Recovery](BATTERY_SNL_LFP_SOURCE_EVIDENCE_R
 
 ## v2.6.6 SNL LFP Artifact Binding
 
-v2.6.6 executes the bounded archive identity audit authorized by v2.6.5. It
+v2.6.6 implements the bounded archive identity audit authorized by v2.6.5. It
 streams `SNL LFP.zip` to compute SHA-256 and reads its ZIP central directory to
 record entry names, sizes, CRC values, safe paths, cycle/time-series pairing,
 and filename-label provenance. It does not read entry payloads or CSV rows and
 does not extract the archive.
 
-The observed local archive is recorded as:
+The verified local result records:
 
-- archive SHA-256: `006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d`;
-- archive size: `263826451` bytes;
-- entry-manifest checksum: `f85e6f1ac333f7ff20b7bfd01b8599cfe86e8950c4971e9fc074a367da86a75c`;
-- entries: `60`;
-- cycle CSV entries: `30`;
-- time-series CSV entries: `30`;
-- complete pairs: `30`;
-- unsafe, duplicate, and encrypted entries: `0`;
-- inventory contract match: `true`.
-
-The recorded decision is:
-
+- archive SHA-256:
+  `006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d`;
+- entry-manifest checksum:
+  `f85e6f1ac333f7ff20b7bfd01b8599cfe86e8950c4971e9fc074a367da86a75c`;
+- 60 safe entries, 30 cycle CSVs, 30 time-series CSVs, and 30 complete pairs;
 - local artifact inventory binding: `local_artifact_inventory_bound`;
 - document-to-archive binding: `not_established`;
 - official distribution snapshot: `not_established`;
-- evidence promotion requirements satisfied: `0 / 8`;
 - cross-cohort comparability: `not_admitted`;
 - predictive validation: `blocked`;
 - overall: `local_artifact_inventory_bound_gate_not_passed`.
 
-The checksum identifies the observed local archive, but it does not independently
-establish an official versioned distribution or map publication cells,
-conditions, command logs, calibration records, or targets to individual entries.
-Filename labels remain non-scientific parsing labels.
+The raw ZIP and row-level manifest remain uncommitted. See
+[Battery SNL LFP Artifact Binding Audit](BATTERY_SNL_LFP_ARTIFACT_BINDING_AUDIT.md).
 
-See [Battery SNL LFP Artifact Binding Audit](BATTERY_SNL_LFP_ARTIFACT_BINDING_AUDIT.md).
+## v2.6.7 SNL LFP Source-to-Entry Binding
+
+v2.6.7 links the official publication and Battery Archive documentation to the
+checksum-bound local archive at the narrowest defensible level.
+
+The official Battery Archive nomenclature defines institution, form factor,
+cathode, environment temperature, beginning-of-life SOC window, bulk-cycling
+charge/discharge rate, and replicate tokens. The 30 observed SNL LFP cell stems
+aggregate into 12 condition-group entry patterns that match this nomenclature
+and the documented SNL study variables.
+
+The recorded decision is:
+
+- publication to Battery Archive repository: `established`;
+- repository filename nomenclature: `established`;
+- study to condition groups: `established_condition_group_only`;
+- condition groups to entry patterns:
+  `established_repository_nomenclature_only`;
+- physical cell to entry: `not_established`;
+- cycle command to CSV rows: `not_established`;
+- instrument channel to CSV columns: `not_established`;
+- official distribution snapshot: `not_established`;
+- cross-cohort comparability: `not_admitted`;
+- predictive validation: `blocked`;
+- overall: `condition_group_nomenclature_bound_gate_not_passed`.
+
+No archive bytes, entry payloads, CSV headers, or CSV rows are read in v2.6.7.
+No filename label is promoted to a measured value, physical cell identity, or
+cycle-specific command. See
+[Battery SNL LFP Source-to-Entry Binding Review](BATTERY_SNL_LFP_SOURCE_ENTRY_BINDING_REVIEW.md).
 
 The v2.5 compatibility and retrieval-reproducibility conclusions are unchanged.
 Battery retrieval reproducibility remains `insufficient_evidence`, and no
@@ -153,23 +172,22 @@ recomputation, or public-version change is added.
 
 ## Next Evidence
 
-The next task is a bounded source-to-entry distribution-identity review. It
-should seek an independently verifiable official snapshot or release identifier
-and an explicit mapping from documented SNL cells and test conditions to the
-SHA-256-identified archive entries.
+The next step must remain bounded. A v2.6.8 schema-read contract may inspect only
+predeclared representative files and only the minimum header or row scope needed
+to determine:
 
-The review must preserve these boundaries:
+- exact column names and units;
+- cycle and step identifiers;
+- capacity-check versus bulk-cycling markers;
+- time ordering and trajectory continuity;
+- whether commanded and measured channels can be distinguished.
 
-- do not treat the local checksum alone as an official distribution identity;
-- do not infer cell or protocol binding from filenames;
-- do not read CSV rows or merge cohorts yet;
-- do not run or tune a model;
-- keep calibration, uncertainty, cutoff policy, and target alignment unresolved
-  unless source-backed evidence explicitly establishes them.
+The contract must define stopping conditions for schema mismatch and must not
+merge cohorts, train models, recompute the v2.6.1 metrics, or claim protocol
+equivalence.
 
-CSV header or row access should be authorized only after that review defines a
-specific scientific question, a source-to-entry mapping, and the smallest
-justified read contract.
+Independently, a provider-issued release identifier or official checksum for the
+exact `SNL LFP.zip` remains the strongest missing source-snapshot evidence.
 
 ## Non-Goals
 
