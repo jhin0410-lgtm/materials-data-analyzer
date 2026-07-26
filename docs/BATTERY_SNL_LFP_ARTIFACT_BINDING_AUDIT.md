@@ -1,6 +1,6 @@
 # Battery SNL LFP Artifact Binding Audit
 
-Status: `v2.6.6_feature_stage_complete_local_artifact_pending`
+Status: `v2.6.6_feature_stage_complete_local_artifact_inventory_bound`
 
 ## Objective
 
@@ -11,14 +11,14 @@ v2.6.5. The only candidate is:
 data/raw/battery_archive/SNL LFP.zip
 ```
 
-The raw archive is intentionally ignored by Git and is not present in the GitHub
-execution context. The tracked compact result therefore records
-`pending_local_artifact`; it does not fabricate an archive checksum or entry
-inventory.
+The raw archive remains intentionally ignored by Git. The audit was executed in
+a local checkout containing the archive, and the checksum and compact
+central-directory result are tracked without committing the raw ZIP or row-level
+entry manifest.
 
 ## Allowed reads
 
-When the archive is available in a local checkout, the audit may:
+The audit may:
 
 1. stream the archive bytes to compute SHA-256;
 2. read the ZIP central directory with `ZipFile.infolist()`;
@@ -28,22 +28,37 @@ When the archive is available in a local checkout, the audit may:
 5. parse filename labels with `entry_name` provenance.
 
 The audit does not call `ZipFile.open`, `ZipFile.read`, `extract`, or
-`extractall` for entry payloads.
+`extractall` for entry payloads. It does not read CSV headers or rows.
 
-## Expected inventory contract
+## Observed archive identity
 
-The earlier read-only raw-data audit recorded the following expected structure:
-
-| Field | Expected |
-| --- | ---: |
+| Field | Observed |
+| --- | --- |
+| Archive SHA-256 | `006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d` |
+| Archive size | `263826451` bytes |
+| Entry-manifest checksum | `f85e6f1ac333f7ff20b7bfd01b8599cfe86e8950c4971e9fc074a367da86a75c` |
 | Total entries | 60 |
 | Cycle CSV entries | 30 |
 | Time-series CSV entries | 30 |
 | Complete cycle/time-series pairs | 30 |
+| Other entries | 0 |
 | Root prefix | `SNL LFP/` |
+| Inventory contract match | `true` |
 
-These values are an expected inventory contract, not proof that a newly observed
-local archive is the official versioned distribution.
+## Safety result
+
+| Field | Observed |
+| --- | ---: |
+| Safe entries | 60 |
+| Unsafe entries | 0 |
+| Duplicate entries | 0 |
+| Encrypted entries | 0 |
+
+The recorded local artifact status is:
+
+```text
+local_artifact_inventory_bound
+```
 
 ## Filename-label policy
 
@@ -61,27 +76,32 @@ provenance = entry_name
 scientific_evidence = false
 ```
 
-The parser does not establish battery chemistry, commanded temperature,
-charge/discharge protocol, cutoff policy, or study identity.
+All 60 entry names matched the bounded parser, but this parsing does not
+establish battery chemistry, commanded temperature, charge/discharge protocol,
+cutoff policy, or study identity.
 
-## Decisions
+## Scientific decision
 
-Possible local artifact statuses are:
+The resulting decision is:
 
-- `pending_local_artifact`: the ignored archive is unavailable;
-- `local_artifact_inventory_bound`: checksum and safe central-directory inventory
-  match the expected 60-entry contract;
-- `inventory_contract_mismatch`: counts, pairing, or root prefix differ;
-- `rejected_unsafe_archive_inventory`: traversal, duplicate, or encrypted entries
-  are detected.
+- local artifact inventory binding: `local_artifact_inventory_bound`;
+- checksum identity recorded: `true`;
+- central-directory inventory recorded: `true`;
+- document-to-archive binding: `not_established`;
+- official distribution snapshot: `not_established`;
+- evidence promotion requirements satisfied: `0 / 8`;
+- cross-cohort comparability: `not_admitted`;
+- predictive validation: `blocked`;
+- overall: `local_artifact_inventory_bound_gate_not_passed`.
 
-Even the strongest local result does **not** establish:
+The local checksum and central directory identify this specific local ZIP. They
+do **not** establish:
 
-- document-to-archive binding;
-- an official versioned distribution snapshot;
-- battery/file or cycle/protocol equivalence;
+- an independently verifiable official versioned distribution;
+- mapping between publication cells and archive entries;
+- cycle-level commanded protocols or cutoff policies;
 - calibration or measurement uncertainty;
-- cross-cohort comparability;
+- equivalence with the existing Kaggle NASA-derived cohort;
 - predictive-validation eligibility.
 
 ## CLI
@@ -94,8 +114,9 @@ python -m src.platform_core.battery_snl_lfp_artifact_binding --json validate \
 ```
 
 `preview` checks only configuration, prior evidence integrity, and archive
-presence. `run` reads archive bytes for SHA-256 and the central directory only
-when the local archive exists.
+presence. `run` computes the archive checksum and reads the central directory.
+The persisted summary checksum is computed after the row-level manifest is
+removed, so the documented `validate` command checks the exact stored payload.
 
 ## Outputs
 
@@ -118,18 +139,19 @@ The tracked compact output excludes the row-level entry manifest.
 ## Validation boundary
 
 Synthetic ZIP fixtures verify software behavior, deterministic checksums,
-central-directory-only access, path safety, expected pairing, output isolation,
-and evidence non-promotion. Synthetic success does not prove the identity or
-scientific comparability of the user's local archive.
+central-directory-only access, path safety, expected pairing, persisted-summary
+validation, output isolation, and evidence non-promotion. The real local run
+establishes the identity and safe inventory of the observed archive only.
 
 ## Scientific closeout
 
-Current tracked result: **Inconclusive**.
+Current tracked result: **Diagnostic**.
 
-- Strongest evidence: v2.6.5 source documentation and a bounded local archive
-  path are defined.
-- Primary limitation: the Git-ignored archive bytes are unavailable in GitHub,
-  so no real checksum or central-directory manifest has been recorded here.
-- Suitable for: executing the bounded local identity audit.
+- Strongest evidence: a SHA-256-identified local archive has a safe 60-entry
+  central directory that matches the predeclared 30-pair inventory contract.
+- Primary limitation: no official versioned snapshot or source-to-entry mapping
+  connects this archive to the documented cells, command logs, or instruments.
+- Suitable for: local artifact identity, central-directory inventory, and
+  filename-label provenance.
 - Unsuitable for: CSV analysis, metadata promotion, cohort merging, model
-  evaluation, or engineering decisions.
+  evaluation, predictive claims, or engineering decisions.
