@@ -26,4 +26,11 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Run tests
-        run: python -m pytest -q
+        run: python -m pytest -q -x > pytest.log 2>&1
+
+      - name: Upload pytest diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2612-pytest-diagnostic
+          path: pytest.log
