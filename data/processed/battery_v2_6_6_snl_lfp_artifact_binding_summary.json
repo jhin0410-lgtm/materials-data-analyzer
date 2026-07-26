@@ -1,0 +1,115 @@
+{
+  "archive_audit": {
+    "archive_present": true,
+    "archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+    "archive_size_bytes": 263826451,
+    "central_directory_read": true,
+    "entry_manifest_checksum": "f85e6f1ac333f7ff20b7bfd01b8599cfe86e8950c4971e9fc074a367da86a75c",
+    "inventory": {
+      "actual_cycle_csv_count": 30,
+      "actual_entry_count": 60,
+      "actual_other_entry_count": 0,
+      "actual_timeseries_csv_count": 30,
+      "complete_pair_count": 30,
+      "cycle_csv_count": 30,
+      "entry_count": 60,
+      "inventory_contract_match": true,
+      "timeseries_csv_count": 30
+    },
+    "label_summary": {
+      "labels_are_scientific_evidence": false,
+      "parsed_count": 60,
+      "unparsed_count": 0
+    },
+    "safety": {
+      "duplicate_entry_count": 0,
+      "encrypted_entry_count": 0,
+      "safe_entry_count": 60,
+      "unsafe_entry_count": 0
+    },
+    "status": "local_artifact_inventory_bound"
+  },
+  "archive_bytes_read_for_checksum": true,
+  "archive_path": "data/raw/battery_archive/SNL LFP.zip",
+  "archives_extracted": false,
+  "artifact_kind": "battery_snl_lfp_artifact_binding_compact_summary",
+  "binding_decision": {
+    "central_directory_inventory_recorded": true,
+    "checksum_identity_recorded": true,
+    "cross_cohort_comparability": "not_admitted",
+    "document_to_archive_binding": "not_established",
+    "filename_label_inventory": "recorded_as_non_scientific_labels",
+    "local_artifact_inventory_binding": "local_artifact_inventory_bound",
+    "official_distribution_snapshot": "not_established",
+    "overall_status": "local_artifact_inventory_bound_gate_not_passed",
+    "predictive_validation": "blocked"
+  },
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "case_study_id": "battery_archive_snl_lfp",
+  "credentials_read": false,
+  "csv_rows_read": false,
+  "data_inference_performed": false,
+  "deterministic_result_checksum": "f4c02c38652848ddba6a69ffe47010e0cb7ada3ad411fd028afdd5ff552b89e5",
+  "document_to_archive_binding_inferred": false,
+  "entry_payloads_read": false,
+  "evidence_promotion": {
+    "promotion_requirement_satisfied_count": 0,
+    "remaining_blocking_fields": [
+      "chemistry",
+      "nominal_capacity",
+      "ambient_temperature",
+      "charge_protocol",
+      "discharge_protocol",
+      "cutoff_voltage",
+      "measurement_calibration",
+      "source_snapshot"
+    ],
+    "required_field_count": 8
+  },
+  "filename_labels_promoted_to_scientific_evidence": false,
+  "metrics_recomputed": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_called": false,
+  "package_id": "battery_snl_lfp_artifact_binding_audit_v1",
+  "preservation_checks": {
+    "filename_labels_remain_non_scientific": true,
+    "model_or_metric_change_performed": false,
+    "prior_overall_status": "source_evidence_recovered_gate_not_passed",
+    "prior_overall_status_preserved": true,
+    "prior_promotion_count": 0,
+    "v2_6_5_source_evidence_checksum_verified": true
+  },
+  "recommendations": [
+    "run this audit in a local checkout containing the ignored archive",
+    "retain checksum and entry manifest as local evidence",
+    "do not extract the archive or read CSV rows",
+    "do not promote filename labels to scientific metadata"
+  ],
+  "schema_version": "2.6.6",
+  "scientific_closeout": {
+    "evidence_level": "checksum_and_zip_central_directory_only",
+    "primary_limitation": "No verified mapping connects the local archive to an official versioned snapshot, documented cells, command logs, or instrument channels.",
+    "result": "local_archive_inventory_identity_recorded",
+    "status": "diagnostic",
+    "strongest_evidence": "The local archive checksum and ZIP central-directory inventory were recorded without reading entry payloads.",
+    "suitable_for": [
+      "local artifact identity",
+      "central-directory inventory",
+      "filename-label provenance"
+    ],
+    "unsuitable_for": [
+      "CSV row analysis",
+      "scientific metadata promotion",
+      "cross-cohort equivalence",
+      "predictive validation",
+      "model selection",
+      "engineering decisions"
+    ]
+  },
+  "source_mutation_performed": false,
+  "source_references": {
+    "source_evidence_summary": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json"
+  },
+  "zip_central_directory_read": true
+}

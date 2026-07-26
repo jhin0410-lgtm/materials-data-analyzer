@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_artifact_binding_audit_config_schema_v1.json",
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Artifact Binding Audit Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "package_id",
+    "case_study_id",
+    "bounded_source_id",
+    "archive_path",
+    "source_evidence_summary_path",
+    "expected_source_evidence_checksum",
+    "expected_archive_filename",
+    "expected_root_prefix",
+    "expected_inventory",
+    "required_evidence_fields",
+    "read_policy",
+    "credential_policy",
+    "output_root",
+    "tracked_summary_path",
+    "output_policy",
+    "dry_run"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.6.6"},
+    "package_id": {"const": "battery_snl_lfp_artifact_binding_audit_v1"},
+    "case_study_id": {"const": "battery_archive_snl_lfp"},
+    "bounded_source_id": {"const": "snl_lfp_commercial_18650_study"},
+    "archive_path": {"const": "data/raw/battery_archive/SNL LFP.zip"},
+    "source_evidence_summary_path": {"const": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json"},
+    "expected_source_evidence_checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_archive_filename": {"const": "SNL LFP.zip"},
+    "expected_root_prefix": {"const": "SNL LFP/"},
+    "expected_inventory": {
+      "const": {"entry_count": 60, "cycle_csv_count": 30, "timeseries_csv_count": 30}
+    },
+    "required_evidence_fields": {
+      "const": [
+        "chemistry",
+        "nominal_capacity",
+        "ambient_temperature",
+        "charge_protocol",
+        "discharge_protocol",
+        "cutoff_voltage",
+        "measurement_calibration",
+        "source_snapshot"
+      ]
+    },
+    "read_policy": {
+      "const": {
+        "allow_archive_sha256": true,
+        "allow_zip_central_directory": true,
+        "allow_entry_payload_read": false,
+        "allow_archive_extraction": false,
+        "allow_csv_row_read": false
+      }
+    },
+    "credential_policy": {
+      "const": {"store_credentials": false, "network_access_required": false}
+    },
+    "output_root": {"const": "outputs/v2_6_battery_snl_lfp_artifact_binding"},
+    "tracked_summary_path": {"const": "data/processed/battery_v2_6_6_snl_lfp_artifact_binding_summary.json"},
+    "output_policy": {"const": "local_details_and_tracked_compact_summary"},
+    "dry_run": {"const": true}
+  }
+}
