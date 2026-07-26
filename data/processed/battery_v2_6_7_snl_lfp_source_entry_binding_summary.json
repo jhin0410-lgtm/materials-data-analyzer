@@ -28,30 +28,252 @@
     "study_to_condition_groups": "established_condition_group_only"
   },
   "binding_dimension_statuses": [
-    {"dimension": "publication_to_repository", "status": "established"},
-    {"dimension": "repository_filename_nomenclature", "status": "established"},
-    {"dimension": "study_to_condition_group", "status": "established_condition_group_only"},
-    {"dimension": "condition_group_to_entry_pattern", "status": "established_repository_nomenclature_only"},
-    {"dimension": "physical_cell_to_entry", "status": "not_established"},
-    {"dimension": "cycle_command_to_rows", "status": "not_established"},
-    {"dimension": "instrument_channel_to_columns", "status": "not_established"},
-    {"dimension": "official_distribution_snapshot", "status": "not_established"}
+    {
+      "dimension": "publication_to_repository",
+      "status": "established"
+    },
+    {
+      "dimension": "repository_filename_nomenclature",
+      "status": "established"
+    },
+    {
+      "dimension": "study_to_condition_group",
+      "status": "established_condition_group_only"
+    },
+    {
+      "dimension": "condition_group_to_entry_pattern",
+      "status": "established_repository_nomenclature_only"
+    },
+    {
+      "dimension": "physical_cell_to_entry",
+      "status": "not_established"
+    },
+    {
+      "dimension": "cycle_command_to_rows",
+      "status": "not_established"
+    },
+    {
+      "dimension": "instrument_channel_to_columns",
+      "status": "not_established"
+    },
+    {
+      "dimension": "official_distribution_snapshot",
+      "status": "not_established"
+    }
   ],
   "bounded_source_id": "snl_lfp_commercial_18650_study",
   "case_study_id": "battery_archive_snl_lfp",
   "condition_group_summary": [
-    {"charge_rate_c": 0.5, "discharge_rate_c": 1.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_15C_0-100_0.5-1C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 15, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_01", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 2, "observed_entry_pair_count": 2, "physical_cell_identity_established": false, "replicate_labels": ["a", "b"], "soc_window_percent": "0-100"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 2.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_15C_0-100_0.5-2C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 15, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_02", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 2, "observed_entry_pair_count": 2, "physical_cell_identity_established": false, "replicate_labels": ["a", "b"], "soc_window_percent": "0-100"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 0.5, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-0.5C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_03", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 1, "observed_entry_pair_count": 1, "physical_cell_identity_established": false, "replicate_labels": ["a"], "soc_window_percent": "0-100"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 1.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_04", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 4, "observed_entry_pair_count": 4, "physical_cell_identity_established": false, "replicate_labels": ["a", "b", "c", "d"], "soc_window_percent": "0-100"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 2.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-2C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_05", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 2, "observed_entry_pair_count": 2, "physical_cell_identity_established": false, "replicate_labels": ["a", "b"], "soc_window_percent": "0-100"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 3.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-3C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_06", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 4, "observed_entry_pair_count": 4, "physical_cell_identity_established": false, "replicate_labels": ["a", "b", "c", "d"], "soc_window_percent": "0-100"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 0.5, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_07", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 4, "observed_entry_pair_count": 4, "physical_cell_identity_established": false, "replicate_labels": ["a", "b", "c", "d"], "soc_window_percent": "20-80"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 3.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-3C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_08", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 1, "observed_entry_pair_count": 1, "physical_cell_identity_established": false, "replicate_labels": ["a"], "soc_window_percent": "20-80"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 0.5, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_09", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 2, "observed_entry_pair_count": 2, "physical_cell_identity_established": false, "replicate_labels": ["a", "b"], "soc_window_percent": "40-60"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 3.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-3C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 25, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_10", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 2, "observed_entry_pair_count": 2, "physical_cell_identity_established": false, "replicate_labels": ["a", "b"], "soc_window_percent": "40-60"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 1.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_35C_0-100_0.5-1C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 35, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_11", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 4, "observed_entry_pair_count": 4, "physical_cell_identity_established": false, "replicate_labels": ["a", "b", "c", "d"], "soc_window_percent": "0-100"},
-    {"charge_rate_c": 0.5, "discharge_rate_c": 2.0, "entry_pattern": "SNL LFP/SNL_18650_LFP_35C_0-100_0.5-2C_{replicate}_{cycle_data|timeseries}.csv", "environment_temperature_c": 35, "exact_cycle_command_binding_established": false, "group_id": "snl_lfp_group_12", "mapping_level": "condition_group_entry_pattern", "observed_cell_count": 2, "observed_entry_pair_count": 2, "physical_cell_identity_established": false, "replicate_labels": ["a", "b"], "soc_window_percent": "0-100"}
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 1.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_15C_0-100_0.5-1C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 15,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_01",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 2,
+      "observed_entry_pair_count": 2,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b"
+      ],
+      "soc_window_percent": "0-100"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 2.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_15C_0-100_0.5-2C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 15,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_02",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 2,
+      "observed_entry_pair_count": 2,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b"
+      ],
+      "soc_window_percent": "0-100"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 0.5,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-0.5C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_03",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 1,
+      "observed_entry_pair_count": 1,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a"
+      ],
+      "soc_window_percent": "0-100"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 1.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_04",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 4,
+      "observed_entry_pair_count": 4,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "soc_window_percent": "0-100"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 2.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-2C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_05",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 2,
+      "observed_entry_pair_count": 2,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b"
+      ],
+      "soc_window_percent": "0-100"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 3.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-3C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_06",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 4,
+      "observed_entry_pair_count": 4,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "soc_window_percent": "0-100"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 0.5,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_07",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 4,
+      "observed_entry_pair_count": 4,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "soc_window_percent": "20-80"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 3.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-3C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_08",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 1,
+      "observed_entry_pair_count": 1,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a"
+      ],
+      "soc_window_percent": "20-80"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 0.5,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_09",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 2,
+      "observed_entry_pair_count": 2,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b"
+      ],
+      "soc_window_percent": "40-60"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 3.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-3C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 25,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_10",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 2,
+      "observed_entry_pair_count": 2,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b"
+      ],
+      "soc_window_percent": "40-60"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 1.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_35C_0-100_0.5-1C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 35,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_11",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 4,
+      "observed_entry_pair_count": 4,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "soc_window_percent": "0-100"
+    },
+    {
+      "charge_rate_c": 0.5,
+      "discharge_rate_c": 2.0,
+      "entry_pattern": "SNL LFP/SNL_18650_LFP_35C_0-100_0.5-2C_{replicate}_{cycle_data|timeseries}.csv",
+      "environment_temperature_c": 35,
+      "exact_cycle_command_binding_established": false,
+      "group_id": "snl_lfp_group_12",
+      "mapping_level": "condition_group_entry_pattern",
+      "observed_cell_count": 2,
+      "observed_entry_pair_count": 2,
+      "physical_cell_identity_established": false,
+      "replicate_labels": [
+        "a",
+        "b"
+      ],
+      "soc_window_percent": "0-100"
+    }
   ],
   "coverage_summary": {
     "binding_dimension_count": 8,
@@ -74,17 +296,49 @@
   "csv_rows_read": false,
   "cycle_command_binding_inferred": false,
   "data_inference_performed": false,
-  "deterministic_result_checksum": "d92059938c379822e82b4b071ff0cca3897a303ee576e17aa81e5a9079da14e0",
+  "deterministic_result_checksum": "38fb66269706938513bb000d14427b33147ee13f04d917696e47dff7f2699248",
   "entry_payloads_read": false,
   "evidence_field_statuses": [
-    {"evidence_field": "chemistry", "promotion_requirement_satisfied": false, "source_to_entry_status": "condition_group_nomenclature_bound"},
-    {"evidence_field": "nominal_capacity", "promotion_requirement_satisfied": false, "source_to_entry_status": "documented_study_cell_not_entry_bound"},
-    {"evidence_field": "ambient_temperature", "promotion_requirement_satisfied": false, "source_to_entry_status": "condition_group_nomenclature_bound"},
-    {"evidence_field": "charge_protocol", "promotion_requirement_satisfied": false, "source_to_entry_status": "partial_condition_group_bound"},
-    {"evidence_field": "discharge_protocol", "promotion_requirement_satisfied": false, "source_to_entry_status": "partial_condition_group_bound"},
-    {"evidence_field": "cutoff_voltage", "promotion_requirement_satisfied": false, "source_to_entry_status": "partial_regime_documented"},
-    {"evidence_field": "measurement_calibration", "promotion_requirement_satisfied": false, "source_to_entry_status": "not_bound"},
-    {"evidence_field": "source_snapshot", "promotion_requirement_satisfied": false, "source_to_entry_status": "not_bound"}
+    {
+      "evidence_field": "chemistry",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "condition_group_nomenclature_bound"
+    },
+    {
+      "evidence_field": "nominal_capacity",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "documented_study_cell_not_entry_bound"
+    },
+    {
+      "evidence_field": "ambient_temperature",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "condition_group_nomenclature_bound"
+    },
+    {
+      "evidence_field": "charge_protocol",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "partial_condition_group_bound"
+    },
+    {
+      "evidence_field": "discharge_protocol",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "partial_condition_group_bound"
+    },
+    {
+      "evidence_field": "cutoff_voltage",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "partial_regime_documented"
+    },
+    {
+      "evidence_field": "measurement_calibration",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "not_bound"
+    },
+    {
+      "evidence_field": "source_snapshot",
+      "promotion_requirement_satisfied": false,
+      "source_to_entry_status": "not_bound"
+    }
   ],
   "filename_labels_promoted_to_measurements": false,
   "instrument_channel_binding_inferred": false,
@@ -104,8 +358,14 @@
     "model_metrics_unchanged": true,
     "model_or_metric_change_performed": false,
     "preserved_metrics": [
-      {"mae": 3.425575369058076, "model": "persistence"},
-      {"mae": 4.15369918179312, "model": "ridge"}
+      {
+        "mae": 3.425575369058076,
+        "model": "persistence"
+      },
+      {
+        "mae": 4.15369918179312,
+        "model": "ridge"
+      }
     ],
     "prior_boundaries_preserved": true,
     "prior_v2_6_5_status": "source_evidence_recovered_gate_not_passed",
@@ -116,21 +376,33 @@
   "raw_archive_read": false,
   "recommendations": [
     "retain the 12 condition-group pattern map and archive checksums as provenance evidence",
-    "request a provider-issued distribution identifier or checksum before claiming an official snapshot",
-    "defer CSV header or row reads until a bounded schema-read contract is approved",
+    "request a provider-issued distribution identifier or checksum",
+    "defer CSV reads until a bounded schema-read contract is approved",
     "do not merge cohorts or rerun models"
   ],
   "schema_version": "2.6.7",
   "scientific_closeout": {
     "evidence_level": "official_repository_nomenclature_plus_checksum_bound_local_archive_inventory",
-    "primary_limitation": "No provider-published release identifier or archive checksum, physical cell-to-file map, cycle-command log, instrument-channel map, calibration evidence, or CSV payload review is available.",
+    "primary_limitation": "No provider-published release identifier or archive checksum, physical cell-to-file map, cycle-command log, instrument-channel map, calibration evidence, or CSV review exists.",
     "result": "condition_group_nomenclature_binding_established",
     "status": "diagnostic",
-    "strongest_evidence": "The publication is officially linked to Battery Archive, the repository defines the observed filename-token semantics, and the checksum-bound local archive contains 30 cell pairs aggregated into 12 condition-group patterns consistent with the documented SNL LFP study variables.",
-    "suitable_for": ["source attribution", "condition-group provenance", "bounded schema-review planning", "evidence-gap prioritization"],
-    "unsuitable_for": ["scientific metadata promotion", "cross-cohort equivalence", "predictive validation", "model selection", "mechanism claims", "engineering decisions"],
+    "strongest_evidence": "The publication is officially linked to Battery Archive, the repository defines the observed filename-token semantics, and the checksum-bound local archive contains 30 cell pairs aggregated into 12 documented condition-group patterns.",
+    "suitable_for": [
+      "source attribution",
+      "condition-group provenance",
+      "bounded schema-review planning",
+      "evidence-gap prioritization"
+    ],
+    "unsuitable_for": [
+      "scientific metadata promotion",
+      "cross-cohort equivalence",
+      "predictive validation",
+      "model selection",
+      "mechanism claims",
+      "engineering decisions"
+    ],
     "what_would_change_conclusion": [
-      "provider-issued versioned distribution identifier and checksum for the exact ZIP",
+      "provider-issued versioned distribution identifier and checksum",
       "official cell or channel mapping for each entry stem",
       "bounded command-step and CSV-schema provenance contract",
       "calibration or measurement-uncertainty records"
