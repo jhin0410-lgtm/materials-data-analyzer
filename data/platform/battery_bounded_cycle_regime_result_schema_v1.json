@@ -1,0 +1,100 @@
+{
+  "$id": "battery_bounded_cycle_regime_result_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "archive_audit": {
+      "type": "object"
+    },
+    "archive_extracted": {
+      "const": false
+    },
+    "archive_path": {
+      "const": "data/raw/battery_archive/SNL LFP.zip"
+    },
+    "artifact_kind": {
+      "enum": [
+        "battery_snl_lfp_bounded_cycle_regime_result",
+        "battery_snl_lfp_bounded_cycle_regime_compact_summary"
+      ]
+    },
+    "bounded_source_id": {
+      "const": "snl_lfp_commercial_18650_study"
+    },
+    "capacity_check_classification_promoted": {
+      "const": false
+    },
+    "case_study_id": {
+      "const": "battery_archive_snl_lfp"
+    },
+    "cohort_merge_performed": {
+      "const": false
+    },
+    "cycle_regime_decision": {
+      "type": "object"
+    },
+    "deterministic_result_checksum": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "file_observations": {
+      "type": "array"
+    },
+    "full_csv_read": {
+      "const": false
+    },
+    "metrics_recomputed": {
+      "const": false
+    },
+    "model_evaluated": {
+      "const": false
+    },
+    "model_trained": {
+      "const": false
+    },
+    "package_id": {
+      "const": "battery_snl_lfp_bounded_cycle_regime_review_v1"
+    },
+    "representative_read_summary": {
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "2.6.9"
+    },
+    "scientific_closeout": {
+      "type": "object"
+    },
+    "threshold_inference_performed": {
+      "const": false
+    },
+    "time_series_entry_read": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_kind",
+    "package_id",
+    "case_study_id",
+    "bounded_source_id",
+    "contract_id",
+    "contract_checksum",
+    "archive_path",
+    "archive_audit",
+    "representative_read_summary",
+    "file_observations",
+    "cycle_regime_decision",
+    "preservation_checks",
+    "scientific_closeout",
+    "archive_bytes_read_for_checksum",
+    "zip_central_directory_read",
+    "representative_cycle_entry_payloads_read",
+    "cycle_summary_rows_read",
+    "selected_measurement_values_retained",
+    "deterministic_result_checksum"
+  ],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Bounded Cycle Regime Result",
+  "type": "object"
+}
