@@ -1,0 +1,151 @@
+{
+  "archive_read": false,
+  "artifact_kind": "battery_snl_lfp_transition_artifact_evidence_gate_compact_summary",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "case_study_id": "battery_archive_snl_lfp",
+  "cohort_merge_performed": false,
+  "contract_checksum": "c4238dce00b4bf907f8ac568e4f3e4ea31f3fe0e68c4bf13d58820faa56e8972",
+  "contract_id": "battery_snl_lfp_transition_artifact_evidence_contract_v1",
+  "credentials_read": false,
+  "csv_payload_read": false,
+  "cycle_command_binding_inferred": false,
+  "deterministic_result_checksum": "0093de000c25cfcbbd36eaf8216eabc7fb3bc3db23b724dbffcb69b4d77ddf28",
+  "instrument_channel_binding_inferred": false,
+  "metrics_recomputed": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_called": false,
+  "official_snapshot_inferred": false,
+  "package_id": "battery_snl_lfp_transition_artifact_evidence_gate_v1",
+  "physical_cell_binding_inferred": false,
+  "preservation_checks": {
+    "archive_sha256_preserved": true,
+    "model_or_metric_change_performed": false,
+    "v2_6_5_checksum_verified": true,
+    "v2_6_9_candidate_status_preserved": true,
+    "v2_6_9_checksum_verified": true
+  },
+  "recommendations": [
+    "do not expand to time-series solely to label row 4",
+    "require provider-issued conversion mapping, step metadata, or command logs before exact row classification",
+    "if no provider-backed row mapping exists, retain the diagnostic boundary and close this evidence path",
+    "do not merge cohorts or execute predictive validation"
+  ],
+  "row4_transition_audits": [
+    {
+      "audit_status": "row4_transition_contrast_observed",
+      "comparison_positions": [5, 6, 7, 8],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv",
+      "field_audits": [
+        {"direction": "within", "field": "min_current_a", "positions_5_to_8_range": {"maximum": "-1.1", "minimum": "-1.1"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "-1.1"},
+        {"direction": "within", "field": "max_current_a", "positions_5_to_8_range": {"maximum": "0.549", "minimum": "0.549"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "0.549"},
+        {"direction": "within", "field": "min_voltage_v", "positions_5_to_8_range": {"maximum": "1.998", "minimum": "1.99"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "1.994"},
+        {"direction": "within", "field": "max_voltage_v", "positions_5_to_8_range": {"maximum": "3.6", "minimum": "3.6"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "3.6"},
+        {"direction": "above", "field": "charge_capacity_ah", "positions_5_to_8_range": {"maximum": "1.031", "minimum": "1.03"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "2.063"},
+        {"direction": "above", "field": "discharge_capacity_ah", "positions_5_to_8_range": {"maximum": "1.032", "minimum": "1.032"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "2.064"}
+      ],
+      "method": "exact_decimal_row4_against_positions_5_to_8_ranges",
+      "outside_range_field_count": 2,
+      "outside_range_fields": ["charge_capacity_ah", "discharge_capacity_ah"],
+      "protocol_family": "0-100% SOC bulk cycling; 0.5C CCCV charge and filename-labelled 1C discharge",
+      "row4_identity_promoted": false,
+      "row4_position": 4,
+      "threshold_fitted_or_inferred": false
+    },
+    {
+      "audit_status": "row4_transition_contrast_observed",
+      "comparison_positions": [5, 6, 7, 8],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv",
+      "field_audits": [
+        {"direction": "within", "field": "min_current_a", "positions_5_to_8_range": {"maximum": "-0.55", "minimum": "-0.55"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "-0.55"},
+        {"direction": "within", "field": "max_current_a", "positions_5_to_8_range": {"maximum": "0.549", "minimum": "0.549"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "0.549"},
+        {"direction": "below", "field": "min_voltage_v", "positions_5_to_8_range": {"maximum": "3.159", "minimum": "3.159"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "2.7"},
+        {"direction": "above", "field": "max_voltage_v", "positions_5_to_8_range": {"maximum": "3.39", "minimum": "3.39"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "3.6"},
+        {"direction": "above", "field": "charge_capacity_ah", "positions_5_to_8_range": {"maximum": "0.574", "minimum": "0.565"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "1.623"},
+        {"direction": "above", "field": "discharge_capacity_ah", "positions_5_to_8_range": {"maximum": "0.574", "minimum": "0.566"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "1.454"}
+      ],
+      "method": "exact_decimal_row4_against_positions_5_to_8_ranges",
+      "outside_range_field_count": 4,
+      "outside_range_fields": ["min_voltage_v", "max_voltage_v", "charge_capacity_ah", "discharge_capacity_ah"],
+      "protocol_family": "20-80% SOC bulk cycling using voltage limits established from fresh-cell discharge curves",
+      "row4_identity_promoted": false,
+      "row4_position": 4,
+      "threshold_fitted_or_inferred": false
+    },
+    {
+      "audit_status": "row4_transition_contrast_observed",
+      "comparison_positions": [5, 6, 7, 8],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv",
+      "field_audits": [
+        {"direction": "within", "field": "min_current_a", "positions_5_to_8_range": {"maximum": "-0.55", "minimum": "-0.55"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "-0.55"},
+        {"direction": "within", "field": "max_current_a", "positions_5_to_8_range": {"maximum": "0.549", "minimum": "0.549"}, "row4_outside_positions_5_to_8_range": false, "row4_value": "0.549"},
+        {"direction": "below", "field": "min_voltage_v", "positions_5_to_8_range": {"maximum": "3.233", "minimum": "3.232"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "2.635"},
+        {"direction": "above", "field": "max_voltage_v", "positions_5_to_8_range": {"maximum": "3.357", "minimum": "3.355"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "3.6"},
+        {"direction": "above", "field": "charge_capacity_ah", "positions_5_to_8_range": {"maximum": "0.22", "minimum": "0.22"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "1.041"},
+        {"direction": "above", "field": "discharge_capacity_ah", "positions_5_to_8_range": {"maximum": "0.22", "minimum": "0.22"}, "row4_outside_positions_5_to_8_range": true, "row4_value": "0.66"}
+      ],
+      "method": "exact_decimal_row4_against_positions_5_to_8_ranges",
+      "outside_range_field_count": 4,
+      "outside_range_fields": ["min_voltage_v", "max_voltage_v", "charge_capacity_ah", "discharge_capacity_ah"],
+      "protocol_family": "40-60% SOC bulk cycling using capacity limits",
+      "row4_identity_promoted": false,
+      "row4_position": 4,
+      "threshold_fitted_or_inferred": false
+    }
+  ],
+  "row_classification_promoted": false,
+  "schema_version": "2.6.10",
+  "scientific_closeout": {
+    "evidence_level": "official_study_artifact_note_plus_checksum_bound_row4_contrasts_in_three_representatives",
+    "primary_limitation": "The source note is study-level and does not identify an exact CSV row, conversion boundary, step command, or instrument channel; row 4 remains transition-consistent rather than confirmed.",
+    "result": "source_transition_artifact_consistent_with_row4_pattern_not_row_bound",
+    "status": "diagnostic",
+    "strongest_evidence": "The official Battery Archive study page attributes periodic spikes to transitions between the three-cycle capacity check and normal cycling, while row 4 lies outside the positions 5-8 range in selected measurements for all three representatives.",
+    "suitable_for": ["transition-artifact provenance closeout", "bounded row-identity limitation assessment", "decision not to expand payload reads without provider metadata"],
+    "unsuitable_for": ["confirmed capacity-check labels", "row4 command or step identity", "universal cycle classifier", "time-series command reconstruction", "cross-cohort comparison", "model evaluation", "engineering decisions"]
+  },
+  "source_evidence_audit": {
+    "document_id": "battery_archive_snl_study_page",
+    "documented_scope": "study_level_transition_between_capacity_check_and_normal_cycling",
+    "documented_transition_artifact": true,
+    "exact_csv_row_binding_established": false,
+    "publisher": "Battery Archive",
+    "retrieved_on": "2026-07-26",
+    "status": "official_transition_artifact_note_recovered",
+    "url": "https://www.batteryarchive.org/snl_study.html",
+    "versioned_page_snapshot": false
+  },
+  "source_mutation_performed": false,
+  "source_references": {
+    "contract": "data/platform/battery_snl_lfp_transition_artifact_evidence_contract_v1.json",
+    "v2_6_5_summary": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json",
+    "v2_6_9_summary": "data/processed/battery_v2_6_9_snl_lfp_bounded_cycle_regime_summary.json"
+  },
+  "step_identity_inferred": false,
+  "threshold_inference_performed": false,
+  "time_series_entry_read": false,
+  "transition_artifact_decision": {
+    "capacity_check_vs_bulk_cycle_discrimination": "candidate_supported_not_established",
+    "cross_cohort_comparability": "not_admitted",
+    "cycle_command_to_rows": "not_established",
+    "instrument_channel_to_columns": "not_established",
+    "official_distribution_snapshot": "not_established",
+    "official_transition_artifact_evidence": "recovered_document_level",
+    "overall_status": "transition_artifact_consistency_recorded_gate_not_passed",
+    "physical_cell_to_entry": "not_established",
+    "predictive_validation": "blocked",
+    "row4_exact_identity": "not_established",
+    "row4_to_source_transition_binding": "transition_consistent_not_row_bound",
+    "row4_transition_pattern": "observed_all_representatives",
+    "step_level_discrimination": "not_available_no_step_identifier",
+    "time_series_read_gate": "not_authorized_no_provider_step_or_command_binding"
+  },
+  "transition_summary": {
+    "all_representatives_have_row4_contrast": true,
+    "common_outside_range_fields": ["charge_capacity_ah", "discharge_capacity_ah"],
+    "positions_4_to_8_homogeneous_bulk_regime_established": false,
+    "representative_entry_count": 3,
+    "row4_contrast_observed_count": 3,
+    "universal_numeric_threshold_defined": false
+  }
+}
