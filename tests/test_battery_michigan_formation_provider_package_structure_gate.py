@@ -71,7 +71,7 @@ def test_gate_recovers_structure_without_promoting_manifest_or_binding():
 def test_all_prohibited_execution_and_promotion_flags_remain_false():
     result = mod.execute(mod.load_config(), write_outputs=False)
     for flag in mod.FALSE_FLAGS:
-        assert result{flag] is False
+        assert result[flag] is False
 
 
 def test_provider_evidence_rejects_manifest_promotion():
