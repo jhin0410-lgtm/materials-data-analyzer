@@ -3,6 +3,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
+    "access_observation": {"type": "object"},
     "api_evidence_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
     "artifact_kind": {"const": "battery_michigan_formation_deepblue_metadata_retrieval_compact_summary"},
     "case_study_id": {"const": "battery_michigan_formation_deepblue_metadata_retrieval"},
@@ -10,12 +11,13 @@
     "dataset_response": {},
     "decision": {"type": "object"},
     "deterministic_result_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "error_category": {"type": "string"},
     "file_set_records": {"maxItems": 2, "type": "array"},
     "metadata_completeness": {"type": "object"},
     "network_call_count": {"maximum": 3, "minimum": 0, "type": "integer"},
     "network_called": {"type": "boolean"},
     "package_id": {"const": "battery_michigan_formation_deepblue_metadata_retrieval_gate_v1"},
-    "retrieval_status": {"enum": ["pending_local_metadata_retrieval", "succeeded"]},
+    "retrieval_status": {"enum": ["pending_local_metadata_retrieval", "succeeded", "failed"]},
     "schema_version": {"const": "2.6.13"},
     "scientific_closeout": {"type": "object"}
   },
