@@ -1,0 +1,1238 @@
+{
+  "archive_audit": {
+    "archive_present": true,
+    "central_directory_read": true,
+    "expected_archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+    "observed_archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+    "status": "verified"
+  },
+  "archive_bytes_read_for_checksum": true,
+  "archive_extracted": false,
+  "archive_path": "data/raw/battery_archive/SNL LFP.zip",
+  "artifact_kind": "battery_snl_lfp_bounded_schema_read_compact_summary",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "capacity_check_classification_promoted": false,
+  "case_study_id": "battery_archive_snl_lfp",
+  "cohort_merge_performed": false,
+  "contract_checksum": "cf60c391939b0d33826b043a0c84a575c164724183ca97e98107655812e3a0c4",
+  "contract_id": "battery_snl_lfp_bounded_schema_read_contract_v1",
+  "credentials_read": false,
+  "csv_data_rows_read": true,
+  "csv_headers_read": true,
+  "cycle_command_binding_inferred": false,
+  "deterministic_result_checksum": "28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2",
+  "file_observations": [
+    {
+      "bytes_read": 763,
+      "duplicate_headers": [],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv",
+      "file_kind": "cycle_data",
+      "full_file_read": false,
+      "header_checksum": "02c4b1f087f1133349cfb60f52443c75099c1d5742a266b4b2889701a344d88c",
+      "header_column_count": 12,
+      "header_observations": [
+        {
+          "candidate_roles": [
+            "cycle_index"
+          ],
+          "explicit_unit": null,
+          "index": 0,
+          "normalized_header": "cycleindex",
+          "raw_header": "Cycle_Index",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [],
+          "explicit_unit": null,
+          "index": 1,
+          "normalized_header": "starttime",
+          "raw_header": "Start_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [],
+          "explicit_unit": null,
+          "index": 2,
+          "normalized_header": "endtime",
+          "raw_header": "End_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [
+            "test_time"
+          ],
+          "explicit_unit": "s",
+          "index": 3,
+          "normalized_header": "testtimes",
+          "raw_header": "Test_Time (s)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 4,
+          "normalized_header": "mincurrenta",
+          "raw_header": "Min_Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 5,
+          "normalized_header": "maxcurrenta",
+          "raw_header": "Max_Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 6,
+          "normalized_header": "minvoltagev",
+          "raw_header": "Min_Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 7,
+          "normalized_header": "maxvoltagev",
+          "raw_header": "Max_Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 8,
+          "normalized_header": "chargecapacityah",
+          "raw_header": "Charge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 9,
+          "normalized_header": "dischargecapacityah",
+          "raw_header": "Discharge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 10,
+          "normalized_header": "chargeenergywh",
+          "raw_header": "Charge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 11,
+          "normalized_header": "dischargeenergywh",
+          "raw_header": "Discharge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        }
+      ],
+      "protocol_family": "0-100% SOC bulk cycling; 0.5C CCCV charge and filename-labelled 1C discharge",
+      "raw_sample_values_retained": false,
+      "read_status": "bounded_schema_observed",
+      "role_contract": {
+        "candidate_roles_are_scientific_bindings": false,
+        "observed_candidate_roles": [
+          "charge_capacity",
+          "charge_energy",
+          "current",
+          "cycle_index",
+          "discharge_capacity",
+          "discharge_energy",
+          "test_time",
+          "voltage"
+        ],
+        "required_role_contract_match": true,
+        "requirement_groups": [
+          {
+            "alternatives": [
+              "cycle_index"
+            ],
+            "matched_roles": [
+              "cycle_index"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "charge_capacity",
+              "discharge_capacity",
+              "capacity"
+            ],
+            "matched_roles": [
+              "charge_capacity",
+              "discharge_capacity"
+            ],
+            "satisfied": true
+          }
+        ]
+      },
+      "row_width_contract_match": true,
+      "sample_data_rows_read": 5,
+      "sample_row_widths": [
+        12,
+        12,
+        12,
+        12,
+        12
+      ]
+    },
+    {
+      "bytes_read": 584,
+      "duplicate_headers": [],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_timeseries.csv",
+      "file_kind": "timeseries",
+      "full_file_read": false,
+      "header_checksum": "730d272a0c60f8bce285e4659f437253af1da663b6ec69d2153fe39c531ac2b5",
+      "header_column_count": 11,
+      "header_observations": [
+        {
+          "candidate_roles": [
+            "timestamp"
+          ],
+          "explicit_unit": null,
+          "index": 0,
+          "normalized_header": "datetime",
+          "raw_header": "Date_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [
+            "test_time"
+          ],
+          "explicit_unit": "s",
+          "index": 1,
+          "normalized_header": "testtimes",
+          "raw_header": "Test_Time (s)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "cycle_index"
+          ],
+          "explicit_unit": null,
+          "index": 2,
+          "normalized_header": "cycleindex",
+          "raw_header": "Cycle_Index",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 3,
+          "normalized_header": "currenta",
+          "raw_header": "Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 4,
+          "normalized_header": "voltagev",
+          "raw_header": "Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 5,
+          "normalized_header": "chargecapacityah",
+          "raw_header": "Charge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 6,
+          "normalized_header": "dischargecapacityah",
+          "raw_header": "Discharge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 7,
+          "normalized_header": "chargeenergywh",
+          "raw_header": "Charge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 8,
+          "normalized_header": "dischargeenergywh",
+          "raw_header": "Discharge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "temperature"
+          ],
+          "explicit_unit": "C",
+          "index": 9,
+          "normalized_header": "environmenttemperaturec",
+          "raw_header": "Environment_Temperature (C)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "temperature"
+          ],
+          "explicit_unit": "C",
+          "index": 10,
+          "normalized_header": "celltemperaturec",
+          "raw_header": "Cell_Temperature (C)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        }
+      ],
+      "protocol_family": "0-100% SOC bulk cycling; 0.5C CCCV charge and filename-labelled 1C discharge",
+      "raw_sample_values_retained": false,
+      "read_status": "bounded_schema_observed",
+      "role_contract": {
+        "candidate_roles_are_scientific_bindings": false,
+        "observed_candidate_roles": [
+          "charge_capacity",
+          "charge_energy",
+          "current",
+          "cycle_index",
+          "discharge_capacity",
+          "discharge_energy",
+          "temperature",
+          "test_time",
+          "timestamp",
+          "voltage"
+        ],
+        "required_role_contract_match": true,
+        "requirement_groups": [
+          {
+            "alternatives": [
+              "test_time"
+            ],
+            "matched_roles": [
+              "test_time"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "voltage"
+            ],
+            "matched_roles": [
+              "voltage"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "current"
+            ],
+            "matched_roles": [
+              "current"
+            ],
+            "satisfied": true
+          }
+        ]
+      },
+      "row_width_contract_match": true,
+      "sample_data_rows_read": 5,
+      "sample_row_widths": [
+        11,
+        11,
+        11,
+        11,
+        11
+      ]
+    },
+    {
+      "bytes_read": 764,
+      "duplicate_headers": [],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv",
+      "file_kind": "cycle_data",
+      "full_file_read": false,
+      "header_checksum": "02c4b1f087f1133349cfb60f52443c75099c1d5742a266b4b2889701a344d88c",
+      "header_column_count": 12,
+      "header_observations": [
+        {
+          "candidate_roles": [
+            "cycle_index"
+          ],
+          "explicit_unit": null,
+          "index": 0,
+          "normalized_header": "cycleindex",
+          "raw_header": "Cycle_Index",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [],
+          "explicit_unit": null,
+          "index": 1,
+          "normalized_header": "starttime",
+          "raw_header": "Start_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [],
+          "explicit_unit": null,
+          "index": 2,
+          "normalized_header": "endtime",
+          "raw_header": "End_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [
+            "test_time"
+          ],
+          "explicit_unit": "s",
+          "index": 3,
+          "normalized_header": "testtimes",
+          "raw_header": "Test_Time (s)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 4,
+          "normalized_header": "mincurrenta",
+          "raw_header": "Min_Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 5,
+          "normalized_header": "maxcurrenta",
+          "raw_header": "Max_Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 6,
+          "normalized_header": "minvoltagev",
+          "raw_header": "Min_Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 7,
+          "normalized_header": "maxvoltagev",
+          "raw_header": "Max_Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 8,
+          "normalized_header": "chargecapacityah",
+          "raw_header": "Charge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 9,
+          "normalized_header": "dischargecapacityah",
+          "raw_header": "Discharge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 10,
+          "normalized_header": "chargeenergywh",
+          "raw_header": "Charge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 11,
+          "normalized_header": "dischargeenergywh",
+          "raw_header": "Discharge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        }
+      ],
+      "protocol_family": "20-80% SOC bulk cycling using voltage limits established from fresh-cell discharge curves",
+      "raw_sample_values_retained": false,
+      "read_status": "bounded_schema_observed",
+      "role_contract": {
+        "candidate_roles_are_scientific_bindings": false,
+        "observed_candidate_roles": [
+          "charge_capacity",
+          "charge_energy",
+          "current",
+          "cycle_index",
+          "discharge_capacity",
+          "discharge_energy",
+          "test_time",
+          "voltage"
+        ],
+        "required_role_contract_match": true,
+        "requirement_groups": [
+          {
+            "alternatives": [
+              "cycle_index"
+            ],
+            "matched_roles": [
+              "cycle_index"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "charge_capacity",
+              "discharge_capacity",
+              "capacity"
+            ],
+            "matched_roles": [
+              "charge_capacity",
+              "discharge_capacity"
+            ],
+            "satisfied": true
+          }
+        ]
+      },
+      "row_width_contract_match": true,
+      "sample_data_rows_read": 5,
+      "sample_row_widths": [
+        12,
+        12,
+        12,
+        12,
+        12
+      ]
+    },
+    {
+      "bytes_read": 585,
+      "duplicate_headers": [],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_timeseries.csv",
+      "file_kind": "timeseries",
+      "full_file_read": false,
+      "header_checksum": "730d272a0c60f8bce285e4659f437253af1da663b6ec69d2153fe39c531ac2b5",
+      "header_column_count": 11,
+      "header_observations": [
+        {
+          "candidate_roles": [
+            "timestamp"
+          ],
+          "explicit_unit": null,
+          "index": 0,
+          "normalized_header": "datetime",
+          "raw_header": "Date_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [
+            "test_time"
+          ],
+          "explicit_unit": "s",
+          "index": 1,
+          "normalized_header": "testtimes",
+          "raw_header": "Test_Time (s)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "cycle_index"
+          ],
+          "explicit_unit": null,
+          "index": 2,
+          "normalized_header": "cycleindex",
+          "raw_header": "Cycle_Index",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 3,
+          "normalized_header": "currenta",
+          "raw_header": "Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 4,
+          "normalized_header": "voltagev",
+          "raw_header": "Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 5,
+          "normalized_header": "chargecapacityah",
+          "raw_header": "Charge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 6,
+          "normalized_header": "dischargecapacityah",
+          "raw_header": "Discharge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 7,
+          "normalized_header": "chargeenergywh",
+          "raw_header": "Charge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 8,
+          "normalized_header": "dischargeenergywh",
+          "raw_header": "Discharge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "temperature"
+          ],
+          "explicit_unit": "C",
+          "index": 9,
+          "normalized_header": "environmenttemperaturec",
+          "raw_header": "Environment_Temperature (C)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "temperature"
+          ],
+          "explicit_unit": "C",
+          "index": 10,
+          "normalized_header": "celltemperaturec",
+          "raw_header": "Cell_Temperature (C)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        }
+      ],
+      "protocol_family": "20-80% SOC bulk cycling using voltage limits established from fresh-cell discharge curves",
+      "raw_sample_values_retained": false,
+      "read_status": "bounded_schema_observed",
+      "role_contract": {
+        "candidate_roles_are_scientific_bindings": false,
+        "observed_candidate_roles": [
+          "charge_capacity",
+          "charge_energy",
+          "current",
+          "cycle_index",
+          "discharge_capacity",
+          "discharge_energy",
+          "temperature",
+          "test_time",
+          "timestamp",
+          "voltage"
+        ],
+        "required_role_contract_match": true,
+        "requirement_groups": [
+          {
+            "alternatives": [
+              "test_time"
+            ],
+            "matched_roles": [
+              "test_time"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "voltage"
+            ],
+            "matched_roles": [
+              "voltage"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "current"
+            ],
+            "matched_roles": [
+              "current"
+            ],
+            "satisfied": true
+          }
+        ]
+      },
+      "row_width_contract_match": true,
+      "sample_data_rows_read": 5,
+      "sample_row_widths": [
+        11,
+        11,
+        11,
+        11,
+        11
+      ]
+    },
+    {
+      "bytes_read": 765,
+      "duplicate_headers": [],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv",
+      "file_kind": "cycle_data",
+      "full_file_read": false,
+      "header_checksum": "02c4b1f087f1133349cfb60f52443c75099c1d5742a266b4b2889701a344d88c",
+      "header_column_count": 12,
+      "header_observations": [
+        {
+          "candidate_roles": [
+            "cycle_index"
+          ],
+          "explicit_unit": null,
+          "index": 0,
+          "normalized_header": "cycleindex",
+          "raw_header": "Cycle_Index",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [],
+          "explicit_unit": null,
+          "index": 1,
+          "normalized_header": "starttime",
+          "raw_header": "Start_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [],
+          "explicit_unit": null,
+          "index": 2,
+          "normalized_header": "endtime",
+          "raw_header": "End_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [
+            "test_time"
+          ],
+          "explicit_unit": "s",
+          "index": 3,
+          "normalized_header": "testtimes",
+          "raw_header": "Test_Time (s)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 4,
+          "normalized_header": "mincurrenta",
+          "raw_header": "Min_Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 5,
+          "normalized_header": "maxcurrenta",
+          "raw_header": "Max_Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 6,
+          "normalized_header": "minvoltagev",
+          "raw_header": "Min_Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 7,
+          "normalized_header": "maxvoltagev",
+          "raw_header": "Max_Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 8,
+          "normalized_header": "chargecapacityah",
+          "raw_header": "Charge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 9,
+          "normalized_header": "dischargecapacityah",
+          "raw_header": "Discharge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 10,
+          "normalized_header": "chargeenergywh",
+          "raw_header": "Charge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 11,
+          "normalized_header": "dischargeenergywh",
+          "raw_header": "Discharge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        }
+      ],
+      "protocol_family": "40-60% SOC bulk cycling using capacity limits",
+      "raw_sample_values_retained": false,
+      "read_status": "bounded_schema_observed",
+      "role_contract": {
+        "candidate_roles_are_scientific_bindings": false,
+        "observed_candidate_roles": [
+          "charge_capacity",
+          "charge_energy",
+          "current",
+          "cycle_index",
+          "discharge_capacity",
+          "discharge_energy",
+          "test_time",
+          "voltage"
+        ],
+        "required_role_contract_match": true,
+        "requirement_groups": [
+          {
+            "alternatives": [
+              "cycle_index"
+            ],
+            "matched_roles": [
+              "cycle_index"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "charge_capacity",
+              "discharge_capacity",
+              "capacity"
+            ],
+            "matched_roles": [
+              "charge_capacity",
+              "discharge_capacity"
+            ],
+            "satisfied": true
+          }
+        ]
+      },
+      "row_width_contract_match": true,
+      "sample_data_rows_read": 5,
+      "sample_row_widths": [
+        12,
+        12,
+        12,
+        12,
+        12
+      ]
+    },
+    {
+      "bytes_read": 583,
+      "duplicate_headers": [],
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_timeseries.csv",
+      "file_kind": "timeseries",
+      "full_file_read": false,
+      "header_checksum": "730d272a0c60f8bce285e4659f437253af1da663b6ec69d2153fe39c531ac2b5",
+      "header_column_count": 11,
+      "header_observations": [
+        {
+          "candidate_roles": [
+            "timestamp"
+          ],
+          "explicit_unit": null,
+          "index": 0,
+          "normalized_header": "datetime",
+          "raw_header": "Date_Time",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 0
+        },
+        {
+          "candidate_roles": [
+            "test_time"
+          ],
+          "explicit_unit": "s",
+          "index": 1,
+          "normalized_header": "testtimes",
+          "raw_header": "Test_Time (s)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "cycle_index"
+          ],
+          "explicit_unit": null,
+          "index": 2,
+          "normalized_header": "cycleindex",
+          "raw_header": "Cycle_Index",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "current"
+          ],
+          "explicit_unit": "A",
+          "index": 3,
+          "normalized_header": "currenta",
+          "raw_header": "Current (A)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "voltage"
+          ],
+          "explicit_unit": "V",
+          "index": 4,
+          "normalized_header": "voltagev",
+          "raw_header": "Voltage (V)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 5,
+          "normalized_header": "chargecapacityah",
+          "raw_header": "Charge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_capacity"
+          ],
+          "explicit_unit": "Ah",
+          "index": 6,
+          "normalized_header": "dischargecapacityah",
+          "raw_header": "Discharge_Capacity (Ah)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "charge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 7,
+          "normalized_header": "chargeenergywh",
+          "raw_header": "Charge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "discharge_energy"
+          ],
+          "explicit_unit": "Wh",
+          "index": 8,
+          "normalized_header": "dischargeenergywh",
+          "raw_header": "Discharge_Energy (Wh)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "temperature"
+          ],
+          "explicit_unit": "C",
+          "index": 9,
+          "normalized_header": "environmenttemperaturec",
+          "raw_header": "Environment_Temperature (C)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        },
+        {
+          "candidate_roles": [
+            "temperature"
+          ],
+          "explicit_unit": "C",
+          "index": 10,
+          "normalized_header": "celltemperaturec",
+          "raw_header": "Cell_Temperature (C)",
+          "sample_nonempty_count": 5,
+          "sample_numeric_count": 5
+        }
+      ],
+      "protocol_family": "40-60% SOC bulk cycling using capacity limits",
+      "raw_sample_values_retained": false,
+      "read_status": "bounded_schema_observed",
+      "role_contract": {
+        "candidate_roles_are_scientific_bindings": false,
+        "observed_candidate_roles": [
+          "charge_capacity",
+          "charge_energy",
+          "current",
+          "cycle_index",
+          "discharge_capacity",
+          "discharge_energy",
+          "temperature",
+          "test_time",
+          "timestamp",
+          "voltage"
+        ],
+        "required_role_contract_match": true,
+        "requirement_groups": [
+          {
+            "alternatives": [
+              "test_time"
+            ],
+            "matched_roles": [
+              "test_time"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "voltage"
+            ],
+            "matched_roles": [
+              "voltage"
+            ],
+            "satisfied": true
+          },
+          {
+            "alternatives": [
+              "current"
+            ],
+            "matched_roles": [
+              "current"
+            ],
+            "satisfied": true
+          }
+        ]
+      },
+      "row_width_contract_match": true,
+      "sample_data_rows_read": 5,
+      "sample_row_widths": [
+        11,
+        11,
+        11,
+        11,
+        11
+      ]
+    }
+  ],
+  "full_csv_read": false,
+  "instrument_channel_binding_inferred": false,
+  "metrics_recomputed": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_called": false,
+  "nonrepresentative_entry_read": false,
+  "package_id": "battery_snl_lfp_bounded_schema_read_v1",
+  "physical_cell_binding_inferred": false,
+  "preservation_checks": {
+    "archive_sha256_preserved": true,
+    "model_or_metric_change_performed": false,
+    "prior_binding_gate_preserved": true,
+    "v2_6_6_checksum_verified": true,
+    "v2_6_7_checksum_verified": true
+  },
+  "recommendations": [
+    "review observed headers and candidate roles before authorizing any larger read",
+    "define a separate cycle/step discrimination contract only if the observed schema supports it",
+    "do not merge cohorts or execute a model"
+  ],
+  "representative_entry_payloads_read": true,
+  "representative_read_summary": {
+    "declared_entry_count": 6,
+    "header_count": 6,
+    "max_data_rows_per_entry": 5,
+    "max_line_bytes": 65536,
+    "opened_entries": [
+      "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv",
+      "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_timeseries.csv",
+      "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv",
+      "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_timeseries.csv",
+      "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv",
+      "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_timeseries.csv"
+    ],
+    "opened_entry_count": 6,
+    "sample_data_row_count": 30,
+    "schema_contract_match_count": 6,
+    "schema_contract_mismatch_count": 0,
+    "status": "bounded_schema_observed"
+  },
+  "schema_read_decision": {
+    "bounded_schema_observation": "bounded_schema_observed",
+    "capacity_check_vs_bulk_cycle_discrimination": "header_and_first_rows_insufficient",
+    "cross_cohort_comparability": "not_admitted",
+    "cycle_command_to_rows": "not_established",
+    "instrument_channel_to_columns": "not_established",
+    "official_distribution_snapshot": "not_established",
+    "overall_status": "bounded_schema_observed_gate_not_passed",
+    "physical_cell_to_entry": "not_established",
+    "predictive_validation": "blocked"
+  },
+  "schema_version": "2.6.8",
+  "scientific_closeout": {
+    "evidence_level": "six_predeclared_headers_and_up_to_five_rows_per_file",
+    "primary_limitation": "The bounded samples cannot establish full-file consistency, capacity-check classification, exact cycle commands, instrument channel mapping, calibration, or cohort equivalence.",
+    "result": "bounded_representative_schema_observed",
+    "status": "diagnostic",
+    "strongest_evidence": "Only the six predeclared representative entries were opened, with one header and at most five data rows read from each.",
+    "suitable_for": [
+      "observed CSV schema inventory",
+      "candidate column-role planning",
+      "next read-contract design"
+    ],
+    "unsuitable_for": [
+      "capacity-check classification",
+      "cycle-command binding",
+      "instrument-channel binding",
+      "unit conversion",
+      "cohort comparison",
+      "model evaluation",
+      "engineering decisions"
+    ]
+  },
+  "source_mutation_performed": false,
+  "source_references": {
+    "contract": "data/platform/battery_snl_lfp_bounded_schema_read_contract_v1.json",
+    "v2_6_6_summary": "data/processed/battery_v2_6_6_snl_lfp_artifact_binding_summary.json",
+    "v2_6_7_summary": "data/processed/battery_v2_6_7_snl_lfp_source_entry_binding_summary.json"
+  },
+  "zip_central_directory_read": true
+}

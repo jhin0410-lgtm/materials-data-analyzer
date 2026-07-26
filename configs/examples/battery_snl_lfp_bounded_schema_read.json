@@ -1,0 +1,48 @@
+{
+  "archive_path": "data/raw/battery_archive/SNL LFP.zip",
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "case_study_id": "battery_archive_snl_lfp",
+  "credential_policy": {
+    "network_access_required": false,
+    "store_credentials": false
+  },
+  "csv_policy": {
+    "delimiter": ",",
+    "encoding": "utf-8-sig",
+    "max_data_rows_per_entry": 5,
+    "max_line_bytes": 65536,
+    "retain_raw_sample_values": false
+  },
+  "dry_run": false,
+  "execution_mode": "bounded_local_schema_read",
+  "expected_archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+  "expected_v2_6_6_checksum": "f4c02c38652848ddba6a69ffe47010e0cb7ada3ad411fd028afdd5ff552b89e5",
+  "expected_v2_6_7_checksum": "38fb66269706938513bb000d14427b33147ee13f04d917696e47dff7f2699248",
+  "output_policy": "local_full_result_and_tracked_compact_summary",
+  "output_root": "outputs/v2_6_battery_snl_lfp_bounded_schema_read",
+  "package_id": "battery_snl_lfp_bounded_schema_read_v1",
+  "read_policy": {
+    "allow_archive_extraction": false,
+    "allow_archive_sha256": true,
+    "allow_csv_data_row_read": true,
+    "allow_csv_header_read": true,
+    "allow_full_csv_read": false,
+    "allow_nonrepresentative_entry_read": false,
+    "allow_representative_entry_payload_read": true,
+    "allow_tracked_json_reads": true,
+    "allow_zip_central_directory": true
+  },
+  "representative_entries": [
+    "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv",
+    "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_timeseries.csv",
+    "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv",
+    "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_timeseries.csv",
+    "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv",
+    "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_timeseries.csv"
+  ],
+  "schema_read_contract_path": "data/platform/battery_snl_lfp_bounded_schema_read_contract_v1.json",
+  "schema_version": "2.6.8",
+  "tracked_summary_path": "data/processed/battery_v2_6_8_snl_lfp_bounded_schema_read_summary.json",
+  "v2_6_6_artifact_binding_summary_path": "data/processed/battery_v2_6_6_snl_lfp_artifact_binding_summary.json",
+  "v2_6_7_source_entry_binding_summary_path": "data/processed/battery_v2_6_7_snl_lfp_source_entry_binding_summary.json"
+}

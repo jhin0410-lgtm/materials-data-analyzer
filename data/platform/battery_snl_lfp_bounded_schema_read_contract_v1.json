@@ -1,0 +1,112 @@
+{
+  "archive_identity": {
+    "archive_path": "data/raw/battery_archive/SNL LFP.zip",
+    "archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+    "entry_manifest_checksum": "f85e6f1ac333f7ff20b7bfd01b8599cfe86e8950c4971e9fc074a367da86a75c"
+  },
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "claim_policy": {
+    "bounded_rows_distinguish_capacity_checks": false,
+    "bounded_rows_establish_cohort_comparability": false,
+    "bounded_rows_establish_cycle_commands": false,
+    "bounded_rows_establish_full_file_consistency": false,
+    "bounded_rows_establish_predictive_validity": false,
+    "header_candidate_role_is_scientific_binding": false,
+    "header_unit_is_calibration_evidence": false
+  },
+  "contract_id": "battery_snl_lfp_bounded_schema_read_contract_v1",
+  "contract_recorded_on": "2026-07-26",
+  "file_kind_requirements": {
+    "cycle_data": [
+      [
+        "cycle_index"
+      ],
+      [
+        "charge_capacity",
+        "discharge_capacity",
+        "capacity"
+      ]
+    ],
+    "timeseries": [
+      [
+        "test_time"
+      ],
+      [
+        "voltage"
+      ],
+      [
+        "current"
+      ]
+    ]
+  },
+  "representative_entries": [
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv",
+      "file_kind": "cycle_data",
+      "max_data_rows": 5,
+      "protocol_family": "0-100% SOC bulk cycling; 0.5C CCCV charge and filename-labelled 1C discharge",
+      "selection_rationale": "Representative 25C replicate a cycle summary for the 0-100% SOC protocol family"
+    },
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_timeseries.csv",
+      "file_kind": "timeseries",
+      "max_data_rows": 5,
+      "protocol_family": "0-100% SOC bulk cycling; 0.5C CCCV charge and filename-labelled 1C discharge",
+      "selection_rationale": "Paired 25C replicate a time-series file for the 0-100% SOC protocol family"
+    },
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv",
+      "file_kind": "cycle_data",
+      "max_data_rows": 5,
+      "protocol_family": "20-80% SOC bulk cycling using voltage limits established from fresh-cell discharge curves",
+      "selection_rationale": "Representative 25C replicate a cycle summary for the 20-80% SOC protocol family"
+    },
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_timeseries.csv",
+      "file_kind": "timeseries",
+      "max_data_rows": 5,
+      "protocol_family": "20-80% SOC bulk cycling using voltage limits established from fresh-cell discharge curves",
+      "selection_rationale": "Paired 25C replicate a time-series file for the 20-80% SOC protocol family"
+    },
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv",
+      "file_kind": "cycle_data",
+      "max_data_rows": 5,
+      "protocol_family": "40-60% SOC bulk cycling using capacity limits",
+      "selection_rationale": "Representative 25C replicate a cycle summary for the 40-60% SOC protocol family"
+    },
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_timeseries.csv",
+      "file_kind": "timeseries",
+      "max_data_rows": 5,
+      "protocol_family": "40-60% SOC bulk cycling using capacity limits",
+      "selection_rationale": "Paired 25C replicate a time-series file for the 40-60% SOC protocol family"
+    }
+  ],
+  "representative_selection": {
+    "entry_count": 6,
+    "file_pair_count": 3,
+    "protocol_family_count": 3,
+    "replicate": "a",
+    "representativeness_limit": "The six files are schema probes only and do not establish full-cohort or full-file consistency.",
+    "selection_basis": "one cycle-data/time-series pair from each documented SOC protocol family",
+    "temperature_c": 25
+  },
+  "schema_version": "1",
+  "scientific_question": "Do the six predeclared representative SNL LFP files expose structurally consistent headers and minimally sufficient candidate columns for a later, separately authorized cycle/step discrimination audit?",
+  "stop_rules": [
+    "stop before opening representative entries if archive SHA-256 differs",
+    "open only the six exact representative entries",
+    "read one header and at most five data rows from each entry",
+    "stop each entry when a physical line exceeds 65536 bytes",
+    "retain no raw sample values",
+    "do not infer delimiter, encoding, units, cycle commands, or physical cell identity",
+    "do not extract the archive or read any nonrepresentative entry"
+  ],
+  "unit_observation_policy": {
+    "convert_units": false,
+    "infer_missing_units": false,
+    "record_only_if_explicit_in_header": true,
+    "treat_header_unit_as_calibration_evidence": false
+  }
+}

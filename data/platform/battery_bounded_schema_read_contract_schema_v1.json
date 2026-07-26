@@ -1,0 +1,39 @@
+{
+  "$id": "battery_bounded_schema_read_contract_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "archive_identity": {"type": "object"},
+    "bounded_source_id": {"const": "snl_lfp_commercial_18650_study"},
+    "claim_policy": {"additionalProperties": {"const": false}, "type": "object"},
+    "contract_id": {"const": "battery_snl_lfp_bounded_schema_read_contract_v1"},
+    "contract_recorded_on": {"type": "string"},
+    "file_kind_requirements": {"type": "object"},
+    "representative_entries": {
+      "items": {
+        "properties": {
+          "entry_name": {"type": "string"},
+          "file_kind": {"enum": ["cycle_data", "timeseries"]},
+          "max_data_rows": {"const": 5},
+          "protocol_family": {"type": "string"},
+          "selection_rationale": {"type": "string"}
+        },
+        "required": ["entry_name", "file_kind", "protocol_family", "selection_rationale", "max_data_rows"],
+        "type": "object"
+      },
+      "maxItems": 6,
+      "minItems": 6,
+      "type": "array"
+    },
+    "representative_selection": {"type": "object"},
+    "schema_version": {"const": "1"},
+    "scientific_question": {"type": "string"},
+    "stop_rules": {"items": {"type": "string"}, "type": "array"},
+    "unit_observation_policy": {"type": "object"}
+  },
+  "required": ["schema_version", "contract_id", "bounded_source_id", "contract_recorded_on", "scientific_question", "archive_identity", "representative_selection", "representative_entries", "file_kind_requirements", "unit_observation_policy", "stop_rules", "claim_policy"],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Bounded Schema Read Contract",
+  "type": "object"
+}

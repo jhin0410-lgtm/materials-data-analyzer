@@ -66,6 +66,9 @@ def test_platform_schema_json_files_parse():
         Path("data/platform/battery_source_document_manifest_schema_v1.json"),
         Path("data/platform/battery_source_evidence_recovery_config_schema_v1.json"),
         Path("data/platform/battery_source_evidence_recovery_result_schema_v1.json"),
+        Path("data/platform/battery_bounded_schema_read_config_schema_v1.json"),
+        Path("data/platform/battery_bounded_schema_read_contract_schema_v1.json"),
+        Path("data/platform/battery_bounded_schema_read_result_schema_v1.json"),
     ]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["schema_version"] in {"1", "2.0", "2.1", "2.1.5", "2.2.2", "2.2.3", "2.2.4", "2.2.5", "2.3.1", "2.3.2", "2.3.3", "2.3.4", "2.3.5"}
@@ -101,6 +104,13 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
             assert payload["schema_version"] == "2.0"
             assert payload["output_dir"].startswith("outputs/platform_reports/")
             assert payload["credential_policy"]["store_credentials"] is False
+        elif payload.get("schema_version") == "2.6.8":
+            assert payload["package_id"] == "battery_snl_lfp_bounded_schema_read_v1"
+            assert payload["credential_policy"]["network_access_required"] is False
+            assert payload["execution_mode"] == "bounded_local_schema_read"
+            assert payload["dry_run"] is False
+            assert payload["csv_policy"]["max_data_rows_per_entry"] == 5
+            assert len(payload["representative_entries"]) == 6
         elif payload.get("execution_mode"):
             assert payload["execution_mode"] in {"verify", "isolated_run"}
         elif payload.get("constraint_ids") and payload.get("inputs"):
