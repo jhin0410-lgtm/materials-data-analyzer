@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "battery_source_entry_binding_manifest_schema_v1.json",
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Source-to-Entry Binding Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "bounded_source_id",
+    "review_recorded_on",
+    "review_scope",
+    "archive_identity",
+    "source_register",
+    "binding_dimensions",
+    "condition_group_bindings",
+    "evidence_field_assessments",
+    "claim_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "manifest_id": {"const": "battery_snl_lfp_source_entry_binding_manifest_v1"},
+    "bounded_source_id": {"const": "snl_lfp_commercial_18650_study"},
+    "review_recorded_on": {"type": "string", "format": "date"},
+    "review_scope": {"type": "string"},
+    "archive_identity": {"type": "object"},
+    "source_register": {"type": "array", "minItems": 5, "maxItems": 5},
+    "binding_dimensions": {"type": "array", "minItems": 8, "maxItems": 8},
+    "condition_group_bindings": {"type": "array", "minItems": 12, "maxItems": 12},
+    "evidence_field_assessments": {"type": "array", "minItems": 8, "maxItems": 8},
+    "claim_policy": {"type": "object"}
+  }
+}
