@@ -1,0 +1,102 @@
+{
+  "authoritative_source_policy": "official institutional dataset repositories and official Battery Archive study descriptions only",
+  "candidate_bundle_id": "battery_archive_local_bundle_v1",
+  "candidate_count": 9,
+  "candidates": [
+    {
+      "archive_name": "CALCE.zip",
+      "blocking_field_reduction": ["none_verified"],
+      "disposition": "hold_source_identity_ambiguous",
+      "local_inventory": {"cycle_file_count": 7, "entry_count": 14, "timeseries_file_count": 7},
+      "local_to_source_binding": "not_established_exact_study_ambiguous",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": null, "dataset_version": null, "detailed_readme_declared": false, "publisher": "Center for Advanced Life Cycle Engineering / Battery Archive", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": false, "status": "study_family_only_exact_dataset_not_recovered", "test_schedule_declared": false, "title": "CALCE battery data collection", "url": "https://batteryarchive.org/study_summaries.html"},
+      "rationale": "The tracked archive name identifies CALCE, but the official study summary points to multiple CALCE studies and no exact local-archive-to-dataset record is recovered.",
+      "source_family": "CALCE"
+    },
+    {
+      "archive_name": "HNEI.zip",
+      "blocking_field_reduction": ["study_level_chemistry", "study_level_bulk_protocol"],
+      "disposition": "hold_no_provider_command_artifact",
+      "local_inventory": {"cycle_file_count": 15, "entry_count": 30, "timeseries_file_count": 15},
+      "local_to_source_binding": "source_family_match_only",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": null, "dataset_version": null, "detailed_readme_declared": false, "publisher": "Battery Archive", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": false, "status": "study_description_recovered", "test_schedule_declared": false, "title": "Intrinsic Variability in the Degradation of a Batch of Commercial 18650 Lithium-Ion Cells", "url": "https://batteryarchive.org/study_summaries.html"},
+      "rationale": "Study-level chemistry and cycling are described, but no stable dataset record, cell tracker, or provider schedule artifact is recovered.",
+      "source_family": "HNEI"
+    },
+    {
+      "archive_name": "Michigan Expansion.zip",
+      "blocking_field_reduction": ["study_level_chemistry", "instrumentation_identity", "stable_dataset_record"],
+      "disposition": "hold_local_representation_omits_defining_signal",
+      "local_inventory": {"cycle_file_count": 18, "entry_count": 36, "timeseries_file_count": 18},
+      "local_to_source_binding": "source_family_match_only",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": "10.7302/7tw1-kc35", "dataset_version": null, "detailed_readme_declared": true, "publisher": "University of Michigan Deep Blue Data", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": true, "status": "official_dataset_record_recovered", "test_schedule_declared": false, "title": "UofM Pouch Cell Voltage and Expansion Cyclic Aging Dataset", "url": "https://deepblue.lib.umich.edu/data/concern/data_sets/5d86p0488"},
+      "rationale": "The official dataset is stable and source-backed, but expansion is the defining measurement and the tracked standardized archive inventory exposes only cycle and time-series electrical/temperature columns.",
+      "source_family": "University of Michigan Expansion"
+    },
+    {
+      "archive_name": "Michigan Formation.zip",
+      "blocking_field_reduction": ["nominal_capacity", "chemistry", "temperature_groups", "formation_protocol_groups", "cycler_identity", "cell_tracker_candidate", "test_schedule_candidate", "stable_dataset_record"],
+      "disposition": "selected_for_bounded_source_binding_only",
+      "local_inventory": {"cycle_file_count": 40, "entry_count": 80, "timeseries_file_count": 40},
+      "local_to_source_binding": "source_family_match_only_exact_file_binding_pending",
+      "official_source_record": {"cell_tracker_declared": true, "dataset_doi": "10.7302/pa3f-4w30", "dataset_version": null, "detailed_readme_declared": true, "publisher": "University of Michigan Deep Blue Data", "raw_cycler_data_declared": true, "source_code_declared": true, "stable_dataset_record": true, "status": "official_dataset_record_with_provider_artifacts", "test_schedule_declared": true, "title": "Battery test data - fast formation study", "url": "https://deepblue.lib.umich.edu/data/concern/data_sets/b2773w109"},
+      "rationale": "The official dataset record uniquely declares a DOI, cell construction and nominal capacity, raw Maccor data, a detailed README, cell trackers, test schedules, and source code; these artifacts can address current provenance blockers without authorizing model use.",
+      "source_family": "University of Michigan Fast Formation"
+    },
+    {
+      "archive_name": "Oxford.zip",
+      "blocking_field_reduction": ["cell_model", "nominal_capacity", "temperature", "cycling_profile", "versioned_dataset_record"],
+      "disposition": "reserve_versioned_source_no_command_artifact",
+      "local_inventory": {"cycle_file_count": 8, "entry_count": 16, "timeseries_file_count": 8},
+      "local_to_source_binding": "source_family_match_only_exact_conversion_binding_pending",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": "10.5287/bodleian:KO2kdmYGg", "dataset_version": "1", "detailed_readme_declared": true, "publisher": "University of Oxford Research Archive", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": true, "status": "versioned_official_dataset_record_recovered", "test_schedule_declared": false, "title": "Oxford Battery Degradation Dataset 1", "url": "https://ora.ox.ac.uk/objects/uuid:03ba4b01-cfed-46d3-9b1a-7d4a7bdf6fac"},
+      "rationale": "The source has a DOI, explicit version, cell model, nominal capacity, and README, but no provider schedule/command artifact is declared in the recovered record.",
+      "source_family": "Oxford Battery Degradation Dataset 1"
+    },
+    {
+      "archive_name": "SNL LFP.zip",
+      "blocking_field_reduction": ["study_protocol", "local_archive_checksum", "bounded_schema", "transition_artifact_diagnostic"],
+      "disposition": "closed_diagnostic_no_incremental_payload",
+      "local_inventory": {"cycle_file_count": 30, "entry_count": 60, "timeseries_file_count": 30},
+      "local_to_source_binding": "condition_group_nomenclature_only",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": null, "dataset_version": null, "detailed_readme_declared": false, "publisher": "Battery Archive / Sandia National Laboratories", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": false, "status": "bounded_evidence_line_completed", "test_schedule_declared": false, "title": "Degradation of Commercial Lithium-ion Cells as a Function of Chemistry and Cycling Conditions", "url": "https://www.batteryarchive.org/snl_study.html"},
+      "rationale": "v2.6.5-v2.6.10 exhausted the justified SNL LFP evidence path without provider row/step/command binding.",
+      "source_family": "Sandia SNL commercial 18650 study"
+    },
+    {
+      "archive_name": "SNL NCA.zip",
+      "blocking_field_reduction": ["study_level_protocol_only"],
+      "disposition": "hold_same_study_limitation",
+      "local_inventory": {"cycle_file_count": 24, "entry_count": 48, "timeseries_file_count": 24},
+      "local_to_source_binding": "source_family_match_only",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": null, "dataset_version": null, "detailed_readme_declared": false, "publisher": "Battery Archive / Sandia National Laboratories", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": false, "status": "same_study_as_closed_snl_lfp_line", "test_schedule_declared": false, "title": "Degradation of Commercial Lithium-ion Cells as a Function of Chemistry and Cycling Conditions", "url": "https://www.batteryarchive.org/snl_study.html"},
+      "rationale": "Changing chemistry within the same SNL study adds breadth but does not resolve the missing provider row/step/command or official snapshot evidence.",
+      "source_family": "Sandia SNL commercial 18650 study"
+    },
+    {
+      "archive_name": "SNL NMC.zip",
+      "blocking_field_reduction": ["study_level_protocol_only"],
+      "disposition": "hold_same_study_limitation",
+      "local_inventory": {"cycle_file_count": 32, "entry_count": 64, "timeseries_file_count": 32},
+      "local_to_source_binding": "source_family_match_only",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": null, "dataset_version": null, "detailed_readme_declared": false, "publisher": "Battery Archive / Sandia National Laboratories", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": false, "status": "same_study_as_closed_snl_lfp_line", "test_schedule_declared": false, "title": "Degradation of Commercial Lithium-ion Cells as a Function of Chemistry and Cycling Conditions", "url": "https://www.batteryarchive.org/snl_study.html"},
+      "rationale": "Changing chemistry within the same SNL study adds breadth but does not resolve the missing provider row/step/command or official snapshot evidence.",
+      "source_family": "Sandia SNL commercial 18650 study"
+    },
+    {
+      "archive_name": "UL-Purdue.zip",
+      "blocking_field_reduction": ["study_level_chemistry", "study_level_voltage_limits", "study_level_capacity_fade_endpoints"],
+      "disposition": "hold_source_mapping_incomplete",
+      "local_inventory": {"cycle_file_count": 22, "entry_count": 44, "timeseries_file_count": 22},
+      "local_to_source_binding": "not_established_multiple_study_parts",
+      "official_source_record": {"cell_tracker_declared": false, "dataset_doi": null, "dataset_version": null, "detailed_readme_declared": false, "publisher": "Battery Archive", "raw_cycler_data_declared": false, "source_code_declared": false, "stable_dataset_record": false, "status": "study_descriptions_recovered_exact_local_study_mapping_pending", "test_schedule_declared": false, "title": "Degradation-Safety Analytics in Lithium-Ion Cells", "url": "https://batteryarchive.org/study_summaries.html"},
+      "rationale": "Battery Archive describes multiple UL-Purdue studies, but the exact local archive-to-study-part and provider dataset snapshot are not recovered.",
+      "source_family": "Underwriters Laboratories - Purdue"
+    }
+  ],
+  "claim_policy": {"candidate_selection_is_cross_cohort_admission": false, "dataset_doi_is_exact_local_archive_binding": false, "missing_metadata_may_be_inferred": false, "source_family_match_is_file_binding": false, "source_schedule_inventory_is_row_binding": false, "study_protocol_is_cycle_command_log": false},
+  "register_id": "battery_external_cohort_source_candidate_register_v1",
+  "retrieved_on": "2026-07-26",
+  "schema_version": "1",
+  "selection_question": "Which existing local archive has the strongest provider-issued source package for resolving current provenance blockers without authorizing raw analysis or modeling?"
+}
