@@ -127,6 +127,27 @@ def test_example_configs_have_no_credentials_or_absolute_paths():
                 "threshold_fitting": False,
                 "time_series_read": False,
             }
+        elif payload.get("schema_version") == "2.6.13":
+            assert payload["package_id"] == "battery_michigan_formation_deepblue_metadata_retrieval_gate_v1"
+            assert payload["execution_mode"] == "bounded_metadata_retrieval"
+            assert payload["dry_run"] is False
+            assert payload["credential_policy"] == {
+                "network_access_required": True,
+                "send_credentials": False,
+                "store_credentials": False,
+            }
+            assert payload["execution_policy"] == {
+                "cohort_merge": False,
+                "command_inference": False,
+                "local_archive_read": False,
+                "local_csv_payload_read": False,
+                "metadata_get_only": True,
+                "metric_recomputation": False,
+                "model_execution": False,
+                "network_access": True,
+                "provider_dataset_download": False,
+                "provider_file_payload_read": False,
+            }
         elif payload.get("execution_mode"):
             assert payload["execution_mode"] in {"verify", "isolated_run"}
         elif payload.get("constraint_ids") and payload.get("inputs"):
