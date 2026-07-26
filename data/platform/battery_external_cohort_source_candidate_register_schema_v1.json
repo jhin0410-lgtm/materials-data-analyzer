@@ -1,0 +1,21 @@
+{
+  "$id": "battery_external_cohort_source_candidate_register_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authoritative_source_policy": {"type": "string"},
+    "candidate_bundle_id": {"const": "battery_archive_local_bundle_v1"},
+    "candidate_count": {"const": 9},
+    "candidates": {"maxItems": 9, "minItems": 9, "type": "array"},
+    "claim_policy": {"type": "object"},
+    "register_id": {"const": "battery_external_cohort_source_candidate_register_v1"},
+    "retrieved_on": {"type": "string"},
+    "schema_version": {"const": "1"},
+    "selection_question": {"type": "string"}
+  },
+  "required": ["schema_version", "register_id", "candidate_bundle_id", "retrieved_on", "candidate_count", "selection_question", "authoritative_source_policy", "candidates", "claim_policy"],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery External Cohort Source Candidate Register",
+  "type": "object"
+}
