@@ -1,0 +1,79 @@
+{
+  "$id": "battery_bounded_cycle_regime_contract_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "archive_identity": {
+      "type": "object"
+    },
+    "bounded_source_id": {
+      "const": "snl_lfp_commercial_18650_study"
+    },
+    "candidate_assignment": {
+      "type": "object"
+    },
+    "claim_policy": {
+      "additionalProperties": {
+        "const": false
+      },
+      "type": "object"
+    },
+    "contract_id": {
+      "const": "battery_snl_lfp_bounded_cycle_regime_contract_v1"
+    },
+    "contract_recorded_on": {
+      "type": "string"
+    },
+    "contrast_policy": {
+      "type": "object"
+    },
+    "representative_entries": {
+      "maxItems": 3,
+      "minItems": 3,
+      "type": "array"
+    },
+    "representative_selection": {
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "scientific_question": {
+      "type": "string"
+    },
+    "selected_measurement_fields": {
+      "maxItems": 7,
+      "minItems": 7,
+      "type": "array"
+    },
+    "source_sequence_basis": {
+      "type": "object"
+    },
+    "stop_rules": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "contract_id",
+    "bounded_source_id",
+    "contract_recorded_on",
+    "scientific_question",
+    "source_sequence_basis",
+    "archive_identity",
+    "representative_selection",
+    "representative_entries",
+    "selected_measurement_fields",
+    "candidate_assignment",
+    "contrast_policy",
+    "stop_rules",
+    "claim_policy"
+  ],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Bounded Cycle Regime Contract",
+  "type": "object"
+}

@@ -1,0 +1,90 @@
+{
+  "$id": "battery_bounded_cycle_regime_config_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "archive_path": {
+      "const": "data/raw/battery_archive/SNL LFP.zip"
+    },
+    "bounded_source_id": {
+      "const": "snl_lfp_commercial_18650_study"
+    },
+    "case_study_id": {
+      "const": "battery_archive_snl_lfp"
+    },
+    "credential_policy": {
+      "const": {
+        "network_access_required": false,
+        "store_credentials": false
+      }
+    },
+    "cycle_regime_contract_path": {
+      "const": "data/platform/battery_snl_lfp_bounded_cycle_regime_contract_v1.json"
+    },
+    "cycle_row_policy": {
+      "type": "object"
+    },
+    "dry_run": {
+      "const": false
+    },
+    "execution_mode": {
+      "const": "bounded_local_cycle_regime_review"
+    },
+    "expected_archive_sha256": {
+      "const": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d"
+    },
+    "expected_v2_6_8_checksum": {
+      "const": "28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2"
+    },
+    "output_policy": {
+      "const": "local_full_result_and_tracked_compact_summary"
+    },
+    "output_root": {
+      "const": "outputs/v2_6_battery_snl_lfp_bounded_cycle_regime"
+    },
+    "package_id": {
+      "const": "battery_snl_lfp_bounded_cycle_regime_review_v1"
+    },
+    "read_policy": {
+      "type": "object"
+    },
+    "representative_entries": {
+      "maxItems": 3,
+      "minItems": 3,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "2.6.9"
+    },
+    "tracked_summary_path": {
+      "const": "data/processed/battery_v2_6_9_snl_lfp_bounded_cycle_regime_summary.json"
+    },
+    "v2_6_8_bounded_schema_summary_path": {
+      "const": "data/processed/battery_v2_6_8_snl_lfp_bounded_schema_read_summary.json"
+    }
+  },
+  "required": [
+    "schema_version",
+    "package_id",
+    "case_study_id",
+    "bounded_source_id",
+    "cycle_regime_contract_path",
+    "v2_6_8_bounded_schema_summary_path",
+    "expected_v2_6_8_checksum",
+    "archive_path",
+    "expected_archive_sha256",
+    "representative_entries",
+    "cycle_row_policy",
+    "read_policy",
+    "credential_policy",
+    "output_root",
+    "tracked_summary_path",
+    "output_policy",
+    "execution_mode",
+    "dry_run"
+  ],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Bounded Cycle Regime Config",
+  "type": "object"
+}

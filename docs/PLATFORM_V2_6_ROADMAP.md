@@ -1,10 +1,10 @@
 # Platform v2.6 Roadmap
 
-Status: `v2.6.8_snl_lfp_bounded_schema_read_feature_stage_complete`
+Status: `v2.6.9_snl_lfp_bounded_cycle_regime_feature_stage_complete`
 
 ## Release Boundary
 
-`v2.4.0` remains the current public release. v2.6.1 through v2.6.8 are
+`v2.4.0` remains the current public release. v2.6.1 through v2.6.9 are
 feature-stage work and do not create a tag, release, or public version change.
 
 ## v2.6.1 Scope
@@ -171,17 +171,6 @@ v2.6.8 implements the smallest payload-read contract justified by v2.6.7. It
 predeclares three 25 °C, replicate-`a` cycle-data/time-series pairs—one pair for
 each 0–100%, 20–80%, and 40–60% SOC protocol family.
 
-The implementation:
-
-- verifies the exact v2.6.6 archive SHA-256 before entry access;
-- inspects the ZIP central directory;
-- opens only the six exact representative entries;
-- reads one header and at most five data rows per entry;
-- rejects a physical line longer than 65,536 bytes;
-- records headers, explicit header units, conservative candidate roles, sampled
-  numeric/non-empty counts, and sampled row-width consistency;
-- retains no raw sample values.
-
 The reviewed local result records:
 
 - archive identity: `verified`;
@@ -198,12 +187,6 @@ The reviewed local result records:
 - tracked compact-result checksum:
   `28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2`.
 
-The observed cycle-data headers contain cycle index, start/end time, test time,
-minimum/maximum current and voltage, charge/discharge capacity, and
-charge/discharge energy. The time-series headers additionally expose timestamp,
-environment-temperature, and cell-temperature columns. Header units are retained
-as source evidence only and are not calibration or channel-binding evidence.
-
 The recorded decision remains bounded:
 
 - bounded schema observation: `bounded_schema_observed`;
@@ -219,9 +202,65 @@ The recorded decision remains bounded:
 - scientific closeout: `diagnostic`.
 
 Candidate roles are not promoted to command, measurement-channel, calibration,
-or physical-cell bindings. The six representatives do not establish all-file or
-full-file consistency. See
+or physical-cell bindings. See
 [Battery SNL LFP Bounded CSV Schema Read](BATTERY_SNL_LFP_BOUNDED_SCHEMA_READ.md).
+
+## v2.6.9 SNL LFP Bounded Cycle-Regime Review
+
+v2.6.9 reads exactly the first eight cycle-summary rows from three predeclared
+25 °C, replicate-`a` cycle-data representatives. Positions 1–3 are recorded as
+`capacity_check_candidate`; positions 4–8 are recorded as
+`bulk_cycle_candidate`. These source-sequence candidates are never promoted to
+confirmed labels.
+
+Only cycle index, minimum/maximum current, minimum/maximum voltage, and
+charge/discharge capacity are retained as exact source decimal strings. No
+complete CSV, time-series row, unselected field, fitted threshold, row exclusion,
+unit conversion, cohort merge, or model execution is permitted.
+
+The reviewed local result records:
+
+- archive identity: `verified`;
+- representative cycle-data entries opened: `3 / 3`;
+- cycle-summary rows read: `24`;
+- contract mismatches: `0`;
+- row-width matches: `24 / 24`;
+- strictly increasing cycle indices: `3 / 3`;
+- within-file candidate contrasts: `3 / 3`;
+- tracked compact-result checksum:
+  `dc6c7c4046d81ddf879c2f1538eab75708dd387f7d9d940adc0c6dfc2c3e01dc`.
+
+Observed condition-specific contrasts are:
+
+- 0–100% SOC: minimum current separates the candidate groups (`-0.55 A`
+  versus `-1.1 A`);
+- 20–80% SOC: minimum voltage separates the candidate groups
+  (`1.998–1.999 V` versus `2.700–3.159 V`);
+- 40–60% SOC: minimum current, minimum voltage, charge capacity, and discharge
+  capacity have non-overlapping candidate ranges.
+
+No common separating field exists across all three protocol families. Position 4
+also differs materially from positions 5–8 in capacity or voltage in every
+representative, so the bulk-candidate group is not treated as homogeneous and
+position 4 remains transition-ambiguous.
+
+The recorded decision is:
+
+- capacity-check versus bulk-cycle discrimination:
+  `candidate_supported_not_established`;
+- source-sequence candidate assignment: `recorded_not_promoted`;
+- within-file cycle-regime contrast: `observed_all_representatives`;
+- step-level discrimination: `not_available_no_step_identifier`;
+- cycle command to rows: `not_established`;
+- instrument channel to columns: `not_established`;
+- physical cell to entry: `not_established`;
+- official distribution snapshot: `not_established`;
+- cross-cohort comparability: `not_admitted`;
+- predictive validation: `blocked`;
+- overall: `bounded_cycle_regime_evidence_recorded_gate_not_passed`;
+- scientific closeout: `diagnostic`.
+
+See [Battery SNL LFP Bounded Cycle-Regime Review](BATTERY_SNL_LFP_BOUNDED_CYCLE_REGIME_REVIEW.md).
 
 The v2.5 compatibility and retrieval-reproducibility conclusions are unchanged.
 Battery retrieval reproducibility remains `insufficient_evidence`, and no
@@ -230,24 +269,23 @@ metric recomputation, or public-version change is added.
 
 ## Next Evidence
 
-The next step must remain a separate bounded contract. v2.6.9 may test whether
-capacity-check and bulk-cycling records can be discriminated without reading
-complete files or inferring undocumented command semantics.
+A broader loader or model run is not justified. The immediate unresolved question
+is whether position 4 is a normal first bulk cycle, an initialization/transition
+record, or a conversion artifact, and whether any source-provided step or command
+metadata exists that can test the candidate labels directly.
 
-Before implementation, the contract must predeclare:
+A future bounded contract may proceed only if it predeclares:
 
-- the minimum cycle-index span or exact cycle rows required;
-- whether cycle-data alone is sufficient or a matched time-series slice is
-  necessary;
-- explicit stop conditions for missing, non-monotonic, or ambiguous cycle indices;
-- rules separating observed values from commanded setpoints;
-- output fields that record ambiguity rather than forcing a classification.
+- the exact evidence source that can distinguish row 4 from stable bulk rows;
+- the exact representative entry or documented metadata to read;
+- the minimum required row or time-series slice;
+- stop conditions for absent step identifiers or ambiguous command semantics;
+- an output that preserves `not_established` rather than fitting a classifier.
 
-The next stage must not silently expand to all files, full-file reads, cohort
-merging, target alignment, model execution, or mechanism claims.
-
-Independently, a provider-issued release identifier or official checksum for the
-exact `SNL LFP.zip` remains the strongest missing source-snapshot evidence.
+It must not silently expand to all entries, complete-file reads, universal
+thresholds, cohort merging, target alignment, model execution, or mechanism
+claims. Independently, a provider-issued release identifier or official checksum
+for the exact `SNL LFP.zip` remains the strongest missing source-snapshot evidence.
 
 ## Non-Goals
 

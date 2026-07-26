@@ -1,0 +1,140 @@
+{
+  "archive_identity": {
+    "archive_path": "data/raw/battery_archive/SNL LFP.zip",
+    "archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+    "cycle_data_header_checksum": "02c4b1f087f1133349cfb60f52443c75099c1d5742a266b4b2889701a344d88c",
+    "v2_6_8_compact_checksum": "28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2"
+  },
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "candidate_assignment": {
+    "assignment_basis": "source-declared round sequence; archive row ordering remains under review",
+    "bulk_cycle_candidate_positions": [
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "capacity_check_candidate_positions": [
+      1,
+      2,
+      3
+    ],
+    "promote_candidates_to_confirmed_labels": false
+  },
+  "claim_policy": {
+    "range_nonoverlap_is_command_binding": false,
+    "range_nonoverlap_is_step_classification": false,
+    "selected_values_establish_calibration": false,
+    "selected_values_establish_cohort_comparability": false,
+    "selected_values_establish_full_file_consistency": false,
+    "selected_values_establish_instrument_mapping": false,
+    "selected_values_establish_predictive_validity": false,
+    "source_position_candidate_is_confirmed_capacity_check": false
+  },
+  "contract_id": "battery_snl_lfp_bounded_cycle_regime_contract_v1",
+  "contract_recorded_on": "2026-07-26",
+  "contrast_policy": {
+    "classify_rows_from_measurements": false,
+    "contrast_fields": [
+      "min_current_a",
+      "max_current_a",
+      "min_voltage_v",
+      "max_voltage_v",
+      "charge_capacity_ah",
+      "discharge_capacity_ah"
+    ],
+    "control_contrast_fields": [
+      "min_current_a",
+      "max_current_a",
+      "min_voltage_v",
+      "max_voltage_v"
+    ],
+    "fit_or_infer_thresholds": false,
+    "method": "exact_decimal_group_ranges_without_fitted_thresholds",
+    "record_non_overlapping_ranges": true
+  },
+  "representative_entries": [
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv",
+      "max_data_rows": 8,
+      "protocol_family": "0-100% SOC bulk cycling; 0.5C CCCV charge and filename-labelled 1C discharge"
+    },
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv",
+      "max_data_rows": 8,
+      "protocol_family": "20-80% SOC bulk cycling using voltage limits established from fresh-cell discharge curves"
+    },
+    {
+      "entry_name": "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv",
+      "max_data_rows": 8,
+      "protocol_family": "40-60% SOC bulk cycling using capacity limits"
+    }
+  ],
+  "representative_selection": {
+    "file_kind": "cycle_data",
+    "protocol_families": [
+      "0-100",
+      "20-80",
+      "40-60"
+    ],
+    "replicate": "a",
+    "selection_rationale": "Hold temperature and replicate constant while spanning all three documented SOC protocol families; use cycle summaries because v2.6.8 found no step identifier in either schema.",
+    "temperature_c": 25
+  },
+  "schema_version": "1",
+  "scientific_question": "Do the first eight cycle-summary rows in three predeclared SNL LFP representatives contain bounded, threshold-free regime contrasts consistent with the source-declared three-cycle capacity check followed by bulk cycling?",
+  "selected_measurement_fields": [
+    {
+      "field": "cycle_index",
+      "header": "Cycle_Index",
+      "unit": null
+    },
+    {
+      "field": "min_current_a",
+      "header": "Min_Current (A)",
+      "unit": "A"
+    },
+    {
+      "field": "max_current_a",
+      "header": "Max_Current (A)",
+      "unit": "A"
+    },
+    {
+      "field": "min_voltage_v",
+      "header": "Min_Voltage (V)",
+      "unit": "V"
+    },
+    {
+      "field": "max_voltage_v",
+      "header": "Max_Voltage (V)",
+      "unit": "V"
+    },
+    {
+      "field": "charge_capacity_ah",
+      "header": "Charge_Capacity (Ah)",
+      "unit": "Ah"
+    },
+    {
+      "field": "discharge_capacity_ah",
+      "header": "Discharge_Capacity (Ah)",
+      "unit": "Ah"
+    }
+  ],
+  "source_sequence_basis": {
+    "archive_row_order_established": false,
+    "capacity_check_row_labels_established": false,
+    "documented_sequence": "Each cycling round begins with a three-cycle 0-100% SOC capacity check at 0.5C, followed by a variable number of cycles at the designated bulk conditions.",
+    "official_source": "https://www.batteryarchive.org/snl_study.html"
+  },
+  "stop_rules": [
+    "stop before payload access if archive SHA-256 differs",
+    "reject missing, duplicated, encrypted, or unsafe representative entries",
+    "reject a cycle-data header checksum different from v2.6.8",
+    "reject fewer than eight bounded cycle-summary rows",
+    "reject row-width mismatch or missing selected columns",
+    "reject empty, non-decimal, non-finite, or non-integer cycle-index values",
+    "reject non-increasing cycle indices",
+    "do not fall back to another entry, encoding, delimiter, row count, or field"
+  ]
+}
