@@ -1,0 +1,162 @@
+{
+  "artifact_kind": "battery_michigan_formation_provider_package_structure_gate_compact_summary",
+  "binding_status": {
+    "battery_archive_source_family_to_provider_study": "established_study_level",
+    "cell_tracker_to_local_cell_id": "not_established",
+    "conversion_pipeline": "not_established",
+    "official_local_archive_snapshot": "not_established",
+    "provider_file_to_local_entry": "not_established",
+    "provider_package_to_local_archive": "not_established",
+    "provider_record_to_study": "established",
+    "test_schedule_to_standardized_cycle_rows": "not_established"
+  },
+  "bounded_source_id": "michigan_fast_formation_deep_blue_b2773w109",
+  "candidate_admitted": false,
+  "case_study_id": "battery_archive_michigan_formation",
+  "cohort_merge_performed": false,
+  "command_semantics_inferred": false,
+  "contract_checksum": "bac45b313696cd20502e740d2b29c25ba76e9c5605f38fc7476e75b7de042408",
+  "contract_id": "battery_michigan_formation_provider_package_structure_contract_v1",
+  "credentials_read": false,
+  "cross_cohort_comparability_promoted": false,
+  "decision": {
+    "cell_tracker_presence": "declared_document_level",
+    "cell_tracker_schema": "not_established",
+    "cross_cohort_comparability": "not_admitted",
+    "exact_provider_file_manifest": "not_established",
+    "local_archive_binding": "not_established",
+    "next_metadata_api_gate": "eligible_if_payload_free",
+    "overall_status": "provider_package_structure_recovered_exact_manifest_not_established_gate_not_passed",
+    "predictive_validation": "blocked",
+    "provider_dataset_identity": "established",
+    "provider_package_folder_structure": "recovered_document_level",
+    "provider_to_standardized_row_binding": "not_established",
+    "test_schedule_command_semantics": "not_established",
+    "test_schedule_presence": "declared_document_level"
+  },
+  "deterministic_result_checksum": "b1ce09e4ce06c9ec90839b63e1f2546d1fd2808f9c8ea6717edc5bc0fe93ce7d",
+  "exact_manifest_status": {
+    "cell_tracker_filenames_recovered": false,
+    "cell_tracker_schema_recovered": false,
+    "file_set_checksums_recovered": false,
+    "file_set_identifiers_recovered": false,
+    "file_set_labels_recovered": false,
+    "internal_filenames_recovered": false,
+    "provider_page_file_set_count_observed": 2,
+    "source_code_file_manifest_recovered": false,
+    "status": "not_established",
+    "test_schedule_filenames_recovered": false,
+    "test_schedule_schema_recovered": false
+  },
+  "filename_metadata_inferred": false,
+  "local_archive_read": false,
+  "local_csv_payload_read": false,
+  "metrics_recomputed": false,
+  "missing_metadata_inferred": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_called": false,
+  "next_authorized_scope": [
+    "provider dataset JSON metadata only if retrievable without payload download",
+    "provider file-set metadata records only if identifiers are exposed without payload download",
+    "stable file labels, sizes, MIME types, and repository checksums only",
+    "no file content, archive content, or local CSV content"
+  ],
+  "package_id": "battery_michigan_formation_provider_package_structure_gate_v1",
+  "preservation_checks": {
+    "model_or_metric_change_performed": false,
+    "v2_6_11_checksum_verified": true,
+    "v2_6_11_non_admission_preserved": true,
+    "v2_6_11_selected_archive_preserved": true
+  },
+  "provider_dataset_downloaded": false,
+  "provider_dataset_identity": {
+    "dataset_doi": "10.7302/pa3f-4w30",
+    "dataset_id": "b2773w109",
+    "file_set_count": 2,
+    "last_modified_on": "2022-11-17",
+    "provider": "University of Michigan Deep Blue Data",
+    "published_on": "2021-09-24",
+    "status": "established_provider_record_level",
+    "total_size_human_readable": "2.37 GB"
+  },
+  "provider_evidence_checksum": "079741f6b6082829f4754495e2b1f96433e574049de029f8bef593440402924a",
+  "provider_evidence_record_id": "battery_michigan_formation_provider_package_evidence_v1",
+  "provider_file_payload_read": false,
+  "provider_package_structure": {
+    "cell_tracker_files_declared": true,
+    "declared_folders": [
+      "code",
+      "data",
+      "documents",
+      "output"
+    ],
+    "post_processed_outputs_declared": true,
+    "raw_cycler_data_declared": true,
+    "source_code_copy_declared": true,
+    "source_code_doi": "10.5281/zenodo.5525258",
+    "status": "folder_structure_recovered_document_level",
+    "test_schedule_files_declared": true
+  },
+  "recommendations": [
+    "attempt only payload-free Deep Blue dataset and file-set metadata retrieval",
+    "record stable file-set identifiers, labels, sizes, MIME types, and repository checksums if exposed",
+    "stop if manifest metadata cannot be recovered without downloading provider files",
+    "do not read Michigan Formation.zip, infer commands, merge cohorts, or execute models"
+  ],
+  "schema_version": "2.6.12",
+  "scientific_closeout": {
+    "evidence_level": "official_provider_dataset_record_and_repository_api_capability_documentation",
+    "primary_limitation": "The public record does not expose exact file-set identifiers, labels, checksums, internal filenames, tracker schemas, schedule schemas, or a provider-to-Battery-Archive conversion map.",
+    "result": "provider_package_structure_recovered_without_exact_manifest_or_local_binding",
+    "status": "diagnostic",
+    "strongest_evidence": "The official Deep Blue record establishes the dataset DOI, study metadata, two repository file sets totaling 2.37 GB, and declared code, data, documents, and output folders; the documents folder is declared to contain cell trackers and test schedules.",
+    "suitable_for": [
+      "provider metadata closeout",
+      "next payload-free manifest retrieval design",
+      "source-binding stop/go decision"
+    ],
+    "unsuitable_for": [
+      "raw data analysis",
+      "command-to-row binding",
+      "local archive identity claims",
+      "cross-cohort comparison",
+      "predictive validation",
+      "model or engineering decisions"
+    ],
+    "what_would_change_conclusion": [
+      "payload-free Deep Blue dataset JSON exposing file-set identifiers",
+      "file-set metadata records with stable labels, sizes, MIME types, and checksums",
+      "provider manifest entries for cell trackers and test schedules",
+      "documented mapping from provider cell IDs and schedules to Battery Archive standardized entries"
+    ]
+  },
+  "source_mutation_performed": false,
+  "source_references": {
+    "battery_archive_study_summary": "https://www.batteryarchive.org/study_summaries.html",
+    "contract": "data/platform/battery_michigan_formation_provider_package_structure_contract_v1.json",
+    "deep_blue_dataset_record": "https://deepblue.lib.umich.edu/data/concern/data_sets/b2773w109",
+    "deep_blue_rest_api": "https://deepblue.lib.umich.edu/data/rest-api",
+    "provider_evidence": "data/platform/battery_michigan_formation_provider_package_evidence_v1.json",
+    "v2_6_11_summary": "data/processed/battery_v2_6_11_external_cohort_next_source_selection_summary.json"
+  },
+  "study_metadata": {
+    "cell_count": 40,
+    "cell_format": "prismatic_lithium_ion_pouch",
+    "chemistry": "NCM111/graphite",
+    "cycler_equipment": "Maccor",
+    "cycling_temperature_groups": [
+      "room temperature",
+      "45 °C"
+    ],
+    "export_format": "CSV",
+    "formation_protocol_groups": [
+      "fast formation",
+      "baseline formation"
+    ],
+    "nominal_capacity_ah": "2.36",
+    "processing_software": "Voltaiq",
+    "status": "recovered_document_level"
+  },
+  "upstream_v2_6_11_checksum": "5cbb6b979bd6529e28d24af1ecb0e1579439fef2be710904081d8e81d032747b"
+}

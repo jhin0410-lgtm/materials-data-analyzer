@@ -1,0 +1,101 @@
+{
+  "battery_archive_binding_evidence": {
+    "battery_archive_conversion_to_standard_format_declared": true,
+    "exact_conversion_pipeline_for_this_dataset_recovered": false,
+    "local_archive_checksum_bound_to_provider_file_set": false,
+    "provider_file_to_local_entry_map_recovered": false,
+    "source_family": "University of Michigan Fast Formation",
+    "standardized_archive_name": "Michigan Formation.zip"
+  },
+  "claim_policy": {
+    "battery_archive_standardization_is_exact_conversion_provenance": false,
+    "declared_cell_tracker_presence_is_schema_evidence": false,
+    "declared_folder_is_exact_file_manifest": false,
+    "declared_test_schedule_presence_is_command_binding": false,
+    "missing_file_set_metadata_may_be_inferred": false,
+    "provider_dataset_doi_is_local_archive_checksum": false
+  },
+  "dataset_record": {
+    "dataset_doi": "10.7302/pa3f-4w30",
+    "file_set_count": 2,
+    "last_modified_on": "2022-11-17",
+    "official_record_url": "https://deepblue.lib.umich.edu/data/concern/data_sets/b2773w109",
+    "published_on": "2021-09-24",
+    "resource_type": "Dataset",
+    "title": "Battery test data - fast formation study",
+    "total_size_human_readable": "2.37 GB"
+  },
+  "evidence_record_id": "battery_michigan_formation_provider_package_evidence_v1",
+  "manifest_observation": {
+    "cell_tracker_filenames_recovered": false,
+    "cell_tracker_schema_recovered": false,
+    "exact_provider_package_manifest_status": "not_established",
+    "file_set_checksums_recovered": false,
+    "file_set_identifiers_recovered": false,
+    "file_set_labels_recovered": false,
+    "internal_filenames_recovered": false,
+    "provider_page_file_set_count_observed": 2,
+    "source_code_file_manifest_recovered": false,
+    "test_schedule_filenames_recovered": false,
+    "test_schedule_schema_recovered": false
+  },
+  "provider": "University of Michigan Deep Blue Data",
+  "provider_dataset_id": "b2773w109",
+  "provider_package_structure": [
+    {
+      "declared_contents": "copy of source code",
+      "external_identifier": "10.5281/zenodo.5525258",
+      "folder": "code"
+    },
+    {
+      "declared_contents": "raw cycler data during formation, cycling, and coin-cell testing",
+      "external_identifier": null,
+      "folder": "data"
+    },
+    {
+      "declared_contents": "cell tracker files and test schedules",
+      "external_identifier": null,
+      "folder": "documents"
+    },
+    {
+      "declared_contents": "post-processed data outputs",
+      "external_identifier": null,
+      "folder": "output"
+    }
+  ],
+  "repository_api_evidence": {
+    "api_evidence_scope": "endpoint_capability_only",
+    "dataset_metadata_endpoint_documented": true,
+    "dataset_metadata_endpoint_retrieved_for_this_record": false,
+    "file_set_metadata_endpoint_documented": true,
+    "file_set_metadata_endpoint_retrieved_for_this_record": false
+  },
+  "retrieved_on": "2026-07-26",
+  "schema_version": "1",
+  "source_references": {
+    "battery_archive_study_summary": "https://www.batteryarchive.org/study_summaries.html",
+    "deep_blue_dataset_record": "https://deepblue.lib.umich.edu/data/concern/data_sets/b2773w109",
+    "deep_blue_rest_api": "https://deepblue.lib.umich.edu/data/rest-api",
+    "related_publication_doi": "10.1016/j.joule.2021.09.015",
+    "source_code_doi": "10.5281/zenodo.5525258"
+  },
+  "study_declarations": {
+    "anode": "graphite",
+    "cathode": "NCM111",
+    "cell_count": 40,
+    "cell_format": "prismatic_lithium_ion_pouch",
+    "cycle_life_stop_condition": "discharge_capacity_below_50_percent_of_initial_capacity",
+    "cycler_equipment": "Maccor",
+    "cycling_temperature_groups": [
+      "room temperature",
+      "45 °C"
+    ],
+    "declared_export_format": "CSV",
+    "formation_protocol_groups": [
+      "fast formation",
+      "baseline formation"
+    ],
+    "nominal_capacity_ah": "2.36",
+    "processing_software": "Voltaiq"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "claim_boundary": "Document-level declarations do not establish exact file manifests, schemas, command bindings, or local archive identity.",
+  "description": "Tracked official provider evidence declarations without provider payload access.",
+  "required_fields": [
+    "battery_archive_binding_evidence",
+    "claim_policy",
+    "dataset_record",
+    "evidence_record_id",
+    "manifest_observation",
+    "provider",
+    "provider_dataset_id",
+    "provider_package_structure",
+    "repository_api_evidence",
+    "retrieved_on",
+    "schema_version",
+    "source_references",
+    "study_declarations"
+  ],
+  "schema_id": "battery_michigan_formation_provider_package_evidence_schema_v1",
+  "schema_version": "1",
+  "status": "active"
+}
