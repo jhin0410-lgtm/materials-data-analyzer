@@ -1,0 +1,70 @@
+{
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "claim_policy": {
+    "cross_cohort_comparability_established": false,
+    "cycle_command_log_established": false,
+    "instrument_channel_binding_established": false,
+    "official_distribution_snapshot_established": false,
+    "positions_1_to_3_are_confirmed_capacity_checks": false,
+    "positions_4_to_8_are_homogeneous_bulk_cycles": false,
+    "predictive_validation_authorized": false,
+    "row4_is_confirmed_first_bulk_cycle": false,
+    "row4_is_confirmed_transition_record": false,
+    "step_identity_established": false,
+    "study_artifact_note_is_exact_csv_row_binding": false
+  },
+  "contract_id": "battery_snl_lfp_transition_artifact_evidence_contract_v1",
+  "contract_recorded_on": "2026-07-26",
+  "decision_policy": {
+    "all_representatives_must_have_row4_outside_at_least_one_comparison_range": true,
+    "allowed_consistency_status": "transition_consistent_not_row_bound",
+    "capacity_check_labels_may_be_promoted": false,
+    "document_transition_artifact_note_required": true,
+    "exact_row_identity_may_be_established": false,
+    "threshold_fitting_allowed": false,
+    "time_series_read_may_be_authorized": false
+  },
+  "representative_scope": {
+    "audit_fields": [
+      "min_current_a",
+      "max_current_a",
+      "min_voltage_v",
+      "max_voltage_v",
+      "charge_capacity_ah",
+      "discharge_capacity_ah"
+    ],
+    "comparison_positions": [5, 6, 7, 8],
+    "entries": [
+      "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv",
+      "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv",
+      "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv"
+    ],
+    "method": "exact_decimal_row4_against_positions_5_to_8_ranges",
+    "row4_position": 4
+  },
+  "schema_version": "1",
+  "scientific_question": "Does the official Battery Archive transition-artifact note provide document-level support that the anomalous fourth cycle-summary row is transition-consistent without establishing its exact row identity?",
+  "source_evidence": {
+    "document_id": "battery_archive_snl_study_page",
+    "document_kind": "official_study_description_with_data_artifact_note",
+    "documented_statement": "Periodic spikes in the study data are attributed to the transition between the three-cycle capacity check and the normal cycling round.",
+    "evidence_scope": "study_level_transition_artifact",
+    "local_document_copy_committed": false,
+    "publisher": "Battery Archive",
+    "retrieved_on": "2026-07-26",
+    "url": "https://www.batteryarchive.org/snl_study.html",
+    "versioned_page_snapshot": false
+  },
+  "stop_rules": [
+    "stop if the v2.6.5 or v2.6.9 checksum changes",
+    "stop if the representative entry set or row positions change",
+    "stop if a selected decimal value is missing or non-finite",
+    "stop if threshold fitting or candidate-label promotion is requested",
+    "do not authorize time-series reads without a separate provider-backed step or command contract"
+  ],
+  "upstream_identity": {
+    "archive_sha256": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d",
+    "v2_6_5_source_evidence_checksum": "b6e0c950f11cb1edfbd3afdd15776af25c76b092d130d6038b6653ecd63ba846",
+    "v2_6_9_cycle_regime_checksum": "dc6c7c4046d81ddf879c2f1538eab75708dd387f7d9d940adc0c6dfc2c3e01dc"
+  }
+}
