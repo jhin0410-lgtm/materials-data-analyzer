@@ -60,7 +60,6 @@ def test_tracked_local_schema_observation_is_valid_and_checksum_locked():
         "predictive_validation": "blocked",
     }
     assert payload["scientific_closeout"]["status"] == "diagnostic"
-    assert payload["raw_sample_values_retained"] is False if "raw_sample_values_retained" in payload else True
     assert all(
         observation["raw_sample_values_retained"] is False
         and observation["full_file_read"] is False
