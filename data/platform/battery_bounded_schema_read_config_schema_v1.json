@@ -1,0 +1,32 @@
+{
+  "$id": "battery_bounded_schema_read_config_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "archive_path": {"const": "data/raw/battery_archive/SNL LFP.zip"},
+    "bounded_source_id": {"const": "snl_lfp_commercial_18650_study"},
+    "case_study_id": {"const": "battery_archive_snl_lfp"},
+    "credential_policy": {"const": {"network_access_required": false, "store_credentials": false}},
+    "csv_policy": {"const": {"delimiter": ",", "encoding": "utf-8-sig", "max_data_rows_per_entry": 5, "max_line_bytes": 65536, "retain_raw_sample_values": false}},
+    "dry_run": {"const": false},
+    "execution_mode": {"const": "bounded_local_schema_read"},
+    "expected_archive_sha256": {"const": "006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d"},
+    "expected_v2_6_6_checksum": {"const": "f4c02c38652848ddba6a69ffe47010e0cb7ada3ad411fd028afdd5ff552b89e5"},
+    "expected_v2_6_7_checksum": {"const": "38fb66269706938513bb000d14427b33147ee13f04d917696e47dff7f2699248"},
+    "output_policy": {"const": "local_full_result_and_tracked_compact_summary"},
+    "output_root": {"const": "outputs/v2_6_battery_snl_lfp_bounded_schema_read"},
+    "package_id": {"const": "battery_snl_lfp_bounded_schema_read_v1"},
+    "read_policy": {"const": {"allow_archive_extraction": false, "allow_archive_sha256": true, "allow_csv_data_row_read": true, "allow_csv_header_read": true, "allow_full_csv_read": false, "allow_nonrepresentative_entry_read": false, "allow_representative_entry_payload_read": true, "allow_tracked_json_reads": true, "allow_zip_central_directory": true}},
+    "representative_entries": {"const": ["SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_cycle_data.csv", "SNL LFP/SNL_18650_LFP_25C_0-100_0.5-1C_a_timeseries.csv", "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_cycle_data.csv", "SNL LFP/SNL_18650_LFP_25C_20-80_0.5-0.5C_a_timeseries.csv", "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_cycle_data.csv", "SNL LFP/SNL_18650_LFP_25C_40-60_0.5-0.5C_a_timeseries.csv"]},
+    "schema_read_contract_path": {"const": "data/platform/battery_snl_lfp_bounded_schema_read_contract_v1.json"},
+    "schema_version": {"const": "2.6.8"},
+    "tracked_summary_path": {"const": "data/processed/battery_v2_6_8_snl_lfp_bounded_schema_read_summary.json"},
+    "v2_6_6_artifact_binding_summary_path": {"const": "data/processed/battery_v2_6_6_snl_lfp_artifact_binding_summary.json"},
+    "v2_6_7_source_entry_binding_summary_path": {"const": "data/processed/battery_v2_6_7_snl_lfp_source_entry_binding_summary.json"}
+  },
+  "required": ["schema_version", "package_id", "case_study_id", "bounded_source_id", "schema_read_contract_path", "v2_6_7_source_entry_binding_summary_path", "v2_6_6_artifact_binding_summary_path", "expected_v2_6_7_checksum", "expected_v2_6_6_checksum", "archive_path", "expected_archive_sha256", "representative_entries", "csv_policy", "read_policy", "credential_policy", "output_root", "tracked_summary_path", "output_policy", "execution_mode", "dry_run"],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery SNL LFP Bounded Schema Read Config",
+  "type": "object"
+}
