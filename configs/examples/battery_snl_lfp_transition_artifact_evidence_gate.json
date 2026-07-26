@@ -1,0 +1,28 @@
+{
+  "bounded_source_id": "snl_lfp_commercial_18650_study",
+  "case_study_id": "battery_archive_snl_lfp",
+  "contract_path": "data/platform/battery_snl_lfp_transition_artifact_evidence_contract_v1.json",
+  "credential_policy": {
+    "network_access_required": false,
+    "store_credentials": false
+  },
+  "dry_run": false,
+  "execution_policy": {
+    "archive_read": false,
+    "csv_payload_read": false,
+    "metric_recomputation": false,
+    "model_execution": false,
+    "network_access": false,
+    "threshold_fitting": false,
+    "time_series_read": false
+  },
+  "expected_v2_6_5_checksum": "b6e0c950f11cb1edfbd3afdd15776af25c76b092d130d6038b6653ecd63ba846",
+  "expected_v2_6_9_checksum": "dc6c7c4046d81ddf879c2f1538eab75708dd387f7d9d940adc0c6dfc2c3e01dc",
+  "output_policy": "tracked_compact_summary_and_local_full_result",
+  "output_root": "outputs/v2_6_battery_snl_lfp_transition_artifact_evidence",
+  "package_id": "battery_snl_lfp_transition_artifact_evidence_gate_v1",
+  "schema_version": "2.6.10",
+  "tracked_summary_path": "data/processed/battery_v2_6_10_snl_lfp_transition_artifact_evidence_summary.json",
+  "v2_6_5_source_evidence_summary_path": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json",
+  "v2_6_9_cycle_regime_summary_path": "data/processed/battery_v2_6_9_snl_lfp_bounded_cycle_regime_summary.json"
+}
