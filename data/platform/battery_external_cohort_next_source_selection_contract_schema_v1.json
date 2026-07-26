@@ -1,0 +1,23 @@
+{
+  "$id": "battery_external_cohort_next_source_selection_contract_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "candidate_bundle_id": {"const": "battery_archive_local_bundle_v1"},
+    "claim_policy": {"type": "object"},
+    "contract_id": {"const": "battery_external_cohort_next_source_selection_contract_v1"},
+    "contract_recorded_on": {"type": "string"},
+    "hard_gate": {"type": "object"},
+    "next_authorized_scope": {"type": "array"},
+    "schema_version": {"const": "1"},
+    "scientific_question": {"type": "string"},
+    "selection_policy": {"type": "object"},
+    "stop_rules": {"type": "array"},
+    "upstream_identity": {"type": "object"}
+  },
+  "required": ["schema_version", "contract_id", "contract_recorded_on", "candidate_bundle_id", "scientific_question", "upstream_identity", "hard_gate", "selection_policy", "next_authorized_scope", "stop_rules", "claim_policy"],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery External Cohort Next Source Selection Contract",
+  "type": "object"
+}
