@@ -1,0 +1,20 @@
+{
+  "$id": "battery_michigan_formation_deepblue_metadata_retrieval_contract_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "claim_policy": {"type": "object"},
+    "contract_id": {"const": "battery_michigan_formation_deepblue_metadata_retrieval_contract_v1"},
+    "network_contract": {"type": "object"},
+    "next_authorized_scope": {"items": {"type": "string"}, "type": "array"},
+    "recorded_on": {"type": "string"},
+    "retention_contract": {"type": "object"},
+    "schema_version": {"const": "1"},
+    "scientific_question": {"type": "string"},
+    "stop_rules": {"items": {"type": "string"}, "type": "array"},
+    "upstream_identity": {"type": "object"}
+  },
+  "required": ["schema_version", "contract_id", "recorded_on", "scientific_question", "upstream_identity", "network_contract", "retention_contract", "claim_policy", "stop_rules", "next_authorized_scope"],
+  "title": "Battery Michigan Formation Deep Blue Metadata Retrieval Contract",
+  "type": "object"
+}
