@@ -22,7 +22,7 @@ DEFAULT_TRACKED_SUMMARY = "data/processed/battery_v2_6_11_external_cohort_next_s
 EXPECTED_V264_CHECKSUM = "2776bc152c0e4655f0c90ec6513883aea3758cac7fac687e02e5685c72dfdb6f"
 EXPECTED_V2610_CHECKSUM = "0093de000c25cfcbbd36eaf8216eabc7fb3bc3db23b724dbffcb69b4d77ddf28"
 EXPECTED_REGISTER_CHECKSUM = "fc0a863cd80756fee7048682fc2c0d13b876d5ee6442b889daa1bc30b1fa8b00"
-EXPECTED_CONTRACT_CHECKSUM = "4aff0596bc733ba7979a79c498139aa228a0af7dded11c45262e9731bd5001a9"
+EXPECTED_CONTRACT_CHECKSUM = "c960b21fc061393d4ebeba5e9a6a5f2d105c25da1514f8017feee0deef339079"
 SELECTED_ARCHIVE = "Michigan Formation.zip"
 CANDIDATE_ARCHIVES = (
     "CALCE.zip", "HNEI.zip", "Michigan Expansion.zip",
@@ -208,9 +208,11 @@ def validate_contract(value: Mapping[str, Any]) -> None:
         raise ValueError("selection scope changed")
     if policy["weighted_score_allowed"] is not False:
         raise ValueError("weighted scoring is not allowed")
-    for key in ("raw_dataset_download_allowed",
-                "local_archive_payload_read_allowed",
-                "model_or_metric_execution_allowed"):
+    for key in (
+        "cross_cohort_admission_allowed", "raw_dataset_download_allowed",
+        "local_archive_payload_read_allowed",
+        "model_or_metric_execution_allowed",
+    ):
         if policy[key] is not False:
             raise ValueError("selection execution boundary changed")
     if any(value["claim_policy"].values()):
