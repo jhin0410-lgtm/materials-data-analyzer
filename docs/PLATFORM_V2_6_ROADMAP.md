@@ -1,10 +1,10 @@
 # Platform v2.6 Roadmap
 
-Status: `v2.6.7_snl_lfp_source_entry_binding_feature_stage_complete`
+Status: `v2.6.8_snl_lfp_bounded_schema_read_feature_stage_complete_local_execution_pending`
 
 ## Release Boundary
 
-`v2.4.0` remains the current public release. v2.6.1 through v2.6.7 are
+`v2.4.0` remains the current public release. v2.6.1 through v2.6.8 are
 feature-stage work and do not create a tag, release, or public version change.
 
 ## v2.6.1 Scope
@@ -165,26 +165,64 @@ No filename label is promoted to a measured value, physical cell identity, or
 cycle-specific command. See
 [Battery SNL LFP Source-to-Entry Binding Review](BATTERY_SNL_LFP_SOURCE_ENTRY_BINDING_REVIEW.md).
 
+## v2.6.8 SNL LFP Bounded CSV Schema Read
+
+v2.6.8 implements the smallest payload-read contract justified by v2.6.7. It
+predeclares three 25 °C, replicate-`a` cycle-data/time-series pairs—one pair for
+each 0–100%, 20–80%, and 40–60% SOC protocol family.
+
+The implementation may:
+
+- verify the exact v2.6.6 archive SHA-256 before entry access;
+- inspect the ZIP central directory;
+- open only the six exact representative entries;
+- read one header and at most five data rows per entry;
+- reject a physical line longer than 65,536 bytes;
+- record headers, explicit header units, conservative candidate roles, sampled
+  numeric/non-empty counts, and sampled row-width consistency.
+
+The implementation does not retain raw sample values. Candidate roles are not
+promoted to command, measurement-channel, calibration, or physical-cell
+bindings. Header units are not calibration evidence.
+
+The current GitHub-tracked result is:
+
+- bounded schema observation: `pending_local_artifact`;
+- CSV headers read: `false`;
+- CSV data rows read: `false`;
+- capacity-check versus bulk-cycle discrimination: `not_established`;
+- cycle command to rows: `not_established`;
+- instrument channel to columns: `not_established`;
+- cross-cohort comparability: `not_admitted`;
+- predictive validation: `blocked`;
+- scientific closeout: `inconclusive`.
+
+The pending status is required because the ignored local ZIP is unavailable to
+GitHub Actions. Synthetic fixtures validate software behavior and stopping rules
+only. The real compact schema observation must be produced and reviewed in the
+local checkout before merge. See
+[Battery SNL LFP Bounded CSV Schema Read](BATTERY_SNL_LFP_BOUNDED_SCHEMA_READ.md).
+
 The v2.5 compatibility and retrieval-reproducibility conclusions are unchanged.
 Battery retrieval reproducibility remains `insufficient_evidence`, and no
-network, credential, acquisition, source mutation, model training, metric
-recomputation, or public-version change is added.
+network, credential, acquisition, source mutation, cohort merge, model training,
+metric recomputation, or public-version change is added.
 
 ## Next Evidence
 
-The next step must remain bounded. A v2.6.8 schema-read contract may inspect only
-predeclared representative files and only the minimum header or row scope needed
-to determine:
+The immediate next action is not a broader loader. Run the v2.6.8 bounded audit
+against the checksum-verified local `SNL LFP.zip`, then review:
 
-- exact column names and units;
-- cycle and step identifiers;
-- capacity-check versus bulk-cycling markers;
-- time ordering and trajectory continuity;
-- whether commanded and measured channels can be distinguished.
+- exact observed headers and explicit units;
+- whether all six files satisfy the declared candidate-role contract;
+- whether sampled row widths are consistent;
+- whether any schema mismatch requires stopping rather than expanding the read.
 
-The contract must define stopping conditions for schema mismatch and must not
-merge cohorts, train models, recompute the v2.6.1 metrics, or claim protocol
-equivalence.
+Only after that result is reviewed may a separate v2.6.9 contract be considered.
+That contract would need to predeclare the minimum cycle/step span required to
+test capacity-check versus bulk-cycling discrimination and commanded-versus-
+measured channel hypotheses. It must not silently expand to full-file reads,
+cohort merging, target alignment, or model execution.
 
 Independently, a provider-issued release identifier or official checksum for the
 exact `SNL LFP.zip` remains the strongest missing source-snapshot evidence.
