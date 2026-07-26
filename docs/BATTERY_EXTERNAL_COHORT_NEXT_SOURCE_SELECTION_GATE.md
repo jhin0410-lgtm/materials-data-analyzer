@@ -211,9 +211,9 @@ python -m src.platform_core.battery_external_cohort_next_source_selection_gate -
 - candidate register:
   `fc0a863cd80756fee7048682fc2c0d13b876d5ee6442b889daa1bc30b1fa8b00`;
 - selection contract:
-  `4aff0596bc733ba7979a79c498139aa228a0af7dded11c45262e9731bd5001a9`;
+  `c960b21fc061393d4ebeba5e9a6a5f2d105c25da1514f8017feee0deef339079`;
 - tracked compact result:
-  `fb53069a149a9cb32dd837f5ef656673c2478072134747e5ed1b4ea997ff617b`.
+  `5cbb6b979bd6529e28d24af1ecb0e1579439fef2be710904081d8e81d032747b`.
 
 ## Software validation
 
