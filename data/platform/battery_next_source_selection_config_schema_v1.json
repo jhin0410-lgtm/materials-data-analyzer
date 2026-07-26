@@ -1,0 +1,29 @@
+{
+  "$id": "battery_next_source_selection_config_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "candidate_bundle_id": {"const": "battery_archive_local_bundle_v1"},
+    "candidate_register_path": {"const": "data/platform/battery_external_cohort_source_candidate_register_v1.json"},
+    "case_study_id": {"const": "battery_archive_next_source_selection"},
+    "contract_path": {"const": "data/platform/battery_external_cohort_next_source_selection_contract_v1.json"},
+    "credential_policy": {"const": {"network_access_required": false, "store_credentials": false}},
+    "dry_run": {"const": false},
+    "execution_mode": {"const": "verify"},
+    "execution_policy": {"type": "object"},
+    "expected_v2_6_10_checksum": {"const": "0093de000c25cfcbbd36eaf8216eabc7fb3bc3db23b724dbffcb69b4d77ddf28"},
+    "expected_v2_6_4_checksum": {"const": "2776bc152c0e4655f0c90ec6513883aea3758cac7fac687e02e5685c72dfdb6f"},
+    "output_policy": {"const": "tracked_compact_summary_and_local_full_result"},
+    "output_root": {"const": "outputs/v2_6_battery_next_source_selection"},
+    "package_id": {"const": "battery_external_cohort_next_source_selection_gate_v1"},
+    "schema_version": {"const": "2.6.11"},
+    "tracked_summary_path": {"const": "data/processed/battery_v2_6_11_external_cohort_next_source_selection_summary.json"},
+    "v2_6_10_snl_lfp_closeout_summary_path": {"const": "data/processed/battery_v2_6_10_snl_lfp_transition_artifact_evidence_summary.json"},
+    "v2_6_4_external_cohort_admission_summary_path": {"const": "data/processed/battery_v2_6_4_external_cohort_admission_summary.json"}
+  },
+  "required": ["schema_version", "package_id", "case_study_id", "candidate_bundle_id", "contract_path", "candidate_register_path", "v2_6_4_external_cohort_admission_summary_path", "v2_6_10_snl_lfp_closeout_summary_path", "expected_v2_6_4_checksum", "expected_v2_6_10_checksum", "execution_policy", "credential_policy", "output_root", "tracked_summary_path", "output_policy", "execution_mode", "dry_run"],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery Next Source Selection Config",
+  "type": "object"
+}
