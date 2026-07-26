@@ -117,6 +117,8 @@ python -m src.platform_core.battery_snl_lfp_artifact_binding --json validate \
 presence. `run` computes the archive checksum and reads the central directory.
 The persisted summary checksum is computed after the row-level manifest is
 removed, so the documented `validate` command checks the exact stored payload.
+Results produced before this checksum fix must be regenerated with `run` before
+validation.
 
 ## Outputs
 
