@@ -59,8 +59,15 @@
     "result": "metadata_retrieval_not_run",
     "status": "inconclusive",
     "strongest_evidence": "The official Deep Blue REST API documents dataset and file-set metadata fields, but dataset-specific JSON has not yet been retained.",
-    "suitable_for": ["software contract validation"],
-    "unsuitable_for": ["provider-to-local binding", "cross-cohort comparability", "predictive validation", "model training or evaluation"]
+    "suitable_for": [
+      "software contract validation"
+    ],
+    "unsuitable_for": [
+      "provider-to-local binding",
+      "cross-cohort comparability",
+      "predictive validation",
+      "model training or evaluation"
+    ]
   },
   "source_mutation_performed": false
 }
