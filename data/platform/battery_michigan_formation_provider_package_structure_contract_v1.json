@@ -1,0 +1,67 @@
+{
+  "allowed_source_scope": [
+    "tracked v2.6.11 next-source selection summary",
+    "tracked provider evidence record derived from official Deep Blue dataset record",
+    "tracked provider evidence record derived from official Deep Blue REST API documentation",
+    "tracked Battery Archive study-level standardization statement"
+  ],
+  "bounded_source_id": "michigan_fast_formation_deep_blue_b2773w109",
+  "claim_policy": {
+    "cell_tracker_declaration_is_cell_mapping": false,
+    "package_structure_is_exact_file_manifest": false,
+    "provider_doi_is_local_archive_identity": false,
+    "provider_file_count_is_internal_file_count": false,
+    "selection_is_dataset_admission": false,
+    "source_code_doi_is_conversion_pipeline_provenance": false,
+    "test_schedule_declaration_is_cycle_command_binding": false
+  },
+  "contract_id": "battery_michigan_formation_provider_package_structure_contract_v1",
+  "contract_recorded_on": "2026-07-26",
+  "decision_policy": {
+    "cell_tracker_presence_may_be_recorded_at_document_level": true,
+    "cell_tracker_schema_may_be_established": false,
+    "cross_cohort_admission_allowed": false,
+    "exact_file_set_manifest_may_be_established": false,
+    "internal_filename_manifest_may_be_established": false,
+    "local_archive_binding_may_be_established": false,
+    "predictive_validation_allowed": false,
+    "provider_dataset_identity_may_be_established": true,
+    "provider_file_set_count_may_be_recorded": true,
+    "provider_package_folder_structure_may_be_established": true,
+    "provider_to_standardized_row_binding_may_be_established": false,
+    "test_schedule_command_semantics_may_be_established": false,
+    "test_schedule_presence_may_be_recorded_at_document_level": true
+  },
+  "execution_policy": {
+    "cohort_merge": false,
+    "command_inference": false,
+    "filename_inference": false,
+    "local_archive_read": false,
+    "local_csv_payload_read": false,
+    "metric_recomputation": false,
+    "model_execution": false,
+    "network_access": false,
+    "provider_dataset_download": false,
+    "provider_file_payload_read": false
+  },
+  "next_authorized_scope": [
+    "provider dataset JSON metadata only if retrievable without payload download",
+    "provider file-set metadata records only if identifiers are exposed without payload download",
+    "stable file labels, sizes, MIME types, and repository checksums only",
+    "no file content, archive content, or local CSV content"
+  ],
+  "schema_version": "1",
+  "scientific_question": "What provider-package structure is source-backed for Michigan Formation, and which exact manifest and binding claims remain unresolved before any payload read?",
+  "stop_rules": [
+    "stop if official evidence does not expose file-set identifiers or checksums",
+    "stop if cell tracker or test schedule schemas require downloading provider payloads",
+    "stop before downloading the 2.37 GB provider bundle",
+    "stop before reading Michigan Formation.zip or any standardized CSV payload",
+    "stop before inferring commands from measured signals or filenames",
+    "stop before target harmonization, cohort merge, model execution, or metric recomputation"
+  ],
+  "upstream_identity": {
+    "provider_evidence_checksum": "079741f6b6082829f4754495e2b1f96433e574049de029f8bef593440402924a",
+    "v2_6_11_next_source_selection_checksum": "5cbb6b979bd6529e28d24af1ecb0e1579439fef2be710904081d8e81d032747b"
+  }
+}

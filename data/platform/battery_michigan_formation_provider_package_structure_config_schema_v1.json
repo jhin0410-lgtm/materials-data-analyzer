@@ -1,0 +1,31 @@
+{
+  "constraints": {
+    "local_archive_read": false,
+    "model_execution": false,
+    "network_access_required": false,
+    "provider_dataset_download": false,
+    "provider_file_payload_read": false,
+    "schema_version": "2.6.12"
+  },
+  "description": "Configuration schema for v2.6.12 Michigan Formation provider-package structure gate.",
+  "required_fields": [
+    "bounded_source_id",
+    "case_study_id",
+    "contract_path",
+    "credential_policy",
+    "dry_run",
+    "execution_mode",
+    "execution_policy",
+    "expected_v2_6_11_checksum",
+    "output_policy",
+    "output_root",
+    "package_id",
+    "provider_evidence_path",
+    "schema_version",
+    "tracked_summary_path",
+    "v2_6_11_next_source_selection_summary_path"
+  ],
+  "schema_id": "battery_michigan_formation_provider_package_structure_config_schema_v1",
+  "schema_version": "1",
+  "status": "active"
+}

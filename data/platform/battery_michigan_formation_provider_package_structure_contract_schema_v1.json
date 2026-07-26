@@ -1,0 +1,21 @@
+{
+  "claim_boundary": "The gate may recover provider identity and folder structure only.",
+  "description": "Prospective decision and stop contract for v2.6.12.",
+  "required_fields": [
+    "allowed_source_scope",
+    "bounded_source_id",
+    "claim_policy",
+    "contract_id",
+    "contract_recorded_on",
+    "decision_policy",
+    "execution_policy",
+    "next_authorized_scope",
+    "schema_version",
+    "scientific_question",
+    "stop_rules",
+    "upstream_identity"
+  ],
+  "schema_id": "battery_michigan_formation_provider_package_structure_contract_schema_v1",
+  "schema_version": "1",
+  "status": "active"
+}
