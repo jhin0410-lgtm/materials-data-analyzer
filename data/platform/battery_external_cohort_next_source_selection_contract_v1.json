@@ -1,0 +1,58 @@
+{
+  "candidate_bundle_id": "battery_archive_local_bundle_v1",
+  "claim_policy": {
+    "provider_schedule_is_cycle_row_binding": false,
+    "selection_is_cross_cohort_comparability": false,
+    "selection_is_dataset_admission": false,
+    "selection_is_local_archive_binding": false,
+    "selection_is_predictive_validation": false,
+    "source_doi_is_official_local_snapshot_checksum": false
+  },
+  "contract_id": "battery_external_cohort_next_source_selection_contract_v1",
+  "contract_recorded_on": "2026-07-26",
+  "hard_gate": {
+    "cell_tracker_declaration_required": true,
+    "cross_cohort_admission_allowed": false,
+    "dataset_doi_required": true,
+    "detailed_readme_required": true,
+    "exact_local_archive_binding_required_for_selection": false,
+    "predictive_validation_allowed": false,
+    "raw_cycler_data_declaration_required": true,
+    "required_disposition": "selected_for_bounded_source_binding_only",
+    "source_code_declaration_required": true,
+    "stable_dataset_record_required": true,
+    "test_schedule_declaration_required": true
+  },
+  "next_authorized_scope": [
+    "official Deep Blue dataset metadata record",
+    "provider README and file manifest inventory",
+    "cell tracker filename and schema inventory",
+    "test schedule filename and schema inventory",
+    "source-code provenance inventory"
+  ],
+  "schema_version": "1",
+  "scientific_question": "Which tracked Battery Archive candidate should receive the next bounded source-binding audit after the SNL LFP evidence line closes?",
+  "selection_policy": {
+    "cross_cohort_admission_allowed": false,
+    "local_archive_payload_read_allowed": false,
+    "missing_evidence_defaults_to_false": true,
+    "model_or_metric_execution_allowed": false,
+    "raw_dataset_download_allowed": false,
+    "select_exactly_one_candidate": true,
+    "selected_archive": "Michigan Formation.zip",
+    "selection_scope": "bounded_official_source_package_binding_only",
+    "weighted_score_allowed": false
+  },
+  "stop_rules": [
+    "stop if the official record cannot be bound to Michigan Formation.zip at source-family and cell-ID nomenclature level",
+    "stop if cell trackers or test schedules are absent from the provider package",
+    "stop if provider files require inferring command semantics from measured signals",
+    "stop before downloading the 2.37 GB raw data bundle",
+    "stop before reading local archive payloads, merging cohorts, or executing a model"
+  ],
+  "upstream_identity": {
+    "candidate_register_checksum": "fc0a863cd80756fee7048682fc2c0d13b876d5ee6442b889daa1bc30b1fa8b00",
+    "v2_6_10_snl_lfp_closeout_checksum": "0093de000c25cfcbbd36eaf8216eabc7fb3bc3db23b724dbffcb69b4d77ddf28",
+    "v2_6_4_external_cohort_admission_checksum": "2776bc152c0e4655f0c90ec6513883aea3758cac7fac687e02e5685c72dfdb6f"
+  }
+}
