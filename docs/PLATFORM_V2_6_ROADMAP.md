@@ -1,6 +1,6 @@
 # Platform v2.6 Roadmap
 
-Status: `v2.6.8_snl_lfp_bounded_schema_read_feature_stage_complete_local_execution_pending`
+Status: `v2.6.8_snl_lfp_bounded_schema_read_feature_stage_complete`
 
 ## Release Boundary
 
@@ -171,36 +171,56 @@ v2.6.8 implements the smallest payload-read contract justified by v2.6.7. It
 predeclares three 25 °C, replicate-`a` cycle-data/time-series pairs—one pair for
 each 0–100%, 20–80%, and 40–60% SOC protocol family.
 
-The implementation may:
+The implementation:
 
-- verify the exact v2.6.6 archive SHA-256 before entry access;
-- inspect the ZIP central directory;
-- open only the six exact representative entries;
-- read one header and at most five data rows per entry;
-- reject a physical line longer than 65,536 bytes;
-- record headers, explicit header units, conservative candidate roles, sampled
-  numeric/non-empty counts, and sampled row-width consistency.
+- verifies the exact v2.6.6 archive SHA-256 before entry access;
+- inspects the ZIP central directory;
+- opens only the six exact representative entries;
+- reads one header and at most five data rows per entry;
+- rejects a physical line longer than 65,536 bytes;
+- records headers, explicit header units, conservative candidate roles, sampled
+  numeric/non-empty counts, and sampled row-width consistency;
+- retains no raw sample values.
 
-The implementation does not retain raw sample values. Candidate roles are not
-promoted to command, measurement-channel, calibration, or physical-cell
-bindings. Header units are not calibration evidence.
+The reviewed local result records:
 
-The current GitHub-tracked result is:
+- archive identity: `verified`;
+- representative entries opened: `6 / 6`;
+- headers read: `6`;
+- sampled rows read: `30`;
+- schema-contract matches: `6`;
+- schema-contract mismatches: `0`;
+- sampled row-width matches: `6 / 6`;
+- cycle-data schema: 12 columns, common header checksum
+  `02c4b1f087f1133349cfb60f52443c75099c1d5742a266b4b2889701a344d88c`;
+- time-series schema: 11 columns, common header checksum
+  `730d272a0c60f8bce285e4659f437253af1da663b6ec69d2153fe39c531ac2b5`;
+- tracked compact-result checksum:
+  `28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2`.
 
-- bounded schema observation: `pending_local_artifact`;
-- CSV headers read: `false`;
-- CSV data rows read: `false`;
-- capacity-check versus bulk-cycle discrimination: `not_established`;
+The observed cycle-data headers contain cycle index, start/end time, test time,
+minimum/maximum current and voltage, charge/discharge capacity, and
+charge/discharge energy. The time-series headers additionally expose timestamp,
+environment-temperature, and cell-temperature columns. Header units are retained
+as source evidence only and are not calibration or channel-binding evidence.
+
+The recorded decision remains bounded:
+
+- bounded schema observation: `bounded_schema_observed`;
+- capacity-check versus bulk-cycle discrimination:
+  `header_and_first_rows_insufficient`;
 - cycle command to rows: `not_established`;
 - instrument channel to columns: `not_established`;
+- physical cell to entry: `not_established`;
+- official distribution snapshot: `not_established`;
 - cross-cohort comparability: `not_admitted`;
 - predictive validation: `blocked`;
-- scientific closeout: `inconclusive`.
+- overall: `bounded_schema_observed_gate_not_passed`;
+- scientific closeout: `diagnostic`.
 
-The pending status is required because the ignored local ZIP is unavailable to
-GitHub Actions. Synthetic fixtures validate software behavior and stopping rules
-only. The real compact schema observation must be produced and reviewed in the
-local checkout before merge. See
+Candidate roles are not promoted to command, measurement-channel, calibration,
+or physical-cell bindings. The six representatives do not establish all-file or
+full-file consistency. See
 [Battery SNL LFP Bounded CSV Schema Read](BATTERY_SNL_LFP_BOUNDED_SCHEMA_READ.md).
 
 The v2.5 compatibility and retrieval-reproducibility conclusions are unchanged.
@@ -210,19 +230,21 @@ metric recomputation, or public-version change is added.
 
 ## Next Evidence
 
-The immediate next action is not a broader loader. Run the v2.6.8 bounded audit
-against the checksum-verified local `SNL LFP.zip`, then review:
+The next step must remain a separate bounded contract. v2.6.9 may test whether
+capacity-check and bulk-cycling records can be discriminated without reading
+complete files or inferring undocumented command semantics.
 
-- exact observed headers and explicit units;
-- whether all six files satisfy the declared candidate-role contract;
-- whether sampled row widths are consistent;
-- whether any schema mismatch requires stopping rather than expanding the read.
+Before implementation, the contract must predeclare:
 
-Only after that result is reviewed may a separate v2.6.9 contract be considered.
-That contract would need to predeclare the minimum cycle/step span required to
-test capacity-check versus bulk-cycling discrimination and commanded-versus-
-measured channel hypotheses. It must not silently expand to full-file reads,
-cohort merging, target alignment, or model execution.
+- the minimum cycle-index span or exact cycle rows required;
+- whether cycle-data alone is sufficient or a matched time-series slice is
+  necessary;
+- explicit stop conditions for missing, non-monotonic, or ambiguous cycle indices;
+- rules separating observed values from commanded setpoints;
+- output fields that record ambiguity rather than forcing a classification.
+
+The next stage must not silently expand to all files, full-file reads, cohort
+merging, target alignment, model execution, or mechanism claims.
 
 Independently, a provider-issued release identifier or official checksum for the
 exact `SNL LFP.zip` remains the strongest missing source-snapshot evidence.
