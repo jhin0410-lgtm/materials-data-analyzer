@@ -1,11 +1,11 @@
 # Battery SNL LFP Bounded CSV Schema Read
 
-Status: `v2.6.8_feature_stage_complete_local_schema_read_pending`
+Status: `v2.6.8_feature_stage_complete_bounded_schema_observed`
 
 ## Objective
 
-v2.6.8 defines and implements the smallest payload-read step justified by the
-v2.6.7 source-to-entry review. It asks one narrow question:
+v2.6.8 implements the smallest payload-read step justified by the v2.6.7
+source-to-entry review. It asks one narrow question:
 
 > Do six predeclared representative SNL LFP files expose structurally consistent
 > headers and minimally sufficient candidate columns for a later, separately
@@ -140,9 +140,71 @@ Tracked compact result:
 data/processed/battery_v2_6_8_snl_lfp_bounded_schema_read_summary.json
 ```
 
-The initial tracked result is `pending_local_artifact` because GitHub cannot
-access the ignored local ZIP. The real local result must be reviewed before this
-feature is merged.
+Validated local full-result checksum:
+
+```text
+b6f4f3bff664e6a6bc3ddfeead891f4fdff2671f539cb40ae0a0d38b252d4494
+```
+
+Tracked compact-result checksum:
+
+```text
+28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2
+```
+
+The full result and compact result use separate deterministic checksums because
+`compact()` retains the bounded evidence fields and then canonicalizes the
+result again.
+
+## Observed bounded result
+
+The checksum-verified local run recorded:
+
+- archive identity: `verified`;
+- representative entries opened: `6 / 6`;
+- headers read: `6`;
+- sampled data rows read: `30`;
+- schema-contract matches: `6`;
+- schema-contract mismatches: `0`;
+- sampled row-width matches: `6 / 6`;
+- duplicate headers: none;
+- raw sample values retained: `false`;
+- complete CSV files read: `false`.
+
+All three cycle-data representatives expose the same 12-column header and header
+checksum:
+
+```text
+02c4b1f087f1133349cfb60f52443c75099c1d5742a266b4b2889701a344d88c
+```
+
+Observed cycle-data columns are:
+
+- `Cycle_Index`;
+- `Start_Time` and `End_Time`;
+- `Test_Time (s)`;
+- minimum and maximum current in `A`;
+- minimum and maximum voltage in `V`;
+- charge and discharge capacity in `Ah`;
+- charge and discharge energy in `Wh`.
+
+All three time-series representatives expose the same 11-column header and
+header checksum:
+
+```text
+730d272a0c60f8bce285e4659f437253af1da663b6ec69d2153fe39c531ac2b5
+```
+
+Observed time-series columns are:
+
+- `Date_Time`, `Test_Time (s)`, and `Cycle_Index`;
+- current in `A` and voltage in `V`;
+- charge and discharge capacity in `Ah`;
+- charge and discharge energy in `Wh`;
+- environment and cell temperature in header-labelled `C`.
+
+The observed `C` label is retained exactly as source header text. It is not
+silently converted to `°C` and is not calibration evidence.
 
 ## Software validation
 
@@ -158,19 +220,31 @@ Synthetic ZIP fixtures verify:
 - output isolation;
 - scientific-boundary rejection.
 
-Synthetic success validates software behavior only. It does not validate the
-real archive schema or any scientific interpretation.
+The tracked-result test validates the reviewed local compact artifact directly,
+locks its deterministic checksum, and confirms that all six observations remain
+bounded and structurally valid. GitHub Actions does not regenerate the real
+artifact because the ignored local ZIP is intentionally unavailable in CI.
 
-## Scientific closeout before local execution
+## Scientific closeout
 
-Current result: **Inconclusive**.
+Current result: **Diagnostic**.
 
-- Evidence level: contract defined without local payload observation.
-- Strongest evidence: exact archive identity, representative entries, and read
-  limits are predeclared.
-- Primary limitation: no real header or sampled row has yet been observed by the
-  tracked implementation.
-- Suitable for: bounded local schema-audit execution.
+- Result: `bounded_representative_schema_observed`.
+- Evidence level: six predeclared headers and at most five rows per file.
+- Strongest evidence: the checksum-verified archive yielded six contract-matching
+  representative observations with consistent cycle-data and time-series header
+  structures and no sampled row-width mismatch.
+- Primary limitation: the bounded samples cannot establish full-file or
+  all-entry consistency, capacity-check classification, exact cycle commands,
+  instrument-channel mapping, calibration, or cohort equivalence.
+- Suitable for: observed CSV schema inventory, candidate column-role planning,
+  and design of the next bounded read contract.
 - Unsuitable for: capacity-check classification, cycle-command binding,
-  instrument-channel binding, cohort comparison, predictive validation, model
-  selection, or engineering decisions.
+  instrument-channel binding, unit conversion, cohort comparison, model
+  evaluation, mechanism claims, or engineering decisions.
+
+The gate therefore remains:
+
+- overall: `bounded_schema_observed_gate_not_passed`;
+- cross-cohort comparability: `not_admitted`;
+- predictive validation: `blocked`.
