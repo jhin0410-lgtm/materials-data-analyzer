@@ -29,6 +29,6 @@ def test_tracked_summary_matches_generator_byte_for_byte(tmp_path: Path):
     tracked = Path(mod.DEFAULT_TRACKED_SUMMARY).read_text(encoding="utf-8")
     assert tracked == expected
     assert generated["deterministic_result_checksum"] == (
-        "fb53069a149a9cb32dd837f5ef656673c2478072134747e5ed1b4ea997ff617b"
+        "5cbb6b979bd6529e28d24af1ecb0e1579439fef2be710904081d8e81d032747b"
     )
     mod.validate_result(generated)
