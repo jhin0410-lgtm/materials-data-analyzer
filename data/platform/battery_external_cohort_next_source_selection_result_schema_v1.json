@@ -1,0 +1,30 @@
+{
+  "$id": "battery_external_cohort_next_source_selection_result_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "artifact_kind": {"enum": ["battery_external_cohort_next_source_selection_gate_result", "battery_external_cohort_next_source_selection_gate_compact_summary"]},
+    "candidate_assessments": {"maxItems": 9, "minItems": 9, "type": "array"},
+    "candidate_bundle_id": {"const": "battery_archive_local_bundle_v1"},
+    "candidate_register_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "candidate_register_id": {"const": "battery_external_cohort_source_candidate_register_v1"},
+    "candidate_summary": {"type": "object"},
+    "case_study_id": {"const": "battery_archive_next_source_selection"},
+    "contract_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "contract_id": {"const": "battery_external_cohort_next_source_selection_contract_v1"},
+    "deterministic_result_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "next_authorized_scope": {"type": "array"},
+    "package_id": {"const": "battery_external_cohort_next_source_selection_gate_v1"},
+    "recommendations": {"type": "array"},
+    "schema_version": {"const": "2.6.11"},
+    "scientific_closeout": {"type": "object"},
+    "selection_decision": {"type": "object"},
+    "source_references": {"type": "object"},
+    "upstream_checks": {"type": "object"}
+  },
+  "required": ["schema_version", "artifact_kind", "package_id", "case_study_id", "candidate_bundle_id", "contract_id", "contract_checksum", "candidate_register_id", "candidate_register_checksum", "upstream_checks", "candidate_summary", "candidate_assessments", "selection_decision", "next_authorized_scope", "scientific_closeout", "recommendations", "source_references", "deterministic_result_checksum", "network_called", "credentials_read", "raw_archive_read", "local_archive_payload_read", "provider_raw_bundle_downloaded", "provider_file_payload_read", "filename_metadata_inferred", "missing_metadata_inferred", "cross_cohort_comparability_promoted", "candidate_admitted", "cohort_merge_performed", "model_trained", "model_evaluated", "metrics_recomputed", "source_mutation_performed"],
+  "schema_version": "1",
+  "status": "active",
+  "title": "Battery External Cohort Next Source Selection Result",
+  "type": "object"
+}
