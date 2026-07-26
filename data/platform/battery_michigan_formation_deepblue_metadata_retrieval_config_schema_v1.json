@@ -1,0 +1,24 @@
+{
+  "$id": "battery_michigan_formation_deepblue_metadata_retrieval_config_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "api_evidence_path": {"type": "string"},
+    "case_study_id": {"const": "battery_michigan_formation_deepblue_metadata_retrieval"},
+    "contract_path": {"type": "string"},
+    "credential_policy": {"type": "object"},
+    "dry_run": {"const": false},
+    "execution_mode": {"const": "bounded_metadata_retrieval"},
+    "execution_policy": {"type": "object"},
+    "expected_v2_6_12_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "output_policy": {"const": "tracked_compact_summary_and_local_full_result"},
+    "output_root": {"type": "string"},
+    "package_id": {"const": "battery_michigan_formation_deepblue_metadata_retrieval_gate_v1"},
+    "schema_version": {"const": "2.6.13"},
+    "tracked_summary_path": {"type": "string"},
+    "v2_6_12_provider_package_summary_path": {"type": "string"}
+  },
+  "required": ["schema_version", "package_id", "case_study_id", "contract_path", "api_evidence_path", "v2_6_12_provider_package_summary_path", "expected_v2_6_12_checksum", "execution_policy", "credential_policy", "output_root", "tracked_summary_path", "output_policy", "execution_mode", "dry_run"],
+  "title": "Battery Michigan Formation Deep Blue Metadata Retrieval Config",
+  "type": "object"
+}
