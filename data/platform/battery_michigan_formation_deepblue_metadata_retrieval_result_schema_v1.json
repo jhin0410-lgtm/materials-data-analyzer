@@ -1,0 +1,27 @@
+{
+  "$id": "battery_michigan_formation_deepblue_metadata_retrieval_result_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "access_observation": {"type": "object"},
+    "api_evidence_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "artifact_kind": {"const": "battery_michigan_formation_deepblue_metadata_retrieval_compact_summary"},
+    "case_study_id": {"const": "battery_michigan_formation_deepblue_metadata_retrieval"},
+    "contract_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "dataset_response": {},
+    "decision": {"type": "object"},
+    "deterministic_result_checksum": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "error_category": {"type": "string"},
+    "file_set_records": {"maxItems": 2, "type": "array"},
+    "metadata_completeness": {"type": "object"},
+    "network_call_count": {"maximum": 3, "minimum": 0, "type": "integer"},
+    "network_called": {"type": "boolean"},
+    "package_id": {"const": "battery_michigan_formation_deepblue_metadata_retrieval_gate_v1"},
+    "retrieval_status": {"enum": ["pending_local_metadata_retrieval", "succeeded", "failed"]},
+    "schema_version": {"const": "2.6.13"},
+    "scientific_closeout": {"type": "object"}
+  },
+  "required": ["schema_version", "artifact_kind", "package_id", "case_study_id", "contract_id", "contract_checksum", "api_evidence_id", "api_evidence_checksum", "preservation_checks", "retrieval_status", "network_call_count", "network_called", "dataset_endpoint", "dataset_response", "file_set_records", "metadata_completeness", "decision", "scientific_closeout", "credentials_read", "credentials_sent", "provider_dataset_downloaded", "provider_file_payload_read", "local_archive_read", "local_csv_payload_read", "raw_response_retained", "personal_contact_metadata_retained", "filename_metadata_inferred", "command_semantics_inferred", "missing_metadata_inferred", "candidate_admitted", "cross_cohort_comparability_promoted", "cohort_merge_performed", "model_trained", "model_evaluated", "metrics_recomputed", "source_mutation_performed", "deterministic_result_checksum"],
+  "title": "Battery Michigan Formation Deep Blue Metadata Retrieval Result",
+  "type": "object"
+}

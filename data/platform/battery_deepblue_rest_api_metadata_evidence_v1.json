@@ -1,0 +1,53 @@
+{
+  "authoritative_source": "University of Michigan Deep Blue Data REST API documentation",
+  "dataset_endpoint_template": "/data/concern/data_sets/{data_set_id}.json",
+  "dataset_record_url": "https://deepblue.lib.umich.edu/data/concern/data_sets/b2773w109",
+  "documented_dataset_fields": [
+    "id",
+    "doi",
+    "title",
+    "file_set_ids",
+    "total_file_count",
+    "total_file_size",
+    "total_file_size_human_readable",
+    "file_sets"
+  ],
+  "documented_download_endpoints": [
+    "/data/concern/data_sets/{data_set_id}/zip_download.json",
+    "/data/downloads/{file_set_id}.json"
+  ],
+  "documented_file_set_fields": [
+    "id",
+    "title",
+    "label",
+    "date_uploaded",
+    "date_modified",
+    "file_size",
+    "file_size_human_readable",
+    "checksum_algorithm",
+    "checksum_value",
+    "original_checksum",
+    "mime_type"
+  ],
+  "evidence_boundary": {
+    "dataset_specific_json_retrieved_in_this_record": false,
+    "file_set_ids_recovered": false,
+    "file_set_metadata_recovered": false,
+    "local_archive_binding_established": false,
+    "provider_dataset_downloaded": false,
+    "provider_file_payload_read": false
+  },
+  "evidence_record_id": "battery_deepblue_rest_api_metadata_evidence_v1",
+  "file_set_endpoint_template": "/data/concern/file_sets/{file_set_id}.json",
+  "provider_dataset_public_record": {
+    "dataset_id": "b2773w109",
+    "doi": "10.7302/pa3f-4w30",
+    "file_count": 2,
+    "last_modified": "2022-11-17",
+    "title": "Battery test data - fast formation study",
+    "total_file_size_human_readable": "2.37 GB"
+  },
+  "rest_api_url": "https://deepblue.lib.umich.edu/data/rest-api",
+  "retrieved_on": "2026-07-26",
+  "schema_version": "1"
+}

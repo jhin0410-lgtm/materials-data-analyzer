@@ -1,0 +1,75 @@
+{
+  "claim_policy": {
+    "metadata_retrieval_is_cross_cohort_comparability": false,
+    "metadata_retrieval_is_dataset_admission": false,
+    "metadata_retrieval_is_predictive_validation": false,
+    "provider_checksum_is_local_archive_binding": false,
+    "provider_file_set_is_standardized_cycle_row_binding": false,
+    "top_level_file_set_metadata_is_internal_manifest": false
+  },
+  "contract_id": "battery_michigan_formation_deepblue_metadata_retrieval_contract_v1",
+  "network_contract": {
+    "credentials_allowed": false,
+    "dataset_path": "/data/concern/data_sets/b2773w109.json",
+    "file_set_path_template": "/data/concern/file_sets/{file_set_id}.json",
+    "host": "deepblue.lib.umich.edu",
+    "max_dataset_response_bytes": 1048576,
+    "max_file_set_requests": 2,
+    "max_file_set_response_bytes": 262144,
+    "method": "GET",
+    "query_parameters_allowed": false,
+    "redirects_allowed": false,
+    "scheme": "https",
+    "timeout_seconds": 30,
+    "user_agent": "materials-data-analyzer/2.6.13 metadata-only audit"
+  },
+  "next_authorized_scope": [
+    "compare recovered top-level file-set labels, sizes, MIME types, and repository checksums with tracked local archive identity evidence",
+    "design a bounded provider-to-local top-level artifact binding contract if compatible checksum algorithms and stable sizes are available"
+  ],
+  "recorded_on": "2026-07-26",
+  "retention_contract": {
+    "contact_metadata_retained": false,
+    "creator_or_depositor_retained": false,
+    "dataset_fields": [
+      "id",
+      "title",
+      "doi",
+      "total_file_count",
+      "total_file_size",
+      "total_file_size_human_readable",
+      "file_set_ids"
+    ],
+    "descriptions_retained": false,
+    "file_set_fields": [
+      "id",
+      "title",
+      "label",
+      "date_uploaded",
+      "date_modified",
+      "file_size",
+      "file_size_human_readable",
+      "checksum_algorithm",
+      "checksum_value",
+      "original_checksum",
+      "mime_type"
+    ],
+    "raw_response_retained": false
+  },
+  "schema_version": "1",
+  "scientific_question": "Can payload-free Deep Blue REST metadata recover stable top-level file-set identities and preservation fields for the Michigan fast-formation dataset without downloading provider files?",
+  "stop_rules": [
+    "stop on redirect, non-HTTPS URL, host mismatch, query string, or download endpoint",
+    "stop if a response exceeds its predeclared byte bound",
+    "stop if dataset identity, DOI, title, or top-level file-set count differs from the contract",
+    "stop if file-set identifiers are missing, duplicated, malformed, or exceed the request bound",
+    "stop before provider file download, local archive read, CSV read, command inference, cohort merge, or model execution"
+  ],
+  "upstream_identity": {
+    "expected_top_level_file_set_count": 2,
+    "provider_dataset_doi": "10.7302/pa3f-4w30",
+    "provider_dataset_id": "b2773w109",
+    "provider_dataset_title": "Battery test data - fast formation study",
+    "v2_6_12_checksum": "b1ce09e4ce06c9ec90839b63e1f2546d1fd2808f9c8ea6717edc5bc0fe93ce7d"
+  }
+}

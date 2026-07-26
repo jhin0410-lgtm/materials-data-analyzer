@@ -1,0 +1,23 @@
+{
+  "$id": "battery_deepblue_rest_api_metadata_evidence_schema_v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authoritative_source": {"type": "string"},
+    "dataset_endpoint_template": {"type": "string"},
+    "dataset_record_url": {"type": "string"},
+    "documented_dataset_fields": {"items": {"type": "string"}, "type": "array"},
+    "documented_download_endpoints": {"items": {"type": "string"}, "type": "array"},
+    "documented_file_set_fields": {"items": {"type": "string"}, "type": "array"},
+    "evidence_boundary": {"type": "object"},
+    "evidence_record_id": {"const": "battery_deepblue_rest_api_metadata_evidence_v1"},
+    "file_set_endpoint_template": {"type": "string"},
+    "provider_dataset_public_record": {"type": "object"},
+    "rest_api_url": {"type": "string"},
+    "retrieved_on": {"type": "string"},
+    "schema_version": {"const": "1"}
+  },
+  "required": ["schema_version", "evidence_record_id", "retrieved_on", "authoritative_source", "rest_api_url", "dataset_record_url", "dataset_endpoint_template", "file_set_endpoint_template", "documented_dataset_fields", "documented_file_set_fields", "documented_download_endpoints", "provider_dataset_public_record", "evidence_boundary"],
+  "title": "Battery Deep Blue REST API Metadata Evidence",
+  "type": "object"
+}

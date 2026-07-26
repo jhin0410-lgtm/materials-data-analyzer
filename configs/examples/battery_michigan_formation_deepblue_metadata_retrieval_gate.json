@@ -1,0 +1,31 @@
+{
+  "api_evidence_path": "data/platform/battery_deepblue_rest_api_metadata_evidence_v1.json",
+  "case_study_id": "battery_michigan_formation_deepblue_metadata_retrieval",
+  "contract_path": "data/platform/battery_michigan_formation_deepblue_metadata_retrieval_contract_v1.json",
+  "credential_policy": {
+    "network_access_required": true,
+    "send_credentials": false,
+    "store_credentials": false
+  },
+  "dry_run": false,
+  "execution_mode": "bounded_metadata_retrieval",
+  "execution_policy": {
+    "cohort_merge": false,
+    "command_inference": false,
+    "local_archive_read": false,
+    "local_csv_payload_read": false,
+    "metadata_get_only": true,
+    "metric_recomputation": false,
+    "model_execution": false,
+    "network_access": true,
+    "provider_dataset_download": false,
+    "provider_file_payload_read": false
+  },
+  "expected_v2_6_12_checksum": "b1ce09e4ce06c9ec90839b63e1f2546d1fd2808f9c8ea6717edc5bc0fe93ce7d",
+  "output_policy": "tracked_compact_summary_and_local_full_result",
+  "output_root": "outputs/v2_6_battery_michigan_formation_deepblue_metadata",
+  "package_id": "battery_michigan_formation_deepblue_metadata_retrieval_gate_v1",
+  "schema_version": "2.6.13",
+  "tracked_summary_path": "data/processed/battery_v2_6_13_michigan_formation_deepblue_metadata_summary.json",
+  "v2_6_12_provider_package_summary_path": "data/processed/battery_v2_6_12_michigan_formation_provider_package_summary.json"
+}

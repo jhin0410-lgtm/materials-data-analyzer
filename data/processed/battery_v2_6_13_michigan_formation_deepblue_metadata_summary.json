@@ -1,0 +1,85 @@
+{
+  "access_observation": {
+    "credentials_sent": false,
+    "endpoint_kind": "official_dataset_metadata_json",
+    "http_status": 403,
+    "observation_scope": "user_reported_local_execution_context",
+    "redirect_followed": false,
+    "response_body_retained": false
+  },
+  "api_evidence_checksum": "797786d50b4266a91c6d534ea94ca63b20eeeeeca2f97f31811fc7dd423aa04f",
+  "api_evidence_id": "battery_deepblue_rest_api_metadata_evidence_v1",
+  "artifact_kind": "battery_michigan_formation_deepblue_metadata_retrieval_compact_summary",
+  "candidate_admitted": false,
+  "case_study_id": "battery_michigan_formation_deepblue_metadata_retrieval",
+  "cohort_merge_performed": false,
+  "command_semantics_inferred": false,
+  "contract_checksum": "7e9791087a25d03230f54118d04c53bb429d6bd79b3ce8d5c13bb9132dcf74e3",
+  "contract_id": "battery_michigan_formation_deepblue_metadata_retrieval_contract_v1",
+  "credentials_read": false,
+  "credentials_sent": false,
+  "cross_cohort_comparability_promoted": false,
+  "dataset_endpoint": "https://deepblue.lib.umich.edu/data/concern/data_sets/b2773w109.json",
+  "dataset_response": null,
+  "decision": {
+    "cross_cohort_comparability": "not_admitted",
+    "internal_provider_manifest": "not_established",
+    "local_archive_binding": "not_established",
+    "overall_status": "provider_metadata_endpoint_access_denied_gate_not_passed",
+    "predictive_validation": "blocked",
+    "provider_dataset_identity": "documented_not_api_verified",
+    "provider_to_standardized_row_binding": "not_established",
+    "top_level_file_set_metadata": "access_denied_for_observed_execution_context"
+  },
+  "deterministic_result_checksum": "5b43bec9448c339b0a6cc958f7af321a44d16b0acffc66099e7436d07975e7f2",
+  "error_category": "http_status_403",
+  "file_set_records": [],
+  "filename_metadata_inferred": false,
+  "local_archive_read": false,
+  "local_csv_payload_read": false,
+  "metadata_completeness": {
+    "file_set_ids_recovered": false,
+    "labels_recovered": false,
+    "mime_types_recovered": false,
+    "original_checksums_recovered": false,
+    "repository_checksums_recovered": false,
+    "sizes_recovered": false
+  },
+  "metrics_recomputed": false,
+  "missing_metadata_inferred": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_call_count": 1,
+  "network_called": true,
+  "package_id": "battery_michigan_formation_deepblue_metadata_retrieval_gate_v1",
+  "personal_contact_metadata_retained": false,
+  "preservation_checks": {
+    "model_or_metric_change_performed": false,
+    "v2_6_12_checksum_verified": true,
+    "v2_6_12_overall_status": "provider_package_structure_recovered_exact_manifest_not_established_gate_not_passed"
+  },
+  "provider_dataset_downloaded": false,
+  "provider_file_payload_read": false,
+  "raw_response_retained": false,
+  "retrieval_status": "failed",
+  "schema_version": "2.6.13",
+  "scientific_closeout": {
+    "primary_limitation": "No dataset-specific metadata body was retrieved, and one observed HTTP 403 does not establish that the provider API is globally inaccessible.",
+    "result": "payload_free_metadata_retrieval_access_denied",
+    "status": "inconclusive",
+    "strongest_evidence": "A bounded HTTPS GET to the official Deep Blue dataset metadata endpoint returned HTTP 403 in the user-reported local execution context; no response body was retained.",
+    "suitable_for": [
+      "source-access diagnostics",
+      "metadata-gate stop decision",
+      "provenance-preserving failure reporting"
+    ],
+    "unsuitable_for": [
+      "provider file-set identity claims",
+      "provider-to-local binding",
+      "cross-cohort comparability",
+      "predictive validation",
+      "model training or evaluation"
+    ]
+  },
+  "source_mutation_performed": false
+}
