@@ -167,7 +167,7 @@ def test_validate_rejects_scientific_promotion(tmp_path: Path):
         mod.validate_result(result)
 
 
-def test_execute_writes_only_declared_outputs(tmp_path: Path):
+def test_execute_writes_only_declared_outputs_and_persisted_summary_validates(tmp_path: Path):
     config = setup_repo(tmp_path)
     result = mod.execute(config, tmp_path, write_outputs=True)
     output_root = tmp_path / mod.DEFAULT_OUTPUT_ROOT
@@ -177,6 +177,11 @@ def test_execute_writes_only_declared_outputs(tmp_path: Path):
     ]
     assert (tmp_path / mod.DEFAULT_TRACKED_SUMMARY).is_file()
     assert len(result["archive_audit"]["entry_manifest"]) == 60
+
+    persisted = json.loads((output_root / "artifact_binding_summary.json").read_text(encoding="utf-8"))
+    assert "entry_manifest" not in persisted["archive_audit"]
+    assert persisted["archive_audit"]["entry_manifest_checksum"] == result["archive_audit"]["entry_manifest_checksum"]
+    mod.validate_result(persisted)
 
 
 def test_preview_does_not_read_archive_bytes(tmp_path: Path, monkeypatch):
