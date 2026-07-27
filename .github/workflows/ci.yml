@@ -25,13 +25,5 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Run first failing test with log
-        run: python -m pytest -x -vv > pytest.log 2>&1
-
-      - name: Upload pytest diagnostic log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nist-ambench-pytest-log
-          path: pytest.log
-          if-no-files-found: error
+      - name: Run tests
+        run: python -m pytest -q
