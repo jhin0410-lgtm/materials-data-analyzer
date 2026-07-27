@@ -24,6 +24,9 @@ RUNTIME_VERSION = re.compile(
 CHANGELOG_RELEASE = re.compile(
     r"^##\s+(?:\[)?(\d+\.\d+\.\d+)(?:\])?(?:\s|$)", re.MULTILINE
 )
+NO_UNRELEASED_WORK = re.compile(
+    r"^No unreleased changes(?: at the v\d+\.\d+\.\d+ promotion boundary)?\.$"
+)
 SUMMARY_FILE = "cross_repository_release_readiness.json"
 REPORT_FILE = "cross_repository_release_readiness.md"
 MANIFEST_FILE = "cross_repository_release_readiness_manifest.json"
@@ -70,6 +73,11 @@ def unreleased_text(changelog: str) -> str:
     return remainder[: next_heading.start()] if next_heading else remainder
 
 
+def unreleased_contains_work(changelog: str) -> bool:
+    body = unreleased_text(changelog).strip()
+    return bool(body and not NO_UNRELEASED_WORK.fullmatch(body))
+
+
 def highest_version(text: str) -> str | None:
     versions = {match.group(1) for match in VERSION_TOKEN.finditer(text)}
     return max(versions, key=parse_version) if versions else None
@@ -111,7 +119,7 @@ def audit_data_repository(root: Path) -> dict[str, Any]:
     changelog = read_text(root, "CHANGELOG.md")
     unreleased = unreleased_text(changelog)
     highest_unreleased = highest_version(unreleased)
-    main_ahead = bool(unreleased.strip())
+    main_ahead = unreleased_contains_work(changelog)
     release_notes = f"docs/releases/V{public_version.replace('.', '_')}.md"
 
     if runtime_version != public_version:
@@ -132,7 +140,7 @@ def audit_data_repository(root: Path) -> dict[str, Any]:
     status_doc = read_text(root, "docs/PUBLIC_RELEASE_STATUS.md")
     if f"stable public release is **v{public_version}**" not in status_doc:
         blockers.append("Public release status does not match the version source.")
-    if "exact Git commit SHA" not in status_doc:
+    if "exact commit SHA" not in status_doc and "exact Git commit SHA" not in status_doc:
         blockers.append("Public release status lacks commit-level citation guidance.")
 
     ci = read_text(root, ".github/workflows/ci.yml")
