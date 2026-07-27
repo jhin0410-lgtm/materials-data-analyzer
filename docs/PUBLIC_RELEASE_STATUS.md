@@ -2,7 +2,7 @@
 
 ## Current public release
 
-The current stable public release is **v2.4.0**.
+The current stable public release is **v2.7.0**.
 
 The canonical machine-readable version is stored in the repository-root file:
 
@@ -12,45 +12,62 @@ PUBLIC_RELEASE_VERSION
 
 Release notes:
 
-- [`docs/releases/V2_4_0.md`](releases/V2_4_0.md)
+- [`docs/releases/V2_7_0.md`](releases/V2_7_0.md)
 
 Citation metadata:
 
 - [`CITATION.cff`](../CITATION.cff)
 
+## Release boundary
+
+v2.7.0 includes the internal v2.5.1-v2.5.2 compatibility and retrieval stages,
+the complete v2.6.1-v2.6.14 Battery evidence line, and the audited 38-commit
+post-v2.6 integration and public-repository scope.
+
+The v2.6.14 closeout remains a real internal boundary: it closes the Battery v2.6
+evidence line and authorizes no automatic v2.6.15 stage. The later generic
+characterization handoff, public producer-consumer workflows, representative
+NIST workflow, repository hardening, citation governance, and release-readiness
+audits are included in v2.7.0 rather than retroactively relabeled as v2.6.0.
+
+No separate v2.5.0 or v2.6.0 public release is created.
+
+## Preserved results
+
+The release preserves rather than upgrades:
+
+- Materials adapter: `compatible_with_restrictions`;
+- Battery adapter: `partial`;
+- retrieval reproducibility: `insufficient_evidence`;
+- Ridge forecast improvement: `unsupported`;
+- cross-cohort comparability: `not_established`;
+- external-cohort admission: `not_admitted`;
+- predictive-validation readiness: `not_ready`;
+- provider-to-local binding: `not_established`;
+- Battery evidence-line scientific status: `inconclusive`;
+- public process-characterization cases: `Diagnostic`;
+- NIST predictive or causal modeling readiness: blocked.
+
 ## Relationship between `main` and the public release
 
-The `main` branch contains additional work after v2.4.0. Those changes are
-listed under `Unreleased` in [`CHANGELOG.md`](../CHANGELOG.md).
+At the v2.7.0 promotion commit, `Unreleased` contains no additional feature work.
+That commit is eligible for reviewed external tag or GitHub Release creation
+after all release workflows pass.
 
-Internal feature-stage labels such as `v2.5.1`, `v2.5.2`, `v2.6.1`, or
-`v2.6.2` inside the `Unreleased` section are development-stage identifiers.
-They are not automatically promoted to a stable public software release.
+After any subsequent change is merged to `main`, cite the exact commit SHA in
+addition to v2.7.0 and treat `main` as ahead of the stable release until another
+release closeout is completed.
 
-Do not describe `main` as v2.5 or v2.6 unless a separate release closeout has:
-
-1. completed software validation;
-2. reviewed scientific claim boundaries and preserved negative results;
-3. moved the applicable changelog entries into a stable release section;
-4. added matching release notes;
-5. updated `PUBLIC_RELEASE_VERSION` and `CITATION.cff` together;
-6. confirmed that tracked files contain no raw restricted data, secrets,
-   generated outputs, or user-specific paths.
+A future release must complete software validation, review scientific claim
+boundaries, move intended `Unreleased` scope into release notes, update all
+version sources together, and confirm that tracked files contain no restricted
+raw data, secrets, generated outputs, or user-specific paths.
 
 ## Reproducible citation
 
-For a stable release, cite:
-
-- repository title;
-- public release version;
-- repository URL;
-- exact Git commit SHA used for the analysis;
-- all external datasets, publications, standards, and upstream software used by
-  the relevant case study.
-
-When using the current `main` branch rather than the stable release, cite the
-exact commit SHA. The public release version alone is insufficient because
-`main` may include post-release workflows and scientific closeouts.
+For a stable release, cite the repository title, public release version,
+repository URL, exact Git commit SHA, and all external datasets, publications,
+standards, and upstream software used by the relevant case study.
 
 The root MIT license covers original repository code and documentation only. It
 does not relicense third-party datasets, publications, standards, model files,

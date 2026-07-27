@@ -25,14 +25,17 @@ def _module():
     return module
 
 
-def test_tracked_v2_7_candidate_corrects_the_release_boundary() -> None:
+def test_tracked_v2_7_promotion_preserves_the_release_boundary() -> None:
     module = _module()
     summary = module.build_summary(PROJECT_ROOT)
 
     assert summary["status"] == "completed"
-    assert summary["decision"] == "v2_7_0_selected_metadata_promotion_pending"
+    assert summary["decision"] == (
+        "v2_7_0_metadata_promoted_pending_external_release_action"
+    )
     assert summary["candidate_version"] == "2.7.0"
     assert summary["superseded_candidate_version"] == "2.6.0"
+    assert summary["release_date"] == "2026-07-28"
     assert summary["post_v2_6_commit_count_at_audit"] == 38
     assert summary["separate_v2_5_or_v2_6_public_release_authorized"] is False
     assert summary["software_validation"]["status"] == "supported"
@@ -46,11 +49,11 @@ def test_tracked_v2_7_candidate_corrects_the_release_boundary() -> None:
     assert summary["scientific_closeout"][
         "post_v2_6_process_characterization_status"
     ] == "diagnostic"
-    assert summary["public_metadata_promotion_performed"] is False
+    assert summary["public_metadata_promotion_performed"] is True
     assert summary["tag_or_release_created"] is False
 
 
-def test_candidate_inventory_includes_every_v2_5_and_v2_6_stage() -> None:
+def test_promotion_inventory_includes_every_v2_5_and_v2_6_stage() -> None:
     config = json.loads(
         (PROJECT_ROOT / "configs" / "v2_7_public_release_candidate.json").read_text(
             encoding="utf-8"
@@ -64,7 +67,7 @@ def test_candidate_inventory_includes_every_v2_5_and_v2_6_stage() -> None:
     assert config["post_v2_6_commit_count_at_audit"] == 38
     assert len(config["audited_main_commit"]) == 40
     assert len(config["v2_6_core_closeout_commit"]) == 40
-    assert config["public_metadata_promotion_performed"] is False
+    assert config["public_metadata_promotion_performed"] is True
     assert config["tag_or_release_created"] is False
 
 
@@ -73,15 +76,15 @@ def test_superseded_v2_6_candidate_files_are_removed() -> None:
         assert not (PROJECT_ROOT / relative).exists(), relative
 
 
-def test_candidate_outputs_are_checksummed_and_fail_closed(tmp_path: Path) -> None:
+def test_promotion_outputs_are_checksummed_and_fail_closed(tmp_path: Path) -> None:
     module = _module()
-    output = tmp_path / "candidate"
+    output = tmp_path / "promotion"
     paths = module.run(PROJECT_ROOT, output)
 
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
     manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
     assert summary["candidate_version"] == "2.7.0"
-    assert manifest["public_metadata_promotion_performed"] is False
+    assert manifest["public_metadata_promotion_performed"] is True
     assert manifest["tag_or_release_created"] is False
     for name, filename in manifest["outputs"].items():
         assert manifest["output_sha256"][name] == module.sha256_file(
@@ -95,17 +98,25 @@ def test_candidate_outputs_are_checksummed_and_fail_closed(tmp_path: Path) -> No
     assert sentinel.read_text(encoding="utf-8") == "keep"
 
 
-def test_candidate_document_preserves_complete_scope_and_claim_boundaries() -> None:
+def test_promotion_documents_preserve_complete_scope_and_claim_boundaries() -> None:
     document = (
         PROJECT_ROOT / "docs" / "V2_7_PUBLIC_RELEASE_CANDIDATE.md"
+    ).read_text(encoding="utf-8")
+    release_notes = (
+        PROJECT_ROOT / "docs" / "releases" / "V2_7_0.md"
     ).read_text(encoding="utf-8")
 
     for version in ["v2.5.1", "v2.5.2", *[f"v2.6.{i}" for i in range(1, 15)]]:
         assert version in document
-    assert "The next stable public version is **v2.7.0**" in document
-    assert "v2.6 evidence line is closed" in document
-    assert "38 commits" in document
+    for version in ["2.5.1", "2.5.2", *[f"2.6.{i}" for i in range(1, 15)]]:
+        assert version in release_notes
+    assert "The stable public version is **v2.7.0**" in document
+    assert "v2.6 evidence line" in document
+    assert "38 audited commits" in document
     assert "Ridge forecast improvement: **Unsupported**" in document
     assert "final evidence-line scientific status: **Inconclusive**" in document
     assert "remain **Diagnostic**" in document
+    assert "Ridge pooled MAE: `4.1537`" in release_notes
+    assert "persistence pooled MAE: `3.4256`" in release_notes
+    assert "not_ready_for_predictive_or_causal_modeling" in release_notes
     assert "does not establish" in document

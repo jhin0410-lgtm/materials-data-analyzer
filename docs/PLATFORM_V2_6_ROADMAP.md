@@ -1,294 +1,137 @@
 # Platform v2.6 Roadmap
 
-Status: `v2.6.9_snl_lfp_bounded_cycle_regime_feature_stage_complete`
+Status: `released_within_v2.7.0_line_closed`
 
 ## Release Boundary
 
-`v2.4.0` remains the current public release. v2.6.1 through v2.6.9 are
-feature-stage work and do not create a tag, release, or public version change.
+v2.6.1 through v2.6.14 are completed internal feature stages included in the
+public `v2.7.0` release. The checksum-bound Battery evidence line remains closed;
+no automatic v2.6.15 stage is authorized.
 
-## v2.6.1 Scope
+This boundary is preserved rather than erased. The later characterization
+handoff, public producer-consumer workflows, representative NIST workflow,
+repository hardening, and release governance are post-v2.6 work and establish
+the v2.7.0 public minor-release boundary.
 
-v2.6.1 uses the existing tracked Kaggle NASA-derived Battery analysis-ready
-table. It adds:
+## v2.6.1 Warm-Start Forecast Benchmark
 
-- exact five-cycle capacity-retention target alignment;
-- current and lagged retention plus trailing rolling features;
-- battery-disjoint deterministic GroupKFold evaluation;
-- persistence and fixed Ridge baselines;
-- train-only imputation and scaling;
-- per-battery and pooled metrics;
-- leakage, plausibility, source-mutation, and deterministic checksum audits;
-- preview, run, and validate CLI commands.
+v2.6.1 uses the tracked Kaggle NASA-derived Battery table and adds exact
+five-cycle target alignment, battery-disjoint GroupKFold evaluation,
+persistence and fixed Ridge baselines, train-only preprocessing, per-battery and
+pooled metrics, and deterministic validation artifacts.
 
-The result is `unsupported`: Ridge does not improve pooled MAE over persistence
-and improves only 13 of 33 evaluated batteries. This negative result is kept
-without tuning or benchmark redesign.
-
-## Boundaries
-
-The scenario is warm-start cross-battery forecasting. It permits only
-pre-origin history from each held-out battery and is not zero-shot. It does
-not establish lifetime, RUL, SOH, mechanism, causal, calibrated-probability,
-external-generalization, or engineering-decision evidence.
+The result is `unsupported`: Ridge pooled MAE is `4.1537` versus persistence
+`3.4256`, and Ridge improves on 13 of 33 evaluated batteries. The scenario is
+warm-start cross-battery forecasting, not zero-shot. It does not establish SOH,
+RUL, lifetime, mechanism, external-generalization, or engineering evidence.
 
 ## v2.6.2 Failure Diagnostics
 
-v2.6.2 preserves every v2.6.1 metric and adds deterministic, read-only
-diagnostics over the existing predictions. The top five batteries account for
-`90.35%` of Ridge excess absolute error, but no leave-one-battery-out result
-reverses persistence superiority. Ridge is worse in the fixed early, middle,
-and late regimes. Sparse batteries, abrupt-transition proximity, and three
-nonphysical Ridge predictions are not primary aggregate drivers.
-
-Source/test-condition comparability remains `comparability_not_established`.
-The scientific closeout is `diagnostic`, not a mechanism or predictive
-generalization finding. See
-[Battery Forecast Failure Diagnostics](BATTERY_FORECAST_FAILURE_DIAGNOSTICS.md).
+The deterministic diagnostics preserve every v2.6.1 prediction and metric. The
+top five batteries account for `90.35%` of Ridge excess absolute error, but no
+leave-one-battery-out exclusion reverses persistence superiority. The result
+remains diagnostic, not a mechanism or generalization finding.
 
 ## v2.6.3 Comparability Evidence
 
-v2.6.3 preserves the v2.6.1 model and metrics and the v2.6.2 diagnostic
-conclusion. It audits a predeclared evidence matrix for chemistry, nominal
-capacity, ambient temperature, charge/discharge protocols, cutoff voltage,
-measurement calibration/uncertainty, and source snapshot/version.
+Chemistry, nominal capacity, cycle-specific commanded protocols, cutoff policy,
+calibration/uncertainty, and the official NASA snapshot remain unresolved or
+heterogeneous. Decision: `comparability_not_established`; scientific closeout:
+`inconclusive`.
 
-The immediate Kaggle distribution and cycle-level ambient-temperature records
-are verified, but no required field establishes cross-battery condition
-equivalence. Chemistry, nominal capacity, cycle-specific commanded protocols,
-cutoff policy, calibration/uncertainty, and the official NASA snapshot remain
-unresolved; recorded temperatures are heterogeneous. The result is
-`comparability_not_established` with an `inconclusive` scientific closeout.
-See [Battery Comparability Evidence Package](BATTERY_COMPARABILITY_EVIDENCE_PACKAGE.md).
+## v2.6.4 External-Cohort Admission
 
-## v2.6.4 External Cohort Admission
-
-v2.6.4 adds a prospective admission gate before any external Battery cohort is
-merged or evaluated. It separates raw inventory review, cross-cohort
-comparability, and predictive-validation eligibility.
-
-The first candidate is the local Battery Archive-style bundle. Its nine archives,
-196 cycle files, and 196 time-series files support a restricted inventory review,
-but filename-encoded chemistry and C-rate labels are not source-backed metadata.
-Nominal capacity, cycle-specific commanded protocols, cutoff policy,
-calibration/uncertainty, official snapshot identities, and a verified target
-contract remain unresolved.
-
-The recorded decision is:
+The local Battery Archive-style candidate receives:
 
 - inventory review: `admitted_with_restrictions`;
 - cross-cohort comparability: `not_admitted`;
 - predictive validation: `blocked`;
 - overall: `not_admitted_for_cross_cohort_validation`.
 
-No raw archive is read or extracted, no filename metadata is parsed, and no model
-or metric is executed or changed. See
-[Battery External Cohort Admission Gate](BATTERY_EXTERNAL_COHORT_ADMISSION_GATE.md).
+No raw archive is extracted, no filename label is promoted to source-backed
+metadata, and no model or metric is changed.
 
-## v2.6.5 SNL LFP Source Evidence Recovery
+## v2.6.5-v2.6.10 SNL LFP Evidence
 
-v2.6.5 narrows the nine-archive candidate to `SNL LFP.zip` and records official
-source documentation from Battery Archive, DOE OSTI, and Sandia. The bounded
-study documents the commercial A123 APR18650M1A LFP cell, 1.1 Ah nominal
-capacity, study equipment, protocol groups, capacity-check procedure, and the
-2.0-3.6 V range for the 100% DOD LFP regime.
+The bounded SNL line performs source-document recovery, local ZIP identity and
+safe-entry inventory, repository nomenclature review, six-file schema
+observation, 24-row cycle-regime review, and transition-artifact consistency
+closeout.
 
-This evidence remains document-level. It is not yet checksum-bound to local
-archive entries, cycles, command logs, or instrument channels. A publication DOI,
-OSTI ID, and SAND number identify the study but not a versioned data distribution.
-The source 80% capacity benchmark is also not treated as the v2.6.1 five-cycle
-target.
+Useful document, archive, schema, and candidate-regime evidence is recorded, but
+exact physical-cell identity, cycle-command-to-row binding, instrument-channel
+semantics, official versioned distribution identity, cross-cohort comparability,
+and predictive-validation eligibility remain unestablished.
 
-The recorded decision is:
+Recorded stage decisions include:
 
-- source document recovery: `completed_with_remaining_binding_gaps`;
-- bounded inventory binding: `eligible_for_read_only_inventory_binding`;
-- cross-cohort comparability: `not_admitted`;
-- predictive validation: `blocked`;
-- overall: `source_evidence_recovered_gate_not_passed`.
+- v2.6.5: `source_evidence_recovered_gate_not_passed`;
+- v2.6.6: `local_artifact_inventory_bound_gate_not_passed`;
+- v2.6.7: `condition_group_nomenclature_bound_gate_not_passed`;
+- v2.6.8: `bounded_schema_observed_gate_not_passed`;
+- v2.6.9: `bounded_cycle_regime_evidence_recorded_gate_not_passed`;
+- v2.6.10: `transition_artifact_consistency_recorded_gate_not_passed`.
 
-See [Battery SNL LFP Source Evidence Recovery](BATTERY_SNL_LFP_SOURCE_EVIDENCE_RECOVERY.md).
+Candidate source-sequence labels are never promoted to confirmed command or
+measurement semantics.
 
-## v2.6.6 SNL LFP Artifact Binding
+## v2.6.11-v2.6.13 Michigan Source Path
 
-v2.6.6 implements the bounded archive identity audit authorized by v2.6.5. It
-streams `SNL LFP.zip` to compute SHA-256 and reads its ZIP central directory to
-record entry names, sizes, CRC values, safe paths, cycle/time-series pairing,
-and filename-label provenance. It does not read entry payloads or CSV rows and
-does not extract the archive.
+v2.6.11 selects Michigan Formation for source binding only, not cohort
+admission. v2.6.12 recovers provider-package structure but not an exact file
+manifest or provider-to-local artifact binding. v2.6.13 records an observed
+provider metadata-access HTTP 403 without claiming global Deep Blue
+unavailability.
 
-The verified local result records:
+Decisions:
 
-- archive SHA-256:
-  `006a335cbcdabc858a85ab0cdbc59a7001150751cf22abe8a7132c85ef63223d`;
-- entry-manifest checksum:
-  `f85e6f1ac333f7ff20b7bfd01b8599cfe86e8950c4971e9fc074a367da86a75c`;
-- 60 safe entries, 30 cycle CSVs, 30 time-series CSVs, and 30 complete pairs;
-- local artifact inventory binding: `local_artifact_inventory_bound`;
-- document-to-archive binding: `not_established`;
-- official distribution snapshot: `not_established`;
-- cross-cohort comparability: `not_admitted`;
-- predictive validation: `blocked`;
-- overall: `local_artifact_inventory_bound_gate_not_passed`.
+- v2.6.11: `next_source_candidate_selected_gate_not_passed`;
+- v2.6.12:
+  `provider_package_structure_recovered_exact_manifest_not_established_gate_not_passed`;
+- v2.6.13: `provider_metadata_endpoint_access_denied_gate_not_passed`.
 
-The raw ZIP and row-level manifest remain uncommitted. See
-[Battery SNL LFP Artifact Binding Audit](BATTERY_SNL_LFP_ARTIFACT_BINDING_AUDIT.md).
+## v2.6.14 External-Evidence-Line Closeout
 
-## v2.6.7 SNL LFP Source-to-Entry Binding
+The final closeout verifies all 13 v2.6 stage artifacts in order with canonical
+checksums. Final decisions:
 
-v2.6.7 links the official publication and Battery Archive documentation to the
-checksum-bound local archive at the narrowest defensible level.
+- evidence-line integrity: `verified`;
+- registered NASA benchmark: `preserved`;
+- persistence scope: `registered_nasa_warm_start_benchmark_only`;
+- Ridge generalization: `unsupported`;
+- cross-cohort comparability: `not_established`;
+- external-cohort admission: `not_admitted`;
+- predictive-validation readiness: `not_ready`;
+- provider-to-local binding: `not_established`;
+- engineering-decision readiness: `not_ready`;
+- scientific closeout: `inconclusive`.
 
-The official Battery Archive nomenclature defines institution, form factor,
-cathode, environment temperature, beginning-of-life SOC window, bulk-cycling
-charge/discharge rate, and replicate tokens. The 30 observed SNL LFP cell stems
-aggregate into 12 condition-group entry patterns that match this nomenclature
-and the documented SNL study variables.
+The primary limitation is missing source-backed compatible chemistry, nominal
+capacity, commanded protocols, cutoff policy, calibration/uncertainty, target
+definition, stable source snapshot, and provider-to-local row-level binding. It
+is not a lack of model complexity.
 
-The recorded decision is:
+## Closeout and Reopen Conditions
 
-- publication to Battery Archive repository: `established`;
-- repository filename nomenclature: `established`;
-- study to condition groups: `established_condition_group_only`;
-- condition groups to entry patterns:
-  `established_repository_nomenclature_only`;
-- physical cell to entry: `not_established`;
-- cycle command to CSV rows: `not_established`;
-- instrument channel to CSV columns: `not_established`;
-- official distribution snapshot: `not_established`;
-- cross-cohort comparability: `not_admitted`;
-- predictive validation: `blocked`;
-- overall: `condition_group_nomenclature_bound_gate_not_passed`.
+`v2.6 is closed`. No automatic v2.6.15 feature stage is authorized. The line may
+be reopened only when materially new predeclared evidence exists, such as an
+official versioned source snapshot with stable checksums, source-backed protocol
+and calibration metadata, verified provider-to-local binding, or an independent
+cohort that passes comparability and admission gates.
 
-No archive bytes, entry payloads, CSV headers, or CSV rows are read in v2.6.7.
-No filename label is promoted to a measured value, physical cell identity, or
-cycle-specific command. See
-[Battery SNL LFP Source-to-Entry Binding Review](BATTERY_SNL_LFP_SOURCE_ENTRY_BINDING_REVIEW.md).
+Repeated provider-access workarounds, larger arbitrary reads, another model
+family, hyperparameter tuning, or purposeless dataset collection are not valid
+reopen conditions.
 
-## v2.6.8 SNL LFP Bounded CSV Schema Read
+## v2.7.0 Integration Context
 
-v2.6.8 implements the smallest payload-read contract justified by v2.6.7. It
-predeclares three 25 °C, replicate-`a` cycle-data/time-series pairs—one pair for
-each 0–100%, 20–80%, and 40–60% SOC protocol family.
-
-The reviewed local result records:
-
-- archive identity: `verified`;
-- representative entries opened: `6 / 6`;
-- headers read: `6`;
-- sampled rows read: `30`;
-- schema-contract matches: `6`;
-- schema-contract mismatches: `0`;
-- sampled row-width matches: `6 / 6`;
-- cycle-data schema: 12 columns, common header checksum
-  `02c4b1f087f1133349cfb60f52443c75099c1d5742a266b4b2889701a344d88c`;
-- time-series schema: 11 columns, common header checksum
-  `730d272a0c60f8bce285e4659f437253af1da663b6ec69d2153fe39c531ac2b5`;
-- tracked compact-result checksum:
-  `28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2`.
-
-The recorded decision remains bounded:
-
-- bounded schema observation: `bounded_schema_observed`;
-- capacity-check versus bulk-cycle discrimination:
-  `header_and_first_rows_insufficient`;
-- cycle command to rows: `not_established`;
-- instrument channel to columns: `not_established`;
-- physical cell to entry: `not_established`;
-- official distribution snapshot: `not_established`;
-- cross-cohort comparability: `not_admitted`;
-- predictive validation: `blocked`;
-- overall: `bounded_schema_observed_gate_not_passed`;
-- scientific closeout: `diagnostic`.
-
-Candidate roles are not promoted to command, measurement-channel, calibration,
-or physical-cell bindings. See
-[Battery SNL LFP Bounded CSV Schema Read](BATTERY_SNL_LFP_BOUNDED_SCHEMA_READ.md).
-
-## v2.6.9 SNL LFP Bounded Cycle-Regime Review
-
-v2.6.9 reads exactly the first eight cycle-summary rows from three predeclared
-25 °C, replicate-`a` cycle-data representatives. Positions 1–3 are recorded as
-`capacity_check_candidate`; positions 4–8 are recorded as
-`bulk_cycle_candidate`. These source-sequence candidates are never promoted to
-confirmed labels.
-
-Only cycle index, minimum/maximum current, minimum/maximum voltage, and
-charge/discharge capacity are retained as exact source decimal strings. No
-complete CSV, time-series row, unselected field, fitted threshold, row exclusion,
-unit conversion, cohort merge, or model execution is permitted.
-
-The reviewed local result records:
-
-- archive identity: `verified`;
-- representative cycle-data entries opened: `3 / 3`;
-- cycle-summary rows read: `24`;
-- contract mismatches: `0`;
-- row-width matches: `24 / 24`;
-- strictly increasing cycle indices: `3 / 3`;
-- within-file candidate contrasts: `3 / 3`;
-- tracked compact-result checksum:
-  `dc6c7c4046d81ddf879c2f1538eab75708dd387f7d9d940adc0c6dfc2c3e01dc`.
-
-Observed condition-specific contrasts are:
-
-- 0–100% SOC: minimum current separates the candidate groups (`-0.55 A`
-  versus `-1.1 A`);
-- 20–80% SOC: minimum voltage separates the candidate groups
-  (`1.998–1.999 V` versus `2.700–3.159 V`);
-- 40–60% SOC: minimum current, minimum voltage, charge capacity, and discharge
-  capacity have non-overlapping candidate ranges.
-
-No common separating field exists across all three protocol families. Position 4
-also differs materially from positions 5–8 in capacity or voltage in every
-representative, so the bulk-candidate group is not treated as homogeneous and
-position 4 remains transition-ambiguous.
-
-The recorded decision is:
-
-- capacity-check versus bulk-cycle discrimination:
-  `candidate_supported_not_established`;
-- source-sequence candidate assignment: `recorded_not_promoted`;
-- within-file cycle-regime contrast: `observed_all_representatives`;
-- step-level discrimination: `not_available_no_step_identifier`;
-- cycle command to rows: `not_established`;
-- instrument channel to columns: `not_established`;
-- physical cell to entry: `not_established`;
-- official distribution snapshot: `not_established`;
-- cross-cohort comparability: `not_admitted`;
-- predictive validation: `blocked`;
-- overall: `bounded_cycle_regime_evidence_recorded_gate_not_passed`;
-- scientific closeout: `diagnostic`.
-
-See [Battery SNL LFP Bounded Cycle-Regime Review](BATTERY_SNL_LFP_BOUNDED_CYCLE_REGIME_REVIEW.md).
-
-The v2.5 compatibility and retrieval-reproducibility conclusions are unchanged.
-Battery retrieval reproducibility remains `insufficient_evidence`, and no
-network, credential, acquisition, source mutation, cohort merge, model training,
-metric recomputation, or public-version change is added.
-
-## Next Evidence
-
-A broader loader or model run is not justified. The immediate unresolved question
-is whether position 4 is a normal first bulk cycle, an initialization/transition
-record, or a conversion artifact, and whether any source-provided step or command
-metadata exists that can test the candidate labels directly.
-
-A future bounded contract may proceed only if it predeclares:
-
-- the exact evidence source that can distinguish row 4 from stable bulk rows;
-- the exact representative entry or documented metadata to read;
-- the minimum required row or time-series slice;
-- stop conditions for absent step identifiers or ambiguous command semantics;
-- an output that preserves `not_established` rather than fitting a classifier.
-
-It must not silently expand to all entries, complete-file reads, universal
-thresholds, cohort merging, target alignment, model execution, or mechanism
-claims. Independently, a provider-issued release identifier or official checksum
-for the exact `SNL LFP.zip` remains the strongest missing source-snapshot evidence.
+The later public-repository and process-characterization work does not alter the
+v2.6 Battery conclusions. Its separate public minor-release context is recorded
+in [`docs/releases/V2_7_0.md`](releases/V2_7_0.md).
 
 ## Non-Goals
 
-v2.6 does not add deep learning, LSTM, Transformer, GNN, PINN, AutoML,
-hyperparameter search, automatic acquisition, heterogeneous dataset merging,
-mechanism fitting, lifetime prediction, UI, tag, or release work.
+v2.6 does not claim deep-learning superiority, zero-shot forecasting, SOH/RUL or
+lifetime prediction, mechanism fitting, automatic acquisition, heterogeneous
+cohort merging, independent predictive validation, UI deployment, or autonomous
+engineering decisions.

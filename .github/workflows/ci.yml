@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,4 +30,17 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Run tests
-        run: python -m pytest -q
+        shell: bash
+        run: |
+          mkdir -p outputs/ci
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee outputs/ci/pytest.log
+
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-diagnostics
+          path: outputs/ci/pytest.log
+          if-no-files-found: error
+          retention-days: 14

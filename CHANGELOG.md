@@ -2,38 +2,54 @@
 
 ## Unreleased
 
-- Added v2.6.2 deterministic Battery forecast-failure diagnostics over the
-  unchanged v2.6.1 predictions. Influence, leave-one-battery-out,
-  trajectory-quality, fixed-cycle regime, local-trend, physical-plausibility,
-  and metadata-comparability audits retain the `unsupported` benchmark result.
-- Recorded a `diagnostic` closeout: excess error is concentrated but no
-  single-battery exclusion reverses persistence superiority, and
-  source/test-condition comparability remains unestablished. No model,
-  feature, tuning, clipping, acquisition, or public-version change was added.
-- Added v2.6.1 leakage-safe five-cycle Battery capacity-retention forecasting
-  with battery-disjoint GroupKFold validation, persistence and fixed Ridge
-  baselines, train-only preprocessing, deterministic checksums, and
-  preview/run/validate CLI commands.
-- Recorded the actual result as `unsupported`: Ridge pooled MAE is `4.1537`
-  versus persistence `3.4256`, with improvement on 13 of 33 evaluated
-  batteries. No zero-shot, SOH/RUL, mechanism, or engineering claim is made.
-- Added v2.5.2 bounded retrieval-reproducibility evidence records, comparison
-  outcomes, readiness summaries, and preview/run/validate CLI commands.
-  Exact bytes, canonical logical content, metadata agreement, and insufficient
-  evidence are separate outcomes; cross-domain and same-file comparisons are
-  prohibited.
-- Audited the tracked Materials and Battery evidence without network,
-  credentials, source mutation, migration, or model execution. Both remain
-  `insufficient_evidence` because no independent second retrieval event is
-  present; the v2.5.1 compatibility outcomes remain unchanged.
-- Added v2.5.1 explicit, version-allowlisted compatibility adapters for the
-  tracked Materials v2.2.4 structure summary and Battery v2.3.5 source-lineage
-  summary without migration, source mutation, network access, or credentials.
-- Added deterministic raw-byte and canonical logical JSON checksum replay,
-  strict unresolved-field preservation, a compact compatibility summary, and
-  preview/run/validate CLI commands. Materials remains compatible with
-  restrictions and Battery remains partial; source truth and scientific
-  validity are not promoted.
+## v2.7.0
+
+- Consolidated internal feature stages v2.5.1-v2.5.2 and v2.6.1-v2.6.14,
+  together with 38 audited post-v2.6 integration and public-repository commits,
+  into one additive public semantic release.
+- Preserved the v2.6.14 line-closeout boundary: the Battery v2.6 evidence line
+  remains closed and no automatic v2.6.15 stage is authorized. No separate
+  v2.5.0 or v2.6.0 public release is created.
+- Added version-allowlisted compatibility adapters for tracked Materials v2.2.4
+  and Battery v2.3.5 artifacts with deterministic byte and canonical logical-
+  content checks. Materials remains `compatible_with_restrictions`, Battery
+  remains `partial`, and provenance portability remains `diagnostic`.
+- Added bounded retrieval-reproducibility evidence. Both tracked domains remain
+  `insufficient_evidence` because no independent second comparable retrieval
+  event is available.
+- Added the leakage-safe Battery warm-start forecast benchmark, deterministic
+  failure diagnostics, comparability evidence, and external-cohort admission
+  gate. Ridge generalization remains `unsupported` (`4.1537` pooled MAE versus
+  persistence `3.4256`, improving on 13 of 33 batteries).
+- Added SNL LFP source recovery, local ZIP identity and safe-entry binding,
+  source-to-entry nomenclature review, schema observation, cycle-regime review,
+  and transition-artifact closeout without promoting candidate labels to exact
+  command or measurement semantics.
+- Added Michigan Formation next-source selection, provider-package structure
+  review, and provider-metadata access closeout. Provider-to-local binding and
+  external-cohort admission remain unestablished.
+- Added the checksum-bound v2.6.14 evidence-line closeout. All 13 v2.6 stage
+  artifacts are verified, while cross-cohort comparability remains
+  `not_established`, predictive-validation readiness remains `not_ready`, and
+  the final scientific status remains `inconclusive`.
+- Added public-repository hardening, security and contribution policies,
+  citation governance, and deterministic release-readiness audits.
+- Added checksum-bound schema `1.0` characterization-bundle consumption with
+  explicit `sample_id`, provenance, path/hash/size checks, external process-table
+  identity gates, deterministic reports, and no row-order joins.
+- Added pinned DWCNT, RWGS XRD/EDS, four-carbon-material, and NIST AM-Bench
+  producer-consumer workflows while preserving blocked methods, unresolved
+  context, and `Diagnostic` claim boundaries.
+- Added the one-command representative NIST process-characterization workflow,
+  process-design identifiability audit, exact condition identity checks, bounded
+  minimum design augmentation, and official process-metadata provenance. The
+  three-condition design remains `not_ready_for_predictive_or_causal_modeling`;
+  no response model or process optimum is produced.
+- Preserved prior negative and limited Materials outcomes including
+  `performance_degraded`, `structure_predictive_value_limited`, no
+  representative model, and representation-only graph artifacts.
+- The offline promotion and release-readiness audits do not create Git tags,
+  GitHub Releases, package publications, or new scientific results.
 
 ## v2.4.0
 
