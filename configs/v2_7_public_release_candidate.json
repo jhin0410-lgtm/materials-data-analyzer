@@ -6,6 +6,8 @@
   "v2_6_core_closeout_commit": "50e3ee1201ef791b250558a30c373848d615f815",
   "post_v2_6_commit_count_at_audit": 38,
   "current_public_version_before_promotion": "2.4.0",
+  "promoted_public_version": "2.7.0",
+  "release_date": "2026-07-28",
   "included_internal_stage_versions": [
     "2.5.1",
     "2.5.2",
@@ -38,8 +40,8 @@
     "scripts/audit_cross_repository_release_readiness.py",
     "docs/PUBLIC_RELEASE_STATUS.md"
   ],
-  "release_decision": "v2_7_0_selected_metadata_promotion_pending",
+  "release_decision": "v2_7_0_metadata_promoted_external_release_pending",
   "separate_v2_5_or_v2_6_public_release_authorized": false,
-  "public_metadata_promotion_performed": false,
+  "public_metadata_promotion_performed": true,
   "tag_or_release_created": false
 }
