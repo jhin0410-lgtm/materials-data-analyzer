@@ -127,10 +127,47 @@ python src/process_data.py `
 Simulation mode is a data-driven screening aid, not a physics simulator or an
 authority for final process decisions.
 
+## Recommended Representative Workflow
+
+Run the complete real process–characterization example with one command:
+
+```powershell
+python scripts/run_representative_process_characterization_workflow.py `
+  --output outputs/representative_process_characterization
+```
+
+This is the recommended user-facing entry point. It performs:
+
+```text
+verified NIST real-data case
+-> provenance and sample-ID integration
+-> artifact integrity closeout
+-> process-design identifiability audit
+-> minimum bounded next-experiment plan
+-> Diagnostic scientific closeout
+```
+
+Expected top-level outputs:
+
+```text
+01_verified_case/
+02_process_design_audit/
+03_minimum_design_plan/
+representative_workflow_summary.json
+representative_workflow_report.md
+representative_workflow_manifest.json
+```
+
+The workflow intentionally stops before model training or optimization because
+the current three coupled process conditions are not scientifically ready for
+predictive or causal claims. See
+[`docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md`](docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md).
+
 ## Representative Real Process–Characterization Case Study
 
 The NIST AM-Bench 2018-02 example connects ten IN625 AMMT laser traces to
 source-reported optical-microscopy melt-pool width and depth measurements.
+The component-level case command is:
 
 ```powershell
 python scripts/build_nist_ambench_2018_02_case_study.py `
@@ -258,57 +295,3 @@ outputs/              local regenerable outputs; ignored by Git
 docs/                 architecture, methods, trust boundaries, and release notes
 tests/                unit, integration, contract, and clean-checkout tests
 ```
-
-See [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) and
-[`docs/PLATFORM_DIRECTION_RESET.md`](docs/PLATFORM_DIRECTION_RESET.md).
-
-## Testing
-
-Run the full suite:
-
-```powershell
-python -m pytest -q
-```
-
-On Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
-```
-
-The tracked test suite is designed to run without local raw datasets, private
-credentials, downloaded archives, or previously generated `outputs/` folders.
-Passing tests establishes software behavior, not scientific validity.
-
-## Data, Security, and Public-Repository Policy
-
-Raw downloaded datasets, proprietary instrument exports, credentials, local
-registries, row-level predictions, and generated outputs must not be committed.
-External datasets retain their own licenses and attribution requirements; the
-root MIT license does not relicense third-party data or publications.
-
-See:
-
-- [`data/raw/README.md`](data/raw/README.md)
-- [`SECURITY.md`](SECURITY.md)
-- [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- [pull request template](.github/pull_request_template.md)
-
-## Documentation
-
-Useful entry points:
-
-- [`docs/PORTFOLIO_OVERVIEW.md`](docs/PORTFOLIO_OVERVIEW.md)
-- [`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_HANDOFF.md)
-- [`docs/PLATFORM_DIRECTION_RESET.md`](docs/PLATFORM_DIRECTION_RESET.md)
-- [`docs/SCIENTIFIC_TRUST_BOUNDARY.md`](docs/SCIENTIFIC_TRUST_BOUNDARY.md)
-- [`docs/PGIR_MODEL_CONTRACT.md`](docs/PGIR_MODEL_CONTRACT.md)
-- [`docs/BATTERY_GENERALIZATION_FORECASTING.md`](docs/BATTERY_GENERALIZATION_FORECASTING.md)
-
-## License
-
-Original code and original documentation in this repository are available under
-the [MIT License](LICENSE).
-
-External datasets, publications, standards, and third-party software remain
-subject to their own licenses, terms of use, and citation requirements.
