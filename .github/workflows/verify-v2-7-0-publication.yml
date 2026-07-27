@@ -79,8 +79,12 @@ jobs:
 
           git show "${TARGET}:${NOTES_PATH}" > /tmp/expected-release-notes.md
           gh release view "${TAG}" \
-            --json tagName,name,isDraft,isPrerelease,isLatest,url,body \
+            --json tagName,name,isDraft,isPrerelease,url,body \
             > /tmp/published-release.json
+          gh release list \
+            --limit 100 \
+            --json tagName,isLatest \
+            > /tmp/release-list.json
 
           python - <<'PY'
           import hashlib
@@ -93,16 +97,25 @@ jobs:
           release = json.loads(
               Path("/tmp/published-release.json").read_text(encoding="utf-8")
           )
+          release_list = json.loads(
+              Path("/tmp/release-list.json").read_text(encoding="utf-8")
+          )
           expected_notes = Path("/tmp/expected-release-notes.md").read_text(
               encoding="utf-8"
           )
+          matching = [
+              item for item in release_list
+              if item["tagName"] == publication["tag_name"]
+          ]
+          assert len(matching) == 1
+          is_latest = matching[0]["isLatest"]
 
           assert release["tagName"] == publication["tag_name"]
           assert release["name"] == publication["release_title"]
           assert release["url"] == publication["release_url"]
           assert release["isDraft"] is publication["expected_draft"]
           assert release["isPrerelease"] is publication["expected_prerelease"]
-          assert release["isLatest"] is publication["expected_latest"]
+          assert is_latest is publication["expected_latest"]
           assert release["body"].rstrip() == expected_notes.rstrip()
 
           verification = {
@@ -118,7 +131,7 @@ jobs:
               ).hexdigest(),
               "draft": release["isDraft"],
               "prerelease": release["isPrerelease"],
-              "latest": release["isLatest"],
+              "latest": is_latest,
               "release_body_exact_match": True,
               "package_publication_performed": False,
               "model_training_performed": False,
