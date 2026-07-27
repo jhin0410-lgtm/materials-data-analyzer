@@ -2,8 +2,6 @@
 
 ## Unreleased
 
-No unreleased changes are currently recorded.
-
 ## v2.7.0
 
 - Consolidated the internal v2.5.1, v2.5.2, v2.6.1, and v2.6.2 development
