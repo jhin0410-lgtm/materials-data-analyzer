@@ -1,30 +1,20 @@
-# v2.7.0 Public Release Candidate
+# v2.7.0 Public Release Promotion Closeout
 
-## Corrected decision
+## Decision
 
-The next stable public version is **v2.7.0**.
+The selected stable public version is **v2.7.0** and the tracked release metadata
+has been promoted. The previous v2.6.0 candidate remains superseded because the
+v2.6.14 evidence-line closeout explicitly ended the internal v2.6 line and
+prohibited an automatic v2.6.15 stage.
 
-The previously selected v2.6.0 candidate is superseded. The reason is not
-cosmetic numbering: the tracked v2.6.14 closeout explicitly states that the
-v2.6 evidence line is closed, that no automatic v2.6.15 stage is authorized,
-and that the next useful work must be a separate end-to-end case study or a
-reopening supported by materially new evidence.
-
-After that closeout, 38 commits added a distinct integration and public-
-repository scope, including generic characterization handoff, pinned public
-producer-consumer workflows, the NIST representative process-characterization
-workflow, repository hardening, citation governance, and release-readiness
-audits. Treating those changes as v2.6.0 would erase the repository's own line-
-closeout boundary.
-
-This candidate selects version and scope only. It does not yet change
-`PUBLIC_RELEASE_VERSION`, runtime `PLATFORM_VERSION`, `CITATION.cff`, the root
-changelog, or any external Git tag or release.
+This closeout changes repository release metadata only. It does not create a Git
+tag or GitHub Release, publish a package, rerun a scientific model, change a
+metric, or access external data.
 
 ## Complete included history
 
-The release candidate must include every internal stage below. None is a
-separate public release:
+The public release includes all internal stages below. None is a separate public
+release:
 
 - v2.5.1 compatibility adapters;
 - v2.5.2 retrieval-reproducibility audit;
@@ -43,38 +33,32 @@ separate public release:
 - v2.6.13 Deep Blue metadata-access closeout;
 - v2.6.14 checksum-bound external-evidence-line closeout.
 
-Any release note or changelog that names only v2.6.1-v2.6.2 is incomplete and
-must fail review.
-
-## Post-v2.6 release scope
-
-The new minor-release boundary additionally includes:
+The release also includes the distinct post-v2.6 scope added after the line
+closeout:
 
 1. public repository hardening, license, security, contribution, citation, and
    release-governance files;
 2. schema `1.0` checksum-bound characterization bundle consumption;
 3. explicit sample-context and external process-table identity gates;
-4. pinned DWCNT, RWGS, four-carbon-material, and NIST AM-Bench
-   cross-repository workflows;
+4. pinned DWCNT, RWGS, four-carbon-material, and NIST AM-Bench workflows;
 5. the representative NIST process-characterization workflow;
 6. process-design identifiability and one-to-one condition identity checks;
 7. bounded minimum design augmentation;
-8. official NIST commanded-to-actual power and laser-spot-size provenance;
+8. official NIST commanded-to-actual power and spot-size provenance;
 9. offline cross-repository release-readiness auditing.
 
-The v2.6 core closeout commit is:
+## Promoted metadata
 
-```text
-50e3ee1201ef791b250558a30c373848d615f815
-```
+The following tracked sources agree on `2.7.0`:
 
-The audited repository boundary before this correction is:
+- `PUBLIC_RELEASE_VERSION`;
+- runtime `PLATFORM_VERSION`;
+- `CITATION.cff` with `date-released: 2026-07-28`;
+- `CHANGELOG.md`;
+- `docs/releases/V2_7_0.md`;
+- `docs/PUBLIC_RELEASE_STATUS.md`.
 
-```text
-ed5eac38584a174edbb9216aca10fc8232cdb504
-```
-
-The audited boundary is 38 commits ahead of the v2.6 core closeout.
+The root `Unreleased` section is empty at the reviewed promotion boundary.
 
 ## Preserved scientific outcomes
 
@@ -84,7 +68,7 @@ The audited boundary is 38 commits ahead of the v2.6 core closeout.
 - Materials adapter: `compatible_with_restrictions`;
 - Battery adapter: `partial`;
 - provenance portability: **Diagnostic**;
-- retrieval reproducibility: `insufficient_evidence` for both tracked domains.
+- retrieval reproducibility: `insufficient_evidence`.
 
 ### Battery v2.6
 
@@ -99,40 +83,36 @@ The audited boundary is 38 commits ahead of the v2.6 core closeout.
 
 ### Post-v2.6 process-characterization work
 
-- checksum, schema, provenance, and exact sample-ID integration are software-
-  validated;
+- checksum, schema, provenance, and exact sample-ID integration are
+  software-validated;
 - DWCNT, RWGS, four-carbon-material, and NIST cases remain **Diagnostic**;
 - blocked modalities and unresolved source context remain preserved;
-- NIST's three coupled conditions are
-  `not_ready_for_predictive_or_causal_modeling`;
+- NIST remains `not_ready_for_predictive_or_causal_modeling`;
 - no response model or process optimum is produced.
 
-## Why the earlier v2.7 PR was rejected
+## Required validation
 
-The earlier PR correctly recognized the v2.7 semantic boundary but its
-changelog and release notes described only through v2.6.2. It omitted the
-tracked v2.6.3-v2.6.14 comparability, admission, source-binding, bounded-read,
-provider-access, and checksum-closeout chain. It was therefore closed without
-merge.
+Promotion is complete only after all of the following pass on the promotion
+merge context:
 
-## Promotion requirements
+1. complete repository CI;
+2. public release metadata consistency tests;
+3. this v2.7 promotion audit and checksum manifest;
+4. the v2.6.14 tracked closeout validator;
+5. the representative NIST workflow;
+6. NIST process-design and minimum-design workflows;
+7. pinned cross-repository release-readiness audit against characterization
+   commit `7242594f775b8dbe651a6131bb1b39b5f60c62cd`.
 
-1. create a complete v2.7.0 changelog section covering all stages listed above
-   and the post-v2.6 integration scope;
-2. add `docs/releases/V2_7_0.md` with all positive, negative, restricted,
-   blocked, Diagnostic, Inconclusive, and Unsupported outcomes;
-3. update `PUBLIC_RELEASE_VERSION`, `PLATFORM_VERSION`, and `CITATION.cff`
-   together to `2.7.0`, including `date-released`;
-4. update the v2.5 and v2.6 roadmaps to show that their internal stages are
-   released within v2.7.0 while preserving the v2.6.14 line-closeout boundary;
-5. rerun complete CI, the v2.6.14 validator, representative NIST workflows, and
-   the pinned cross-repository release-readiness audit;
-6. create or verify external tags/releases only after the promotion commit is
-   reviewed.
+## External release action
+
+`public_metadata_promotion_performed` is true. `tag_or_release_created` remains
+false. A Git tag or GitHub Release must be created or verified separately against
+the reviewed promotion commit after all required workflows pass.
 
 ## Scientific boundary
 
-Release readiness is software and provenance governance. It does not establish
-source truth, instrument calibration, sample comparability, causal effects,
-mechanisms, predictive generalization, optimization readiness, or engineering-
-release suitability.
+Release metadata consistency and passing tests do not establish source truth,
+instrument calibration, measurement uncertainty, sample comparability, causal
+effects, mechanisms, predictive generalization, optimization readiness, or
+engineering-release suitability.
