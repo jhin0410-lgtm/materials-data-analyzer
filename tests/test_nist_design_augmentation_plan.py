@@ -161,7 +161,7 @@ def test_plan_is_row_order_independent_and_deterministic(tmp_path: Path) -> None
 def test_plan_rejects_inapplicable_or_complete_factor_grid() -> None:
     module = _module()
     invalid = _nist_table()
-    invalid.loc[invalid["case_id"].eq("A"), "actual_laser_power_w"] = 158.0
+    invalid.loc[invalid["case_id"].eq("C"), "actual_laser_power_w"] = 158.0
     with pytest.raises(ValueError, match="exactly two observed power levels"):
         module.build_augmentation_plan(invalid)
 
