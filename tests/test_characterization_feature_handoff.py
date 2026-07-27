@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 from loaders.characterization_features import (
+    build_feature_dictionary,
     integrate_process_and_characterization,
     load_characterization_features,
     pivot_characterization_features,
@@ -28,7 +29,7 @@ def _row(
     *,
     label: str | None = None,
     method: str = "method_v1",
-    preprocessing: str = "preprocessing_v1",
+    preprocessing: str | None = "preprocessing_v1",
     flag: str = "ok",
 ) -> dict[str, object]:
     return {
@@ -97,8 +98,8 @@ def test_duplicate_semantic_feature_is_not_aggregated() -> None:
         pivot_characterization_features(table)
 
 
-def test_mixed_method_or_preprocessing_is_rejected() -> None:
-    mixed_method = pd.DataFrame(
+def test_mixed_method_is_rejected() -> None:
+    table = pd.DataFrame(
         [
             _row(
                 "s1",
@@ -121,9 +122,58 @@ def test_mixed_method_or_preprocessing_is_rejected() -> None:
         ]
     )
     with pytest.raises(ValueError, match="mixed method"):
-        pivot_characterization_features(mixed_method)
+        pivot_characterization_features(table)
 
-    mixed_preprocessing = pd.DataFrame(
+
+def test_preprocessing_may_vary_across_samples_and_remains_in_long_table(
+    tmp_path: Path,
+) -> None:
+    table = pd.DataFrame(
+        [
+            _row(
+                "s1",
+                "m1",
+                "xrd",
+                "peak_count",
+                1,
+                "count",
+                preprocessing="preprocessing_source_a",
+            ),
+            _row(
+                "s2",
+                "m2",
+                "xrd",
+                "peak_count",
+                2,
+                "count",
+                preprocessing="preprocessing_source_b",
+            ),
+        ]
+    )
+    path = tmp_path / "features.csv"
+    table.to_csv(path, index=False)
+
+    loaded, _ = load_characterization_features([path])
+    wide = pivot_characterization_features(loaded)
+    dictionary = build_feature_dictionary(loaded)
+
+    assert wide.set_index("sample_id").loc[
+        "s1", "char__xrd__peak_count__count"
+    ] == pytest.approx(1.0)
+    assert wide.set_index("sample_id").loc[
+        "s2", "char__xrd__peak_count__count"
+    ] == pytest.approx(2.0)
+    assert set(loaded["preprocessing_id"]) == {
+        "preprocessing_source_a",
+        "preprocessing_source_b",
+    }
+    assert dictionary.loc[0, "preprocessing_id"] == "varies_by_sample"
+    assert dictionary.loc[0, "sample_count"] == 2
+    assert dictionary.loc[0, "measurement_count"] == 2
+
+
+def test_measurement_internal_preprocessing_conflict_is_rejected() -> None:
+    table = pd.DataFrame(
         [
             _row(
                 "s1",
@@ -135,18 +185,18 @@ def test_mixed_method_or_preprocessing_is_rejected() -> None:
                 preprocessing="preprocessing_a",
             ),
             _row(
-                "s2",
-                "m2",
+                "s1",
+                "m1",
                 "xrd",
-                "peak_count",
-                2,
-                "count",
+                "mean_fwhm",
+                0.2,
+                "deg_2theta",
                 preprocessing="preprocessing_b",
             ),
         ]
     )
-    with pytest.raises(ValueError, match="mixed preprocessing"):
-        pivot_characterization_features(mixed_preprocessing)
+    with pytest.raises(ValueError, match="consistent preprocessing_id"):
+        pivot_characterization_features(table)
 
 
 def test_join_uses_sample_id_not_row_order() -> None:
@@ -168,9 +218,7 @@ def test_join_uses_sample_id_not_row_order() -> None:
     assert indexed.loc["s1", "temperature_c"] == 100
     assert indexed.loc["s1", "char__xrd__peak_count__count"] == 10
     statuses = dict(
-        audit[["sample_id", "join_status"]].itertuples(
-            index=False, name=None
-        )
+        audit[["sample_id", "join_status"]].itertuples(index=False, name=None)
     )
     assert statuses == {
         "s1": "matched",
@@ -183,8 +231,24 @@ def test_join_uses_sample_id_not_row_order() -> None:
 def test_end_to_end_outputs_are_deterministic(tmp_path: Path) -> None:
     features = pd.DataFrame(
         [
-            _row("s2", "s2-xrd", "xrd", "peak_count", 2, "count"),
-            _row("s1", "s1-xrd", "xrd", "peak_count", 1, "count"),
+            _row(
+                "s2",
+                "s2-xrd",
+                "xrd",
+                "peak_count",
+                2,
+                "count",
+                preprocessing="preprocessing_s2_xrd",
+            ),
+            _row(
+                "s1",
+                "s1-xrd",
+                "xrd",
+                "peak_count",
+                1,
+                "count",
+                preprocessing="preprocessing_s1_xrd",
+            ),
             _row(
                 "s1",
                 "s1-eds",
@@ -193,6 +257,7 @@ def test_end_to_end_outputs_are_deterministic(tmp_path: Path) -> None:
                 20,
                 "percent",
                 label="Fe",
+                preprocessing="preprocessing_s1_eds",
                 flag="review_required",
             ),
             _row(
@@ -203,6 +268,7 @@ def test_end_to_end_outputs_are_deterministic(tmp_path: Path) -> None:
                 30,
                 "percent",
                 label="Fe",
+                preprocessing="preprocessing_s2_eds",
                 flag="review_required",
             ),
         ]
@@ -235,6 +301,17 @@ def test_end_to_end_outputs_are_deterministic(tmp_path: Path) -> None:
         == outputs_b["integrated_table"].read_text(encoding="utf-8")
     )
 
+    dictionary = pd.read_csv(outputs_a["feature_dictionary"])
+    assert set(dictionary["preprocessing_id"]) == {"varies_by_sample"}
+
+    validated_long = pd.read_csv(outputs_a["validated_long"])
+    assert set(validated_long["preprocessing_id"]) == {
+        "preprocessing_s1_xrd",
+        "preprocessing_s2_xrd",
+        "preprocessing_s1_eds",
+        "preprocessing_s2_eds",
+    }
+
     manifest = json.loads(outputs_a["manifest"].read_text(encoding="utf-8"))
     assert manifest["counts"]["sample_count"] == 2
     assert manifest["join_summary"] == {
@@ -246,6 +323,18 @@ def test_end_to_end_outputs_are_deterministic(tmp_path: Path) -> None:
     assert (
         manifest["scientific_boundary"]["scientific_validation"]
         == "not_established_by_handoff"
+    )
+    assert (
+        manifest["scientific_boundary"][
+            "cross_sample_preprocessing_variation_supported"
+        ]
+        is True
+    )
+    assert (
+        manifest["scientific_boundary"][
+            "preprocessing_provenance_preserved_in_long_table"
+        ]
+        is True
     )
 
 
