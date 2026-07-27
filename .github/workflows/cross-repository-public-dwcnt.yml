@@ -66,10 +66,18 @@ jobs:
             --result materials-characterization-analyzer/outputs/public-carbon-case/result
 
       - name: Consume bundle in materials-data-analyzer
+        shell: bash
         run: |
+          mkdir -p materials-data-analyzer/outputs/cross-repository-diagnostics
+          set +e
           python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
             --bundle-manifest materials-characterization-analyzer/outputs/public-carbon-case/result/characterization_handoff_bundle.json \
-            --output materials-data-analyzer/outputs/cross-repository-public-dwcnt
+            --output materials-data-analyzer/outputs/cross-repository-public-dwcnt \
+            > materials-data-analyzer/outputs/cross-repository-diagnostics/consumer.log 2>&1
+          code=$?
+          set -e
+          cat materials-data-analyzer/outputs/cross-repository-diagnostics/consumer.log
+          exit "$code"
 
       - name: Run focused consumer tests
         working-directory: materials-data-analyzer
@@ -98,7 +106,7 @@ jobs:
           print((root / "cross_repository_handoff_report.md").read_text(encoding="utf-8"))
           PY
 
-      - name: Upload producer and consumer evidence
+      - name: Upload producer, consumer, and diagnostics evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -106,5 +114,6 @@ jobs:
           path: |
             materials-characterization-analyzer/outputs/public-carbon-case
             materials-data-analyzer/outputs/cross-repository-public-dwcnt
+            materials-data-analyzer/outputs/cross-repository-diagnostics
           if-no-files-found: error
           retention-days: 14
