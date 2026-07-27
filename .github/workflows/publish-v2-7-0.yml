@@ -6,12 +6,14 @@ on:
     paths:
       - ".github/workflows/publish-v2-7-0.yml"
       - "release/v2.7.0-publish-request.json"
+      - "tests/test_v2_7_release_publication_contract.py"
   push:
     branches:
       - main
     paths:
       - ".github/workflows/publish-v2-7-0.yml"
       - "release/v2.7.0-publish-request.json"
+      - "tests/test_v2_7_release_publication_contract.py"
 
 permissions:
   contents: write
@@ -48,6 +50,9 @@ jobs:
               "release_version": "2.7.0",
               "tag_name": "v2.7.0",
               "target_commit": "2d003aecede89aacc25cdb246bf9cc6adec19bf9",
+              "release_title": (
+                  "v2.7.0 - Evidence-Line Closeout and Cross-Repository Integration"
+              ),
               "release_date": "2026-07-28",
               "draft": False,
               "prerelease": False,
@@ -85,6 +90,7 @@ jobs:
           assert release_notes.startswith(
               "# v2.7.0 - Evidence-Line Closeout and Cross-Repository Integration"
           )
+          assert request["release_title"] == release_notes.splitlines()[0].removeprefix("# ")
           for required in (
               "Ridge generalization: `unsupported`",
               "predictive-validation readiness: `not_ready`",
@@ -114,6 +120,7 @@ jobs:
               "release_version": request["release_version"],
               "tag_name": request["tag_name"],
               "target_commit": target,
+              "release_title": request["release_title"],
               "release_notes_sha256": hashlib.sha256(
                   release_notes.encode("utf-8")
               ).hexdigest(),
@@ -125,6 +132,9 @@ jobs:
               encoding="utf-8",
           )
           PY
+
+      - name: Run focused publication-contract tests
+        run: python -m pytest -q tests/test_v2_7_release_publication_contract.py
 
       - name: Upload release-contract verification
         uses: actions/upload-artifact@v7
@@ -167,23 +177,32 @@ jobs:
           git fetch --force --tags origin
 
           if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
-            EXISTING_TARGET="$(git rev-list -n 1 "${TAG}")"
+            test "$(git cat-file -t "refs/tags/${TAG}")" = "tag"
+            EXISTING_TARGET="$(git rev-parse "${TAG}^{commit}")"
             test "${EXISTING_TARGET}" = "${TARGET}"
+            EXISTING_ANNOTATION="$(git for-each-ref --format='%(contents)' "refs/tags/${TAG}")"
+            test "${EXISTING_ANNOTATION}" = "${TITLE}"
           else
             git tag -a "${TAG}" "${TARGET}" -m "${TITLE}"
             git push origin "refs/tags/${TAG}"
           fi
 
           if gh release view "${TAG}" >/dev/null 2>&1; then
-            gh release view "${TAG}" --json tagName,name,isDraft,isPrerelease,url > /tmp/release.json
+            echo "Release already exists; verifying exact published contents."
           else
             gh release create "${TAG}" \
               --verify-tag \
               --title "${TITLE}" \
               --notes-file /tmp/v2.7.0-release-notes.md \
               --latest
-            gh release view "${TAG}" --json tagName,name,isDraft,isPrerelease,url > /tmp/release.json
           fi
+
+          gh release view "${TAG}" \
+            --json tagName,name,isDraft,isPrerelease,url,body \
+            > /tmp/release.json
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" \
+            --jq '.tag_name' \
+            > /tmp/latest-release-tag.txt
 
           python - <<'PY'
           import hashlib
@@ -195,28 +214,69 @@ jobs:
               Path("release/v2.7.0-publish-request.json").read_text(encoding="utf-8")
           )
           release = json.loads(Path("/tmp/release.json").read_text(encoding="utf-8"))
-          target = subprocess.check_output(
-              ["git", "rev-list", "-n", "1", request["tag_name"]], text=True
+          latest_tag = Path("/tmp/latest-release-tag.txt").read_text(
+              encoding="utf-8"
           ).strip()
+          target = subprocess.check_output(
+              ["git", "rev-parse", f'{request["tag_name"]}^{{commit}}'],
+              text=True,
+          ).strip()
+          tag_object_type = subprocess.check_output(
+              ["git", "cat-file", "-t", f'refs/tags/{request["tag_name"]}'],
+              text=True,
+          ).strip()
+          tag_annotation = subprocess.check_output(
+              [
+                  "git",
+                  "for-each-ref",
+                  "--format=%(contents)",
+                  f'refs/tags/{request["tag_name"]}',
+              ],
+              text=True,
+          ).rstrip("\n")
+
+          def normalized(text: str) -> str:
+              return text.replace("\r\n", "\n").rstrip("\n")
+
+          expected_notes = Path("/tmp/v2.7.0-release-notes.md").read_text(
+              encoding="utf-8"
+          )
+          published_notes = release["body"]
 
           assert target == request["target_commit"]
+          assert tag_object_type == "tag"
+          assert tag_annotation == request["release_title"]
           assert release["tagName"] == request["tag_name"]
           assert release["name"] == request["release_title"]
-          assert release["isDraft"] is False
-          assert release["isPrerelease"] is False
+          assert release["isDraft"] is request["draft"]
+          assert release["isPrerelease"] is request["prerelease"]
+          assert normalized(published_notes) == normalized(expected_notes)
+          if request["mark_latest"]:
+              assert latest_tag == request["tag_name"]
 
-          notes = Path("/tmp/v2.7.0-release-notes.md").read_bytes()
+          expected_notes_bytes = normalized(expected_notes).encode("utf-8")
+          published_notes_bytes = normalized(published_notes).encode("utf-8")
           attestation = {
               "schema_version": "1.0",
-              "publication_status": "published_or_verified",
+              "publication_status": "published_and_fully_verified",
               "release_version": request["release_version"],
               "tag_name": request["tag_name"],
               "target_commit": target,
+              "tag_object_type": tag_object_type,
+              "tag_annotation": tag_annotation,
+              "release_title": release["name"],
               "release_url": release["url"],
-              "release_notes_sha256": hashlib.sha256(notes).hexdigest(),
-              "draft": False,
-              "prerelease": False,
-              "marked_latest": True,
+              "release_notes_sha256": hashlib.sha256(
+                  expected_notes_bytes
+              ).hexdigest(),
+              "published_body_sha256": hashlib.sha256(
+                  published_notes_bytes
+              ).hexdigest(),
+              "release_body_verified": True,
+              "latest_release_tag": latest_tag,
+              "latest_status_verified": True,
+              "draft": release["isDraft"],
+              "prerelease": release["isPrerelease"],
               "package_publication_performed": False,
               "model_training_performed": False,
               "optimization_performed": False,
