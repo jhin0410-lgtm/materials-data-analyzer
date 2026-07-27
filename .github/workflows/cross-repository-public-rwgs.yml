@@ -1,0 +1,157 @@
+name: Cross-repository public RWGS handoff
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/loaders/characterization_bundle.py"
+      - "src/loaders/characterization_features.py"
+      - "scripts/consume_characterization_handoff_bundle.py"
+      - "tests/test_characterization_bundle.py"
+      - "docs/CROSS_REPOSITORY_CHARACTERIZATION_HANDOFF.md"
+      - ".github/workflows/cross-repository-public-rwgs.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-repository-rwgs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-real-public-rwgs-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+        with:
+          path: materials-data-analyzer
+
+      - name: Check out pinned materials-characterization-analyzer producer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: 613783d803792fc283acee006a2fc5ebf6b20aee
+          path: materials-characterization-analyzer
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install both repositories independently
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r materials-data-analyzer/requirements.txt
+          python -m pip install -e materials-characterization-analyzer
+
+      - name: Discover and download public RWGS sources
+        run: |
+          python materials-characterization-analyzer/scripts/discover_public_rwgs_xrd_sem_eds.py \
+            --config materials-characterization-analyzer/case_studies/public_rwgs_xrd_sem_eds/discovery_config.json \
+            --output materials-characterization-analyzer/outputs/public-rwgs-case/discovery
+
+      - name: Run producer public RWGS diagnostic case
+        run: |
+          python materials-characterization-analyzer/scripts/run_public_rwgs_xrd_sem_eds_case.py \
+            --config materials-characterization-analyzer/case_studies/public_rwgs_xrd_sem_eds/case_config.json \
+            --discovery materials-characterization-analyzer/outputs/public-rwgs-case/discovery \
+            --output materials-characterization-analyzer/outputs/public-rwgs-case/result
+
+      - name: Export producer handoff bundle
+        run: |
+          python materials-characterization-analyzer/scripts/export_public_rwgs_handoff_bundle.py \
+            --config materials-characterization-analyzer/case_studies/public_rwgs_xrd_sem_eds/case_config.json \
+            --result materials-characterization-analyzer/outputs/public-rwgs-case/result
+
+      - name: Consume bundle in materials-data-analyzer
+        shell: bash
+        run: |
+          mkdir -p materials-data-analyzer/outputs/cross-repository-rwgs-diagnostics
+          set +e
+          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest materials-characterization-analyzer/outputs/public-rwgs-case/result/handoff_bundle/characterization_handoff_bundle.json \
+            --output materials-data-analyzer/outputs/cross-repository-public-rwgs \
+            > materials-data-analyzer/outputs/cross-repository-rwgs-diagnostics/consumer.log 2>&1
+          code=$?
+          set -e
+          cat materials-data-analyzer/outputs/cross-repository-rwgs-diagnostics/consumer.log
+          exit "$code"
+
+      - name: Run focused consumer tests
+        working-directory: materials-data-analyzer
+        run: python -m pytest -q tests/test_characterization_bundle.py
+
+      - name: Verify real-data RWGS closeout evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          import pandas as pd
+
+          root = Path("materials-data-analyzer/outputs/cross-repository-public-rwgs")
+          summary = json.loads((root / "cross_repository_handoff_summary.json").read_text(encoding="utf-8"))
+          manifest = json.loads((root / "cross_repository_handoff_manifest.json").read_text(encoding="utf-8"))
+          integrated = pd.read_csv(root / "integrated_sample_table.csv")
+
+          assert summary["status"] == "verified"
+          assert summary["case_id"] == "public-rwgs-5cu-al2o3-xrd-sem-eds"
+          assert summary["producer"]["repository"] == "jhin0410-lgtm/materials-characterization-analyzer"
+          assert summary["producer"]["software_versions"] == ["0.8.5"]
+          assert summary["feature_summary"] == {
+              "row_count": 31,
+              "sample_count": 1,
+              "measurement_count": 2,
+              "instruments": ["eds", "xrd"],
+              "quality_flag_counts": {
+                  "derived_review_required": 8,
+                  "ok": 7,
+                  "review_required": 16,
+              },
+              "source_sha256_record_count": 31,
+              "preprocessing_id_record_count": 31,
+          }
+          assert summary["join_summary"] == {
+              "matched": 1,
+              "process_only": 0,
+              "characterization_only": 0,
+          }
+          assert summary["unit_label_normalization"]["performed"] is False
+          assert summary["unit_label_normalization"]["record_count"] == 0
+          assert summary["unit_label_normalization"]["numeric_values_modified"] is False
+          assert summary["scientific_closeout"]["evidence_level"] == "Diagnostic"
+          assert summary["scientific_closeout"]["result"] == (
+              "public_rwgs_xrd_eds_features_exported_sem_block_preserved"
+          )
+          assert "process-response modeling" in summary["scientific_closeout"]["unsuitable_for"]
+          assert summary["software_validation"]["model_trained"] is False
+          assert summary["software_validation"]["scientific_metrics_recomputed"] is False
+          assert manifest["input_bundle"]["sha256"]
+
+          assert len(integrated) == 1
+          row = integrated.iloc[0]
+          assert row["sample_id"] == "rwgs-5wt-cu-al2o3"
+          assert row["sem_quantitative_segmentation_status"] == "blocked_method_mismatch"
+          assert row["eds_unexpected_elements"] == "Ni"
+          assert bool(row["identical_physical_aliquot_confirmed"]) is False
+          assert bool(row["nominal_composition_confirmed"]) is False
+          assert any(column.startswith("char__xrd__") for column in integrated.columns)
+          assert any(column.startswith("char__eds__") for column in integrated.columns)
+          assert not any(column.startswith("char__sem__") for column in integrated.columns)
+
+          print((root / "cross_repository_handoff_report.md").read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload producer, consumer, and diagnostics evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-repository-public-rwgs-evidence
+          path: |
+            materials-characterization-analyzer/outputs/public-rwgs-case
+            materials-data-analyzer/outputs/cross-repository-public-rwgs
+            materials-data-analyzer/outputs/cross-repository-rwgs-diagnostics
+          if-no-files-found: error
+          retention-days: 14
