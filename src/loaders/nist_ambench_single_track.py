@@ -118,7 +118,7 @@ def validate_trace_measurements(
     )
     if normalized["trace_number"].isna().any() or not normalized[
         "trace_number"
-    ].map(float.is_integer).all():
+    ].map(lambda value: float(value).is_integer()).all():
         raise ValueError("NIST AM-Bench trace_number values must be finite integers.")
     normalized["trace_number"] = normalized["trace_number"].astype(int)
 
