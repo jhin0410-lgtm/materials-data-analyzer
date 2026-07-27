@@ -1,0 +1,133 @@
+name: Representative process-characterization workflow
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/run_representative_process_characterization_workflow.py"
+      - "scripts/run_nist_ambench_2018_02_workflow.py"
+      - "scripts/audit_nist_ambench_2018_02_process_design.py"
+      - "scripts/plan_nist_ambench_2018_02_design_augmentation.py"
+      - "scripts/build_nist_ambench_2018_02_case_study.py"
+      - "tests/test_representative_process_characterization_workflow.py"
+      - "data/case_studies/nist_ambench_2018_02/**"
+      - "docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md"
+      - "README.md"
+      - ".github/workflows/representative-process-characterization-workflow.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: representative-process-characterization-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-representative-workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run representative workflow
+        run: |
+          python scripts/run_representative_process_characterization_workflow.py \
+            --output outputs/representative_process_characterization
+
+      - name: Run focused tests
+        run: |
+          python -m pytest -q \
+            tests/test_representative_process_characterization_workflow.py \
+            tests/test_nist_process_design_audit.py \
+            tests/test_nist_design_augmentation_plan.py
+
+      - name: Verify top-level decision and artifact inventory
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/representative_process_characterization")
+          summary = json.loads(
+              (root / "representative_workflow_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          manifest = json.loads(
+              (root / "representative_workflow_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          assert summary["status"] == "completed"
+          assert summary["evidence_level"] == "Diagnostic"
+          assert summary["components"]["verified_case"]["trace_count"] == 10
+          assert summary["components"]["verified_case"]["model_trained"] is False
+          assert summary["components"]["process_design_audit"]["unique_condition_count"] == 3
+          assert summary["components"]["process_design_audit"]["factorial_coverage_fraction"] == 0.5
+          assert summary["components"]["process_design_audit"]["readiness"] == (
+              "not_ready_for_predictive_or_causal_modeling"
+          )
+
+          plan = summary["components"]["minimum_design_plan"]
+          assert plan["recommended_next_action"] == "execute_stage_1_only"
+          assert plan["stage_1_new_conditions"] == 3
+          assert plan["stage_1_new_traces"] == 9
+          assert plan["stage_2_is_conditional"] is True
+          assert plan["stage_2_candidate_midpoint_power_w"] == 158.55
+          assert plan["response_model_fitted"] is False
+          assert plan["optimization_performed"] is False
+          assert plan["machine_feasibility_assumed"] is False
+
+          assert manifest["generation_status"] == "completed"
+          assert manifest["scientific_status"] == "Diagnostic"
+          assert manifest["component_directories"] == [
+              "01_verified_case",
+              "02_process_design_audit",
+              "03_minimum_design_plan",
+          ]
+          assert manifest["artifact_count"] == len(manifest["artifact_sha256"])
+          assert manifest["new_scientific_analyzer_added"] is False
+          assert manifest["response_model_fitted"] is False
+          assert manifest["optimization_performed"] is False
+          assert manifest["machine_feasibility_assumed"] is False
+
+          for relative, expected in manifest["artifact_sha256"].items():
+              path = root / relative
+              assert path.is_file()
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              assert actual == expected
+
+          assert not list(root.rglob("*.pkl"))
+          assert not [
+              path
+              for path in root.rglob("*")
+              if path.is_file() and "trained_model" in path.name.lower()
+          ]
+
+          print(
+              (root / "representative_workflow_report.md").read_text(
+                  encoding="utf-8"
+              )
+          )
+          PY
+
+      - name: Upload representative evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: representative-process-characterization-workflow
+          path: outputs/representative_process_characterization
+          if-no-files-found: error
+          retention-days: 14
