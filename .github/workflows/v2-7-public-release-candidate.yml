@@ -139,11 +139,11 @@ jobs:
           assert summary["tag_or_release_created"] is False
 
           assert representative["evidence_level"] == "Diagnostic"
-          assert representative["readiness_decision"] == (
-              "not_ready_for_predictive_or_causal_modeling"
-          )
-          assert representative["model_trained"] is False
-          assert representative["optimization_performed"] is False
+          assert representative["components"]["process_design_audit"][
+              "readiness"
+          ] == "not_ready_for_predictive_or_causal_modeling"
+          assert representative["software_validation"]["response_model_fitted"] is False
+          assert representative["software_validation"]["optimization_performed"] is False
 
           for name, filename in manifest["outputs"].items():
               path = root / filename
