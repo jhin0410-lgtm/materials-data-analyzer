@@ -2,7 +2,7 @@
 
 ## Current public release
 
-The current stable public release is **v2.4.0**.
+The current stable public release is **v2.7.0**.
 
 The canonical machine-readable version is stored in the repository-root file:
 
@@ -12,29 +12,58 @@ PUBLIC_RELEASE_VERSION
 
 Release notes:
 
-- [`docs/releases/V2_4_0.md`](releases/V2_4_0.md)
+- [`docs/releases/V2_7_0.md`](releases/V2_7_0.md)
 
 Citation metadata:
 
 - [`CITATION.cff`](../CITATION.cff)
 
+## Release scope
+
+v2.7.0 closes the complete development scope accumulated after v2.4.0.
+Internal labels `v2.5.1`, `v2.5.2`, and `v2.6.1` through `v2.6.14` describe
+implementation and evidence stages; they are not separate public releases.
+
+The release includes:
+
+- version-allowlisted compatibility adapters and retrieval-reproducibility
+  audits;
+- the leakage-safe Battery warm-start benchmark and deterministic failure
+  diagnostics;
+- the complete comparability, admission, SNL LFP, Michigan Formation, and
+  checksum-bound v2.6 external-evidence line;
+- schema `1.0` cross-repository characterization bundle consumption;
+- pinned DWCNT, RWGS, four-carbon-material, and NIST producer-consumer workflows;
+- a representative NIST process-characterization workflow, design
+  identifiability audit, and bounded next-experiment plan;
+- public repository hardening, citation metadata, and deterministic release
+  audits.
+
+The release does not convert restricted or negative results into positive
+scientific claims. Materials compatibility remains restricted, Battery
+compatibility remains partial, retrieval reproducibility remains
+`insufficient_evidence`, Ridge forecasting remains **Unsupported**, the v2.6
+external-evidence closeout remains **Inconclusive**, and public
+process-characterization cases remain **Diagnostic**.
+
 ## Relationship between `main` and the public release
 
-The `main` branch contains additional work after v2.4.0. Those changes are
-listed under `Unreleased` in [`CHANGELOG.md`](../CHANGELOG.md).
+At the v2.7.0 promotion commit, `Unreleased` contains no additional feature
+work. The reviewed promotion commit is eligible for separate external tag or
+GitHub Release verification after all required workflows pass.
 
-Internal feature-stage labels such as `v2.5.1`, `v2.5.2`, `v2.6.1`, or
-`v2.6.2` inside the `Unreleased` section are development-stage identifiers.
-They are not automatically promoted to a stable public software release.
+After any subsequent change is merged to `main`, cite the exact commit SHA in
+addition to v2.7.0 and treat `main` as ahead of the stable release until another
+release closeout is completed.
 
-Do not describe `main` as v2.5 or v2.6 unless a separate release closeout has:
+A future release must:
 
-1. completed software validation;
-2. reviewed scientific claim boundaries and preserved negative results;
-3. moved the applicable changelog entries into a stable release section;
-4. added matching release notes;
-5. updated `PUBLIC_RELEASE_VERSION` and `CITATION.cff` together;
-6. confirmed that tracked files contain no raw restricted data, secrets,
+1. complete software validation;
+2. review scientific claim boundaries and preserve negative results;
+3. move the intended `Unreleased` scope into a stable release section;
+4. add matching release notes;
+5. update `PUBLIC_RELEASE_VERSION`, runtime version, and `CITATION.cff` together;
+6. confirm that tracked files contain no raw restricted data, secrets,
    generated outputs, or user-specific paths.
 
 ## Reproducible citation
@@ -47,10 +76,6 @@ For a stable release, cite:
 - exact Git commit SHA used for the analysis;
 - all external datasets, publications, standards, and upstream software used by
   the relevant case study.
-
-When using the current `main` branch rather than the stable release, cite the
-exact commit SHA. The public release version alone is insufficient because
-`main` may include post-release workflows and scientific closeouts.
 
 The root MIT license covers original repository code and documentation only. It
 does not relicense third-party datasets, publications, standards, model files,
