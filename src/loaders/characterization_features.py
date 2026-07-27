@@ -112,9 +112,7 @@ def load_characterization_features(
     sources: list[dict[str, Any]] = []
     for path in input_paths:
         if not path.is_file():
-            raise FileNotFoundError(
-                f"Characterization feature file not found: {path}"
-            )
+            raise FileNotFoundError(f"Characterization feature file not found: {path}")
         table = validate_characterization_features(
             pd.read_csv(path), source_name=str(path)
         )
@@ -138,8 +136,15 @@ def load_characterization_features(
 
 
 def build_feature_dictionary(table: pd.DataFrame) -> pd.DataFrame:
-    """Return one definition row per pivotable characterization feature."""
+    """Return one definition row per pivotable characterization feature.
+
+    Exact preprocessing identifiers remain authoritative in the long table. The
+    dictionary reports one identifier when all records share it and the sentinel
+    ``varies_by_sample`` when sample-specific source/preprocessing fingerprints
+    legitimately differ.
+    """
     validated = validate_characterization_features(table)
+    _validate_measurement_mapping(validated)
     _validate_semantic_consistency(validated)
     rows: list[dict[str, Any]] = []
 
@@ -157,10 +162,8 @@ def build_feature_dictionary(table: pd.DataFrame) -> pd.DataFrame:
                 "feature_label": feature_label,
                 "unit": unit,
                 "method": _single_value(group["method"], "method"),
-                "preprocessing_id": _single_value(
-                    group["preprocessing_id"],
-                    "preprocessing_id",
-                    optional=True,
+                "preprocessing_id": _summarize_preprocessing_id(
+                    group["preprocessing_id"]
                 ),
                 "quality_flags_observed": "|".join(
                     sorted(set(group["quality_flag"].astype(str)))
@@ -171,11 +174,24 @@ def build_feature_dictionary(table: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    return (
-        pd.DataFrame(rows)
-        .sort_values("feature_key")
-        .reset_index(drop=True)
-    )
+    columns = [
+        "feature_key",
+        "instrument",
+        "feature_name",
+        "feature_label",
+        "unit",
+        "method",
+        "preprocessing_id",
+        "quality_flags_observed",
+        "sample_count",
+        "measurement_count",
+        "record_count",
+    ]
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        "feature_key"
+    ).reset_index(drop=True)
 
 
 def pivot_characterization_features(table: pd.DataFrame) -> pd.DataFrame:
@@ -188,13 +204,9 @@ def pivot_characterization_features(table: pd.DataFrame) -> pd.DataFrame:
     working = validated.copy()
     working["feature_key"] = [
         feature_key(*values)
-        for values in working[SEMANTIC_COLUMNS].itertuples(
-            index=False, name=None
-        )
+        for values in working[SEMANTIC_COLUMNS].itertuples(index=False, name=None)
     ]
-    wide = working.pivot(
-        index="sample_id", columns="feature_key", values="value"
-    )
+    wide = working.pivot(index="sample_id", columns="feature_key", values="value")
     wide = wide.sort_index().sort_index(axis=1).reset_index()
     wide.columns.name = None
     return wide
@@ -210,9 +222,7 @@ def load_process_table(
 
     table = pd.read_csv(path)
     if "sample_id" not in table.columns:
-        raise ValueError(
-            "Process table must contain an explicit sample_id column."
-        )
+        raise ValueError("Process table must contain an explicit sample_id column.")
     table = table.copy()
     table["sample_id"] = table["sample_id"].map(_clean_text)
     if table["sample_id"].isna().any():
@@ -277,16 +287,12 @@ def integrate_process_and_characterization(
     }
     audit = integrated[["sample_id", "_merge"]].copy()
     audit["join_status"] = audit["_merge"].astype(str).map(mapping)
-    audit = (
-        audit.drop(columns="_merge")
-        .sort_values("sample_id")
-        .reset_index(drop=True)
+    audit = audit.drop(columns="_merge").sort_values("sample_id").reset_index(
+        drop=True
     )
-    integrated = (
-        integrated.drop(columns="_merge")
-        .sort_values("sample_id")
-        .reset_index(drop=True)
-    )
+    integrated = integrated.drop(columns="_merge").sort_values(
+        "sample_id"
+    ).reset_index(drop=True)
     return integrated, audit
 
 
@@ -300,9 +306,7 @@ def run_characterization_handoff(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    long_table, sources = load_characterization_features(
-        characterization_paths
-    )
+    long_table, sources = load_characterization_features(characterization_paths)
     dictionary = build_feature_dictionary(long_table)
     wide = pivot_characterization_features(long_table)
 
@@ -331,20 +335,14 @@ def run_characterization_handoff(
     join_summary = None
     if process_table_path is not None:
         process, process_source = load_process_table(process_table_path)
-        integrated, audit = integrate_process_and_characterization(
-            process, wide
-        )
+        integrated, audit = integrate_process_and_characterization(process, wide)
         paths["integrated_table"] = output_dir / "integrated_sample_table.csv"
         paths["join_audit"] = output_dir / "sample_join_audit.csv"
         integrated.to_csv(paths["integrated_table"], index=False)
         audit.to_csv(paths["join_audit"], index=False)
         join_summary = {
             status: int(audit["join_status"].eq(status).sum())
-            for status in (
-                "matched",
-                "process_only",
-                "characterization_only",
-            )
+            for status in ("matched", "process_only", "characterization_only")
         }
 
     manifest = {
@@ -355,9 +353,7 @@ def run_characterization_handoff(
         "counts": {
             "feature_record_count": int(len(long_table)),
             "sample_count": int(long_table["sample_id"].nunique()),
-            "measurement_count": int(
-                long_table["measurement_id"].nunique()
-            ),
+            "measurement_count": int(long_table["measurement_id"].nunique()),
             "feature_definition_count": int(len(dictionary)),
             "wide_feature_count": int(max(len(wide.columns) - 1, 0)),
         },
@@ -388,23 +384,22 @@ def run_characterization_handoff(
             "row_order_join_used": False,
             "duplicate_feature_aggregation_performed": False,
             "mixed_method_or_preprocessing_accepted": False,
+            "mixed_method_accepted": False,
+            "mixed_preprocessing_within_measurement_accepted": False,
+            "cross_sample_preprocessing_variation_supported": True,
+            "preprocessing_provenance_preserved_in_long_table": True,
             "missing_metadata_inferred": False,
             "limitations": [
                 "Feature extraction validity remains instrument- and experiment-specific.",
                 "Matching sample_id values do not by themselves prove physical sample identity.",
+                "Preprocessing identifiers may vary across samples because they bind record-level source and execution provenance; exact identifiers remain in the long table.",
                 "Quality flags are preserved and are not automatic inclusion or exclusion decisions.",
                 "The integrated table supports downstream analysis only after sample comparability and target validity review.",
             ],
         },
     }
     paths["manifest"].write_text(
-        json.dumps(
-            manifest,
-            indent=2,
-            ensure_ascii=False,
-            sort_keys=True,
-        )
-        + "\n",
+        json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     return paths
@@ -425,17 +420,26 @@ def feature_key(
 
 
 def _validate_measurement_mapping(table: pd.DataFrame) -> None:
-    invalid = []
-    for measurement_id, group in table.groupby(
-        "measurement_id", dropna=False
-    ):
+    invalid_mapping: list[str] = []
+    invalid_preprocessing: list[str] = []
+    for measurement_id, group in table.groupby("measurement_id", dropna=False):
         if len(group[["sample_id", "instrument"]].drop_duplicates()) != 1:
-            invalid.append(str(measurement_id))
-    if invalid:
+            invalid_mapping.append(str(measurement_id))
+        preprocessing = group["preprocessing_id"].fillna("<missing>")
+        if preprocessing.nunique(dropna=False) != 1:
+            invalid_preprocessing.append(str(measurement_id))
+
+    if invalid_mapping:
         raise ValueError(
             "Each measurement_id must map to exactly one sample_id and "
             "instrument; invalid measurement_id(s): "
-            + ", ".join(sorted(invalid))
+            + ", ".join(sorted(invalid_mapping))
+        )
+    if invalid_preprocessing:
+        raise ValueError(
+            "Each measurement_id must have one consistent preprocessing_id "
+            "state across its feature records; invalid measurement_id(s): "
+            + ", ".join(sorted(invalid_preprocessing))
         )
 
 
@@ -444,17 +448,10 @@ def _validate_semantic_consistency(table: pd.DataFrame) -> None:
         label = feature_key(*values)
         if group["method"].nunique(dropna=False) != 1:
             raise ValueError(f"Feature {label} has mixed method values.")
-        preprocessing = group["preprocessing_id"].fillna("<missing>")
-        if preprocessing.nunique(dropna=False) != 1:
-            raise ValueError(
-                f"Feature {label} has mixed preprocessing_id values."
-            )
 
 
 def _validate_sample_feature_uniqueness(table: pd.DataFrame) -> None:
-    working = table.assign(
-        _label_key=table["feature_label"].fillna("")
-    )
+    working = table.assign(_label_key=table["feature_label"].fillna(""))
     duplicate = working.duplicated(
         [
             "sample_id",
@@ -480,20 +477,24 @@ def _single_value(
 ) -> str | None:
     values = sorted(set(series.fillna("<missing>").astype(str)))
     if len(values) != 1:
-        raise ValueError(
-            f"Feature definition has mixed {field_name} values."
-        )
+        raise ValueError(f"Feature definition has mixed {field_name} values.")
     return None if optional and values[0] == "<missing>" else values[0]
 
 
+def _summarize_preprocessing_id(series: pd.Series) -> str | None:
+    """Summarize record-level preprocessing provenance for a feature dictionary."""
+    values = sorted(set(series.fillna("<missing>").astype(str)))
+    if values == ["<missing>"]:
+        return None
+    if len(values) == 1:
+        return values[0]
+    return "varies_by_sample"
+
+
 def _slug(value: object) -> str:
-    text = re.sub(
-        r"[^a-z0-9]+", "_", str(value).strip().lower()
-    ).strip("_")
+    text = re.sub(r"[^a-z0-9]+", "_", str(value).strip().lower()).strip("_")
     if not text:
-        raise ValueError(
-            f"Could not create a stable feature key from value: {value!r}"
-        )
+        raise ValueError(f"Could not create a stable feature key from value: {value!r}")
     return text
 
 
