@@ -35,7 +35,8 @@ def _nist_table() -> pd.DataFrame:
                     "case_id": case_id,
                     "actual_laser_power_w": power,
                     "scan_speed_mm_s": speed,
-                    "char__optical_microscopy_metrology__melt_pool_width_mean__um": 100.0 + trace,
+                    "char__optical_microscopy_metrology__melt_pool_width_mean__um": 100.0
+                    + trace,
                 }
             )
     return pd.DataFrame(rows)
@@ -52,12 +53,23 @@ def test_audit_reports_replication_rank_and_modeling_block() -> None:
     ]
     assert audit["sample_count"] == 10
     assert audit["unique_condition_count"] == 3
+    assert audit["condition_identity_contract"] == {
+        "case_id_to_process_condition_one_to_one": True,
+        "process_condition_to_case_id_one_to_one": True,
+        "condition_key": ["actual_laser_power_w", "scan_speed_mm_s"],
+    }
     assert audit["replication"]["pure_error_degrees_of_freedom"] == 7
     assert audit["factor_support"]["full_factorial_condition_count"] == 6
     assert audit["factor_support"]["observed_factorial_condition_count"] == 3
     assert audit["factor_support"]["factorial_coverage_fraction"] == pytest.approx(0.5)
-    assert audit["factor_support"]["direct_matched_speed_power_contrast_available"] is False
-    assert audit["factor_support"]["direct_within_power_speed_contrast_available"] is True
+    assert (
+        audit["factor_support"]["direct_matched_speed_power_contrast_available"]
+        is False
+    )
+    assert (
+        audit["factor_support"]["direct_within_power_speed_contrast_available"]
+        is True
+    )
     assert audit["design_models"]["main_effects"] == {
         "name": "intercept + power + speed",
         "parameter_names": ["intercept", "actual_laser_power_w", "scan_speed_mm_s"],
@@ -69,7 +81,12 @@ def test_audit_reports_replication_rank_and_modeling_block() -> None:
         "model_adequacy_test_available": False,
     }
     assert audit["design_models"]["main_effects_plus_interaction"]["matrix_rank"] == 3
-    assert audit["design_models"]["main_effects_plus_interaction"]["identifiable_from_observed_conditions"] is False
+    assert (
+        audit["design_models"]["main_effects_plus_interaction"][
+            "identifiable_from_observed_conditions"
+        ]
+        is False
+    )
     assert audit["design_models"]["quadratic_response_surface"]["matrix_rank"] == 3
     assert audit["readiness"]["overall"] == "not_ready_for_predictive_or_causal_modeling"
     assert audit["readiness"]["main_effect_coefficient_fitting"] == (
@@ -117,9 +134,26 @@ def test_audit_rejects_invalid_identity_and_process_values() -> None:
         module.audit_process_design(invalid)
 
     ambiguous = _nist_table()
-    ambiguous.loc[ambiguous["case_id"].eq("A"), "actual_laser_power_w"] = [137.9, 138.0, 137.9]
+    ambiguous.loc[
+        ambiguous["case_id"].eq("A"), "actual_laser_power_w"
+    ] = [137.9, 138.0, 137.9]
     with pytest.raises(ValueError, match="case_id must map to exactly one"):
         module.audit_process_design(ambiguous)
+
+
+def test_audit_rejects_multiple_case_ids_for_one_physical_condition() -> None:
+    module = _module()
+    duplicated_condition = _nist_table()
+    duplicated_condition.loc[
+        duplicated_condition["case_id"].eq("B"),
+        ["actual_laser_power_w", "scan_speed_mm_s"],
+    ] = [137.9, 400.0]
+
+    with pytest.raises(
+        ValueError,
+        match="physical process condition must map to exactly one case_id",
+    ):
+        module.audit_process_design(duplicated_condition)
 
 
 def test_cli_writes_checksummed_outputs_and_no_model_artifacts(tmp_path: Path) -> None:
