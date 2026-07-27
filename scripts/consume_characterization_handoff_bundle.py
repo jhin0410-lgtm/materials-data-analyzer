@@ -23,6 +23,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         required=True,
         help="Path to characterization_handoff_bundle.json from the producer repository.",
     )
+    parser.add_argument(
+        "--process-table",
+        help=(
+            "Optional consumer-owned CSV with process variables. Its sample_id set and "
+            "shared case/trace/material/system identity columns must match the producer "
+            "bundle context exactly before integration."
+        ),
+    )
     parser.add_argument("--output", required=True, help="Empty consumer output directory.")
     return parser.parse_args(argv)
 
@@ -33,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         outputs = consume_characterization_bundle(
             args.bundle_manifest,
             args.output,
+            process_table_path=args.process_table,
         )
     except (
         FileNotFoundError,
@@ -43,7 +52,10 @@ def main(argv: list[str] | None = None) -> int:
         KeyError,
         json.JSONDecodeError,
     ) as exc:
-        print(f"Cross-repository characterization handoff failed: {exc}", file=sys.stderr)
+        print(
+            f"Cross-repository characterization handoff failed: {exc}",
+            file=sys.stderr,
+        )
         return 1
 
     print("Cross-repository characterization handoff completed.")
