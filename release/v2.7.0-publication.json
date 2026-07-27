@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "publication_status": "published_and_verified",
+  "release_version": "2.7.0",
+  "tag_name": "v2.7.0",
+  "target_commit": "2d003aecede89aacc25cdb246bf9cc6adec19bf9",
+  "release_title": "v2.7.0 - Evidence-Line Closeout and Cross-Repository Integration",
+  "release_url": "https://github.com/jhin0410-lgtm/materials-data-analyzer/releases/tag/v2.7.0",
+  "release_notes_path": "docs/releases/V2_7_0.md",
+  "release_notes_sha256": "05835275c4d8371b6a4250d347dda1bbc0c85656207b275fcf3d648f4b6beba7",
+  "release_date": "2026-07-28",
+  "expected_draft": false,
+  "expected_prerelease": false,
+  "expected_latest": true,
+  "release_body_exact_match": true,
+  "package_publication_performed": false,
+  "model_training_performed": false,
+  "metric_recomputation_performed": false,
+  "optimization_performed": false,
+  "scientific_claim_promoted": false
+}
