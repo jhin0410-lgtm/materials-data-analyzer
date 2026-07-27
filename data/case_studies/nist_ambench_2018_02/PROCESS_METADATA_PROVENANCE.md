@@ -8,6 +8,8 @@ Machine-readable context:
 
 - `process_metadata_context.json`
 
+The component-level and representative NIST workflows continue to read the active trace-level process table for calculations. This context remains supplemental provenance and does not create additional workflow inputs, conditions, or response features.
+
 ## Laser-power correction
 
 NIST reports that AMMT laser calibration was found to be erroneous after the tracks were fabricated.
