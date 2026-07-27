@@ -16,6 +16,12 @@ def _public_version() -> str:
     return version
 
 
+def _unreleased_section(changelog: str, version: str) -> str:
+    return changelog.split("## Unreleased", maxsplit=1)[1].split(
+        f"## v{version}", maxsplit=1
+    )[0]
+
+
 def test_public_release_metadata_is_complete_and_consistent() -> None:
     version = _public_version()
     citation = CITATION_FILE.read_text(encoding="utf-8")
@@ -25,10 +31,12 @@ def test_public_release_metadata_is_complete_and_consistent() -> None:
         PROJECT_ROOT / "docs" / "releases" / f"V{version.replace('.', '_')}.md"
     )
 
+    assert version == "2.6.0"
     assert release_notes.is_file()
     assert "cff-version: 1.2.0" in citation
     assert 'title: "Materials Data Analyzer"' in citation
     assert f"version: {version}" in citation
+    assert "date-released: 2026-07-28" in citation
     assert (
         'repository-code: "https://github.com/jhin0410-lgtm/materials-data-analyzer"'
         in citation
@@ -42,17 +50,45 @@ def test_public_release_metadata_is_complete_and_consistent() -> None:
     assert f"# v{version} -" in release_notes.read_text(encoding="utf-8")
 
 
-def test_unreleased_feature_stages_are_not_mislabeled_as_public_release() -> None:
+def test_v2_6_promotion_moves_all_feature_stages_out_of_unreleased() -> None:
     version = _public_version()
     changelog = CHANGELOG_FILE.read_text(encoding="utf-8")
-    status = STATUS_FILE.read_text(encoding="utf-8")
+    release_notes = (
+        PROJECT_ROOT / "docs" / "releases" / "V2_6_0.md"
+    ).read_text(encoding="utf-8")
 
-    unreleased = changelog.split("## Unreleased", maxsplit=1)[1].split(
-        f"## v{version}", maxsplit=1
+    assert not _unreleased_section(changelog, version).strip()
+    for stage in ("2.5.1", "2.5.2", *[f"2.6.{i}" for i in range(1, 15)]):
+        assert stage in release_notes
+
+    release_section = changelog.split("## v2.6.0", maxsplit=1)[1].split(
+        "## v2.4.0", maxsplit=1
     )[0]
-    assert "v2.6.2" in unreleased
-    assert "development-stage identifiers" in status
-    assert "They are not automatically promoted" in status
+    assert "v2.5.1-v2.5.2" in release_section
+    assert "v2.6.1-v2.6.14" in release_section
+
+
+def test_v2_6_release_preserves_negative_and_restricted_results() -> None:
+    release_notes = (
+        PROJECT_ROOT / "docs" / "releases" / "V2_6_0.md"
+    ).read_text(encoding="utf-8")
+    changelog = CHANGELOG_FILE.read_text(encoding="utf-8")
+
+    required_results = (
+        "performance_degraded",
+        "structure_predictive_value_limited",
+        "insufficient_evidence",
+        "Ridge pooled MAE: `4.1537`",
+        "persistence pooled MAE: `3.4256`",
+        "13 of 33",
+        "not_ready_for_predictive_or_causal_modeling",
+        "scientific closeout: **Inconclusive**",
+    )
+    for expected in required_results:
+        assert expected in release_notes
+
+    assert "Ridge generalization remains `unsupported`" in changelog
+    assert "process-characterization workflows: **Diagnostic**" in release_notes
 
 
 def test_citation_preserves_scientific_and_source_boundaries() -> None:
