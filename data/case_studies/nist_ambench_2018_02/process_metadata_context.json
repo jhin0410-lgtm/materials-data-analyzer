@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "case_study_id": "nist_ambench_2018_02_process_characterization",
+  "context_type": "official_process_metadata_corrections",
+  "source": {
+    "organization": "National Institute of Standards and Technology",
+    "benchmark_description_url": "https://www.nist.gov/ambench/amb2018-02-description",
+    "challenge_corrections_url": "https://www.nist.gov/ambench/challenges-and-descriptions",
+    "cross_section_results_url": "https://www.nist.gov/ambench/chal-amb2018-02-mp-xsection",
+    "dataset_doi": "10.18434/mds2-3830",
+    "associated_publication_doi": "10.1007/s40192-020-00169-1",
+    "accessed_date": "2026-07-28",
+    "provenance_status": "manually_transcribed_from_official_nist_pages"
+  },
+  "laser_power_calibration": {
+    "status": "corrected_after_experiment",
+    "analysis_power_field": "actual_laser_power_w",
+    "commanded_power_substituted_for_actual": false,
+    "case_mappings": {
+      "A": {
+        "commanded_laser_power_w": 150.0,
+        "actual_laser_power_w": 137.9,
+        "scan_speed_mm_s": 400.0
+      },
+      "B": {
+        "commanded_laser_power_w": 195.0,
+        "actual_laser_power_w": 179.2,
+        "scan_speed_mm_s": 800.0
+      },
+      "C": {
+        "commanded_laser_power_w": 195.0,
+        "actual_laser_power_w": 179.2,
+        "scan_speed_mm_s": 1200.0
+      }
+    }
+  },
+  "laser_spot_size": {
+    "system": "AMMT",
+    "legacy_reported_fwhm_um": 45.0,
+    "corrected_fwhm_um": 100.0,
+    "corrected_d4sigma_diameter_um": 170.0,
+    "correction_status": "official_nist_post_experiment_correction",
+    "used_in_linear_energy_descriptor": false,
+    "measurement_values_revised_by_spot_size_correction": false
+  },
+  "usage_contract": {
+    "tracked_process_table_remains_source_of_trace_level_actual_power_and_speed": true,
+    "context_is_not_an_additional_process_condition": true,
+    "context_is_not_a_response_measurement": true,
+    "context_must_not_upgrade_evidence_level": true,
+    "context_must_not_be_used_to_infer_absorptivity_or_volumetric_energy_density": true
+  },
+  "scientific_boundary": {
+    "evidence_level": "Diagnostic",
+    "supported": [
+      "preservation of official commanded-to-actual AMMT power corrections",
+      "preservation of official AMMT laser-spot-size correction context",
+      "traceable interpretation of the existing three process conditions"
+    ],
+    "unsupported": [
+      "causal attribution to commanded power, actual power, or spot size",
+      "volumetric energy-density calculation",
+      "retroactive remeasurement of source-reported melt-pool geometry",
+      "predictive modeling or process optimization"
+    ]
+  }
+}
