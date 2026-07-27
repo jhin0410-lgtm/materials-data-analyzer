@@ -450,7 +450,7 @@ def test_v2_6_1_tracked_decision_and_platform_version_are_preserved():
     assert metrics["ridge"]["mae"] == pytest.approx(4.15369918179312)
     from src.platform_core.version import PLATFORM_VERSION
 
-    assert PLATFORM_VERSION == "2.4.0"
+    assert PLATFORM_VERSION == "2.7.0"
 
 
 def test_diagnostic_config_and_result_schema_json_parse():
