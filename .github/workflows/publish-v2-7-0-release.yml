@@ -1,0 +1,405 @@
+name: Publish v2.7.0 GitHub Release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/publish-v2-7-0-release.yml"
+      - "tests/test_v2_7_release_publication_workflow.py"
+      - "docs/PUBLIC_RELEASE_STATUS.md"
+      - "docs/releases/V2_7_0.md"
+      - "PUBLIC_RELEASE_VERSION"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "src/platform_core/version.py"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-v2-7-0-release.yml"
+      - "tests/test_v2_7_release_publication_workflow.py"
+      - "docs/PUBLIC_RELEASE_STATUS.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-v2-7-0-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: v2.7.0
+  RELEASE_VERSION: 2.7.0
+  CHARACTERIZATION_RELEASE_COMMIT: 7242594f775b8dbe651a6131bb1b39b5f60c62cd
+  NIST_PRODUCER_COMMIT: ca7242331d3aab7d5d4999df297ccc1a8b011934
+
+jobs:
+  validate-release-publication:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out materials-data-analyzer history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check out pinned characterization release repository
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: ${{ env.CHARACTERIZATION_RELEASE_COMMIT }}
+          path: companion/materials-characterization-analyzer
+
+      - name: Check out pinned NIST producer repository
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: ${{ env.NIST_PRODUCER_COMMIT }}
+          path: companion/nist-producer
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install repositories independently
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -e companion/nist-producer
+
+      - name: Verify exact release metadata boundary
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          version = Path("PUBLIC_RELEASE_VERSION").read_text(encoding="utf-8").strip()
+          runtime = Path("src/platform_core/version.py").read_text(encoding="utf-8")
+          citation = Path("CITATION.cff").read_text(encoding="utf-8")
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          notes = Path("docs/releases/V2_7_0.md")
+
+          assert version == "2.7.0"
+          assert 'PLATFORM_VERSION = "2.7.0"' in runtime
+          assert "version: 2.7.0" in citation
+          assert "date-released: 2026-07-28" in citation
+          assert notes.is_file()
+          assert "## v2.7.0" in changelog
+
+          unreleased = changelog.split("## Unreleased", 1)[1].split("## v2.7.0", 1)[0]
+          normalized = re.sub(
+              r"No unreleased changes at the v2\.7\.0 promotion boundary\.",
+              "",
+              unreleased,
+          ).strip()
+          assert not normalized
+          PY
+
+      - name: Build v2.7 promotion evidence
+        run: |
+          python scripts/audit_v2_7_public_release_candidate.py \
+            --repo-root . \
+            --output outputs/v2_7_public_release_candidate
+          python -m src.platform_core.battery_v2_6_external_evidence_line_closeout \
+            --json validate \
+            data/processed/battery_v2_6_14_external_evidence_line_closeout_summary.json
+          python scripts/run_representative_process_characterization_workflow.py \
+            --output outputs/v2_7_representative_process_characterization
+
+      - name: Build cross-repository readiness evidence
+        run: |
+          python scripts/audit_cross_repository_release_readiness.py \
+            --data-repo-root . \
+            --characterization-repo-root companion/materials-characterization-analyzer \
+            --characterization-commit "${CHARACTERIZATION_RELEASE_COMMIT}" \
+            --output outputs/cross_repository_release_readiness
+
+      - name: Build pinned NIST producer-consumer evidence
+        shell: bash
+        run: |
+          set -o pipefail
+          cmp \
+            companion/nist-producer/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv \
+            data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv
+          python companion/nist-producer/scripts/export_nist_ambench_2018_02_optical_metrology_bundle.py \
+            --config companion/nist-producer/case_studies/nist_ambench_2018_02/case_config.json \
+            --output companion/nist-producer/outputs/nist-ambench-2018-02-optical-metrology
+          python scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest companion/nist-producer/outputs/nist-ambench-2018-02-optical-metrology/characterization_handoff_bundle.json \
+            --process-table data/case_studies/nist_ambench_2018_02/source_process_conditions.csv \
+            --output outputs/cross-repository-nist-ambench-2018-02
+
+      - name: Run complete repository test suite
+        shell: bash
+        run: |
+          mkdir -p outputs/release_publication
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee outputs/release_publication/pytest.log
+
+      - name: Verify release decisions and output checksums
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          def load(path: Path) -> dict:
+              return json.loads(path.read_text(encoding="utf-8"))
+
+          def verify_manifest(root: Path, manifest_name: str) -> None:
+              manifest = load(root / manifest_name)
+              for name, filename in manifest["outputs"].items():
+                  path = root / filename
+                  assert path.is_file(), (name, path)
+                  actual = hashlib.sha256(path.read_bytes()).hexdigest()
+                  assert manifest["output_sha256"][name] == actual
+
+          promotion_root = Path("outputs/v2_7_public_release_candidate")
+          promotion = load(promotion_root / "v2_7_public_release_candidate.json")
+          assert promotion["decision"] == (
+              "v2_7_0_metadata_promoted_pending_external_release_action"
+          )
+          assert promotion["candidate_version"] == "2.7.0"
+          assert promotion["software_validation"]["v2_6_stage_count"] == 13
+          assert all(promotion["software_validation"]["checks"].values())
+          assert promotion["scientific_closeout"]["ridge_generalization"] == "unsupported"
+          assert promotion["scientific_closeout"]["status"] == "inconclusive"
+          assert promotion["tag_or_release_created"] is False
+          verify_manifest(
+              promotion_root,
+              "v2_7_public_release_candidate_manifest.json",
+          )
+
+          representative_root = Path("outputs/v2_7_representative_process_characterization")
+          representative = load(
+              representative_root / "representative_workflow_summary.json"
+          )
+          assert representative["evidence_level"] == "Diagnostic"
+          assert representative["components"]["process_design_audit"]["readiness"] == (
+              "not_ready_for_predictive_or_causal_modeling"
+          )
+          assert representative["software_validation"]["response_model_fitted"] is False
+          assert representative["software_validation"]["optimization_performed"] is False
+          verify_manifest(
+              representative_root,
+              "representative_workflow_manifest.json",
+          )
+
+          readiness_root = Path("outputs/cross_repository_release_readiness")
+          readiness = load(readiness_root / "cross_repository_release_readiness.json")
+          data = readiness["repositories"]["materials_data_analyzer"]
+          characterization = readiness["repositories"][
+              "materials_characterization_analyzer"
+          ]
+          assert data["status"] == "ready_for_current_head_release_action"
+          assert data["public_release_version"] == "2.7.0"
+          assert data["runtime_platform_version"] == "2.7.0"
+          assert data["citation_version"] == "2.7.0"
+          assert data["current_main_tagging_allowed"] is True
+          assert readiness["cross_repository"]["status"] == (
+              "ready_for_external_release_action"
+          )
+          assert set(characterization["version_sources"].values()) == {"0.8.6"}
+          assert readiness["tags_created"] is False
+          assert readiness["releases_created"] is False
+          verify_manifest(
+              readiness_root,
+              "cross_repository_release_readiness_manifest.json",
+          )
+
+          nist_root = Path("outputs/cross-repository-nist-ambench-2018-02")
+          nist = load(nist_root / "cross_repository_handoff_summary.json")
+          assert nist["status"] == "verified"
+          assert nist["feature_summary"]["row_count"] == 40
+          assert nist["feature_summary"]["sample_count"] == 10
+          assert nist["join_summary"] == {
+              "matched": 10,
+              "process_only": 0,
+              "characterization_only": 0,
+          }
+          assert nist["software_validation"]["row_order_join_used"] is False
+          assert nist["software_validation"]["aggregation_performed"] is False
+          assert nist["software_validation"]["model_trained"] is False
+          assert nist["scientific_closeout"]["evidence_level"] == "Diagnostic"
+          verify_manifest(
+              nist_root,
+              "cross_repository_handoff_manifest.json",
+          )
+
+          summary = {
+              "release_version": "2.7.0",
+              "candidate_tag": "v2.7.0",
+              "validated_commit": os.environ["GITHUB_SHA"],
+              "promotion_decision": promotion["decision"],
+              "v2_6_stage_count": promotion["software_validation"]["v2_6_stage_count"],
+              "battery_scientific_closeout": promotion["scientific_closeout"]["status"],
+              "ridge_generalization": promotion["scientific_closeout"]["ridge_generalization"],
+              "cross_repository_status": readiness["cross_repository"]["status"],
+              "representative_nist_evidence_level": representative["evidence_level"],
+              "representative_nist_readiness": representative["components"]["process_design_audit"]["readiness"],
+              "nist_matched_samples": nist["join_summary"]["matched"],
+              "model_trained": False,
+              "optimization_performed": False,
+          }
+          output = Path("outputs/release_publication/release_verification_summary.json")
+          output.write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Package release evidence assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          zip -q -r \
+            release-assets/materials-data-analyzer-v2.7.0-promotion-evidence.zip \
+            outputs/v2_7_public_release_candidate \
+            outputs/v2_7_representative_process_characterization \
+            outputs/release_publication/release_verification_summary.json
+          zip -q -r \
+            release-assets/materials-data-analyzer-v2.7.0-release-readiness.zip \
+            outputs/cross_repository_release_readiness
+          zip -q -r \
+            release-assets/materials-data-analyzer-v2.7.0-nist-cross-repository-evidence.zip \
+            companion/nist-producer/outputs/nist-ambench-2018-02-optical-metrology \
+            outputs/cross-repository-nist-ambench-2018-02
+          zip -q \
+            release-assets/materials-data-analyzer-v2.7.0-pytest-log.zip \
+            outputs/release_publication/pytest.log
+          (
+            cd release-assets
+            sha256sum ./*.zip > SHA256SUMS.txt
+          )
+          cat > release-assets/RELEASE_BODY.md <<EOF
+          # Materials Data Analyzer v2.7.0
+
+          Published from verified repository commit \`${GITHUB_SHA}\`.
+
+          This release publishes the reviewed v2.7.0 metadata boundary. It preserves the complete v2.6.1-v2.6.14 evidence line, the Unsupported Ridge result, the Inconclusive Battery closeout, and the Diagnostic NIST process-characterization boundary. No package publication, model retraining, metric recomputation, or process optimization is performed.
+
+          Attached evidence assets contain the deterministic promotion closeout, cross-repository readiness audit, pinned NIST producer-consumer handoff, complete pytest log, and SHA-256 checksum inventory.
+
+          ## Tracked release notes
+
+          EOF
+          cat docs/releases/V2_7_0.md >> release-assets/RELEASE_BODY.md
+
+      - name: Upload validated publication bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: v2-7-0-release-publication-bundle
+          path: release-assets
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-github-release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate-release-publication
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out exact validated main commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download validated release assets
+        uses: actions/download-artifact@v7
+        with:
+          name: v2-7-0-release-publication-bundle
+          path: release-assets
+
+      - name: Create or verify exact v2.7.0 tag and GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(cat PUBLIC_RELEASE_VERSION)" = "${RELEASE_VERSION}"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          git fetch --tags origin
+
+          existing_tag_commit="$(git rev-parse "${RELEASE_TAG}^{commit}" 2>/dev/null || true)"
+          if [[ -n "${existing_tag_commit}" ]]; then
+            test "${existing_tag_commit}" = "${GITHUB_SHA}"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "${RELEASE_TAG}" "${GITHUB_SHA}" \
+              -m "Materials Data Analyzer ${RELEASE_TAG}"
+            git push origin "refs/tags/${RELEASE_TAG}"
+          fi
+
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release already exists; verifying exact tag and assets."
+          else
+            gh release create "${RELEASE_TAG}" \
+              release-assets/materials-data-analyzer-v2.7.0-promotion-evidence.zip \
+              release-assets/materials-data-analyzer-v2.7.0-release-readiness.zip \
+              release-assets/materials-data-analyzer-v2.7.0-nist-cross-repository-evidence.zip \
+              release-assets/materials-data-analyzer-v2.7.0-pytest-log.zip \
+              release-assets/SHA256SUMS.txt \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Materials Data Analyzer v2.7.0" \
+              --notes-file release-assets/RELEASE_BODY.md \
+              --target "${GITHUB_SHA}" \
+              --verify-tag
+          fi
+
+          gh release view "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --json tagName,name,isDraft,isPrerelease,targetCommitish,publishedAt,url,assets \
+            > release-assets/release-verification.json
+
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          release = json.loads(
+              Path("release-assets/release-verification.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert release["tagName"] == "v2.7.0"
+          assert release["name"] == "Materials Data Analyzer v2.7.0"
+          assert release["isDraft"] is False
+          assert release["isPrerelease"] is False
+          tag_commit = subprocess.check_output(
+              ["git", "rev-parse", "v2.7.0^{commit}"],
+              text=True,
+          ).strip()
+          assert tag_commit == os.environ["GITHUB_SHA"]
+          expected_assets = {
+              "materials-data-analyzer-v2.7.0-promotion-evidence.zip",
+              "materials-data-analyzer-v2.7.0-release-readiness.zip",
+              "materials-data-analyzer-v2.7.0-nist-cross-repository-evidence.zip",
+              "materials-data-analyzer-v2.7.0-pytest-log.zip",
+              "SHA256SUMS.txt",
+          }
+          actual_assets = {asset["name"] for asset in release["assets"]}
+          assert expected_assets <= actual_assets
+          PY
+
+      - name: Upload external publication verification
+        uses: actions/upload-artifact@v7
+        with:
+          name: v2-7-0-external-release-verification
+          path: |
+            release-assets/release-verification.json
+            release-assets/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
