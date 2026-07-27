@@ -1,31 +1,58 @@
-# --- 파이썬 및 환경 관련 ---
+# Python bytecode and build artifacts
 __pycache__/
 **/__pycache__/
 *.py[cod]
-*.pyc
-.pytest_cache/
-.venv/
 *.egg-info/
 build/
 dist/
+
+# Virtual environments and package-manager state
+.venv/
+venv/
+env/
+.python-version
+
+# Test, coverage, type-checker, and linter caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_tmp/
+
+# Notebook and editor state
+.ipynb_checkpoints/
+.idea/
+.vscode/
+*.code-workspace
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs, temporary files, and local registries
+*.log
+.cache/
+tmp/
+temp/
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment files and credentials
 .env
+.env.*
+!.env.example
 *.env
-
-# --- Raw 및 Local 데이터셋 ---
-# Ignore all raw/local downloaded data.
-data/raw/**
-
-# Keep only the top-level raw data policy document.
-!data/raw/
-!data/raw/README.md
-
-# --- 설정 및 자격 증명 (민감 정보) ---
-configs/*.local.yaml
-configs/local/
-configs/private/
-configs/secrets/
-configs/*.local.json
-configs/*.secret.json
+*.pem
+*.key
+*.p12
+*.pfx
 .kaggle/
 kaggle.json
 **/kaggle.json
@@ -34,14 +61,26 @@ api_credentials.*
 *credentials*.yaml
 *credentials*.yml
 
-# --- 기타 ---
-outputs/.pytest_tmp/
+# Local/private configuration
+configs/*.local.yaml
+configs/*.local.yml
+configs/*.local.json
+configs/*.secret.json
+configs/local/
+configs/private/
+configs/secrets/
 
-# --- Generated/local-only analyzer artifacts ---
-# Keep compact case-study summaries trackable; ignore only large row-level
-# local artifacts that are regenerated from documented scripts.
+# Raw and locally downloaded datasets
+# Ignore all contents while keeping the tracked policy document.
+data/raw/**
+!data/raw/
+!data/raw/README.md
+
+# Generated analyzer outputs
 outputs/**
-.pytest_tmp/
+
+# Large row-level or locally regenerated case-study artifacts
+# Compact, source-documented summaries may remain tracked.
 data/processed/materials_project_v1_3_raw.jsonl
 data/processed/materials_project_v1_3_acquired.csv
 data/processed/materials_project_v1_3_analysis_ready.csv
@@ -52,4 +91,3 @@ data/processed/smart_factory_v1_4_classification_predictions.csv
 data/processed/reliability_v1_5_backblaze_analysis_ready.csv
 data/processed/reliability_v1_5_horizon_7d_lookback_7d_dataset.csv
 data/processed/reliability_v1_5_classification_predictions.csv
-outputs/reliability_v1_5_local/
