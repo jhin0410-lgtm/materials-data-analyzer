@@ -23,6 +23,7 @@ The output directory must be new or empty.
 The audit records:
 
 - sample count and unique process-condition count;
+- a one-to-one identity contract between each `case_id` and one physical `(actual_laser_power_w, scan_speed_mm_s)` condition;
 - trace replication per condition and pure-error degrees of freedom;
 - observed laser-power and scan-speed levels;
 - observed versus possible two-factor combinations;
@@ -36,6 +37,8 @@ The audit records:
 - condition-level residual degrees of freedom;
 - observed process bounds and extrapolation restrictions;
 - a machine-readable readiness decision.
+
+The audit rejects both ambiguous directions of identity: one `case_id` mapped to multiple process conditions, or multiple `case_id` values mapped to the same physical power–speed condition. Without this guard, condition count, pure-error degrees of freedom, and factorial coverage could be overstated.
 
 No response value is fitted or recomputed.
 
