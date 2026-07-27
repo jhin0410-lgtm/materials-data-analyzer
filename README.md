@@ -295,3 +295,58 @@ outputs/              local regenerable outputs; ignored by Git
 docs/                 architecture, methods, trust boundaries, and release notes
 tests/                unit, integration, contract, and clean-checkout tests
 ```
+
+See [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) and
+[`docs/PLATFORM_DIRECTION_RESET.md`](docs/PLATFORM_DIRECTION_RESET.md).
+
+## Testing
+
+Run the full suite:
+
+```powershell
+python -m pytest -q
+```
+
+On Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
+```
+
+The tracked test suite is designed to run without local raw datasets, private
+credentials, downloaded archives, or previously generated `outputs/` folders.
+Passing tests establishes software behavior, not scientific validity.
+
+## Data, Security, and Public-Repository Policy
+
+Raw downloaded datasets, proprietary instrument exports, credentials, local
+registries, row-level predictions, and generated outputs must not be committed.
+External datasets retain their own licenses and attribution requirements; the
+root MIT license does not relicense third-party data or publications.
+
+See:
+
+- [`data/raw/README.md`](data/raw/README.md)
+- [`SECURITY.md`](SECURITY.md)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- [pull request template](.github/pull_request_template.md)
+
+## Documentation
+
+Useful entry points:
+
+- [`docs/PORTFOLIO_OVERVIEW.md`](docs/PORTFOLIO_OVERVIEW.md)
+- [`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_HANDOFF.md)
+- [`docs/PLATFORM_DIRECTION_RESET.md`](docs/PLATFORM_DIRECTION_RESET.md)
+- [`docs/SCIENTIFIC_TRUST_BOUNDARY.md`](docs/SCIENTIFIC_TRUST_BOUNDARY.md)
+- [`docs/PGIR_MODEL_CONTRACT.md`](docs/PGIR_MODEL_CONTRACT.md)
+- [`docs/BATTERY_GENERALIZATION_FORECASTING.md`](docs/BATTERY_GENERALIZATION_FORECASTING.md)
+- [`docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md`](docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md)
+
+## License
+
+Original code and original documentation in this repository are available under
+the [MIT License](LICENSE).
+
+External datasets, publications, standards, and third-party software remain
+subject to their own licenses, terms of use, and citation requirements.
