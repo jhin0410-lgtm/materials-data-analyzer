@@ -53,7 +53,7 @@ def validate_integrated_table(table: pd.DataFrame) -> pd.DataFrame:
     validated[SPEED] = _finite_numeric(validated, SPEED)
     if (validated[[POWER, SPEED]] <= 0).any().any():
         raise ValueError("Laser power and scan speed must be positive.")
-    return validated
+    return validated.sort_values("sample_id").reset_index(drop=True)
 
 
 def _standardized(values: pd.DataFrame) -> np.ndarray:
