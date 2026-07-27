@@ -79,7 +79,10 @@ def unreleased_contains_work(changelog: str) -> bool:
 
 
 def highest_version(text: str) -> str | None:
-    versions = {match.group(1) for match in VERSION_TOKEN.finditer(text)}
+    body = text.strip()
+    if not body or NO_UNRELEASED_WORK.fullmatch(body):
+        return None
+    versions = {match.group(1) for match in VERSION_TOKEN.finditer(body)}
     return max(versions, key=parse_version) if versions else None
 
 
@@ -207,7 +210,6 @@ def audit_characterization_repository(root: Path) -> dict[str, Any]:
     if not isinstance(project, dict) or not isinstance(project.get("version"), str):
         raise ValueError("Unable to parse [project].version.")
     package_version = project["version"]
-
     runtime_match = RUNTIME_VERSION.search(read_text(root, "src/mca/__init__.py"))
     if not runtime_match:
         raise ValueError("Unable to parse mca.__version__.")
@@ -242,7 +244,6 @@ def audit_characterization_repository(root: Path) -> dict[str, Any]:
     warnings.append(
         "Offline audit cannot verify tags, GitHub Releases, or package-index uploads."
     )
-
     return {
         "repository": "materials-characterization-analyzer",
         "release_mode": "python_source_and_wheel_distribution",
