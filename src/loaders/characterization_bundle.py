@@ -22,6 +22,8 @@ CONSUMER_SCHEMA_VERSION = "1.0"
 SUMMARY_NAME = "cross_repository_handoff_summary.json"
 REPORT_NAME = "cross_repository_handoff_report.md"
 MANIFEST_NAME = "cross_repository_handoff_manifest.json"
+NORMALIZED_INPUT_NAME = "characterization_features_bundle_input.csv"
+UNIT_LABEL_RULE = "replace_percent_symbol_with_percent_token"
 
 
 @dataclass(frozen=True)
@@ -127,10 +129,7 @@ def validate_characterization_bundle(
         raise ValueError(
             "Bundle feature columns must match the stable 12-column contract exactly."
         )
-    features = validate_characterization_features(
-        raw_features,
-        source_name=str(feature_path),
-    )
+    features = validate_characterization_features(raw_features, source_name=str(feature_path))
     if feature_record.get("columns") != REQUIRED_COLUMNS:
         raise ValueError("Bundle manifest feature columns do not match the consumer contract.")
 
@@ -157,8 +156,7 @@ def validate_characterization_bundle(
         raise ValueError("Every cross-repository feature record must retain preprocessing_id.")
 
     context = pd.read_csv(context_path)
-    recorded_context_columns = context_record.get("columns")
-    if recorded_context_columns != context.columns.tolist():
+    if context_record.get("columns") != context.columns.tolist():
         raise ValueError("Bundle sample-context columns do not match the manifest.")
     if context_record.get("row_count") != len(context):
         raise ValueError("Bundle sample-context row_count does not match the file.")
@@ -199,12 +197,43 @@ def _ensure_empty_output(output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
 
+def _write_normalized_handoff_input(
+    feature_table: pd.DataFrame,
+    output_dir: Path,
+) -> tuple[Path, dict[str, Any]]:
+    """Canonicalize unit spelling for safe feature keys without changing values."""
+    normalized = feature_table.copy()
+    original_units = normalized["unit"].astype(str)
+    normalized_units = original_units.str.replace("%", "percent", regex=False)
+    mappings = {
+        source: target
+        for source, target in sorted(set(zip(original_units, normalized_units)))
+        if source != target
+    }
+    normalized["unit"] = normalized_units
+    normalized = validate_characterization_features(
+        normalized,
+        source_name="consumer unit-label-normalized feature table",
+    )
+    path = output_dir / NORMALIZED_INPUT_NAME
+    normalized.to_csv(path, index=False)
+    return path, {
+        "performed": bool(mappings),
+        "rule": UNIT_LABEL_RULE,
+        "mappings": mappings,
+        "record_count": int((original_units != normalized_units).sum()),
+        "numeric_values_modified": False,
+        "source_feature_table_preserved": True,
+    }
+
+
 def _build_report(summary: dict[str, Any]) -> str:
     instruments = ", ".join(summary["feature_summary"]["instruments"])
     suitable = "\n".join(f"- {item}" for item in summary["scientific_closeout"]["suitable_for"])
     unsuitable = "\n".join(
         f"- {item}" for item in summary["scientific_closeout"]["unsuitable_for"]
     )
+    normalization = summary["unit_label_normalization"]
     return f"""# Cross-Repository Characterization Handoff Report
 
 ## Result
@@ -227,6 +256,17 @@ metadata inference, model training, or scientific metric recomputation occurred.
 - Measurements: {summary['feature_summary']['measurement_count']}
 - Samples: {summary['feature_summary']['sample_count']}
 - Matched samples: {summary['join_summary']['matched']}
+
+## Unit Label Normalization
+
+- Rule: `{normalization['rule']}`
+- Records affected: {normalization['record_count']}
+- Numeric values modified: `{str(normalization['numeric_values_modified']).lower()}`
+- Original producer feature table preserved: `{str(normalization['source_feature_table_preserved']).lower()}`
+
+This is a lexical representation change for stable ASCII feature keys. For
+example, `%` becomes `percent`; it is not a numeric conversion or a change of
+physical unit.
 
 ## Strongest Evidence
 
@@ -261,9 +301,13 @@ def consume_characterization_bundle(
     bundle = validate_characterization_bundle(manifest_path)
     output = Path(output_dir)
     _ensure_empty_output(output)
+    normalized_input, normalization = _write_normalized_handoff_input(
+        bundle.feature_table,
+        output,
+    )
 
     handoff_paths = run_characterization_handoff(
-        [bundle.feature_path],
+        [normalized_input],
         output,
         process_table_path=bundle.sample_context_path,
     )
@@ -306,6 +350,7 @@ def consume_characterization_bundle(
             )
         },
         "sample_context_columns": bundle.sample_context.columns.tolist(),
+        "unit_label_normalization": normalization,
         "join_summary": join_summary,
         "software_validation": {
             "all_bundle_checksums_verified": True,
@@ -314,6 +359,7 @@ def consume_characterization_bundle(
             "row_order_join_used": False,
             "aggregation_performed": False,
             "missing_metadata_inferred": False,
+            "numeric_values_modified": False,
             "model_trained": False,
             "scientific_metrics_recomputed": False,
         },
@@ -328,6 +374,7 @@ def consume_characterization_bundle(
     report_path.write_text(_build_report(summary), encoding="utf-8")
 
     outputs: dict[str, Path] = {
+        "normalized_bundle_input": normalized_input,
         **handoff_paths,
         "cross_repository_summary": summary_path,
         "cross_repository_report": report_path,
@@ -347,6 +394,7 @@ def consume_characterization_bundle(
                 name: sha256_file(path) for name, path in sorted(bundle.evidence_paths.items())
             },
         },
+        "unit_label_normalization": normalization,
         "validation": summary["software_validation"],
         "join_summary": join_summary,
         "scientific_closeout": bundle.manifest["scientific_closeout"],
