@@ -1,0 +1,119 @@
+name: Cross-repository public DWCNT handoff
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/loaders/characterization_bundle.py"
+      - "scripts/consume_characterization_handoff_bundle.py"
+      - "tests/test_characterization_bundle.py"
+      - "docs/CROSS_REPOSITORY_CHARACTERIZATION_HANDOFF.md"
+      - ".github/workflows/cross-repository-public-dwcnt.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-repository-dwcnt-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-real-public-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+        with:
+          path: materials-data-analyzer
+
+      - name: Check out pinned materials-characterization-analyzer producer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: 09a7e02b46924c44b9798ebab146281af50a28d7
+          path: materials-characterization-analyzer
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install both repositories independently
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r materials-data-analyzer/requirements.txt
+          python -m pip install -e materials-characterization-analyzer
+
+      - name: Discover and download public DWCNT source subset
+        run: |
+          python materials-characterization-analyzer/scripts/discover_public_carbon_multimodal.py \
+            --config materials-characterization-analyzer/case_studies/public_carbon_multimodal/case_config.json \
+            --output materials-characterization-analyzer/outputs/public-carbon-case/discovery \
+            --download
+
+      - name: Run producer real-data characterization case
+        run: |
+          python materials-characterization-analyzer/scripts/execute_public_carbon_multimodal_case.py \
+            --config materials-characterization-analyzer/case_studies/public_carbon_multimodal/case_config.json \
+            --discovery materials-characterization-analyzer/outputs/public-carbon-case/discovery \
+            --output materials-characterization-analyzer/outputs/public-carbon-case/result
+
+      - name: Export producer handoff bundle
+        run: |
+          python materials-characterization-analyzer/scripts/export_public_carbon_handoff_bundle.py \
+            --config materials-characterization-analyzer/case_studies/public_carbon_multimodal/case_config.json \
+            --result materials-characterization-analyzer/outputs/public-carbon-case/result
+
+      - name: Consume bundle in materials-data-analyzer
+        shell: bash
+        run: |
+          mkdir -p materials-data-analyzer/outputs/cross-repository-diagnostics
+          set +e
+          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest materials-characterization-analyzer/outputs/public-carbon-case/result/characterization_handoff_bundle.json \
+            --output materials-data-analyzer/outputs/cross-repository-public-dwcnt \
+            > materials-data-analyzer/outputs/cross-repository-diagnostics/consumer.log 2>&1
+          code=$?
+          set -e
+          cat materials-data-analyzer/outputs/cross-repository-diagnostics/consumer.log
+          exit "$code"
+
+      - name: Run focused consumer tests
+        working-directory: materials-data-analyzer
+        run: python -m pytest -q tests/test_characterization_bundle.py
+
+      - name: Verify real-data closeout evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("materials-data-analyzer/outputs/cross-repository-public-dwcnt")
+          summary = json.loads((root / "cross_repository_handoff_summary.json").read_text(encoding="utf-8"))
+          manifest = json.loads((root / "cross_repository_handoff_manifest.json").read_text(encoding="utf-8"))
+          assert summary["status"] == "verified"
+          assert summary["case_id"] == "public-carbon-dwcnt-multimodal-v1"
+          assert summary["feature_summary"]["instruments"] == ["ftir", "raman", "tga", "xps"]
+          assert summary["join_summary"] == {
+              "matched": 1,
+              "process_only": 0,
+              "characterization_only": 0,
+          }
+          assert summary["scientific_closeout"]["evidence_level"] == "Diagnostic"
+          assert summary["software_validation"]["model_trained"] is False
+          assert manifest["input_bundle"]["sha256"]
+          print((root / "cross_repository_handoff_report.md").read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload producer, consumer, and diagnostics evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-repository-public-dwcnt-evidence
+          path: |
+            materials-characterization-analyzer/outputs/public-carbon-case
+            materials-data-analyzer/outputs/cross-repository-public-dwcnt
+            materials-data-analyzer/outputs/cross-repository-diagnostics
+          if-no-files-found: error
+          retention-days: 14
