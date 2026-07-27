@@ -277,7 +277,7 @@ def test_actual_tracked_summary_matches_closeout_and_platform_version():
 
     from src.platform_core.version import PLATFORM_VERSION
 
-    assert PLATFORM_VERSION == "2.4.0"
+    assert PLATFORM_VERSION == "2.7.0"
 
 
 def test_module_has_no_network_archive_model_or_dynamic_execution():
