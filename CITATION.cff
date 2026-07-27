@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "Cite the exact repository commit used and preserve the source-data citations recorded by each case study or generated report. A versioned citation will be added only after the next public release version is reconciled."
+type: software
+title: "Materials Data Analyzer"
+authors:
+  - name: "jhin0410-lgtm"
+repository-code: "https://github.com/jhin0410-lgtm/materials-data-analyzer"
+url: "https://github.com/jhin0410-lgtm/materials-data-analyzer"
+license: MIT
+abstract: >-
+  A provenance-aware command-line research software platform for auditable
+  materials, process, quality, reliability, battery, and smart-factory data
+  workflows. The project separates software validation from scientific
+  validation, records trust boundaries, and preserves negative or blocked
+  scientific conclusions rather than treating successful execution as proof of
+  causal, predictive, or engineering validity.
+keywords:
+  - materials science
+  - manufacturing data
+  - process characterization
+  - reliability
+  - battery data
+  - provenance
+  - scientific validation
