@@ -16,7 +16,7 @@ on:
       - "tests/test_v2_7_release_publication_contract.py"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: publish-v2.7.0
@@ -145,10 +145,12 @@ jobs:
           retention-days: 30
 
   publish-release:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: verify-release-contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
 
     steps:
       - name: Check out repository history
