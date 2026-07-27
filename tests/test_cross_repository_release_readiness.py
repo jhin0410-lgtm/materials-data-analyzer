@@ -30,7 +30,7 @@ def _data_repo(
     public_version: str = "2.7.0",
     runtime_version: str = "2.7.0",
     citation_version: str = "2.7.0",
-    unreleased_line: str = "No unreleased changes are currently recorded.",
+    unreleased_line: str = "",
 ) -> None:
     for relative in (
         "README.md",
