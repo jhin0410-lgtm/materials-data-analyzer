@@ -1,0 +1,106 @@
+{
+  "case_study_id": "nist_ambench_2018_02_single_track",
+  "cases": {
+    "A": {
+      "calibrated_laser_power_w": 137.9,
+      "commanded_laser_power_w": 150.0,
+      "reported_class_depth_mean_um": 42.5,
+      "reported_class_depth_std_dev_um": 1.7,
+      "reported_class_width_mean_um": 147.9,
+      "reported_class_width_std_dev_um": 3.7,
+      "scan_speed_mm_s": 400.0,
+      "trace_numbers": [
+        5,
+        6,
+        7
+      ]
+    },
+    "B": {
+      "calibrated_laser_power_w": 179.2,
+      "commanded_laser_power_w": 195.0,
+      "reported_class_depth_mean_um": 36.0,
+      "reported_class_depth_std_dev_um": 1.9,
+      "reported_class_width_mean_um": 123.5,
+      "reported_class_width_std_dev_um": 6.5,
+      "scan_speed_mm_s": 800.0,
+      "trace_numbers": [
+        8,
+        9,
+        10
+      ]
+    },
+    "C": {
+      "calibrated_laser_power_w": 179.2,
+      "commanded_laser_power_w": 195.0,
+      "reported_class_depth_mean_um": 29.6,
+      "reported_class_depth_std_dev_um": 0.6,
+      "reported_class_width_mean_um": 106.0,
+      "reported_class_width_std_dev_um": 1.4,
+      "scan_speed_mm_s": 1200.0,
+      "trace_numbers": [
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  },
+  "experiment": {
+    "corrected_spot_size_fwhm_um": 100.0,
+    "individual_measurement_uncertainty_estimate_um": 0.5,
+    "legacy_reported_spot_size_fwhm_um": 45.0,
+    "machine": "NIST_AMMT",
+    "material": "IN625",
+    "measurement_instrument": "optical_microscopy",
+    "measurement_method": "nist_reported_microscope_metrology_mode",
+    "spot_size_correction_note": "The current NIST description and challenge notice correct the AMMT spot size to 100 um FWHM. The older result table shows 45 um; both values are preserved, and the corrected value is used in the process table.",
+    "trace_numbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
+  },
+  "provenance_status": "manual_transcription_from_official_nist_result_table",
+  "schema_version": "1.0",
+  "scientific_boundary": {
+    "status": "diagnostic",
+    "supported": [
+      "reproduction of the official ten-row process and reported cross-section table",
+      "sample-id-based process-to-characterization handoff",
+      "descriptive comparison among the three reported process settings"
+    ],
+    "unsupported": [
+      "causal process optimization",
+      "predictive model validation",
+      "independent image remeasurement",
+      "generalization beyond the reported IN625 AMMT traces"
+    ]
+  },
+  "source": {
+    "access_status": "public_official_nist_record",
+    "accessed_date": "2026-07-27",
+    "associated_publication_doi": "10.1007/s40192-020-00169-1",
+    "citation_guidance_url": "https://www.nist.gov/ambench/direct-am-bench-data-links-and-referencing-guidance",
+    "correction_notice_url": "https://www.nist.gov/ambench/challenges-and-descriptions",
+    "data_record_doi": "10.18434/mds2-3830",
+    "data_record_url": "https://data.nist.gov/od/id/mds2-3830",
+    "experiment_description_url": "https://www.nist.gov/ambench/amb2018-02-description",
+    "measurement_results_url": "https://www.nist.gov/ambench/chal-amb2018-02-mp-xsection",
+    "organization": "National Institute of Standards and Technology",
+    "terms_url": "https://www.nist.gov/open/copyright-fair-use-and-licensing-statements-srd-data-software-and-technical-series-publications"
+  },
+  "title": "NIST AM-Bench 2018-02 IN625 single-track process-to-cross-section case study",
+  "tracked_source_table": {
+    "path": "data/case_studies/nist_ambench_2018_single_track/trace_measurements.csv",
+    "row_count": 10,
+    "sha256": "596f276cc2b1eb76c24dbb25579c20346ec792977b253f3d6db31d289e43723d",
+    "transcription_note": "Values were transcribed from the official NIST Table 1 and Table 2 pages. The tracked CSV is not a raw instrument export."
+  }
+}
