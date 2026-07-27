@@ -1,0 +1,131 @@
+name: Cross-repository release readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "PUBLIC_RELEASE_VERSION"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "README.md"
+      - "docs/PUBLIC_RELEASE_STATUS.md"
+      - "docs/releases/**"
+      - "src/platform_core/version.py"
+      - "scripts/audit_cross_repository_release_readiness.py"
+      - "tests/test_cross_repository_release_readiness.py"
+      - "tests/test_public_release_metadata.py"
+      - "docs/CROSS_REPOSITORY_RELEASE_READINESS.md"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/cross-repository-release-readiness.yml"
+      - ".github/workflows/cross-repository-nist-ambench-2018-02.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-repo-release-readiness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-release-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+
+      - name: Check out pinned materials-characterization-analyzer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: 7242594f775b8dbe651a6131bb1b39b5f60c62cd
+          path: companion/materials-characterization-analyzer
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install focused test dependency
+        run: python -m pip install pytest
+
+      - name: Run cross-repository release audit
+        run: |
+          python scripts/audit_cross_repository_release_readiness.py \
+            --data-repo-root . \
+            --characterization-repo-root companion/materials-characterization-analyzer \
+            --characterization-commit 7242594f775b8dbe651a6131bb1b39b5f60c62cd \
+            --output outputs/cross_repository_release_readiness
+
+      - name: Run focused tests
+        run: |
+          python -m pytest -q \
+            tests/test_cross_repository_release_readiness.py \
+            tests/test_public_release_metadata.py
+
+      - name: Verify exact readiness decisions and checksums
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/cross_repository_release_readiness")
+          summary = json.loads(
+              (root / "cross_repository_release_readiness.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          manifest = json.loads(
+              (root / "cross_repository_release_readiness_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          data = summary["repositories"]["materials_data_analyzer"]
+          characterization = summary["repositories"][
+              "materials_characterization_analyzer"
+          ]
+
+          assert data["status"] == "stable_release_metadata_valid_main_ahead"
+          assert data["public_release_version"] == "2.4.0"
+          assert data["runtime_platform_version"] == "2.4.0"
+          assert data["citation_version"] == "2.4.0"
+          assert data["highest_unreleased_named_version"] == "2.6.2"
+          assert data["stable_release_metadata_valid"] is True
+          assert data["current_main_tagging_allowed"] is False
+          assert data["blockers"] == []
+
+          assert characterization["status"] == (
+              "ready_for_external_tag_or_release_verification"
+          )
+          assert set(characterization["version_sources"].values()) == {"0.8.6"}
+
+          assert summary["cross_repository"]["status"] == (
+              "coordinated_release_requires_data_version_closeout"
+          )
+          assert summary["cross_repository"][
+              "tracked_compatibility_evidence_present"
+          ] is True
+          assert summary["tags_created"] is False
+          assert summary["releases_created"] is False
+          assert summary["packages_published"] is False
+          assert summary["scientific_boundary"]["models_trained"] is False
+
+          for name, filename in manifest["outputs"].items():
+              path = root / filename
+              assert path.is_file()
+              assert manifest["output_sha256"][name] == hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
+          PY
+
+      - name: Upload release-readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-repository-release-readiness
+          path: outputs/cross_repository_release_readiness
+          if-no-files-found: error
+          retention-days: 14
