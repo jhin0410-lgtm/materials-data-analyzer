@@ -11,6 +11,7 @@ on:
       - "configs/v2_7_public_release_candidate.json"
       - "scripts/audit_v2_7_public_release_candidate.py"
       - "tests/test_v2_7_public_release_candidate.py"
+      - "tests/test_v2_7_release_readiness.py"
       - "docs/V2_7_PUBLIC_RELEASE_CANDIDATE.md"
       - "docs/releases/V2_7_0.md"
       - "docs/PUBLIC_RELEASE_STATUS.md"
@@ -74,13 +75,20 @@ jobs:
             --json validate \
             data/processed/battery_v2_6_14_external_evidence_line_closeout_summary.json
 
-      - name: Run focused tests
+      - name: Test v2.7 promotion contract
+        run: python -m pytest -q tests/test_v2_7_public_release_candidate.py
+
+      - name: Test v2.7 public release metadata
         run: |
           python -m pytest -q \
-            tests/test_v2_7_public_release_candidate.py \
             tests/test_public_release_metadata.py \
-            tests/test_battery_v2_6_external_evidence_line_closeout.py \
-            tests/test_battery_v2_6_external_evidence_line_closeout_tracked.py
+            tests/test_v2_7_release_readiness.py
+
+      - name: Test v2.6 closeout implementation
+        run: python -m pytest -q tests/test_battery_v2_6_external_evidence_line_closeout.py
+
+      - name: Test tracked v2.6 closeout reproduction
+        run: python -m pytest -q tests/test_battery_v2_6_external_evidence_line_closeout_tracked.py
 
       - name: Verify decision and checksums
         run: |
