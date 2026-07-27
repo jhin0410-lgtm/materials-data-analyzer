@@ -1,22 +1,22 @@
-# v2.6.0 Public Release Candidate
+# v2.6.0 Public Release Promotion Closeout
 
 ## Decision
 
-The next stable public version is **v2.6.0**.
+The selected stable public version is **v2.6.0**.
 
 A separate v2.5.0 public release is not justified. v2.5.1 and v2.5.2 were
 completed internal feature stages, but no v2.5 public release boundary was
 created before the v2.6 line was implemented and closed. Their compatibility and
-retrieval-reproducibility evidence therefore belongs in the v2.6.0 release
-scope.
+retrieval-reproducibility evidence is therefore included in v2.6.0.
 
-This document selects the version and scope only. It does not yet change
-`PUBLIC_RELEASE_VERSION`, `PLATFORM_VERSION`, `CITATION.cff`, the changelog
-release heading, or external Git tags and releases.
+The tracked promotion updates `PUBLIC_RELEASE_VERSION`, runtime
+`PLATFORM_VERSION`, `CITATION.cff`, `CHANGELOG.md`, the v2.5 and v2.6 roadmaps,
+and `docs/releases/V2_6_0.md` together. The offline closeout does not create a
+Git tag or GitHub Release.
 
 ## Audited scope
 
-The release candidate includes:
+The release includes:
 
 1. v2.5.1 explicit historical compatibility adapters;
 2. v2.5.2 retrieval-reproducibility evidence audit;
@@ -30,7 +30,7 @@ The release candidate includes:
    closeout;
 9. v2.6.14 checksum-bound evidence-line closeout;
 10. public-repository hardening and explicit release/citation governance;
-11. generic checksum-bound characterization bundle consumption;
+11. generic checksum-bound characterization-bundle consumption;
 12. pinned DWCNT, RWGS, four-carbon-material, and NIST AM-Bench
     cross-repository workflows;
 13. the representative NIST process-characterization workflow, identifiability
@@ -42,15 +42,14 @@ The v2.6 core evidence line was closed at commit:
 50e3ee1201ef791b250558a30c373848d615f815
 ```
 
-The release-candidate audit was based on `main` commit:
+The integrated release-candidate audit was based on `main` commit:
 
 ```text
 8edd4b79c35f5aa5d0f85a5e03fbb918e0c09c5d
 ```
 
-The second commit contains 37 reviewed integration and public-repository commits
-on top of the v2.6 core closeout. Those changes are included in the integrated
-v2.6.0 candidate rather than being silently omitted.
+The integrated candidate includes the reviewed public and cross-repository work
+on top of the v2.6 core closeout rather than silently omitting it.
 
 ## Preserved results
 
@@ -84,27 +83,30 @@ v2.6.0 candidate rather than being silently omitted.
 
 ## Why v2.5.0 is rejected
 
-Publishing v2.5.0 from the current repository would require either reverting the
-completed v2.6 implementation or selecting an older historical commit and
-maintaining a separate release line. Neither action provides scientific or
-software value. v2.6 is already explicitly closed by a 13-stage checksum-bound
-artifact chain, so v2.6.0 is the smallest truthful stable version.
+Publishing v2.5.0 from the integrated repository would require reverting the
+completed v2.6 implementation or maintaining an older separate release line.
+Neither action provides scientific or software value. v2.6 is explicitly closed
+by a 13-stage checksum-bound artifact chain, so v2.6.0 is the smallest truthful
+stable version.
 
-## Promotion blockers
+## Promotion status
 
-Before external release action:
+Completed in the promotion candidate:
 
-1. move v2.5.1-v2.5.2 and v2.6.1-v2.6.14 into a `v2.6.0` changelog section;
-2. add `docs/releases/V2_6_0.md`;
-3. update `PUBLIC_RELEASE_VERSION`, runtime `PLATFORM_VERSION`, and
-   `CITATION.cff` together;
-4. add `date-released` to the citation metadata;
-5. update the v2.5 and v2.6 roadmaps from feature-stage status to
-   `released_as_v2.6.0`;
-6. rerun complete CI, the v2.6.14 closeout validator, and the pinned
-   cross-repository release-readiness audit;
-7. create or verify external tags and releases only after the promotion commit
-   is reviewed.
+1. v2.5.1-v2.5.2 and v2.6.1-v2.6.14 are represented in the `v2.6.0`
+   changelog and release notes;
+2. `docs/releases/V2_6_0.md` preserves Supported, Diagnostic, Inconclusive, and
+   Unsupported outcomes;
+3. public, runtime, and citation versions are aligned to `2.6.0` with a release
+   date;
+4. the v2.5 and v2.6 roadmaps record `released_as_v2.6.0`;
+5. the deterministic promotion audit, v2.6.14 validator, complete CI, and pinned
+   cross-repository audit are required on the merge context.
+
+Remaining external action:
+
+- create or verify a reviewed v2.6.0 Git tag and GitHub Release only after the
+  promotion commit passes all workflows.
 
 ## Scientific boundary
 
