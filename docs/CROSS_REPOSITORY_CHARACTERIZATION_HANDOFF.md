@@ -88,6 +88,23 @@ The GitHub Actions workflow `.github/workflows/cross-repository-public-rwgs.yml`
 
 The RWGS case tests a different scientific boundary from DWCNT: a blocked modality and a composition conflict must remain visible after integration rather than being silently dropped or converted into apparently complete multimodal data.
 
+## Public carbon four-material end-to-end case
+
+The GitHub Actions workflow `.github/workflows/cross-repository-public-carbon-four-materials.yml` performs a third real two-repository execution:
+
+1. checks out this repository;
+2. checks out the reviewed `materials-characterization-analyzer` `0.8.6` producer at pinned commit `7242594f775b8dbe651a6131bb1b39b5f60c62cd`;
+3. installs both repositories independently;
+4. verifies Recherche Data Gouv dataset version `1.0` and exact source bindings for DWCNT, MWCNT, FLG, and GNP;
+5. verifies supplied checksums before source persistence and executes Raman, FTIR, XPS, and TGA for all four sample IDs;
+6. retains TEM as source-readiness evidence with quantitative analysis blocked;
+7. exports 495 review-required feature records from 16 measurements through bundle schema `1.0`;
+8. consumes the bundle and verifies 495/495 source hashes and preprocessing identifiers;
+9. performs four explicit `sample_id` matches with no unmatched records, aggregation, inferred metadata, or row-order joining;
+10. verifies that no `char__tem__` numeric columns appear and uploads producer and consumer evidence.
+
+The dedicated case documentation is in `docs/PUBLIC_CARBON_FOUR_MATERIAL_HANDOFF.md`. This case validates a multi-sample bundle, but the four material classes are not controlled process levels and must not be interpreted as a process-response series.
+
 Producer commits are pinned so producer changes cannot silently alter an existing consumer validation. Updating a pin requires deliberate contract review and a new successful workflow run.
 
 ## Outputs
@@ -107,7 +124,7 @@ The consumer writes:
 
 ## Scientific closeout
 
-Both public handoff cases remain **Diagnostic**.
+All three public handoff cases remain **Diagnostic**.
 
 Supported:
 
@@ -117,16 +134,19 @@ Supported:
 - methods, units, quality flags, source hashes, and preprocessing identifiers are preserved;
 - blocked modalities and unresolved quality conflicts remain explicit in sample context and claim boundaries;
 - unit-label normalization is explicit, checksum-covered, and does not alter values;
-- no direct internal imports, row-order joins, model training, or scientific metric recomputation occur.
+- no direct internal imports, row-order joins, model training, or scientific metric recomputation occur;
+- the same schema supports both one-sample and four-sample diagnostic bundles.
 
 Not supported:
 
 - identical physical aliquots across instruments;
+- treating different material classes as controlled process levels;
 - process-response modeling or process optimization;
 - causal or mechanistic interpretation;
 - phase, chemical-state, functional-group, or nominal-composition confirmation;
 - quantitative particle-size claims from the blocked RWGS SEM image;
+- quantitative TEM morphology from the blocked carbon images;
 - predictive generalization;
 - engineering release decisions.
 
-A one-sample bundle proves interoperability and provenance transfer, not a statistical relationship. A future process-characterization study requires multiple explicitly traceable samples with compatible process histories, acquisition conditions, and valid outcomes.
+A multi-sample bundle proves scalable interoperability and provenance transfer, not a statistical process relationship. A valid process-characterization study requires explicitly traceable samples with controlled and compatible process histories, acquisition conditions, replicates, valid outcomes, and uncertainty estimates.
