@@ -64,7 +64,7 @@ jobs:
             tests/test_cross_repository_release_readiness.py \
             tests/test_public_release_metadata.py
 
-      - name: Verify exact readiness decisions and checksums
+      - name: Verify v2.6.0 readiness decisions and checksums
         run: |
           python - <<'PY'
           import hashlib
@@ -88,13 +88,15 @@ jobs:
               "materials_characterization_analyzer"
           ]
 
-          assert data["status"] == "stable_release_metadata_valid_main_ahead"
-          assert data["public_release_version"] == "2.4.0"
-          assert data["runtime_platform_version"] == "2.4.0"
-          assert data["citation_version"] == "2.4.0"
-          assert data["highest_unreleased_named_version"] == "2.6.2"
+          assert data["status"] == "ready_for_current_head_release_action"
+          assert data["public_release_version"] == "2.6.0"
+          assert data["runtime_platform_version"] == "2.6.0"
+          assert data["citation_version"] == "2.6.0"
+          assert data["citation_date_released"] == "2026-07-28"
+          assert data["highest_unreleased_named_version"] is None
+          assert data["main_contains_post_release_work"] is False
           assert data["stable_release_metadata_valid"] is True
-          assert data["current_main_tagging_allowed"] is False
+          assert data["current_main_tagging_allowed"] is True
           assert data["blockers"] == []
 
           assert characterization["status"] == (
@@ -103,7 +105,7 @@ jobs:
           assert set(characterization["version_sources"].values()) == {"0.8.6"}
 
           assert summary["cross_repository"]["status"] == (
-              "coordinated_release_requires_data_version_closeout"
+              "ready_for_external_release_action"
           )
           assert summary["cross_repository"][
               "tracked_compatibility_evidence_present"
@@ -112,6 +114,7 @@ jobs:
           assert summary["releases_created"] is False
           assert summary["packages_published"] is False
           assert summary["scientific_boundary"]["models_trained"] is False
+          assert summary["scientific_boundary"]["optimization_performed"] is False
 
           for name, filename in manifest["outputs"].items():
               path = root / filename
@@ -125,7 +128,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: cross-repository-release-readiness
+          name: cross-repository-release-readiness-v2-6-0
           path: outputs/cross_repository_release_readiness
           if-no-files-found: error
           retention-days: 14
