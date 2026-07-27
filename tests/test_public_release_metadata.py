@@ -25,10 +25,12 @@ def test_public_release_metadata_is_complete_and_consistent() -> None:
         PROJECT_ROOT / "docs" / "releases" / f"V{version.replace('.', '_')}.md"
     )
 
+    assert version == "2.7.0"
     assert release_notes.is_file()
     assert "cff-version: 1.2.0" in citation
     assert 'title: "Materials Data Analyzer"' in citation
     assert f"version: {version}" in citation
+    assert "date-released: 2026-07-28" in citation
     assert (
         'repository-code: "https://github.com/jhin0410-lgtm/materials-data-analyzer"'
         in citation
@@ -38,11 +40,13 @@ def test_public_release_metadata_is_complete_and_consistent() -> None:
     assert f"## v{version}" in changelog
     assert changelog.index("## Unreleased") < changelog.index(f"## v{version}")
     assert f"stable public release is **v{version}**" in status
-    assert "exact Git commit SHA" in status
-    assert f"# v{version} -" in release_notes.read_text(encoding="utf-8")
+    assert "exact commit SHA" in status
+    notes = release_notes.read_text(encoding="utf-8")
+    assert notes.startswith(f"# v{version} -")
+    assert "Release date: 2026-07-28" in notes
 
 
-def test_unreleased_feature_stages_are_not_mislabeled_as_public_release() -> None:
+def test_unreleased_is_empty_at_v2_7_promotion_boundary() -> None:
     version = _public_version()
     changelog = CHANGELOG_FILE.read_text(encoding="utf-8")
     status = STATUS_FILE.read_text(encoding="utf-8")
@@ -50,17 +54,27 @@ def test_unreleased_feature_stages_are_not_mislabeled_as_public_release() -> Non
     unreleased = changelog.split("## Unreleased", maxsplit=1)[1].split(
         f"## v{version}", maxsplit=1
     )[0]
-    assert "v2.6.2" in unreleased
-    assert "development-stage identifiers" in status
-    assert "They are not automatically promoted" in status
+    assert "No unreleased changes" in unreleased
+    for stage in ["v2.5.1", "v2.5.2", *[f"v2.6.{i}" for i in range(1, 15)]]:
+        assert stage not in unreleased
+    assert "At the v2.7.0 promotion commit" in status
 
 
-def test_citation_preserves_scientific_and_source_boundaries() -> None:
+def test_v2_7_release_preserves_complete_stage_and_scientific_boundaries() -> None:
     citation = CITATION_FILE.read_text(encoding="utf-8")
     status = STATUS_FILE.read_text(encoding="utf-8")
+    notes = (PROJECT_ROOT / "docs" / "releases" / "V2_7_0.md").read_text(
+        encoding="utf-8"
+    )
 
+    for stage in ["v2.5.1", "v2.5.2", *[f"v2.6.{i}" for i in range(1, 15)]]:
+        assert stage in notes
     assert "exact repository commit used" in citation
     assert "source-data citations" in citation
     assert "does not automatically" in citation
     assert "does not relicense third-party datasets" in status
     assert "does not prove that samples are comparable" in status
+    assert "Unsupported" in notes
+    assert "Inconclusive" in notes
+    assert "Diagnostic" in notes
+    assert "not_ready_for_predictive_or_causal_modeling" in notes
