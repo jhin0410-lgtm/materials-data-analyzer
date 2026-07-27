@@ -117,4 +117,4 @@ def test_release_documents_preserve_complete_scope_and_claim_boundaries() -> Non
     assert "## v2.7.0" in changelog
     unreleased = changelog.split("## Unreleased", 1)[1].split("## v2.7.0", 1)[0]
     assert "No unreleased changes" in unreleased
-    assert "does not establish" in candidate
+    assert "do not establish" in candidate
