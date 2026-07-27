@@ -40,33 +40,37 @@ The manifest records SHA-256 for the JSON summary and Markdown report.
 
 The audit separates two questions that must not be conflated.
 
-### Is the existing stable release metadata valid?
+### Is the stable release metadata internally valid?
 
-For the current repository state, the stable public release is `v2.4.0`. The
-audit requires agreement among:
+For the v2.7.0 closeout, the audit requires agreement among:
 
 - `PUBLIC_RELEASE_VERSION`;
 - `src/platform_core/version.py`;
 - `CITATION.cff`;
 - the `CHANGELOG.md` release heading;
-- `docs/releases/V2_4_0.md`;
+- `docs/releases/V2_7_0.md`;
 - `docs/PUBLIC_RELEASE_STATUS.md`.
 
-### Can the current `main` commit be tagged as that release?
+### Is the audited data-repository HEAD eligible for external release action?
 
-No. `main` contains additional work under `Unreleased`, including feature-stage
-labels through `v2.6.2`. Therefore valid v2.4.0 citation metadata does not make
-the current HEAD a clean v2.4.0 release commit.
+The v2.7.0 closeout keeps the `Unreleased` section empty. The expected data
+repository status is therefore:
 
-The expected status is:
+```text
+ready_for_current_head_release_action
+```
+
+This status means the tracked version, citation, changelog, release notes, and
+runtime metadata are consistent and no post-release feature entry is present.
+It does not prove that a Git tag or GitHub Release exists.
+
+After any later feature is added under `Unreleased`, the same audit must return:
 
 ```text
 stable_release_metadata_valid_main_ahead
 ```
 
-The next public version is not selected automatically. A future release must
-move the intended `Unreleased` scope into explicit release notes and update all
-version sources together.
+and current-HEAD tagging as v2.7.0 becomes disallowed.
 
 ## Characterization repository decision model
 
@@ -86,8 +90,27 @@ Its CI must include:
 - installed-wheel `mca --version` smoke testing;
 - distribution artifact checks.
 
+The expected pinned-package status remains:
+
+```text
+ready_for_external_tag_or_release_verification
+```
+
 The offline audit cannot verify whether a Git tag, GitHub Release, or package
-index upload exists. Those remain external release actions.
+index upload exists. Those remain explicit external release actions.
+
+## Coordinated v2.7.0 closeout status
+
+When the data repository is closed at v2.7.0 and the pinned characterization
+package remains consistent at 0.8.6, the expected cross-repository status is:
+
+```text
+ready_for_external_release_action
+```
+
+This means tracked release metadata and compatibility evidence are ready for
+human-reviewed external tag and release verification. The workflow itself does
+not create either release.
 
 ## Pinned companion commit
 
@@ -100,6 +123,22 @@ The dedicated workflow audits `materials-characterization-analyzer` at:
 That commit contains the corrected `0.8.6` public package metadata and the
 four-material source-safety fixes. Changing the pin requires review and another
 successful audit.
+
+## Preserved release results
+
+Release closeout must preserve, rather than hide, the tracked scientific
+outcomes:
+
+- Materials composition physics: `performance_degraded`;
+- known-structure predictive value: `structure_predictive_value_limited`;
+- Materials compatibility: compatible with restrictions;
+- Battery compatibility: partial;
+- retrieval reproducibility: `insufficient_evidence`;
+- Battery forecast improvement: `unsupported`;
+- process-characterization workflows: `Diagnostic`;
+- NIST predictive or causal modeling readiness: blocked.
+
+These results are validated as release content, not upgraded by the release.
 
 ## Scientific boundary
 
