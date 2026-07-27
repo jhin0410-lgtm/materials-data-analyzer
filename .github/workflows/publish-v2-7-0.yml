@@ -1,0 +1,237 @@
+name: Publish v2.7.0 GitHub release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/publish-v2-7-0.yml"
+      - "release/v2.7.0-publish-request.json"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-v2-7-0.yml"
+      - "release/v2.7.0-publish-request.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v2.7.0
+  cancel-in-progress: false
+
+jobs:
+  verify-release-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable release request
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+
+          request_path = Path("release/v2.7.0-publish-request.json")
+          request = json.loads(request_path.read_text(encoding="utf-8"))
+
+          expected = {
+              "schema_version": "1.0",
+              "release_version": "2.7.0",
+              "tag_name": "v2.7.0",
+              "target_commit": "2d003aecede89aacc25cdb246bf9cc6adec19bf9",
+              "release_date": "2026-07-28",
+              "draft": False,
+              "prerelease": False,
+              "mark_latest": True,
+              "package_publication_authorized": False,
+          }
+          for key, value in expected.items():
+              assert request[key] == value, (key, request[key], value)
+
+          target = request["target_commit"]
+          assert re.fullmatch(r"[0-9a-f]{40}", target)
+          subprocess.run(["git", "cat-file", "-e", f"{target}^{{commit}}"], check=True)
+          subprocess.run(["git", "merge-base", "--is-ancestor", target, "HEAD"], check=True)
+
+          def git_show(path: str) -> str:
+              return subprocess.check_output(
+                  ["git", "show", f"{target}:{path}"], text=True
+              )
+
+          assert git_show("PUBLIC_RELEASE_VERSION").strip() == "2.7.0"
+          assert 'PLATFORM_VERSION = "2.7.0"' in git_show(
+              "src/platform_core/version.py"
+          )
+
+          citation = git_show("CITATION.cff")
+          assert "version: 2.7.0" in citation
+          assert "date-released: 2026-07-28" in citation
+
+          changelog = git_show("CHANGELOG.md")
+          assert "## v2.7.0" in changelog
+          unreleased = changelog.split("## Unreleased", 1)[1].split("## v2.7.0", 1)[0]
+          assert not re.search(r"^\s*-\s+", unreleased, re.MULTILINE)
+
+          release_notes = git_show(request["release_notes_path"])
+          assert release_notes.startswith(
+              "# v2.7.0 - Evidence-Line Closeout and Cross-Repository Integration"
+          )
+          for required in (
+              "Ridge generalization: `unsupported`",
+              "predictive-validation readiness: `not_ready`",
+              "final evidence-line scientific status: **Inconclusive**",
+              "DWCNT, RWGS, four-carbon-material, and NIST cases: **Diagnostic**",
+              "NIST predictive or causal readiness: blocked",
+          ):
+              assert required in release_notes, required
+
+          boundary = request["scientific_boundary"]
+          assert boundary == {
+              "ridge_generalization": "unsupported",
+              "predictive_validation_readiness": "not_ready",
+              "battery_evidence_line_status": "inconclusive",
+              "process_characterization_status": "diagnostic",
+              "model_training_authorized": False,
+              "optimization_authorized": False,
+              "engineering_release_claim_authorized": False,
+          }
+
+          Path("/tmp/v2.7.0-release-notes.md").write_text(
+              release_notes, encoding="utf-8"
+          )
+          evidence = {
+              "schema_version": "1.0",
+              "verification_status": "passed",
+              "release_version": request["release_version"],
+              "tag_name": request["tag_name"],
+              "target_commit": target,
+              "release_notes_sha256": hashlib.sha256(
+                  release_notes.encode("utf-8")
+              ).hexdigest(),
+              "package_publication_authorized": False,
+              "scientific_boundary": boundary,
+          }
+          Path("release-contract-verification.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload release-contract verification
+        uses: actions/upload-artifact@v7
+        with:
+          name: v2-7-0-release-contract-verification
+          path: release-contract-verification.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release:
+    if: github.event_name != 'pull_request'
+    needs: verify-release-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Publish or verify annotated tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          VERSION="$(python -c 'import json; print(json.load(open("release/v2.7.0-publish-request.json"))["release_version"])')"
+          TAG="$(python -c 'import json; print(json.load(open("release/v2.7.0-publish-request.json"))["tag_name"])')"
+          TARGET="$(python -c 'import json; print(json.load(open("release/v2.7.0-publish-request.json"))["target_commit"])')"
+          TITLE="$(python -c 'import json; print(json.load(open("release/v2.7.0-publish-request.json"))["release_title"])')"
+          NOTES_PATH="$(python -c 'import json; print(json.load(open("release/v2.7.0-publish-request.json"))["release_notes_path"])')"
+
+          git cat-file -e "${TARGET}^{commit}"
+          git merge-base --is-ancestor "${TARGET}" HEAD
+          git show "${TARGET}:${NOTES_PATH}" > /tmp/v2.7.0-release-notes.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --force --tags origin
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            EXISTING_TARGET="$(git rev-list -n 1 "${TAG}")"
+            test "${EXISTING_TARGET}" = "${TARGET}"
+          else
+            git tag -a "${TAG}" "${TARGET}" -m "${TITLE}"
+            git push origin "refs/tags/${TAG}"
+          fi
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release view "${TAG}" --json tagName,name,isDraft,isPrerelease,url > /tmp/release.json
+          else
+            gh release create "${TAG}" \
+              --verify-tag \
+              --title "${TITLE}" \
+              --notes-file /tmp/v2.7.0-release-notes.md \
+              --latest
+            gh release view "${TAG}" --json tagName,name,isDraft,isPrerelease,url > /tmp/release.json
+          fi
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import subprocess
+          from pathlib import Path
+
+          request = json.loads(
+              Path("release/v2.7.0-publish-request.json").read_text(encoding="utf-8")
+          )
+          release = json.loads(Path("/tmp/release.json").read_text(encoding="utf-8"))
+          target = subprocess.check_output(
+              ["git", "rev-list", "-n", "1", request["tag_name"]], text=True
+          ).strip()
+
+          assert target == request["target_commit"]
+          assert release["tagName"] == request["tag_name"]
+          assert release["name"] == request["release_title"]
+          assert release["isDraft"] is False
+          assert release["isPrerelease"] is False
+
+          notes = Path("/tmp/v2.7.0-release-notes.md").read_bytes()
+          attestation = {
+              "schema_version": "1.0",
+              "publication_status": "published_or_verified",
+              "release_version": request["release_version"],
+              "tag_name": request["tag_name"],
+              "target_commit": target,
+              "release_url": release["url"],
+              "release_notes_sha256": hashlib.sha256(notes).hexdigest(),
+              "draft": False,
+              "prerelease": False,
+              "marked_latest": True,
+              "package_publication_performed": False,
+              "model_training_performed": False,
+              "optimization_performed": False,
+              "scientific_claim_promoted": False,
+          }
+          Path("v2.7.0-release-publication-attestation.json").write_text(
+              json.dumps(attestation, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload release-publication attestation
+        uses: actions/upload-artifact@v7
+        with:
+          name: v2-7-0-release-publication-attestation
+          path: v2.7.0-release-publication-attestation.json
+          if-no-files-found: error
+          retention-days: 90
