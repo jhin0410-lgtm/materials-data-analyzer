@@ -83,6 +83,35 @@ tables, converts the measurement table to the stable 12-column
 characterization-feature contract, runs the explicit `sample_id` handoff, and
 writes descriptive outputs.
 
+## Integrity Verification
+
+After generation, verify that the existing output directory still matches its
+source and handoff evidence:
+
+```powershell
+python scripts/verify_nist_ambench_2018_02_case_study.py `
+  --output outputs/nist_ambench_2018_02
+```
+
+The verifier checks:
+
+- the case manifest source hashes against the two tracked NIST transcription
+  tables;
+- every case-manifest artifact checksum;
+- all 40 long-format feature records against the tracked measurement filename
+  and SHA-256 value;
+- the handoff manifest input hashes against the generated long-format feature
+  table and normalized process table;
+- the handoff output paths against the checksummed case outputs;
+- the fixed record, sample, measurement, feature, and one-to-one join counts;
+- preservation of the diagnostic scientific closeout and the explicit absence
+  of model training, optimization, and row-order joining.
+
+This is an integrity and lineage check. It does not independently prove that the
+manual transcription is correct beyond the existing official-summary
+reproduction, establish physical specimen identity beyond the NIST trace
+mapping, or turn the descriptive result into predictive evidence.
+
 ## Main Outputs
 
 - `ambench_characterization_features_long.csv`
