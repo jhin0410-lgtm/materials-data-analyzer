@@ -71,7 +71,38 @@ These standard-deviation columns are the NIST-reported microscope measurement
 statistics for each trace. They are distinct from the between-trace standard
 deviations recomputed for each process case.
 
-## Reproduction
+## Complete Integrated Workflow
+
+For the normal user path, run the complete build, verification, and closeout in
+one command:
+
+```powershell
+python scripts/run_nist_ambench_2018_02_workflow.py `
+  --output outputs/nist_ambench_2018_02
+```
+
+The output directory must be new or empty. The workflow will not delete or
+silently overwrite existing user files.
+
+The command:
+
+1. validates the two tracked source tables;
+2. builds the characterization-feature records and explicit `sample_id` handoff;
+3. writes the integrated process–characterization tables, figures, and case
+   manifest;
+4. verifies source hashes, feature provenance, handoff bindings, artifact
+   checksums, and the 10/10 matched join;
+5. writes a deterministic machine-readable integrated summary;
+6. writes a concise Markdown closeout report;
+7. writes a final workflow manifest with checksums for every generated file.
+
+The integrated closeout reformats existing verified results. It does not compute
+new scientific metrics, infer missing metadata, train a model, or upgrade the
+scientific evidence beyond `diagnostic`.
+
+## Separate Build Command
+
+The underlying build stage remains available independently:
 
 ```powershell
 python scripts/build_nist_ambench_2018_02_case_study.py `
@@ -85,8 +116,8 @@ writes descriptive outputs.
 
 ## Integrity Verification
 
-After generation, verify that the existing output directory still matches its
-source and handoff evidence:
+After an independent build, verify that the existing output directory still
+matches its source and handoff evidence:
 
 ```powershell
 python scripts/verify_nist_ambench_2018_02_case_study.py `
@@ -126,6 +157,10 @@ mapping, or turn the descriptive result into predictive evidence.
 - `melt_pool_depth_by_linear_energy.png`
 - `ambench_case_study_report.md`
 - `ambench_case_study_manifest.json`
+- `characterization_handoff_manifest.json`
+- `ambench_integrated_summary.json`
+- `ambench_integrated_report.md`
+- `ambench_integrated_workflow_manifest.json`
 
 `linear_energy_density_j_mm` is calculated as actual laser power divided by
 scan speed. It is a line-energy descriptor, not volumetric energy density. It
@@ -143,8 +178,10 @@ Supported:
   `sample_id`;
 - recomputed case-level width/depth means and between-trace standard deviations
   match NIST Table 2 after source-level rounding;
-- the software produces deterministic integration, summaries, figures, and a
-  provenance manifest.
+- the software produces deterministic integration, summaries, figures, and
+  provenance manifests;
+- the integrated workflow verifies source-to-feature-to-artifact lineage before
+  issuing its closeout package.
 
 Not supported:
 
