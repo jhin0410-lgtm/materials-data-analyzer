@@ -194,13 +194,14 @@ See [`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_H
 
 ## Real-Data Case Studies
 
-| Domain | Dataset or source | Main validation emphasis | Current claim boundary |
+| Domain or case study | Dataset or source | Main validation emphasis | Current claim boundary |
 | --- | --- | --- | --- |
-| Process + characterization | NIST AM-Bench 2018-02 IN625 AMMT traces | Explicit trace identity, source-table reproduction, sample-level handoff | Diagnostic description only; no optimization or predictive claim |
-| Materials properties | Materials Project | Chemical-system and reduced-formula grouping, applicability domain | Reproducible descriptive screening; predictive evidence limited |
-| Process quality | UCI SECOM | Chronological validation and random-split optimism | Diagnostic only; no production classifier selected |
-| Reliability | Backblaze SMART records | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
-| Battery | NASA/Kaggle and Battery Archive | Battery grouping, trajectory quality, source comparability | Descriptive or unsupported predictive results preserved |
+| Process + characterization | [NIST AM-Bench 2018-02 IN625 AMMT traces](data/case_studies/nist_ambench_2018_02/README.md) | Explicit trace identity, source-table reproduction, sample-level handoff | Diagnostic description only; no optimization or predictive claim |
+| Materials Project | [Calculated-property and structure case study](data/case_studies/materials_project/README.md) | Chemical-system and reduced-formula grouping, applicability domain | Reproducible descriptive screening; predictive evidence limited |
+| Smart Factory / UCI SECOM | [Process-quality trust-boundary closeout](data/case_studies/smart_factory/case_study.md) | Chronological validation and random-split optimism | Diagnostic only; no production classifier selected |
+| Reliability / Backblaze Hard Drive Test Data | [Asset and time-aware case study](data/case_studies/reliability/case_study.md) | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
+| Kaggle NASA Li-ion Battery | [Battery analysis case study](data/case_studies/kaggle_battery/case_study.md) | Battery grouping, trajectory quality, source comparability | Descriptive or unsupported predictive results preserved |
+| Battery Archive | [Cycle-data case study](data/case_studies/battery_archive/case_study.md) | Cycle normalization, observed censoring, reliability summaries | Descriptive only; no forecasting or RUL claim |
 
 These case studies demonstrate reusable workflow boundaries. They are not the
 identity of the core platform and are not presented as deployment systems.
