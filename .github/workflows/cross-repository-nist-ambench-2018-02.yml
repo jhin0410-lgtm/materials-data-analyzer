@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "PUBLIC_RELEASE_VERSION"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "docs/releases/V2_7_0.md"
+      - "docs/PUBLIC_RELEASE_STATUS.md"
       - "src/loaders/characterization_bundle.py"
       - "scripts/consume_characterization_handoff_bundle.py"
       - "tests/test_characterization_bundle.py"
@@ -167,18 +172,18 @@ jobs:
           assert producer_summary["software_validation"]["model_trained"] is False
 
           assert bundle["producer"] == {
-              "repository": "jhin0410-lgtm/materials-characterization-analyzer",
-              "software_versions": ["0.8.5"],
-              "analysis_result_schema_versions": ["1.0"],
+            "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+            "software_versions": ["0.8.5"],
+            "analysis_result_schema_versions": ["1.0"],
           }
           assert bundle["feature_table"]["row_count"] == 40
           assert bundle["feature_table"]["sample_count"] == 10
           assert bundle["feature_table"]["measurement_count"] == 10
           assert bundle["feature_table"]["instruments"] == [
-              "optical_microscopy_metrology"
+            "optical_microscopy_metrology"
           ]
           assert bundle["feature_table"]["quality_flag_counts"] == {
-              "source_reported": 40
+            "source_reported": 40
           }
           assert bundle["feature_table"]["source_sha256_record_count"] == 40
           assert bundle["feature_table"]["preprocessing_id_record_count"] == 40
@@ -186,18 +191,18 @@ jobs:
           assert summary["status"] == "verified"
           assert summary["case_id"] == "nist-ambench-2018-02-optical-metrology-v1"
           assert summary["feature_summary"] == {
-              "row_count": 40,
-              "sample_count": 10,
-              "measurement_count": 10,
-              "instruments": ["optical_microscopy_metrology"],
-              "quality_flag_counts": {"source_reported": 40},
-              "source_sha256_record_count": 40,
-              "preprocessing_id_record_count": 40,
+            "row_count": 40,
+            "sample_count": 10,
+            "measurement_count": 10,
+            "instruments": ["optical_microscopy_metrology"],
+            "quality_flag_counts": {"source_reported": 40},
+            "source_sha256_record_count": 40,
+            "preprocessing_id_record_count": 40,
           }
           assert summary["join_summary"] == {
-              "matched": 10,
-              "process_only": 0,
-              "characterization_only": 0,
+            "matched": 10,
+            "process_only": 0,
+            "characterization_only": 0,
           }
           assert summary["process_input"]["mode"] == (
               "external_process_table_with_bundle_identity_validation"
@@ -205,10 +210,10 @@ jobs:
           assert summary["process_input"]["sha256"] == process_sha
           assert summary["process_input"]["sample_id_sets_match"] is True
           assert summary["process_input"]["verified_identity_columns"] == [
-              "case_id",
-              "trace_number",
-              "material",
-              "system",
+            "case_id",
+            "trace_number",
+            "material",
+            "system",
           ]
           assert summary["process_input"]["identity_mismatch_count"] == 0
           assert summary["software_validation"]["external_process_table_used"] is True
@@ -222,7 +227,7 @@ jobs:
           )
 
           expected_ids = {
-              f"amb2018_02_ammt_trace_{trace:02d}" for trace in range(1, 11)
+            f"amb2018_02_ammt_trace_{trace:02d}" for trace in range(1, 11)
           }
           assert len(integrated) == 10
           assert set(integrated["sample_id"]) == expected_ids
