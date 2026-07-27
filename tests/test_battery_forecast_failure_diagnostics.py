@@ -435,7 +435,7 @@ def test_secret_like_values_unknown_version_and_result_fields_are_rejected(tmp_p
     assert checksum != result["deterministic_result_checksum"]
 
 
-def test_v2_6_1_tracked_decision_and_platform_version_are_preserved():
+def test_v2_6_1_tracked_decision_is_preserved_under_v2_7():
     payload = json.loads(
         Path(
             "data/processed/battery_v2_6_1_generalization_forecast_summary.json"
@@ -450,7 +450,8 @@ def test_v2_6_1_tracked_decision_and_platform_version_are_preserved():
     assert metrics["ridge"]["mae"] == pytest.approx(4.15369918179312)
     from src.platform_core.version import PLATFORM_VERSION
 
-    assert PLATFORM_VERSION == "2.4.0"
+    # Tracked v2.6 artifacts retain historical checksums; the current public runtime is v2.7.0.
+    assert PLATFORM_VERSION == "2.7.0"
 
 
 def test_diagnostic_config_and_result_schema_json_parse():

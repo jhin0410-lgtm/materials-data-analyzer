@@ -256,7 +256,7 @@ def test_schema_and_config_files_parse():
         assert isinstance(json.loads(path.read_text(encoding="utf-8")), dict)
 
 
-def test_actual_tracked_summary_matches_closeout_and_platform_version():
+def test_actual_tracked_summary_matches_closeout_under_v2_7():
     path = Path(
         "data/processed/battery_v2_6_4_external_cohort_admission_summary.json"
     )
@@ -277,7 +277,8 @@ def test_actual_tracked_summary_matches_closeout_and_platform_version():
 
     from src.platform_core.version import PLATFORM_VERSION
 
-    assert PLATFORM_VERSION == "2.4.0"
+    # Tracked v2.6 artifacts retain historical checksums; the current public runtime is v2.7.0.
+    assert PLATFORM_VERSION == "2.7.0"
 
 
 def test_module_has_no_network_archive_model_or_dynamic_execution():

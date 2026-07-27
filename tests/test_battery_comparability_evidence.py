@@ -305,7 +305,7 @@ def test_absolute_and_traversal_paths_are_rejected(tmp_path, field, value):
         BatteryComparabilityEvidenceConfig.from_mapping(payload)
 
 
-def test_actual_tracked_summary_preserves_v2_6_boundaries():
+def test_actual_tracked_summary_preserves_v2_6_boundaries_under_v2_7():
     path = Path(
         "data/processed/battery_v2_6_3_comparability_evidence_summary.json"
     )
@@ -329,7 +329,8 @@ def test_actual_tracked_summary_preserves_v2_6_boundaries():
     assert metrics["ridge"]["mae"] == pytest.approx(4.15369918179312)
     from src.platform_core.version import PLATFORM_VERSION
 
-    assert PLATFORM_VERSION == "2.4.0"
+    # Tracked v2.6 artifacts retain historical checksums; the current public runtime is v2.7.0.
+    assert PLATFORM_VERSION == "2.7.0"
 
 
 def test_config_result_schemas_and_example_config_parse():
