@@ -1,28 +1,35 @@
-name: v2.6 public release candidate
+name: v2.6 public release promotion
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "PUBLIC_RELEASE_VERSION"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
       - "configs/v2_6_public_release_candidate.json"
       - "scripts/audit_v2_6_public_release_candidate.py"
       - "tests/test_v2_6_public_release_candidate.py"
+      - "tests/test_public_release_metadata.py"
       - "docs/V2_6_PUBLIC_RELEASE_CANDIDATE.md"
       - "docs/PLATFORM_V2_5_ROADMAP.md"
       - "docs/PLATFORM_V2_6_ROADMAP.md"
+      - "docs/PUBLIC_RELEASE_STATUS.md"
+      - "docs/releases/V2_6_0.md"
       - "docs/BATTERY_V2_6_EXTERNAL_EVIDENCE_LINE_CLOSEOUT.md"
       - "data/processed/battery_v2_6_14_external_evidence_line_closeout_summary.json"
+      - "src/platform_core/version.py"
       - ".github/workflows/v2-6-public-release-candidate.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: v2-6-release-candidate-${{ github.workflow }}-${{ github.ref }}
+  group: v2-6-release-promotion-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate-release-candidate:
+  validate-release-promotion:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -36,6 +43,7 @@ jobs:
         run: |
           git merge-base --is-ancestor 50e3ee1201ef791b250558a30c373848d615f815 HEAD
           git merge-base --is-ancestor 8edd4b79c35f5aa5d0f85a5e03fbb918e0c09c5d HEAD
+          git merge-base --is-ancestor ed5eac38584a174edbb9216aca10fc8232cdb504 HEAD
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -47,7 +55,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Build release-candidate closeout
+      - name: Build release-promotion closeout
         run: |
           python scripts/audit_v2_6_public_release_candidate.py \
             --repo-root . \
@@ -63,10 +71,11 @@ jobs:
         run: |
           python -m pytest -q \
             tests/test_v2_6_public_release_candidate.py \
+            tests/test_public_release_metadata.py \
             tests/test_battery_v2_6_external_evidence_line_closeout.py \
             tests/test_battery_v2_6_external_evidence_line_closeout_tracked.py
 
-      - name: Verify decision and checksums
+      - name: Verify promoted decision and checksums
         run: |
           python - <<'PY'
           import hashlib
@@ -86,9 +95,10 @@ jobs:
           )
 
           assert summary["decision"] == (
-              "v2_6_0_selected_metadata_promotion_pending"
+              "v2_6_0_metadata_promoted_pending_external_release_action"
           )
           assert summary["candidate_version"] == "2.6.0"
+          assert summary["release_date"] == "2026-07-28"
           assert summary["separate_v2_5_public_release_authorized"] is False
           assert summary["software_validation"]["status"] == "supported"
           assert summary["software_validation"]["v2_6_stage_count"] == 13
@@ -97,7 +107,7 @@ jobs:
           assert summary["scientific_closeout"]["ridge_generalization"] == (
               "unsupported"
           )
-          assert summary["public_metadata_promotion_performed"] is False
+          assert summary["public_metadata_promotion_performed"] is True
           assert summary["tag_or_release_created"] is False
 
           for name, filename in manifest["outputs"].items():
@@ -108,11 +118,11 @@ jobs:
               ).hexdigest()
           PY
 
-      - name: Upload release-candidate evidence
+      - name: Upload release-promotion evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: v2-6-public-release-candidate
+          name: v2-6-public-release-promotion
           path: outputs/v2_6_public_release_candidate
           if-no-files-found: error
           retention-days: 14
