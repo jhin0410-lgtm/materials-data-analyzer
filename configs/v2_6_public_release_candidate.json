@@ -1,9 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "candidate_version": "2.6.0",
+  "release_date": "2026-07-28",
   "audited_main_commit": "8edd4b79c35f5aa5d0f85a5e03fbb918e0c09c5d",
   "v2_6_core_closeout_commit": "50e3ee1201ef791b250558a30c373848d615f815",
-  "current_public_version_before_promotion": "2.4.0",
+  "public_version_before_promotion": "2.4.0",
   "included_feature_stage_versions": [
     "2.5.1",
     "2.5.2",
@@ -34,9 +35,11 @@
     "src/loaders/characterization_bundle.py",
     "docs/CROSS_REPOSITORY_CHARACTERIZATION_HANDOFF.md",
     "scripts/audit_cross_repository_release_readiness.py",
-    "docs/PUBLIC_RELEASE_STATUS.md"
+    "docs/PUBLIC_RELEASE_STATUS.md",
+    "docs/releases/V2_6_0.md"
   ],
-  "release_decision": "v2_6_0_selected_metadata_promotion_pending",
+  "release_decision": "v2_6_0_metadata_promoted_pending_external_release_action",
+  "public_metadata_promotion_performed": true,
   "separate_v2_5_public_release_authorized": false,
   "tag_or_release_created": false
 }
