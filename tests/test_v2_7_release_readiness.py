@@ -40,3 +40,17 @@ def test_no_unreleased_marker_is_not_treated_as_feature_work() -> None:
 
     assert module.unreleased_contains_work(changelog) is False
     assert module.highest_version(module.unreleased_text(changelog)) is None
+
+
+def test_historical_v2_6_tests_use_current_v2_7_runtime_without_artifact_rewrite() -> None:
+    paths = (
+        "tests/test_battery_comparability_evidence.py",
+        "tests/test_battery_external_cohort_admission.py",
+        "tests/test_battery_forecast_failure_diagnostics.py",
+    )
+
+    for relative in paths:
+        text = (PROJECT_ROOT / relative).read_text(encoding="utf-8")
+        assert 'assert PLATFORM_VERSION == "2.7.0"' in text
+        assert 'assert PLATFORM_VERSION == "2.4.0"' not in text
+        assert "Tracked v2.6 artifacts retain historical checksums" in text
