@@ -42,12 +42,17 @@ bundle schema/type
 -> source-hash and preprocessing coverage
 -> unique sample-context IDs
 -> exact feature/context sample-ID set agreement
+-> explicit unit-label normalization for stable feature keys
 -> explicit sample_id handoff
 -> wide feature table and integrated sample table
 -> consumer summary, report, and manifest
 ```
 
-The consumer preserves units, methods, feature labels, quality flags, source hashes, and preprocessing identifiers. It rejects path traversal, row-order joins, duplicate semantic features, silent aggregation, and inferred metadata.
+The producer feature file is preserved unchanged. Before wide-column key generation, the consumer writes `characterization_features_bundle_input.csv` and applies one explicit lexical rule: every `%` symbol in the unit label becomes the ASCII token `percent`. Examples are `%` → `percent` and `%/degC` → `percent/degC`.
+
+This rule does not change numeric values or physical units. The mappings, affected row count, rule identifier, and `numeric_values_modified = false` are written to both the consumer summary and manifest.
+
+The consumer preserves methods, feature labels, quality flags, source hashes, preprocessing identifiers, and physical unit meaning. It rejects path traversal, row-order joins, duplicate semantic features, silent aggregation, and inferred metadata.
 
 ## Public DWCNT end-to-end case
 
@@ -69,6 +74,7 @@ The commit is pinned so producer changes cannot silently alter an existing consu
 
 The consumer writes:
 
+- `characterization_features_bundle_input.csv`, the explicitly normalized handoff input;
 - validated long features;
 - a feature dictionary;
 - one-row-per-sample wide features;
@@ -89,6 +95,7 @@ Supported:
 - feature and evidence files are checksum-bound;
 - one explicit `public-dwcnt` sample ID joins across the file boundary;
 - Raman, FTIR, XPS, and TGA feature records retain source and preprocessing provenance;
+- unit-label normalization is explicit, checksum-covered, and does not alter values;
 - no direct internal imports, row-order joins, model training, or scientific metric recomputation occur.
 
 Not supported:
