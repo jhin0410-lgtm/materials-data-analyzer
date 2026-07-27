@@ -1,0 +1,7 @@
+sample_id,measurement_id,instrument,feature_name,feature_label,value,unit,method,source_file,source_sha256,preprocessing_id,quality_flag
+sample_001,sample_001-xrd,xrd,detected_peak_count,,5,count,scipy_find_peaks,,,xrd-demo-v1,ok
+sample_002,sample_002-xrd,xrd,detected_peak_count,,7,count,scipy_find_peaks,,,xrd-demo-v1,ok
+sample_001,sample_001-sem,sem,mean_equivalent_diameter,,1.8,um,otsu_threshold_external_contours,,,sem-demo-v1,review_required
+sample_002,sample_002-sem,sem,mean_equivalent_diameter,,2.1,um,otsu_threshold_external_contours,,,sem-demo-v1,review_required
+sample_001,sample_001-eds,eds,element_weight_percent,Fe,62.5,percent,reported_eds_composition,,,eds-demo-v1,review_required
+sample_002,sample_002-eds,eds,element_weight_percent,Fe,58.0,percent,reported_eds_composition,,,eds-demo-v1,review_required
