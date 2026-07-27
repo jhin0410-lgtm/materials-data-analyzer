@@ -1,0 +1,75 @@
+name: Apply v2.7 test version migration
+
+on:
+  push:
+    paths:
+      - ".github/workflows/apply-v2-7-test-version-migration.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-tests:
+    if: github.ref == 'refs/heads/release/v2-7-metadata-promotion'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out promotion branch
+        uses: actions/checkout@v7
+        with:
+          ref: release/v2-7-metadata-promotion
+          fetch-depth: 0
+
+      - name: Apply exact test migrations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path("tests/test_battery_comparability_evidence.py"): (
+                  'def test_actual_tracked_summary_preserves_v2_6_boundaries():',
+                  'def test_actual_tracked_summary_preserves_v2_6_boundaries_under_v2_7():',
+              ),
+              Path("tests/test_battery_external_cohort_admission.py"): (
+                  'def test_actual_tracked_summary_matches_closeout_and_platform_version():',
+                  'def test_actual_tracked_summary_matches_closeout_under_v2_7():',
+              ),
+              Path("tests/test_battery_forecast_failure_diagnostics.py"): (
+                  'def test_v2_6_1_tracked_decision_and_platform_version_are_preserved():',
+                  'def test_v2_6_1_tracked_decision_is_preserved_under_v2_7():',
+              ),
+          }
+
+          for path, (old_name, new_name) in replacements.items():
+              text = path.read_text(encoding="utf-8")
+              if text.count(old_name) != 1:
+                  raise SystemExit(f"unexpected function-name count in {path}")
+              if text.count('assert PLATFORM_VERSION == "2.4.0"') != 1:
+                  raise SystemExit(f"unexpected platform assertion count in {path}")
+              text = text.replace(old_name, new_name, 1)
+              text = text.replace(
+                  '    assert PLATFORM_VERSION == "2.4.0"',
+                  '    # Tracked v2.6 artifacts retain historical checksums; the current public runtime is v2.7.0.\n'
+                  '    assert PLATFORM_VERSION == "2.7.0"',
+                  1,
+              )
+              path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Verify only intended assertions changed
+        run: |
+          git diff --check
+          git diff -- tests/test_battery_comparability_evidence.py \
+            tests/test_battery_external_cohort_admission.py \
+            tests/test_battery_forecast_failure_diagnostics.py
+          test "$(git diff --name-only | wc -l)" = "3"
+
+      - name: Commit exact test migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            tests/test_battery_comparability_evidence.py \
+            tests/test_battery_external_cohort_admission.py \
+            tests/test_battery_forecast_failure_diagnostics.py
+          git commit -m "Align historical v2.6 tests with public v2.7 runtime"
+          git push origin HEAD:release/v2-7-metadata-promotion
