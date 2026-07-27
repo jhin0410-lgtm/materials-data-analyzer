@@ -105,16 +105,17 @@ def test_release_documents_preserve_complete_scope_and_claim_boundaries() -> Non
         PROJECT_ROOT / "docs" / "releases" / "V2_7_0.md"
     ).read_text(encoding="utf-8")
     changelog = (PROJECT_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    candidate_flat = " ".join(candidate.split())
 
     for version in ["v2.5.1", "v2.5.2", *[f"v2.6.{i}" for i in range(1, 15)]]:
         assert version in candidate
         assert version in notes
-    assert "The selected stable public version is **v2.7.0**" in candidate
-    assert "metadata has been promoted" in candidate
-    assert "Ridge forecast improvement: **Unsupported**" in candidate
-    assert "final evidence-line scientific status: **Inconclusive**" in candidate
-    assert "remain **Diagnostic**" in candidate
+    assert "The selected stable public version is **v2.7.0**" in candidate_flat
+    assert "metadata has been promoted" in candidate_flat
+    assert "Ridge forecast improvement: **Unsupported**" in candidate_flat
+    assert "final evidence-line scientific status: **Inconclusive**" in candidate_flat
+    assert "remain **Diagnostic**" in candidate_flat
     assert "## v2.7.0" in changelog
     unreleased = changelog.split("## Unreleased", 1)[1].split("## v2.7.0", 1)[0]
     assert "No unreleased changes" in unreleased
-    assert "do not establish" in candidate
+    assert "do not establish" in candidate_flat
