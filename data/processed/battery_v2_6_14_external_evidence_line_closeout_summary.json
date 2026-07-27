@@ -1,0 +1,190 @@
+{
+  "archive_read": false,
+  "artifact_kind": "battery_v2_6_external_evidence_line_closeout_summary",
+  "case_study_id": "battery_v2_6_external_evidence_line",
+  "cohort_merge_performed": false,
+  "contract_checksum": "0b33557f292f8f3d42d88bbbd0e072d4608f0d8dac510cda1ad78503c523d55a",
+  "contract_id": "battery_v2_6_external_evidence_line_closeout_contract_v1",
+  "credentials_read": false,
+  "csv_payload_read": false,
+  "decision": {
+    "cross_cohort_comparability": "not_established",
+    "engineering_decision_readiness": "not_ready",
+    "evidence_line_integrity": "verified",
+    "external_cohort_admission": "not_admitted",
+    "overall_status": "v2_6_external_evidence_line_closed_predictive_validation_not_ready",
+    "persistence_baseline_scope": "registered_nasa_warm_start_benchmark_only",
+    "predictive_validation_readiness": "not_ready",
+    "provider_to_local_binding": "not_established",
+    "registered_nasa_warm_start_benchmark": "preserved",
+    "ridge_generalization": "unsupported"
+  },
+  "deterministic_result_checksum": "07f35860b13f911437aba07cf383e105425cb6ae15b8fb0b602b4359d4193614",
+  "manifest_checksum": "c9222eeea7d57cb3d92322a6e5f13760848a64d6f87a0d9bdf92649d1628afbc",
+  "manifest_id": "battery_v2_6_external_evidence_line_manifest_v1",
+  "metrics_recomputed": false,
+  "model_evaluated": false,
+  "model_trained": false,
+  "network_called": false,
+  "next_action": {
+    "automatic_next_feature_stage_authorized": false,
+    "recommended_direction": "preserve_this_closeout_and_move_to_a_separate_end_to_end_case_study_or_reopen_only_when_predeclared_source_evidence_exists",
+    "v2_6_status": "closed"
+  },
+  "package_id": "battery_v2_6_external_evidence_line_closeout_v1",
+  "raw_data_read": false,
+  "schema_version": "2.6.14",
+  "scientific_closeout": {
+    "primary_limitation": "No external cohort has source-backed compatible chemistry, nominal capacity, commanded protocols, cutoff policy, calibration or uncertainty, target definition, stable source snapshot, and provider-to-local binding sufficient for independent predictive validation.",
+    "result": "evidence_line_integrity_supported_predictive_validation_readiness_not_established",
+    "status": "inconclusive",
+    "strongest_evidence": "Thirteen checksum-bound tracked artifacts preserve the registered benchmark, diagnostics, comparability audits, source-binding attempts, bounded reads, and provider-access closeout without silent scientific promotion.",
+    "suitable_for": [
+      "software and provenance closeout",
+      "portfolio evidence-line documentation",
+      "future source-admission planning"
+    ],
+    "unsuitable_for": [
+      "external predictive-validation claims",
+      "cross-cohort model comparison",
+      "mechanism or causal claims",
+      "engineering or production decisions"
+    ],
+    "what_would_change_conclusion": [
+      "an official versioned source snapshot with stable artifact checksums",
+      "source-backed chemistry, nominal capacity, commanded protocol, cutoff, calibration, and target definitions",
+      "a verified provider-to-local artifact and row-level binding",
+      "a predeclared independent external evaluation cohort that passes comparability and admission gates"
+    ]
+  },
+  "software_validation": {
+    "basis": "all_13_tracked_upstream_artifacts_match_their_canonical_checksums",
+    "existing_model_or_metric_changed": false,
+    "public_version_preserved": "2.4.0",
+    "status": "supported"
+  },
+  "source_mutation_performed": false,
+  "stage_checksum_failures": [],
+  "stage_count": 13,
+  "stage_results": [
+    {
+      "artifact_path": "data/processed/battery_v2_6_1_generalization_forecast_summary.json",
+      "decision_status": "ridge_generalization_unsupported",
+      "primary_blocker": "ridge_did_not_improve_over_persistence_and_external_comparability_unresolved",
+      "scientific_status": "unsupported",
+      "stage_role": "registered_warm_start_benchmark",
+      "verified_checksum": "9bcc58b0f7df95cc996aee6f509aac6a9293f753186b50d8b1635bb6ad392d42",
+      "version": "2.6.1"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_2_forecast_failure_diagnostic_summary.json",
+      "decision_status": "comparability_not_established",
+      "primary_blocker": "diagnostics_do_not_establish_predictive_generalization_or_mechanism",
+      "scientific_status": "diagnostic",
+      "stage_role": "forecast_failure_diagnostics",
+      "verified_checksum": "a9977c7e88c65955c5b073d8383724c40c5122093e3c95d9b636929eebd9f7dc",
+      "version": "2.6.2"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_3_comparability_evidence_summary.json",
+      "decision_status": "comparability_not_established",
+      "primary_blocker": "chemistry_capacity_protocol_cutoff_calibration_and_official_snapshot_unresolved",
+      "scientific_status": "inconclusive",
+      "stage_role": "comparability_evidence_package",
+      "verified_checksum": "c8a91f9b561f68a474401f6f2cb051d115875f8df78f1ba92c4a20dec57d17a8",
+      "version": "2.6.3"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_4_external_cohort_admission_summary.json",
+      "decision_status": "not_admitted_for_cross_cohort_validation",
+      "primary_blocker": "all_required_comparability_fields_remain_blocking",
+      "scientific_status": "inconclusive",
+      "stage_role": "external_cohort_admission_gate",
+      "verified_checksum": "2776bc152c0e4655f0c90ec6513883aea3758cac7fac687e02e5685c72dfdb6f",
+      "version": "2.6.4"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_5_snl_lfp_source_evidence_summary.json",
+      "decision_status": "source_evidence_recovered_gate_not_passed",
+      "primary_blocker": "document_evidence_not_bound_to_local_cells_cycles_commands_or_snapshot",
+      "scientific_status": "diagnostic",
+      "stage_role": "snl_lfp_source_evidence_recovery",
+      "verified_checksum": "b6e0c950f11cb1edfbd3afdd15776af25c76b092d130d6038b6653ecd63ba846",
+      "version": "2.6.5"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_6_snl_lfp_artifact_binding_summary.json",
+      "decision_status": "local_artifact_inventory_bound_gate_not_passed",
+      "primary_blocker": "local_zip_identity_does_not_establish_official_distribution_or_row_semantics",
+      "scientific_status": "diagnostic",
+      "stage_role": "snl_lfp_local_artifact_binding",
+      "verified_checksum": "f4c02c38652848ddba6a69ffe47010e0cb7ada3ad411fd028afdd5ff552b89e5",
+      "version": "2.6.6"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_7_snl_lfp_source_entry_binding_summary.json",
+      "decision_status": "condition_group_nomenclature_bound_gate_not_passed",
+      "primary_blocker": "physical_cell_command_channel_and_snapshot_bindings_not_established",
+      "scientific_status": "diagnostic",
+      "stage_role": "snl_lfp_source_to_entry_binding",
+      "verified_checksum": "38fb66269706938513bb000d14427b33147ee13f04d917696e47dff7f2699248",
+      "version": "2.6.7"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_8_snl_lfp_bounded_schema_read_summary.json",
+      "decision_status": "bounded_schema_observed_gate_not_passed",
+      "primary_blocker": "headers_and_first_rows_do_not_bind_commands_channels_or_cycle_regimes",
+      "scientific_status": "diagnostic",
+      "stage_role": "snl_lfp_bounded_schema_read",
+      "verified_checksum": "28c68acecdce55787189ddd981c097d1748504dab43b3777b896638652fb70f2",
+      "version": "2.6.8"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_9_snl_lfp_bounded_cycle_regime_summary.json",
+      "decision_status": "bounded_cycle_regime_evidence_recorded_gate_not_passed",
+      "primary_blocker": "candidate_regimes_not_source_bound_and_row_four_transition_ambiguous",
+      "scientific_status": "diagnostic",
+      "stage_role": "snl_lfp_bounded_cycle_regime_review",
+      "verified_checksum": "dc6c7c4046d81ddf879c2f1538eab75708dd387f7d9d940adc0c6dfc2c3e01dc",
+      "version": "2.6.9"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_10_snl_lfp_transition_artifact_evidence_summary.json",
+      "decision_status": "transition_artifact_consistency_recorded_gate_not_passed",
+      "primary_blocker": "study_level_transition_evidence_not_bound_to_exact_row_or_command",
+      "scientific_status": "diagnostic",
+      "stage_role": "snl_lfp_transition_artifact_closeout",
+      "verified_checksum": "0093de000c25cfcbbd36eaf8216eabc7fb3bc3db23b724dbffcb69b4d77ddf28",
+      "version": "2.6.10"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_11_external_cohort_next_source_selection_summary.json",
+      "decision_status": "next_source_candidate_selected_gate_not_passed",
+      "primary_blocker": "michigan_formation_selected_for_source_binding_only_not_admission",
+      "scientific_status": "diagnostic",
+      "stage_role": "next_external_source_selection",
+      "verified_checksum": "5cbb6b979bd6529e28d24af1ecb0e1579439fef2be710904081d8e81d032747b",
+      "version": "2.6.11"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_12_michigan_formation_provider_package_summary.json",
+      "decision_status": "provider_package_structure_recovered_exact_manifest_not_established_gate_not_passed",
+      "primary_blocker": "exact_file_manifest_and_provider_to_local_binding_not_established",
+      "scientific_status": "diagnostic",
+      "stage_role": "michigan_formation_provider_package_structure",
+      "verified_checksum": "b1ce09e4ce06c9ec90839b63e1f2546d1fd2808f9c8ea6717edc5bc0fe93ce7d",
+      "version": "2.6.12"
+    },
+    {
+      "artifact_path": "data/processed/battery_v2_6_13_michigan_formation_deepblue_metadata_summary.json",
+      "decision_status": "provider_metadata_endpoint_access_denied_gate_not_passed",
+      "primary_blocker": "observed_http_403_prevented_top_level_file_set_metadata_recovery",
+      "scientific_status": "inconclusive",
+      "stage_role": "michigan_formation_provider_metadata_access_closeout",
+      "verified_checksum": "5b43bec9448c339b0a6cc958f7af321a44d16b0acffc66099e7436d07975e7f2",
+      "version": "2.6.13"
+    }
+  ],
+  "threshold_fitting_performed": false,
+  "verified_stage_count": 13
+}
