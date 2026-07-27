@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "candidate_version": "2.6.0",
+  "audited_main_commit": "8edd4b79c35f5aa5d0f85a5e03fbb918e0c09c5d",
+  "v2_6_core_closeout_commit": "50e3ee1201ef791b250558a30c373848d615f815",
+  "current_public_version_before_promotion": "2.4.0",
+  "included_feature_stage_versions": [
+    "2.5.1",
+    "2.5.2",
+    "2.6.1",
+    "2.6.2",
+    "2.6.3",
+    "2.6.4",
+    "2.6.5",
+    "2.6.6",
+    "2.6.7",
+    "2.6.8",
+    "2.6.9",
+    "2.6.10",
+    "2.6.11",
+    "2.6.12",
+    "2.6.13",
+    "2.6.14"
+  ],
+  "required_core_artifacts": [
+    "docs/PLATFORM_V2_5_ROADMAP.md",
+    "docs/PLATFORM_V2_6_ROADMAP.md",
+    "docs/BATTERY_V2_6_EXTERNAL_EVIDENCE_LINE_CLOSEOUT.md",
+    "data/processed/battery_v2_6_14_external_evidence_line_closeout_summary.json"
+  ],
+  "required_integration_artifacts": [
+    "scripts/run_representative_process_characterization_workflow.py",
+    "docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md",
+    "src/loaders/characterization_bundle.py",
+    "docs/CROSS_REPOSITORY_CHARACTERIZATION_HANDOFF.md",
+    "scripts/audit_cross_repository_release_readiness.py",
+    "docs/PUBLIC_RELEASE_STATUS.md"
+  ],
+  "release_decision": "v2_6_0_selected_metadata_promotion_pending",
+  "separate_v2_5_public_release_authorized": false,
+  "tag_or_release_created": false
+}
