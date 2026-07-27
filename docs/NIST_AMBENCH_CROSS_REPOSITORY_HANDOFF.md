@@ -104,6 +104,19 @@ Consumer:
 
 The tracked characterization source tables in both repositories must also be byte-identical. This prevents two independently edited transcriptions from appearing to represent the same NIST evidence.
 
+## v2.7.0 post-promotion verification
+
+The v2.7.0 release promotion must be revalidated against this pinned producer and the current consumer implementation. A successful post-promotion run must confirm:
+
+- the producer commit remains exactly `ca7242331d3aab7d5d4999df297ccc1a8b011934`;
+- both repositories remain independently installable;
+- the ten trace identities and tracked source transcriptions remain exact matches;
+- all 40 feature records retain source and preprocessing provenance;
+- the consumer produces 10 matched joins with zero identity mismatches;
+- no model, metric recomputation, inferred energy descriptor, or optimization artifact is introduced by the release metadata change.
+
+This is a software and provenance regression check. It does not upgrade the scientific evidence level, establish independent causal effects, or make the case suitable for predictive or engineering release.
+
 ## Scientific closeout
 
 **Evidence level: Diagnostic**
