@@ -418,7 +418,7 @@ def feature_key(
 ) -> str:
     """Build a stable, collision-resistant wide-column name."""
     parts = ["char", _slug(instrument), _slug(feature_name)]
-    if feature_label is not None and str(feature_label).strip():
+    if not pd.isna(feature_label) and str(feature_label).strip():
         parts.append(_slug(feature_label))
     parts.append(_slug(unit))
     return "__".join(parts)
