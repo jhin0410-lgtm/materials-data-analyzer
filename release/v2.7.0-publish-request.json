@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "release_version": "2.7.0",
+  "tag_name": "v2.7.0",
+  "target_commit": "2d003aecede89aacc25cdb246bf9cc6adec19bf9",
+  "release_title": "v2.7.0 - Evidence-Line Closeout and Cross-Repository Integration",
+  "release_notes_path": "docs/releases/V2_7_0.md",
+  "release_date": "2026-07-28",
+  "draft": false,
+  "prerelease": false,
+  "mark_latest": true,
+  "package_publication_authorized": false,
+  "scientific_boundary": {
+    "ridge_generalization": "unsupported",
+    "predictive_validation_readiness": "not_ready",
+    "battery_evidence_line_status": "inconclusive",
+    "process_characterization_status": "diagnostic",
+    "model_training_authorized": false,
+    "optimization_authorized": false,
+    "engineering_release_claim_authorized": false
+  }
+}
