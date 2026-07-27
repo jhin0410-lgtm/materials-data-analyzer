@@ -1,0 +1,135 @@
+name: NIST AM-Bench process-design audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/audit_nist_ambench_2018_02_process_design.py"
+      - "scripts/run_nist_ambench_2018_02_workflow.py"
+      - "scripts/build_nist_ambench_2018_02_case_study.py"
+      - "tests/test_nist_process_design_audit.py"
+      - "data/case_studies/nist_ambench_2018_02/**"
+      - "docs/NIST_AMBENCH_PROCESS_DESIGN_AUDIT.md"
+      - ".github/workflows/nist-ambench-process-design-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nist-ambench-design-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-process-design-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Build verified NIST integrated case
+        run: |
+          python scripts/run_nist_ambench_2018_02_workflow.py \
+            --output outputs/nist_ambench_2018_02
+
+      - name: Run process-design audit
+        run: |
+          python scripts/audit_nist_ambench_2018_02_process_design.py \
+            --integrated-table outputs/nist_ambench_2018_02/integrated_sample_table.csv \
+            --output outputs/nist_ambench_process_design_audit
+
+      - name: Run focused audit tests
+        run: python -m pytest -q tests/test_nist_process_design_audit.py
+
+      - name: Verify audit decision and checksums
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import pandas as pd
+
+          root = Path("outputs/nist_ambench_process_design_audit")
+          audit = json.loads((root / "process_design_audit.json").read_text(encoding="utf-8"))
+          manifest = json.loads(
+              (root / "process_design_audit_manifest.json").read_text(encoding="utf-8")
+          )
+          conditions = pd.read_csv(root / "process_design_condition_matrix.csv")
+
+          assert audit["status"] == "completed"
+          assert audit["evidence_level"] == "Diagnostic"
+          assert audit["sample_count"] == 10
+          assert audit["unique_condition_count"] == 3
+          assert audit["replication"]["replicate_counts"] == {"A": 3, "B": 3, "C": 4}
+          assert audit["replication"]["pure_error_degrees_of_freedom"] == 7
+          assert audit["factor_support"]["actual_laser_power_w"]["level_count"] == 2
+          assert audit["factor_support"]["scan_speed_mm_s"]["level_count"] == 3
+          assert audit["factor_support"]["full_factorial_condition_count"] == 6
+          assert audit["factor_support"]["observed_factorial_condition_count"] == 3
+          assert audit["factor_support"]["factorial_coverage_fraction"] == 0.5
+          assert audit["factor_support"]["direct_matched_speed_power_contrast_available"] is False
+          assert audit["factor_support"]["direct_within_power_speed_contrast_available"] is True
+
+          main = audit["design_models"]["main_effects"]
+          interaction = audit["design_models"]["main_effects_plus_interaction"]
+          quadratic = audit["design_models"]["quadratic_response_surface"]
+          assert main["parameter_count"] == 3
+          assert main["matrix_rank"] == 3
+          assert main["condition_level_residual_df"] == 0
+          assert main["model_adequacy_test_available"] is False
+          assert interaction["parameter_count"] == 4
+          assert interaction["matrix_rank"] == 3
+          assert interaction["identifiable_from_observed_conditions"] is False
+          assert quadratic["parameter_count"] == 6
+          assert quadratic["matrix_rank"] == 3
+          assert quadratic["identifiable_from_observed_conditions"] is False
+
+          assert audit["readiness"]["overall"] == (
+              "not_ready_for_predictive_or_causal_modeling"
+          )
+          assert audit["readiness"]["predictive_validation"] == "not_ready"
+          assert audit["readiness"]["process_optimization"] == "not_ready"
+          assert audit["software_validation"]["model_trained"] is False
+          assert audit["software_validation"]["response_metric_recomputed"] is False
+          assert audit["software_validation"]["optimization_performed"] is False
+          assert audit["support_bounds"]["unobserved_combinations_inside_bounds_supported"] is False
+          assert audit["support_bounds"]["extrapolation_outside_bounds_supported"] is False
+
+          assert conditions[["case_id", "replicate_count"]].to_dict("records") == [
+              {"case_id": "A", "replicate_count": 3},
+              {"case_id": "B", "replicate_count": 3},
+              {"case_id": "C", "replicate_count": 4},
+          ]
+          for name, filename in manifest["outputs"].items():
+              path = root / filename
+              assert path.is_file()
+              assert manifest["output_sha256"][name] == hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
+          assert manifest["model_trained"] is False
+          assert manifest["optimization_performed"] is False
+          assert not list(root.glob("*.pkl"))
+          assert not list(root.glob("*model*"))
+          print((root / "process_design_audit.md").read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nist-ambench-process-design-audit
+          path: |
+            outputs/nist_ambench_2018_02
+            outputs/nist_ambench_process_design_audit
+          if-no-files-found: error
+          retention-days: 14
