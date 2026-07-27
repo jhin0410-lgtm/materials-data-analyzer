@@ -11,8 +11,10 @@ import pytest
 from src.loaders.characterization_bundle import (
     BUNDLE_TYPE,
     MANIFEST_NAME,
+    NORMALIZED_INPUT_NAME,
     REPORT_NAME,
     SUMMARY_NAME,
+    UNIT_LABEL_RULE,
     consume_characterization_bundle,
     validate_characterization_bundle,
 )
@@ -38,7 +40,7 @@ def _write_bundle(root: Path) -> Path:
         ("raman", "candidate_count", "count"),
         ("ftir", "band_candidate_count", "count"),
         ("xps", "peak_candidate_count", "count"),
-        ("tga", "retained_mass_percent", "percent"),
+        ("tga", "retained_mass_percent", "%"),
     ):
         rows.append(
             {
@@ -151,6 +153,7 @@ def test_consumer_validates_bundle_and_builds_integrated_sample_table(tmp_path: 
     paths = consume_characterization_bundle(bundle_manifest, output)
 
     expected = {
+        NORMALIZED_INPUT_NAME,
         "characterization_features_validated_long.csv",
         "characterization_feature_dictionary.csv",
         "characterization_features_wide.csv",
@@ -178,6 +181,15 @@ def test_consumer_validates_bundle_and_builds_integrated_sample_table(tmp_path: 
         "char__tga__retained_mass_percent__percent",
     }.issubset(integrated.columns)
 
+    normalized = pd.read_csv(output / NORMALIZED_INPUT_NAME)
+    assert normalized.loc[normalized["instrument"].eq("tga"), "unit"].tolist() == [
+        "percent"
+    ]
+    producer_features = pd.read_csv(bundle_manifest.parent / "characterization_features_long.csv")
+    assert producer_features.loc[producer_features["instrument"].eq("tga"), "unit"].tolist() == [
+        "%"
+    ]
+
     summary = json.loads((output / SUMMARY_NAME).read_text(encoding="utf-8"))
     assert summary["status"] == "verified"
     assert summary["join_summary"] == {
@@ -185,11 +197,23 @@ def test_consumer_validates_bundle_and_builds_integrated_sample_table(tmp_path: 
         "process_only": 0,
         "characterization_only": 0,
     }
+    assert summary["unit_label_normalization"] == {
+        "performed": True,
+        "rule": UNIT_LABEL_RULE,
+        "mappings": {"%": "percent"},
+        "record_count": 1,
+        "numeric_values_modified": False,
+        "source_feature_table_preserved": True,
+    }
     assert summary["scientific_closeout"]["evidence_level"] == "Diagnostic"
+    assert summary["software_validation"]["numeric_values_modified"] is False
     assert summary["software_validation"]["model_trained"] is False
     assert summary["software_validation"]["scientific_metrics_recomputed"] is False
 
     consumer_manifest = json.loads((output / MANIFEST_NAME).read_text(encoding="utf-8"))
+    assert consumer_manifest["unit_label_normalization"]["mappings"] == {
+        "%": "percent"
+    }
     for name, filename in consumer_manifest["outputs"].items():
         assert consumer_manifest["output_sha256"][name] == sha256_file(output / filename)
     assert not list(output.glob("*.pkl"))
