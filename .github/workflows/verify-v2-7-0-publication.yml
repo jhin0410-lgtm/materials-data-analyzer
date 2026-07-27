@@ -1,0 +1,141 @@
+name: Verify v2.7.0 publication
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/verify-v2-7-0-publication.yml"
+      - "release/v2.7.0-publication.json"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/verify-v2-7-0-publication.yml"
+      - "release/v2.7.0-publication.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-v2.7.0-publication-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-publication:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Verify external tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          publication = json.loads(
+              Path("release/v2.7.0-publication.json").read_text(encoding="utf-8")
+          )
+          expected = {
+              "schema_version": "1.0",
+              "publication_status": "published_pending_tracked_verification",
+              "release_version": "2.7.0",
+              "tag_name": "v2.7.0",
+              "target_commit": "2d003aecede89aacc25cdb246bf9cc6adec19bf9",
+              "release_title": "v2.7.0 - Evidence-Line Closeout and Cross-Repository Integration",
+              "release_url": "https://github.com/jhin0410-lgtm/materials-data-analyzer/releases/tag/v2.7.0",
+              "release_notes_path": "docs/releases/V2_7_0.md",
+              "release_date": "2026-07-28",
+              "expected_draft": False,
+              "expected_prerelease": False,
+              "expected_latest": True,
+              "package_publication_performed": False,
+              "model_training_performed": False,
+              "metric_recomputation_performed": False,
+              "optimization_performed": False,
+              "scientific_claim_promoted": False,
+          }
+          assert publication == expected
+          assert re.fullmatch(r"[0-9a-f]{40}", publication["target_commit"])
+          PY
+
+          TAG="$(python -c 'import json; print(json.load(open("release/v2.7.0-publication.json"))["tag_name"])')"
+          TARGET="$(python -c 'import json; print(json.load(open("release/v2.7.0-publication.json"))["target_commit"])')"
+          NOTES_PATH="$(python -c 'import json; print(json.load(open("release/v2.7.0-publication.json"))["release_notes_path"])')"
+
+          git fetch --force --tags origin
+          git cat-file -e "${TARGET}^{commit}"
+          git rev-parse -q --verify "refs/tags/${TAG}"
+          test "$(git rev-list -n 1 "${TAG}")" = "${TARGET}"
+
+          git show "${TARGET}:${NOTES_PATH}" > /tmp/expected-release-notes.md
+          gh release view "${TAG}" \
+            --json tagName,name,isDraft,isPrerelease,isLatest,url,body \
+            > /tmp/published-release.json
+
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          publication = json.loads(
+              Path("release/v2.7.0-publication.json").read_text(encoding="utf-8")
+          )
+          release = json.loads(
+              Path("/tmp/published-release.json").read_text(encoding="utf-8")
+          )
+          expected_notes = Path("/tmp/expected-release-notes.md").read_text(
+              encoding="utf-8"
+          )
+
+          assert release["tagName"] == publication["tag_name"]
+          assert release["name"] == publication["release_title"]
+          assert release["url"] == publication["release_url"]
+          assert release["isDraft"] is publication["expected_draft"]
+          assert release["isPrerelease"] is publication["expected_prerelease"]
+          assert release["isLatest"] is publication["expected_latest"]
+          assert release["body"].rstrip() == expected_notes.rstrip()
+
+          verification = {
+              "schema_version": "1.0",
+              "verification_status": "external_publication_verified",
+              "release_version": publication["release_version"],
+              "tag_name": publication["tag_name"],
+              "target_commit": publication["target_commit"],
+              "release_title": release["name"],
+              "release_url": release["url"],
+              "release_notes_sha256": hashlib.sha256(
+                  expected_notes.encode("utf-8")
+              ).hexdigest(),
+              "draft": release["isDraft"],
+              "prerelease": release["isPrerelease"],
+              "latest": release["isLatest"],
+              "release_body_exact_match": True,
+              "package_publication_performed": False,
+              "model_training_performed": False,
+              "metric_recomputation_performed": False,
+              "optimization_performed": False,
+              "scientific_claim_promoted": False,
+          }
+          Path("v2.7.0-publication-verification.json").write_text(
+              json.dumps(verification, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload publication verification
+        uses: actions/upload-artifact@v7
+        with:
+          name: v2-7-0-publication-verification
+          path: v2.7.0-publication-verification.json
+          if-no-files-found: error
+          retention-days: 90
