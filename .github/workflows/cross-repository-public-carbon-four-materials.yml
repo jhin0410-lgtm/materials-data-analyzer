@@ -1,0 +1,203 @@
+name: Cross-repository public carbon four-material handoff
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/loaders/characterization_bundle.py"
+      - "src/loaders/characterization_features.py"
+      - "scripts/consume_characterization_handoff_bundle.py"
+      - "tests/test_characterization_bundle.py"
+      - "docs/PUBLIC_CARBON_FOUR_MATERIAL_HANDOFF.md"
+      - ".github/workflows/cross-repository-public-carbon-four-materials.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-repository-carbon-four-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-real-public-four-material-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+        with:
+          path: materials-data-analyzer
+
+      - name: Check out pinned materials-characterization-analyzer producer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: 1994b1f473cb971f96d675b3c04d00e73e3f6873
+          path: materials-characterization-analyzer
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install both repositories independently
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r materials-data-analyzer/requirements.txt
+          python -m pip install -e materials-characterization-analyzer
+
+      - name: Run producer four-material public case
+        shell: bash
+        run: |
+          mkdir -p materials-characterization-analyzer/outputs/public-carbon-four-materials-diagnostics
+          set -o pipefail
+          python materials-characterization-analyzer/scripts/run_public_carbon_four_materials_case.py \
+            --config materials-characterization-analyzer/case_studies/public_carbon_four_materials/case_config.json \
+            --output materials-characterization-analyzer/outputs/public-carbon-four-materials \
+            2>&1 | tee materials-characterization-analyzer/outputs/public-carbon-four-materials-diagnostics/producer.log
+
+      - name: Consume bundle in materials-data-analyzer
+        shell: bash
+        run: |
+          mkdir -p materials-data-analyzer/outputs/cross-repository-carbon-four-diagnostics
+          set +e
+          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest materials-characterization-analyzer/outputs/public-carbon-four-materials/characterization_handoff_bundle.json \
+            --output materials-data-analyzer/outputs/cross-repository-public-carbon-four \
+            > materials-data-analyzer/outputs/cross-repository-carbon-four-diagnostics/consumer.log 2>&1
+          code=$?
+          set -e
+          cat materials-data-analyzer/outputs/cross-repository-carbon-four-diagnostics/consumer.log
+          exit "$code"
+
+      - name: Run focused consumer tests
+        working-directory: materials-data-analyzer
+        run: python -m pytest -q tests/test_characterization_bundle.py
+
+      - name: Verify four-sample consumer evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          import pandas as pd
+
+          producer = Path("materials-characterization-analyzer/outputs/public-carbon-four-materials")
+          consumer = Path("materials-data-analyzer/outputs/cross-repository-public-carbon-four")
+
+          producer_summary = json.loads(
+              (producer / "case_summary.json").read_text(encoding="utf-8")
+          )
+          producer_bundle = json.loads(
+              (producer / "characterization_handoff_bundle.json").read_text(encoding="utf-8")
+          )
+          summary = json.loads(
+              (consumer / "cross_repository_handoff_summary.json").read_text(encoding="utf-8")
+          )
+          manifest = json.loads(
+              (consumer / "cross_repository_handoff_manifest.json").read_text(encoding="utf-8")
+          )
+          integrated = pd.read_csv(consumer / "integrated_sample_table.csv")
+          audit = pd.read_csv(consumer / "sample_join_audit.csv")
+          validated_long = pd.read_csv(
+              consumer / "characterization_features_validated_long.csv"
+          )
+
+          assert producer_summary["status"] == "completed"
+          assert producer_summary["sample_count"] == 4
+          assert producer_summary["measurement_count"] == 16
+          assert producer_summary["feature_record_count"] == 495
+          assert producer_summary["exact_source_binding"] is True
+          assert producer_summary["fallback_source_selection_used"] is False
+          assert producer_summary["software_validation"]["model_trained"] is False
+          assert producer_summary["software_validation"]["optimization_performed"] is False
+
+          assert producer_bundle["producer"] == {
+              "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+              "software_versions": ["0.8.5"],
+              "analysis_result_schema_versions": ["1.0"],
+          }
+          assert producer_bundle["feature_table"]["row_count"] == 495
+          assert producer_bundle["feature_table"]["sample_count"] == 4
+          assert producer_bundle["feature_table"]["measurement_count"] == 16
+          assert producer_bundle["feature_table"]["source_sha256_record_count"] == 495
+          assert producer_bundle["feature_table"]["preprocessing_id_record_count"] == 495
+
+          assert summary["status"] == "verified"
+          assert summary["case_id"] == "public-carbon-four-materials-multimodal-v1"
+          assert summary["producer"]["software_versions"] == ["0.8.5"]
+          assert summary["feature_summary"] == {
+              "row_count": 495,
+              "sample_count": 4,
+              "measurement_count": 16,
+              "instruments": ["ftir", "raman", "tga", "xps"],
+              "quality_flag_counts": {"review_required": 495},
+              "source_sha256_record_count": 495,
+              "preprocessing_id_record_count": 495,
+          }
+          assert summary["join_summary"] == {
+              "matched": 4,
+              "process_only": 0,
+              "characterization_only": 0,
+          }
+          assert summary["unit_label_normalization"] == {
+              "performed": True,
+              "rule": "replace_percent_symbol_with_percent_token",
+              "mappings": {
+                  "%": "percent",
+                  "%/degC": "percent/degC",
+              },
+              "record_count": 73,
+              "numeric_values_modified": False,
+              "source_feature_table_preserved": True,
+          }
+          assert summary["scientific_closeout"]["evidence_level"] == "Diagnostic"
+          assert summary["scientific_closeout"]["result"] == (
+              "four_public_material_classes_exported_with_exact_source_binding"
+          )
+          assert "process-response modeling or optimization" in (
+              summary["scientific_closeout"]["unsuitable_for"]
+          )
+          assert summary["software_validation"]["row_order_join_used"] is False
+          assert summary["software_validation"]["aggregation_performed"] is False
+          assert summary["software_validation"]["model_trained"] is False
+          assert summary["software_validation"]["scientific_metrics_recomputed"] is False
+          assert manifest["input_bundle"]["sha256"]
+
+          expected_ids = {
+              "public-dwcnt",
+              "public-mwcnt",
+              "public-flg",
+              "public-gnp",
+          }
+          assert len(integrated) == 4
+          assert set(integrated["sample_id"]) == expected_ids
+          assert set(audit["sample_id"]) == expected_ids
+          assert set(audit["join_status"]) == {"matched"}
+          assert len(validated_long) == 495
+          assert set(validated_long["sample_id"]) == expected_ids
+          assert not integrated["identical_physical_aliquot_confirmed"].astype(bool).any()
+          assert not integrated["controlled_process_variable_confirmed"].astype(bool).any()
+          assert not integrated["process_response_model_allowed"].astype(bool).any()
+          for instrument in ("raman", "ftir", "xps", "tga"):
+              assert any(
+                  column.startswith(f"char__{instrument}__")
+                  for column in integrated.columns
+              )
+
+          print((consumer / "cross_repository_handoff_report.md").read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload producer, consumer, and diagnostics evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-repository-public-carbon-four-evidence
+          path: |
+            materials-characterization-analyzer/outputs/public-carbon-four-materials
+            materials-characterization-analyzer/outputs/public-carbon-four-materials-diagnostics
+            materials-data-analyzer/outputs/cross-repository-public-carbon-four
+            materials-data-analyzer/outputs/cross-repository-carbon-four-diagnostics
+          if-no-files-found: error
+          retention-days: 14
