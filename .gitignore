@@ -1,25 +1,38 @@
-# --- 파이썬 및 환경 관련 ---
+# --- Python and local environments ---
 __pycache__/
 **/__pycache__/
 *.py[cod]
 *.pyc
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
 .venv/
 *.egg-info/
 build/
 dist/
+.ipynb_checkpoints/
+
+# --- Editors and operating-system files ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# --- Environment files, credentials, and private keys ---
 .env
 *.env
-
-# --- Raw 및 Local 데이터셋 ---
-# Ignore all raw/local downloaded data.
-data/raw/**
-
-# Keep only the top-level raw data policy document.
-!data/raw/
-!data/raw/README.md
-
-# --- 설정 및 자격 증명 (민감 정보) ---
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.streamlit/secrets.toml
 configs/*.local.yaml
 configs/local/
 configs/private/
@@ -34,14 +47,21 @@ api_credentials.*
 *credentials*.yaml
 *credentials*.yml
 
-# --- 기타 ---
-outputs/.pytest_tmp/
+# --- Raw and local datasets ---
+# Ignore all raw/local downloaded data.
+data/raw/**
+data/local/**
 
-# --- Generated/local-only analyzer artifacts ---
+# Keep only the top-level raw data policy document.
+!data/raw/
+!data/raw/README.md
+
+# --- Generated and local-only analyzer artifacts ---
 # Keep compact case-study summaries trackable; ignore only large row-level
 # local artifacts that are regenerated from documented scripts.
 outputs/**
 .pytest_tmp/
+outputs/.pytest_tmp/
 data/processed/materials_project_v1_3_raw.jsonl
 data/processed/materials_project_v1_3_acquired.csv
 data/processed/materials_project_v1_3_analysis_ready.csv
