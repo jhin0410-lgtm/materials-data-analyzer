@@ -1,24 +1,24 @@
-name: v2.6 public release candidate
+name: v2.7 public release candidate
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "configs/v2_6_public_release_candidate.json"
-      - "scripts/audit_v2_6_public_release_candidate.py"
-      - "tests/test_v2_6_public_release_candidate.py"
-      - "docs/V2_6_PUBLIC_RELEASE_CANDIDATE.md"
+      - "configs/v2_7_public_release_candidate.json"
+      - "scripts/audit_v2_7_public_release_candidate.py"
+      - "tests/test_v2_7_public_release_candidate.py"
+      - "docs/V2_7_PUBLIC_RELEASE_CANDIDATE.md"
       - "docs/PLATFORM_V2_5_ROADMAP.md"
       - "docs/PLATFORM_V2_6_ROADMAP.md"
       - "docs/BATTERY_V2_6_EXTERNAL_EVIDENCE_LINE_CLOSEOUT.md"
       - "data/processed/battery_v2_6_14_external_evidence_line_closeout_summary.json"
-      - ".github/workflows/v2-6-public-release-candidate.yml"
+      - ".github/workflows/v2-7-public-release-candidate.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: v2-6-release-candidate-${{ github.workflow }}-${{ github.ref }}
+  group: v2-7-release-candidate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,10 +32,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify audited commit ancestry
+      - name: Verify release-boundary ancestry and distance
         run: |
           git merge-base --is-ancestor 50e3ee1201ef791b250558a30c373848d615f815 HEAD
-          git merge-base --is-ancestor 8edd4b79c35f5aa5d0f85a5e03fbb918e0c09c5d HEAD
+          git merge-base --is-ancestor ed5eac38584a174edbb9216aca10fc8232cdb504 HEAD
+          test "$(git rev-list --count 50e3ee1201ef791b250558a30c373848d615f815..ed5eac38584a174edbb9216aca10fc8232cdb504)" = "38"
+
+      - name: Verify superseded v2.6 candidate is absent
+        run: |
+          test ! -e configs/v2_6_public_release_candidate.json
+          test ! -e scripts/audit_v2_6_public_release_candidate.py
+          test ! -e docs/V2_6_PUBLIC_RELEASE_CANDIDATE.md
+          test ! -e tests/test_v2_6_public_release_candidate.py
+          test ! -e .github/workflows/v2-6-public-release-candidate.yml
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -47,11 +56,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Build release-candidate closeout
+      - name: Build corrected release-candidate closeout
         run: |
-          python scripts/audit_v2_6_public_release_candidate.py \
+          python scripts/audit_v2_7_public_release_candidate.py \
             --repo-root . \
-            --output outputs/v2_6_public_release_candidate
+            --output outputs/v2_7_public_release_candidate
 
       - name: Validate tracked v2.6 closeout
         run: |
@@ -62,7 +71,7 @@ jobs:
       - name: Run focused tests
         run: |
           python -m pytest -q \
-            tests/test_v2_6_public_release_candidate.py \
+            tests/test_v2_7_public_release_candidate.py \
             tests/test_battery_v2_6_external_evidence_line_closeout.py \
             tests/test_battery_v2_6_external_evidence_line_closeout_tracked.py
 
@@ -73,23 +82,27 @@ jobs:
           import json
           from pathlib import Path
 
-          root = Path("outputs/v2_6_public_release_candidate")
+          root = Path("outputs/v2_7_public_release_candidate")
           summary = json.loads(
-              (root / "v2_6_public_release_candidate.json").read_text(
+              (root / "v2_7_public_release_candidate.json").read_text(
                   encoding="utf-8"
               )
           )
           manifest = json.loads(
-              (root / "v2_6_public_release_candidate_manifest.json").read_text(
+              (root / "v2_7_public_release_candidate_manifest.json").read_text(
                   encoding="utf-8"
               )
           )
 
           assert summary["decision"] == (
-              "v2_6_0_selected_metadata_promotion_pending"
+              "v2_7_0_selected_metadata_promotion_pending"
           )
-          assert summary["candidate_version"] == "2.6.0"
-          assert summary["separate_v2_5_public_release_authorized"] is False
+          assert summary["candidate_version"] == "2.7.0"
+          assert summary["superseded_candidate_version"] == "2.6.0"
+          assert summary["post_v2_6_commit_count_at_audit"] == 38
+          assert summary[
+              "separate_v2_5_or_v2_6_public_release_authorized"
+          ] is False
           assert summary["software_validation"]["status"] == "supported"
           assert summary["software_validation"]["v2_6_stage_count"] == 13
           assert all(summary["software_validation"]["checks"].values())
@@ -97,6 +110,9 @@ jobs:
           assert summary["scientific_closeout"]["ridge_generalization"] == (
               "unsupported"
           )
+          assert summary["scientific_closeout"][
+              "post_v2_6_process_characterization_status"
+          ] == "diagnostic"
           assert summary["public_metadata_promotion_performed"] is False
           assert summary["tag_or_release_created"] is False
 
@@ -112,7 +128,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: v2-6-public-release-candidate
-          path: outputs/v2_6_public_release_candidate
+          name: v2-7-public-release-candidate
+          path: outputs/v2_7_public_release_candidate
           if-no-files-found: error
           retention-days: 14
