@@ -33,6 +33,7 @@ def _record(path: Path) -> dict[str, object]:
 def _write_bundle(root: Path) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     rows = []
+    source_hash_characters = {"raman": "a", "ftir": "b", "xps": "c", "tga": "d"}
     for instrument, feature_name, unit in (
         ("raman", "candidate_count", "count"),
         ("ftir", "band_candidate_count", "count"),
@@ -50,7 +51,7 @@ def _write_bundle(root: Path) -> Path:
                 "unit": unit,
                 "method": f"{instrument}_diagnostic_method",
                 "source_file": f"producer-local/{instrument}.tab",
-                "source_sha256": (instrument[0] * 64),
+                "source_sha256": source_hash_characters[instrument] * 64,
                 "preprocessing_id": f"{instrument}-preprocessing-v1",
                 "quality_flag": "review_required",
             }
