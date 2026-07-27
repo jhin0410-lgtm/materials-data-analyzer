@@ -1,13 +1,19 @@
-name: v2.7 public release candidate
+name: v2.7 public release promotion
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "PUBLIC_RELEASE_VERSION"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "src/platform_core/version.py"
       - "configs/v2_7_public_release_candidate.json"
       - "scripts/audit_v2_7_public_release_candidate.py"
       - "tests/test_v2_7_public_release_candidate.py"
       - "docs/V2_7_PUBLIC_RELEASE_CANDIDATE.md"
+      - "docs/releases/V2_7_0.md"
+      - "docs/PUBLIC_RELEASE_STATUS.md"
       - "docs/PLATFORM_V2_5_ROADMAP.md"
       - "docs/PLATFORM_V2_6_ROADMAP.md"
       - "docs/BATTERY_V2_6_EXTERNAL_EVIDENCE_LINE_CLOSEOUT.md"
@@ -18,11 +24,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: v2-7-release-candidate-${{ github.workflow }}-${{ github.ref }}
+  group: v2-7-release-promotion-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate-release-candidate:
+  validate-release-promotion:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -56,7 +62,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Build corrected release-candidate closeout
+      - name: Build release-promotion closeout
         run: |
           python scripts/audit_v2_7_public_release_candidate.py \
             --repo-root . \
@@ -72,6 +78,7 @@ jobs:
         run: |
           python -m pytest -q \
             tests/test_v2_7_public_release_candidate.py \
+            tests/test_public_release_metadata.py \
             tests/test_battery_v2_6_external_evidence_line_closeout.py \
             tests/test_battery_v2_6_external_evidence_line_closeout_tracked.py
 
@@ -95,7 +102,7 @@ jobs:
           )
 
           assert summary["decision"] == (
-              "v2_7_0_selected_metadata_promotion_pending"
+              "v2_7_0_metadata_promoted_external_release_pending"
           )
           assert summary["candidate_version"] == "2.7.0"
           assert summary["superseded_candidate_version"] == "2.6.0"
@@ -113,8 +120,10 @@ jobs:
           assert summary["scientific_closeout"][
               "post_v2_6_process_characterization_status"
           ] == "diagnostic"
-          assert summary["public_metadata_promotion_performed"] is False
+          assert summary["public_metadata_promotion_performed"] is True
           assert summary["tag_or_release_created"] is False
+          assert manifest["public_metadata_promotion_performed"] is True
+          assert manifest["tag_or_release_created"] is False
 
           for name, filename in manifest["outputs"].items():
               path = root / filename
@@ -124,11 +133,11 @@ jobs:
               ).hexdigest()
           PY
 
-      - name: Upload release-candidate evidence
+      - name: Upload release-promotion evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: v2-7-public-release-candidate
+          name: v2-7-public-release-promotion
           path: outputs/v2_7_public_release_candidate
           if-no-files-found: error
           retention-days: 14
