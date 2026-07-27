@@ -4,17 +4,19 @@
 
 This workflow validates the existing `materials-data-analyzer` bundle consumer against a real multi-sample characterization package produced by the independently installed `materials-characterization-analyzer` repository.
 
-The producer commit is pinned to:
+The producer commit is pinned to the reviewed `0.8.6` release commit:
 
 ```text
-1994b1f473cb971f96d675b3c04d00e73e3f6873
+7242594f775b8dbe651a6131bb1b39b5f60c62cd
 ```
 
 Updating that pin requires deliberate contract review and a new successful real-data workflow. The repositories do not import each other's internal modules.
 
+The selected producer revision includes fail-closed source-checksum validation, dataset-version verification, path-safe fixed sample identities, and material-specific DWCNT/MWCNT/FLG/GNP reports. Pinning the earlier four-material implementation would reintroduce known provenance, filesystem-safety, and scientific-reporting defects.
+
 ## Public samples
 
-The bundle contains four explicit source sample classes from Recherche Data Gouv dataset `doi:10.57745/7KA2UG`:
+The bundle contains four explicit source sample classes from Recherche Data Gouv dataset `doi:10.57745/7KA2UG`, version `1.0`:
 
 | sample_id | Source class | Material context |
 |---|---|---|
@@ -28,13 +30,16 @@ These are different material classes with different synthesis or procurement his
 ## Executed evidence chain
 
 ```text
-exact Dataverse datafile IDs and filenames
+fixed path-safe sample ID and label contract
+-> Dataverse dataset-version 1.0 verification
+-> exact Dataverse datafile IDs and filenames
+-> supplied checksum verification before source persistence
 -> 20 sample files plus one shared readme
 -> Raman / FTIR / XPS / TGA execution for four sample IDs
 -> TEM source readiness with quantitative segmentation blocked
 -> 16 persisted analysis results
 -> 495 long-format feature records
--> versioned producer bundle with checksums
+-> versioned schema 1.0 producer bundle with checksums
 -> consumer schema, size, checksum, provenance, and sample-set validation
 -> lexical unit-label normalization on a consumer copy
 -> feature pivot and explicit sample_id join
@@ -58,6 +63,8 @@ The output directory must be absent or empty. Existing files are not deleted or 
 
 The pinned producer evidence contains:
 
+- producer software version `0.8.6`;
+- bundle schema `1.0`;
 - 4 samples;
 - 16 measurements;
 - 495 feature records;
@@ -65,7 +72,8 @@ The pinned producer evidence contains:
 - 495/495 source SHA-256 values;
 - 495/495 preprocessing identifiers;
 - `review_required` on all exported diagnostic features;
-- four unique `sample_id` values in both feature and sample-context tables.
+- four unique `sample_id` values in both feature and sample-context tables;
+- no TEM numeric feature records because quantitative segmentation remains `blocked_method_mismatch`.
 
 The consumer must produce:
 
@@ -74,6 +82,8 @@ The consumer must produce:
 - 0 characterization-only samples;
 - 495 validated long records;
 - a four-row integrated table;
+- explicit DWCNT, MWCNT, FLG, and GNP source labels;
+- no `char__tem__` columns;
 - no row-order join;
 - no silent aggregation;
 - no inferred metadata;
@@ -100,6 +110,7 @@ Supported:
 - producer source identity, preprocessing identity, methods, units, quality flags, and claim boundaries survive the repository boundary;
 - explicit `sample_id` joins are complete and auditable;
 - different per-sample feature counts can be represented without row-order assumptions;
+- blocked TEM quantitative analysis remains absent from the numeric feature table;
 - unsupported process-science claims remain blocked.
 
 Not supported:
@@ -108,6 +119,7 @@ Not supported:
 - process-response modeling, optimization, or causal attribution;
 - identical physical aliquots across characterization techniques;
 - phase, chemical-state, functional-group, or reaction confirmation;
+- quantitative TEM morphology;
 - predictive generalization;
 - engineering-release decisions.
 

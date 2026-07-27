@@ -8,6 +8,7 @@ on:
       - "src/loaders/characterization_features.py"
       - "scripts/consume_characterization_handoff_bundle.py"
       - "tests/test_characterization_bundle.py"
+      - "docs/CROSS_REPOSITORY_CHARACTERIZATION_HANDOFF.md"
       - "docs/PUBLIC_CARBON_FOUR_MATERIAL_HANDOFF.md"
       - ".github/workflows/cross-repository-public-carbon-four-materials.yml"
 
@@ -21,7 +22,7 @@ concurrency:
 jobs:
   validate-real-public-four-material-handoff:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - name: Check out materials-data-analyzer
@@ -33,7 +34,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: jhin0410-lgtm/materials-characterization-analyzer
-          ref: 1994b1f473cb971f96d675b3c04d00e73e3f6873
+          ref: 7242594f775b8dbe651a6131bb1b39b5f60c62cd
           path: materials-characterization-analyzer
 
       - name: Set up Python
@@ -104,6 +105,13 @@ jobs:
               consumer / "characterization_features_validated_long.csv"
           )
 
+          expected_ids = {
+              "public-dwcnt",
+              "public-mwcnt",
+              "public-flg",
+              "public-gnp",
+          }
+
           assert producer_summary["status"] == "completed"
           assert producer_summary["sample_count"] == 4
           assert producer_summary["measurement_count"] == 16
@@ -113,9 +121,11 @@ jobs:
           assert producer_summary["software_validation"]["model_trained"] is False
           assert producer_summary["software_validation"]["optimization_performed"] is False
 
+          assert producer_bundle["schema_version"] == "1.0"
+          assert producer_bundle["case_id"] == "public-carbon-four-materials-multimodal-v1"
           assert producer_bundle["producer"] == {
               "repository": "jhin0410-lgtm/materials-characterization-analyzer",
-              "software_versions": ["0.8.5"],
+              "software_versions": ["0.8.6"],
               "analysis_result_schema_versions": ["1.0"],
           }
           assert producer_bundle["feature_table"]["row_count"] == 495
@@ -126,7 +136,10 @@ jobs:
 
           assert summary["status"] == "verified"
           assert summary["case_id"] == "public-carbon-four-materials-multimodal-v1"
-          assert summary["producer"]["software_versions"] == ["0.8.5"]
+          assert summary["producer"]["repository"] == (
+              "jhin0410-lgtm/materials-characterization-analyzer"
+          )
+          assert summary["producer"]["software_versions"] == ["0.8.6"]
           assert summary["feature_summary"] == {
               "row_count": 495,
               "sample_count": 4,
@@ -141,6 +154,9 @@ jobs:
               "process_only": 0,
               "characterization_only": 0,
           }
+          assert summary["process_input"]["mode"] == "bundle_sample_context"
+          assert summary["process_input"]["external_process_table_used"] is False
+          assert summary["process_input"]["verified_identity_columns"] == ["sample_id"]
           assert summary["unit_label_normalization"] == {
               "performed": True,
               "rule": "replace_percent_symbol_with_percent_token",
@@ -159,24 +175,24 @@ jobs:
           assert "process-response modeling or optimization" in (
               summary["scientific_closeout"]["unsuitable_for"]
           )
+          assert summary["software_validation"]["all_bundle_checksums_verified"] is True
           assert summary["software_validation"]["row_order_join_used"] is False
           assert summary["software_validation"]["aggregation_performed"] is False
+          assert summary["software_validation"]["missing_metadata_inferred"] is False
           assert summary["software_validation"]["model_trained"] is False
           assert summary["software_validation"]["scientific_metrics_recomputed"] is False
           assert manifest["input_bundle"]["sha256"]
 
-          expected_ids = {
-              "public-dwcnt",
-              "public-mwcnt",
-              "public-flg",
-              "public-gnp",
-          }
           assert len(integrated) == 4
           assert set(integrated["sample_id"]) == expected_ids
+          assert set(integrated["source_label"]) == {"DWCNT", "MWCNT", "FLG", "GNP"}
           assert set(audit["sample_id"]) == expected_ids
           assert set(audit["join_status"]) == {"matched"}
           assert len(validated_long) == 495
           assert set(validated_long["sample_id"]) == expected_ids
+          assert validated_long["source_sha256"].notna().all()
+          assert validated_long["preprocessing_id"].notna().all()
+          assert set(validated_long["quality_flag"]) == {"review_required"}
           assert not integrated["identical_physical_aliquot_confirmed"].astype(bool).any()
           assert not integrated["controlled_process_variable_confirmed"].astype(bool).any()
           assert not integrated["process_response_model_allowed"].astype(bool).any()
@@ -185,6 +201,7 @@ jobs:
                   column.startswith(f"char__{instrument}__")
                   for column in integrated.columns
               )
+          assert not any(column.startswith("char__tem__") for column in integrated.columns)
 
           print((consumer / "cross_repository_handoff_report.md").read_text(encoding="utf-8"))
           PY
