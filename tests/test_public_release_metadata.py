@@ -59,7 +59,7 @@ def test_v2_7_closeout_moves_development_stages_out_of_unreleased() -> None:
     ).read_text(encoding="utf-8")
 
     unreleased = _unreleased_section(changelog, version)
-    assert "No unreleased changes are currently recorded." in unreleased
+    assert not unreleased.strip()
     assert "v2.5.1" not in unreleased
     assert "v2.6.2" not in unreleased
 
