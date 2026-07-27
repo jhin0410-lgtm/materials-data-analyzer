@@ -1,8 +1,8 @@
-"""Build a deterministic v2.7.0 public-release candidate closeout.
+"""Build a deterministic v2.7.0 public-release promotion closeout.
 
-The audit is offline. It selects a release boundary from tracked evidence but does
-not change public version metadata, create tags/releases, rerun scientific
-models, or access external data.
+The audit is offline. It verifies tracked release metadata and evidence but does
+not create tags or releases, publish packages, rerun scientific models, or access
+external data.
 """
 from __future__ import annotations
 
@@ -34,9 +34,20 @@ def read_text(root: Path, relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def cff_version(text: str) -> str | None:
-    match = re.search(r"^version:\s*[\"']?([^\n\"']+)", text, re.MULTILINE)
+def cff_value(text: str, key: str) -> str | None:
+    match = re.search(
+        rf"^{re.escape(key)}:\s*[\"']?([^\n\"']+)", text, re.MULTILINE
+    )
     return match.group(1).strip() if match else None
+
+
+def unreleased_text(changelog: str) -> str:
+    match = re.search(r"^##\s+Unreleased\s*$", changelog, re.MULTILINE)
+    if match is None:
+        return ""
+    remainder = changelog[match.end() :]
+    next_heading = re.search(r"^##\s+", remainder, re.MULTILINE)
+    return remainder[: next_heading.start()] if next_heading else remainder
 
 
 def build_summary(root: Path) -> dict[str, Any]:
@@ -49,10 +60,11 @@ def build_summary(root: Path) -> dict[str, Any]:
     required = [
         *config["required_core_artifacts"],
         *config["required_post_v2_6_artifacts"],
+        f"docs/releases/V{candidate.replace('.', '_')}.md",
     ]
     missing = [path for path in required if not (root / path).is_file()]
     if missing:
-        raise FileNotFoundError(f"Release candidate inputs are missing: {missing}")
+        raise FileNotFoundError(f"Release promotion inputs are missing: {missing}")
 
     public_version = read_text(root, "PUBLIC_RELEASE_VERSION").strip()
     runtime_match = PLATFORM_VERSION.search(
@@ -61,7 +73,9 @@ def build_summary(root: Path) -> dict[str, Any]:
     if runtime_match is None:
         raise ValueError("Unable to parse PLATFORM_VERSION")
     runtime_version = runtime_match.group(1)
-    citation_version = cff_version(read_text(root, "CITATION.cff"))
+    citation = read_text(root, "CITATION.cff")
+    citation_version = cff_value(citation, "version")
+    citation_date = cff_value(citation, "date-released")
 
     v25_roadmap = read_text(root, "docs/PLATFORM_V2_5_ROADMAP.md")
     v26_roadmap = read_text(root, "docs/PLATFORM_V2_6_ROADMAP.md")
@@ -75,9 +89,16 @@ def build_summary(root: Path) -> dict[str, Any]:
         )
     )
     changelog = read_text(root, "CHANGELOG.md")
+    release_notes = read_text(root, f"docs/releases/V{candidate.replace('.', '_')}.md")
+    status_doc = read_text(root, "docs/PUBLIC_RELEASE_STATUS.md")
 
     actual_stages = [item["version"] for item in closeout["stage_results"]]
     expected_stages = [f"2.6.{index}" for index in range(1, 14)]
+    required_internal_versions = [
+        "2.5.1",
+        "2.5.2",
+        *[f"2.6.{index}" for index in range(1, 15)],
+    ]
     old_candidate_paths = (
         "configs/v2_6_public_release_candidate.json",
         "scripts/audit_v2_6_public_release_candidate.py",
@@ -85,15 +106,29 @@ def build_summary(root: Path) -> dict[str, Any]:
         "tests/test_v2_6_public_release_candidate.py",
         ".github/workflows/v2-6-public-release-candidate.yml",
     )
+
     checks = {
-        "current_public_metadata_consistent": (
-            public_version
-            == runtime_version
-            == citation_version
-            == config["current_public_version_before_promotion"]
+        "public_metadata_promoted_consistently": (
+            public_version == runtime_version == citation_version == candidate
         ),
-        "v2_5_feature_line_complete": (
-            "v2.5.2_retrieval_reproducibility_feature_stage_complete" in v25_roadmap
+        "release_date_recorded": citation_date == config["release_date"],
+        "release_heading_promoted": f"## v{candidate}" in changelog,
+        "unreleased_empty_at_promotion": (
+            "No unreleased changes" in unreleased_text(changelog)
+        ),
+        "release_notes_promoted": (
+            release_notes.startswith(f"# v{candidate} -")
+            and config["release_date"] in release_notes
+        ),
+        "public_status_promoted": (
+            f"stable public release is **v{candidate}**" in status_doc
+            and "exact commit SHA" in status_doc
+        ),
+        "complete_internal_inventory_recorded": all(
+            f"v{version}" in release_notes for version in required_internal_versions
+        ),
+        "v2_5_line_released_within_v2_7": (
+            "released_within_public_v2.7.0" in v25_roadmap
             and "compatible_with_restrictions" in v25_roadmap
             and "insufficient_evidence" in v25_roadmap
         ),
@@ -103,12 +138,12 @@ def build_summary(root: Path) -> dict[str, Any]:
             and closeout["verified_stage_count"] == 13
             and closeout["schema_version"] == "2.6.14"
         ),
-        "v2_6_line_explicitly_closed": (
+        "v2_6_line_closed_within_v2_7": (
             closeout["next_action"]["v2_6_status"] == "closed"
             and closeout["next_action"]["automatic_next_feature_stage_authorized"]
             is False
             and "v2.6 is closed" in closeout_doc
-            and "No automatic v2.6.15" in closeout_doc
+            and "v2_6_line_closed_released_within_public_v2.7.0" in v26_roadmap
         ),
         "post_v2_6_scope_present": all(
             (root / path).is_file()
@@ -119,6 +154,9 @@ def build_summary(root: Path) -> dict[str, Any]:
             and closeout["decision"]["predictive_validation_readiness"]
             == "not_ready"
             and closeout["scientific_closeout"]["status"] == "inconclusive"
+            and "Unsupported" in release_notes
+            and "Inconclusive" in release_notes
+            and "Diagnostic" in release_notes
         ),
         "no_scientific_reexecution": all(
             closeout[field] is False
@@ -130,13 +168,11 @@ def build_summary(root: Path) -> dict[str, Any]:
                 "cohort_merge_performed",
             )
         ),
-        "candidate_release_heading_not_yet_promoted": f"## v{candidate}" not in changelog,
-        "candidate_release_notes_not_yet_promoted": not (
-            root / f"docs/releases/V{candidate.replace('.', '_')}.md"
-        ).is_file(),
-        "roadmaps_not_yet_promoted": (
-            "current public release" in v25_roadmap
-            and "current public release" in v26_roadmap
+        "promotion_contract_updated": (
+            config["release_decision"]
+            == "v2_7_0_metadata_promoted_external_release_pending"
+            and config["public_metadata_promotion_performed"] is True
+            and config["tag_or_release_created"] is False
         ),
         "superseded_v2_6_candidate_removed": not any(
             (root / path).exists() for path in old_candidate_paths
@@ -144,20 +180,11 @@ def build_summary(root: Path) -> dict[str, Any]:
     }
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
-        raise ValueError(f"Release candidate contract failed: {failed}")
-
-    promotion_actions = [
-        "Create a complete v2.7.0 changelog section covering v2.5.1-v2.5.2, v2.6.1-v2.6.14, and all post-v2.6 integration/public-repository work.",
-        "Add docs/releases/V2_7_0.md with every Supported, Diagnostic, Inconclusive, Unsupported, blocked, and restricted outcome preserved.",
-        "Update PUBLIC_RELEASE_VERSION, PLATFORM_VERSION, and CITATION.cff together to 2.7.0 and add date-released.",
-        "Update v2.5 and v2.6 roadmaps to released-within-v2.7.0 and explicitly retain the v2.6.14 line-closeout boundary.",
-        "Rerun complete CI, the v2.6.14 checksum closeout, representative NIST workflows, and the pinned cross-repository release-readiness audit.",
-        "Create or verify external tags/releases only after the promotion commit is reviewed.",
-    ]
+        raise ValueError(f"Release promotion contract failed: {failed}")
 
     return {
         "schema_version": "1.0",
-        "workflow": "v2_7_public_release_candidate_closeout",
+        "workflow": "v2_7_public_release_promotion_closeout",
         "status": "completed",
         "decision": config["release_decision"],
         "candidate_version": candidate,
@@ -171,11 +198,6 @@ def build_summary(root: Path) -> dict[str, Any]:
             "included_internal_stage_versions"
         ],
         "separate_v2_5_or_v2_6_public_release_authorized": False,
-        "version_rationale": (
-            "v2.6.14 explicitly closed the internal v2.6 evidence line; the "
-            "subsequent integration and public-repository scope is therefore a "
-            "distinct additive minor release boundary."
-        ),
         "software_validation": {
             "status": "supported",
             "checks": checks,
@@ -200,39 +222,27 @@ def build_summary(root: Path) -> dict[str, Any]:
                 "primary_limitation"
             ],
         },
-        "public_metadata_promotion_performed": False,
+        "public_metadata_promotion_performed": True,
         "tag_or_release_created": False,
-        "promotion_actions": promotion_actions,
+        "next_required_action": (
+            "Verify the reviewed promotion commit, then create or confirm the "
+            "external v2.7.0 tag and GitHub Release separately."
+        ),
     }
 
 
 def build_report(summary: dict[str, Any]) -> str:
-    actions = "\n".join(
-        f"{index}. {item}"
-        for index, item in enumerate(summary["promotion_actions"], 1)
-    )
-    return f"""# v2.7.0 Public Release Candidate Closeout
+    return f"""# v2.7.0 Public Release Promotion Closeout
 
 ## Decision
 
 **{summary['decision']}**
 
-The selected next stable version is **v{summary['candidate_version']}**. The
-previous v{summary['superseded_candidate_version']} candidate is superseded.
-Internal v2.5.x and v2.6.x labels are included as development history, not
-separate public releases.
-
-## Rationale
-
-{summary['version_rationale']}
-
-## Software validation
-
+- public version: `{summary['candidate_version']}`
+- metadata promotion performed: `{summary['public_metadata_promotion_performed']}`
+- tag or GitHub Release created: `{summary['tag_or_release_created']}`
 - v2.6 tracked stages verified: `{summary['software_validation']['v2_6_stage_count']}`
 - post-v2.6 commits at audited boundary: `{summary['post_v2_6_commit_count_at_audit']}`
-- v2.6 evidence-line integrity: `verified`
-- public metadata promotion performed: `{summary['public_metadata_promotion_performed']}`
-- tag or release created: `{summary['tag_or_release_created']}`
 
 ## Scientific closeout
 
@@ -241,13 +251,13 @@ separate public releases.
 - predictive-validation readiness: `{summary['scientific_closeout']['predictive_validation_readiness']}`
 - post-v2.6 process-characterization status: `{summary['scientific_closeout']['post_v2_6_process_characterization_status']}`
 
-Software and checksum integrity do not establish cross-cohort comparability,
-mechanism, causality, predictive generalization, optimization, or engineering
-release readiness.
+Release metadata and software integrity do not establish cross-cohort
+comparability, mechanism, causality, predictive generalization, optimization, or
+engineering-release readiness.
 
-## Required promotion actions
+## Next required action
 
-{actions}
+{summary['next_required_action']}
 """
 
 
@@ -279,7 +289,7 @@ def run(root: Path, output_dir: Path) -> dict[str, Path]:
                 "output_sha256": {
                     name: sha256_file(path) for name, path in outputs.items()
                 },
-                "public_metadata_promotion_performed": False,
+                "public_metadata_promotion_performed": True,
                 "tag_or_release_created": False,
             },
             indent=2,
