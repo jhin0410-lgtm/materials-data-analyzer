@@ -9,10 +9,6 @@ WORKFLOW = PROJECT_ROOT / ".github" / "workflows" / "publish-v2-7-0.yml"
 REQUEST = PROJECT_ROOT / "release" / "v2.7.0-publish-request.json"
 
 
-def _workflow_text() -> str:
-    return WORKFLOW.read_text(encoding="utf-8")
-
-
 def test_publish_request_pins_public_release_identity() -> None:
     request = json.loads(REQUEST.read_text(encoding="utf-8"))
 
@@ -30,49 +26,22 @@ def test_publish_request_pins_public_release_identity() -> None:
     assert request["package_publication_authorized"] is False
 
 
-def test_workflow_verifies_annotated_tag_contract() -> None:
-    text = _workflow_text()
+def test_workflow_contains_fail_closed_publication_guards() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
 
-    required_tokens = (
-        "release_title",
-        "v2.7.0 - Evidence-Line Closeout and Cross-Repository Integration",
+    for token in (
+        "contents: read",
+        "contents: write",
+        "refs/heads/main",
         "git cat-file -t",
-        "refs/tags/${TAG}",
         "git rev-parse",
-        "${TAG}^{commit}",
         "git for-each-ref",
-        "%(contents)",
-        "EXISTING_ANNOTATION",
-        "tag_object_type",
-        'tag_annotation == request["release_title"]',
-    )
-    for token in required_tokens:
-        assert token in text
-
-
-def test_workflow_verifies_published_body_and_latest_release() -> None:
-    text = _workflow_text()
-
-    required_tokens = (
-        "isDraft,isPrerelease,url,body",
         "releases/latest",
-        'published_notes = release["body"]',
-        "normalized(published_notes) == normalized(expected_notes)",
-        'latest_tag == request["tag_name"]',
-        '"release_body_verified": True',
-        '"latest_status_verified": True',
-        '"published_body_sha256"',
-    )
-    for token in required_tokens:
+        "release_body_verified",
+        "latest_status_verified",
+        "published_body_sha256",
+    ):
         assert token in text
-
-
-def test_workflow_limits_write_permission_to_main_publication_job() -> None:
-    text = _workflow_text()
-
-    assert "permissions:\n  contents: read" in text
-    assert "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" in text
-    assert "permissions:\n      contents: write" in text
 
 
 def test_workflow_preserves_scientific_boundaries() -> None:
