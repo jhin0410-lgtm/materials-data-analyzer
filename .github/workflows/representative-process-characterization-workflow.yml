@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "PUBLIC_RELEASE_VERSION"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "docs/releases/V2_7_0.md"
+      - "docs/PUBLIC_RELEASE_STATUS.md"
       - "scripts/run_representative_process_characterization_workflow.py"
       - "scripts/run_nist_ambench_2018_02_workflow.py"
       - "scripts/audit_nist_ambench_2018_02_process_design.py"
