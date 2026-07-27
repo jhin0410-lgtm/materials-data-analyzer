@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -87,6 +88,31 @@ def test_v2_7_release_preserves_negative_and_restricted_results() -> None:
     )
     for expected in required_results:
         assert expected in release_notes
+
+
+def test_historical_v2_6_artifacts_are_separate_from_current_v2_7_runtime() -> None:
+    runtime_test_paths = (
+        "tests/test_battery_comparability_evidence.py",
+        "tests/test_battery_external_cohort_admission.py",
+        "tests/test_battery_forecast_failure_diagnostics.py",
+    )
+    for relative in runtime_test_paths:
+        text = (PROJECT_ROOT / relative).read_text(encoding="utf-8")
+        assert 'assert PLATFORM_VERSION == "2.7.0"' in text
+        assert 'assert PLATFORM_VERSION == "2.4.0"' not in text
+
+    closeout = json.loads(
+        (
+            PROJECT_ROOT
+            / "data"
+            / "processed"
+            / "battery_v2_6_14_external_evidence_line_closeout_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert closeout["software_validation"]["public_version_preserved"] == "2.4.0"
+    assert closeout["decision"]["ridge_generalization"] == "unsupported"
+    assert closeout["decision"]["predictive_validation_readiness"] == "not_ready"
+    assert closeout["scientific_closeout"]["status"] == "inconclusive"
 
 
 def test_citation_preserves_scientific_and_source_boundaries() -> None:
