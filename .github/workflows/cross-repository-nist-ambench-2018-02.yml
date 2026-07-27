@@ -1,0 +1,304 @@
+name: Cross-repository NIST AM-Bench 2018-02
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/loaders/characterization_bundle.py"
+      - "scripts/consume_characterization_handoff_bundle.py"
+      - "tests/test_characterization_bundle.py"
+      - "tests/test_external_process_characterization_bundle.py"
+      - "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
+      - "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
+      - "docs/NIST_AMBENCH_CROSS_REPOSITORY_HANDOFF.md"
+      - ".github/workflows/cross-repository-nist-ambench-2018-02.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-repository-nist-ambench-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-real-process-characterization-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+        with:
+          path: materials-data-analyzer
+
+      - name: Check out pinned materials-characterization-analyzer producer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: ca7242331d3aab7d5d4999df297ccc1a8b011934
+          path: materials-characterization-analyzer
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install both repositories independently
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r materials-data-analyzer/requirements.txt
+          python -m pip install -e materials-characterization-analyzer
+
+      - name: Verify tracked characterization transcriptions are identical
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          producer = Path(
+              "materials-characterization-analyzer/case_studies/"
+              "nist_ambench_2018_02/source_melt_pool_measurements.csv"
+          )
+          consumer = Path(
+              "materials-data-analyzer/data/case_studies/"
+              "nist_ambench_2018_02/source_melt_pool_measurements.csv"
+          )
+          assert producer.read_bytes() == consumer.read_bytes()
+          digest = hashlib.sha256(producer.read_bytes()).hexdigest()
+          print(f"shared measurement source sha256={digest}")
+          PY
+
+      - name: Export producer optical-metrology bundle
+        shell: bash
+        run: |
+          mkdir -p materials-characterization-analyzer/outputs/nist-ambench-diagnostics
+          set -o pipefail
+          python materials-characterization-analyzer/scripts/export_nist_ambench_2018_02_optical_metrology_bundle.py \
+            --config materials-characterization-analyzer/case_studies/nist_ambench_2018_02/case_config.json \
+            --output materials-characterization-analyzer/outputs/nist-ambench-2018-02-optical-metrology \
+            2>&1 | tee materials-characterization-analyzer/outputs/nist-ambench-diagnostics/producer.log
+
+      - name: Consume bundle with consumer-owned process table
+        shell: bash
+        run: |
+          mkdir -p materials-data-analyzer/outputs/nist-ambench-cross-repository-diagnostics
+          set +e
+          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest materials-characterization-analyzer/outputs/nist-ambench-2018-02-optical-metrology/characterization_handoff_bundle.json \
+            --process-table materials-data-analyzer/data/case_studies/nist_ambench_2018_02/source_process_conditions.csv \
+            --output materials-data-analyzer/outputs/cross-repository-nist-ambench-2018-02 \
+            > materials-data-analyzer/outputs/nist-ambench-cross-repository-diagnostics/consumer.log 2>&1
+          code=$?
+          set -e
+          cat materials-data-analyzer/outputs/nist-ambench-cross-repository-diagnostics/consumer.log
+          exit "$code"
+
+      - name: Run focused consumer regression tests
+        working-directory: materials-data-analyzer
+        run: |
+          python -m pytest -q \
+            tests/test_characterization_bundle.py \
+            tests/test_external_process_characterization_bundle.py \
+            tests/test_characterization_feature_handoff.py
+
+      - name: Verify integrated NIST evidence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import pandas as pd
+
+          producer = Path(
+              "materials-characterization-analyzer/outputs/"
+              "nist-ambench-2018-02-optical-metrology"
+          )
+          consumer = Path(
+              "materials-data-analyzer/outputs/"
+              "cross-repository-nist-ambench-2018-02"
+          )
+          process_source = Path(
+              "materials-data-analyzer/data/case_studies/"
+              "nist_ambench_2018_02/source_process_conditions.csv"
+          )
+          measurement_source = Path(
+              "materials-data-analyzer/data/case_studies/"
+              "nist_ambench_2018_02/source_melt_pool_measurements.csv"
+          )
+
+          producer_summary = json.loads(
+              (producer / "case_summary.json").read_text(encoding="utf-8")
+          )
+          bundle = json.loads(
+              (producer / "characterization_handoff_bundle.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          summary = json.loads(
+              (consumer / "cross_repository_handoff_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          manifest = json.loads(
+              (consumer / "cross_repository_handoff_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          integrated = pd.read_csv(consumer / "integrated_sample_table.csv")
+          audit = pd.read_csv(consumer / "sample_join_audit.csv")
+          long_table = pd.read_csv(
+              consumer / "characterization_features_validated_long.csv"
+          )
+          validated_process = pd.read_csv(
+              consumer / "process_table_with_bundle_context.csv"
+          )
+
+          measurement_sha = hashlib.sha256(measurement_source.read_bytes()).hexdigest()
+          process_sha = hashlib.sha256(process_source.read_bytes()).hexdigest()
+
+          assert producer_summary["status"] == "completed"
+          assert producer_summary["sample_count"] == 10
+          assert producer_summary["measurement_count"] == 10
+          assert producer_summary["feature_record_count"] == 40
+          assert producer_summary["source_measurement_sha256"] == measurement_sha
+          assert producer_summary["raw_image_parsed"] is False
+          assert producer_summary["process_conditions_included"] is False
+          assert producer_summary["software_validation"]["model_trained"] is False
+
+          assert bundle["producer"] == {
+              "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+              "software_versions": ["0.8.5"],
+              "analysis_result_schema_versions": ["1.0"],
+          }
+          assert bundle["feature_table"]["row_count"] == 40
+          assert bundle["feature_table"]["sample_count"] == 10
+          assert bundle["feature_table"]["measurement_count"] == 10
+          assert bundle["feature_table"]["instruments"] == [
+              "optical_microscopy_metrology"
+          ]
+          assert bundle["feature_table"]["quality_flag_counts"] == {
+              "source_reported": 40
+          }
+          assert bundle["feature_table"]["source_sha256_record_count"] == 40
+          assert bundle["feature_table"]["preprocessing_id_record_count"] == 40
+
+          assert summary["status"] == "verified"
+          assert summary["case_id"] == "nist-ambench-2018-02-optical-metrology-v1"
+          assert summary["feature_summary"] == {
+              "row_count": 40,
+              "sample_count": 10,
+              "measurement_count": 10,
+              "instruments": ["optical_microscopy_metrology"],
+              "quality_flag_counts": {"source_reported": 40},
+              "source_sha256_record_count": 40,
+              "preprocessing_id_record_count": 40,
+          }
+          assert summary["join_summary"] == {
+              "matched": 10,
+              "process_only": 0,
+              "characterization_only": 0,
+          }
+          assert summary["process_input"]["mode"] == (
+              "external_process_table_with_bundle_identity_validation"
+          )
+          assert summary["process_input"]["sha256"] == process_sha
+          assert summary["process_input"]["sample_id_sets_match"] is True
+          assert summary["process_input"]["verified_identity_columns"] == [
+              "case_id",
+              "trace_number",
+              "material",
+              "system",
+          ]
+          assert summary["process_input"]["identity_mismatch_count"] == 0
+          assert summary["software_validation"]["external_process_table_used"] is True
+          assert summary["software_validation"]["row_order_join_used"] is False
+          assert summary["software_validation"]["aggregation_performed"] is False
+          assert summary["software_validation"]["model_trained"] is False
+          assert summary["software_validation"]["scientific_metrics_recomputed"] is False
+          assert summary["scientific_closeout"]["evidence_level"] == "Diagnostic"
+          assert summary["scientific_closeout"]["result"] == (
+              "nist_ambench_trace_optical_metrology_exported"
+          )
+
+          expected_ids = {
+              f"amb2018_02_ammt_trace_{trace:02d}" for trace in range(1, 11)
+          }
+          assert len(integrated) == 10
+          assert set(integrated["sample_id"]) == expected_ids
+          assert len(long_table) == 40
+          assert set(long_table["source_sha256"]) == {measurement_sha}
+          assert set(audit["sample_id"]) == expected_ids
+          assert set(audit["join_status"]) == {"matched"}
+          assert len(validated_process) == 10
+          assert set(validated_process["material"]) == {"IN625"}
+          assert set(validated_process["system"]) == {"AMMT"}
+          assert validated_process[
+              "trace_to_cross_section_mapping_confirmed"
+          ].astype(bool).all()
+          assert not validated_process["raw_image_parsed"].astype(bool).any()
+
+          width = (
+              "char__optical_microscopy_metrology__melt_pool_width_mean__um"
+          )
+          depth = (
+              "char__optical_microscopy_metrology__melt_pool_depth_mean__um"
+          )
+          assert {width, depth, "actual_laser_power_w", "scan_speed_mm_s"}.issubset(
+              integrated.columns
+          )
+          assert "linear_energy_density_j_mm" not in integrated.columns
+
+          expected_process = {
+              "A": (137.9, 400.0),
+              "B": (179.2, 800.0),
+              "C": (179.2, 1200.0),
+          }
+          expected_summary = {
+              "A": (147.9, 3.7, 42.5, 1.7),
+              "B": (123.5, 6.5, 36.0, 1.9),
+              "C": (106.0, 1.4, 29.6, 0.6),
+          }
+          grouped = integrated.groupby("case_id", sort=True)
+          for case_id, group in grouped:
+              assert (
+                  float(group["actual_laser_power_w"].iloc[0]),
+                  float(group["scan_speed_mm_s"].iloc[0]),
+              ) == expected_process[case_id]
+              actual = (
+                  round(float(group[width].mean()), 1),
+                  round(float(group[width].std()), 1),
+                  round(float(group[depth].mean()), 1),
+                  round(float(group[depth].std()), 1),
+              )
+              assert actual == expected_summary[case_id]
+
+          assert manifest["process_input"]["sha256"] == process_sha
+          for name, filename in manifest["outputs"].items():
+              path = consumer / filename
+              assert path.is_file()
+              assert manifest["output_sha256"][name] == hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
+          assert not list(consumer.glob("*.pkl"))
+          assert not list(consumer.glob("*model*"))
+
+          print(
+              (consumer / "cross_repository_handoff_report.md").read_text(
+                  encoding="utf-8"
+              )
+          )
+          PY
+
+      - name: Upload producer, consumer, and diagnostics evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-repository-nist-ambench-2018-02-evidence
+          path: |
+            materials-characterization-analyzer/outputs/nist-ambench-2018-02-optical-metrology
+            materials-characterization-analyzer/outputs/nist-ambench-diagnostics
+            materials-data-analyzer/outputs/cross-repository-nist-ambench-2018-02
+            materials-data-analyzer/outputs/nist-ambench-cross-repository-diagnostics
+          if-no-files-found: error
+          retention-days: 14
