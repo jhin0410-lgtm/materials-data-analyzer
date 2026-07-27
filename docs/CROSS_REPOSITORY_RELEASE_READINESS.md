@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This audit checks whether the two public repositories expose internally
+This offline audit checks whether the two public repositories expose internally
 consistent release metadata and the software validation expected for their
 different release modes.
 
@@ -10,12 +10,10 @@ different release modes.
 - `materials-characterization-analyzer` is also a Python source and wheel
   distribution.
 
-The audit is offline. It does not create tags, GitHub Releases, package-index
-uploads, or scientific results.
+The audit does not create tags, GitHub Releases, package-index uploads, or
+scientific results.
 
 ## Run
-
-Check out both repositories independently, then run:
 
 ```powershell
 python scripts/audit_cross_repository_release_readiness.py `
@@ -38,35 +36,32 @@ The manifest records SHA-256 for the JSON summary and Markdown report.
 
 ## Data repository decision model
 
-The audit separates two questions that must not be conflated.
-
-### Is the existing stable release metadata valid?
-
-For the current repository state, the stable public release is `v2.4.0`. The
-audit requires agreement among:
+For the v2.6.0 promotion, the audit requires agreement among:
 
 - `PUBLIC_RELEASE_VERSION`;
 - `src/platform_core/version.py`;
 - `CITATION.cff`;
 - the `CHANGELOG.md` release heading;
-- `docs/releases/V2_4_0.md`;
+- `docs/releases/V2_6_0.md`;
 - `docs/PUBLIC_RELEASE_STATUS.md`.
 
-### Can the current `main` commit be tagged as that release?
+At the promotion commit, `Unreleased` is empty. The expected status is:
 
-No. `main` contains additional work under `Unreleased`, including feature-stage
-labels through `v2.6.2`. Therefore valid v2.4.0 citation metadata does not make
-the current HEAD a clean v2.4.0 release commit.
+```text
+ready_for_current_head_release_action
+```
 
-The expected status is:
+This means tracked metadata is internally consistent and the audited HEAD has no
+post-release feature entry. It does not prove that a Git tag or GitHub Release
+exists.
+
+After later work is added under `Unreleased`, the same audit must return:
 
 ```text
 stable_release_metadata_valid_main_ahead
 ```
 
-The next public version is not selected automatically. A future release must
-move the intended `Unreleased` scope into explicit release notes and update all
-version sources together.
+and tagging current HEAD as v2.6.0 becomes disallowed.
 
 ## Characterization repository decision model
 
@@ -78,16 +73,28 @@ requires agreement among:
 - `CITATION.cff`;
 - latest released changelog heading.
 
-Its CI must include:
+Its CI must include read-only contents permission, pytest, wheel and source-
+distribution build, installed-wheel `mca --version` smoke testing, and
+package-content checks.
 
-- read-only contents permission;
-- pytest;
-- wheel and source-distribution build;
-- installed-wheel `mca --version` smoke testing;
-- distribution artifact checks.
+The pinned expected status remains:
 
-The offline audit cannot verify whether a Git tag, GitHub Release, or package
-index upload exists. Those remain external release actions.
+```text
+ready_for_external_tag_or_release_verification
+```
+
+## Coordinated v2.6.0 status
+
+When the data repository is promoted at v2.6.0 and the pinned characterization
+package remains consistent at 0.8.6, the expected cross-repository status is:
+
+```text
+ready_for_external_release_action
+```
+
+This means tracked release metadata and compatibility evidence are ready for
+human-reviewed external tag and release verification. The workflow itself does
+not create either release.
 
 ## Pinned companion commit
 
@@ -97,23 +104,32 @@ The dedicated workflow audits `materials-characterization-analyzer` at:
 7242594f775b8dbe651a6131bb1b39b5f60c62cd
 ```
 
-That commit contains the corrected `0.8.6` public package metadata and the
-four-material source-safety fixes. Changing the pin requires review and another
-successful audit.
+Changing this pin requires review and another successful audit.
+
+## Preserved release results
+
+The promotion must preserve:
+
+- Materials compatibility: `compatible_with_restrictions`;
+- Battery compatibility: `partial`;
+- retrieval reproducibility: `insufficient_evidence`;
+- Ridge generalization: `unsupported`;
+- cross-cohort comparability: `not_established`;
+- external-cohort admission: `not_admitted`;
+- predictive-validation readiness: `not_ready`;
+- Battery v2.6 scientific closeout: `inconclusive`;
+- process-characterization workflows: `Diagnostic`;
+- NIST predictive or causal modeling readiness: blocked.
+
+These outcomes are release content, not upgraded by release validation.
 
 ## Scientific boundary
 
-Release readiness is software governance, not scientific validation.
-
-A successful audit does not establish:
-
-- sample comparability;
-- instrument calibration or measurement uncertainty;
-- causal process effects;
-- mechanism validity;
-- predictive generalization;
-- process optimization;
-- engineering-release suitability.
+Release readiness is software governance, not scientific validation. A
+successful audit does not establish sample comparability, instrument calibration
+or measurement uncertainty, causal process effects, mechanism validity,
+predictive generalization, process optimization, or engineering-release
+suitability.
 
 No source data are recomputed, no model is trained, and no scientific evidence
 level is promoted.
