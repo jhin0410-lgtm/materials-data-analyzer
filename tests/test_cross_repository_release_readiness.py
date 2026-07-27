@@ -27,10 +27,10 @@ def _write(root: Path, relative: str, content: str = "tracked\n") -> None:
 def _data_repo(
     root: Path,
     *,
-    public_version: str = "2.4.0",
-    runtime_version: str = "2.4.0",
-    citation_version: str = "2.4.0",
-    unreleased_line: str = "- Added v2.6.2 work.",
+    public_version: str = "2.7.0",
+    runtime_version: str = "2.7.0",
+    citation_version: str = "2.7.0",
+    unreleased_line: str = "",
 ) -> None:
     for relative in (
         "README.md",
@@ -45,11 +45,7 @@ def _data_repo(
     ):
         _write(root, relative)
     _write(root, "PUBLIC_RELEASE_VERSION", f"{public_version}\n")
-    _write(
-        root,
-        "src/platform_core/version.py",
-        f'PLATFORM_VERSION = "{runtime_version}"\n',
-    )
+    _write(root, "src/platform_core/version.py", f'PLATFORM_VERSION = "{runtime_version}"\n')
     _write(
         root,
         "CHANGELOG.md",
@@ -64,6 +60,7 @@ def _data_repo(
         "type: software\n"
         "title: Materials Data Analyzer\n"
         f"version: {citation_version}\n"
+        "date-released: 2026-07-28\n"
         "license: MIT\n",
     )
     _write(
@@ -93,13 +90,7 @@ def _characterization_repo(root: Path, *, version: str = "0.8.6") -> None:
         "scripts/export_nist_ambench_2018_02_optical_metrology_bundle.py",
     ):
         _write(root, relative)
-    _write(
-        root,
-        "pyproject.toml",
-        "[project]\n"
-        "name = \"materials-characterization-analyzer\"\n"
-        f"version = \"{version}\"\n",
-    )
+    _write(root, "pyproject.toml", f'[project]\nname = "materials-characterization-analyzer"\nversion = "{version}"\n')
     _write(root, "src/mca/__init__.py", f'__version__ = "{version}"\n')
     _write(
         root,
@@ -110,12 +101,7 @@ def _characterization_repo(root: Path, *, version: str = "0.8.6") -> None:
         f"version: {version}\n"
         "date-released: 2026-07-27\n",
     )
-    _write(
-        root,
-        "CHANGELOG.md",
-        f"# Changelog\n\n## [Unreleased]\n\nNone.\n\n"
-        f"## [{version}] - 2026-07-27\n",
-    )
+    _write(root, "CHANGELOG.md", f"# Changelog\n\n## [Unreleased]\n\nNone.\n\n## [{version}] - 2026-07-27\n")
     _write(
         root,
         ".github/workflows/ci.yml",
@@ -128,7 +114,7 @@ def _characterization_repo(root: Path, *, version: str = "0.8.6") -> None:
     )
 
 
-def test_audit_separates_valid_stable_release_from_main_ahead(tmp_path: Path) -> None:
+def test_audit_marks_promoted_v2_7_release_ready_for_external_action(tmp_path: Path) -> None:
     module = _module()
     data = tmp_path / "data"
     char = tmp_path / "char"
@@ -139,32 +125,43 @@ def test_audit_separates_valid_stable_release_from_main_ahead(tmp_path: Path) ->
     data_result = summary["repositories"]["materials_data_analyzer"]
     char_result = summary["repositories"]["materials_characterization_analyzer"]
 
-    assert data_result["status"] == "stable_release_metadata_valid_main_ahead"
-    assert data_result["public_release_version"] == "2.4.0"
-    assert data_result["runtime_platform_version"] == "2.4.0"
-    assert data_result["citation_version"] == "2.4.0"
-    assert data_result["highest_unreleased_named_version"] == "2.6.2"
+    assert data_result["status"] == "ready_for_current_head_release_action"
+    assert data_result["public_release_version"] == "2.7.0"
+    assert data_result["runtime_platform_version"] == "2.7.0"
+    assert data_result["citation_version"] == "2.7.0"
+    assert data_result["highest_unreleased_named_version"] is None
+    assert data_result["main_contains_post_release_work"] is False
     assert data_result["stable_release_metadata_valid"] is True
-    assert data_result["current_main_tagging_allowed"] is False
+    assert data_result["current_main_tagging_allowed"] is True
     assert data_result["blockers"] == []
-    assert char_result["status"] == (
-        "ready_for_external_tag_or_release_verification"
-    )
+    assert char_result["status"] == "ready_for_external_tag_or_release_verification"
     assert set(char_result["version_sources"].values()) == {"0.8.6"}
-    assert summary["cross_repository"]["status"] == (
-        "coordinated_release_requires_data_version_closeout"
-    )
+    assert summary["cross_repository"]["status"] == "ready_for_external_release_action"
     assert summary["tags_created"] is False
     assert summary["packages_published"] is False
+
+
+def test_audit_separates_v2_7_release_from_later_main_work(tmp_path: Path) -> None:
+    module = _module()
+    data = tmp_path / "data"
+    char = tmp_path / "char"
+    _data_repo(data, unreleased_line="- Added v2.7.1 post-release work.")
+    _characterization_repo(char)
+
+    summary = module.build_summary(data, char, "7242594")
+    data_result = summary["repositories"]["materials_data_analyzer"]
+
+    assert data_result["status"] == "stable_release_metadata_valid_main_ahead"
+    assert data_result["highest_unreleased_named_version"] == "2.7.1"
+    assert data_result["current_main_tagging_allowed"] is False
+    assert summary["cross_repository"]["status"] == "coordinated_release_requires_data_version_closeout"
 
 
 def test_data_release_metadata_mismatch_blocks(tmp_path: Path) -> None:
     module = _module()
     data = tmp_path / "data"
-    _data_repo(data, citation_version="2.3.0")
-
+    _data_repo(data, citation_version="2.6.0")
     result = module.audit_data_repository(data)
-
     assert result["status"] == "blocked_release_metadata_inconsistent"
     assert result["stable_release_metadata_valid"] is False
     assert any("CITATION.cff version" in item for item in result["blockers"])
@@ -175,16 +172,12 @@ def test_characterization_version_mismatch_blocks(tmp_path: Path) -> None:
     char = tmp_path / "char"
     _characterization_repo(char)
     _write(char, "src/mca/__init__.py", '__version__ = "0.8.5"\n')
-
     result = module.audit_characterization_repository(char)
-
     assert result["status"] == "blocked_package_release_metadata_inconsistent"
     assert any("inconsistent" in item for item in result["blockers"])
 
 
-def test_run_audit_writes_checksummed_outputs_and_preserves_existing_files(
-    tmp_path: Path,
-) -> None:
+def test_run_audit_writes_checksummed_outputs_and_preserves_existing_files(tmp_path: Path) -> None:
     module = _module()
     data = tmp_path / "data"
     char = tmp_path / "char"
@@ -195,13 +188,10 @@ def test_run_audit_writes_checksummed_outputs_and_preserves_existing_files(
     outputs = module.run_audit(data, char, output, "7242594")
     summary = json.loads(outputs["summary"].read_text(encoding="utf-8"))
     manifest = json.loads(outputs["manifest"].read_text(encoding="utf-8"))
-
     assert summary["network_access_performed"] is False
     assert summary["scientific_boundary"]["models_trained"] is False
     for name, filename in manifest["outputs"].items():
-        assert manifest["output_sha256"][name] == module.sha256_file(
-            output / filename
-        )
+        assert manifest["output_sha256"][name] == module.sha256_file(output / filename)
 
     sentinel = output / "keep.txt"
     sentinel.write_text("keep", encoding="utf-8")
