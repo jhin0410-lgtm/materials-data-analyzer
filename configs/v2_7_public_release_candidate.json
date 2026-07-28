@@ -1,11 +1,13 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "candidate_version": "2.7.0",
   "superseded_candidate_version": "2.6.0",
   "release_date": "2026-07-28",
-  "audited_main_commit": "ed5eac38584a174edbb9216aca10fc8232cdb504",
+  "audited_main_commit": "2d003aecede89aacc25cdb246bf9cc6adec19bf9",
   "v2_6_core_closeout_commit": "50e3ee1201ef791b250558a30c373848d615f815",
-  "post_v2_6_commit_count_at_audit": 38,
+  "post_v2_6_commit_count_at_audit": 41,
+  "feature_scope_audited_commit": "ed5eac38584a174edbb9216aca10fc8232cdb504",
+  "post_v2_6_feature_scope_commit_count_at_audit": 38,
   "public_version_before_promotion": "2.4.0",
   "included_internal_stage_versions": [
     "2.5.1",
