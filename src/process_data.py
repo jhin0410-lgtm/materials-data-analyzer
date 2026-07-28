@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from pathlib import Path
 from typing import Callable
@@ -16,15 +17,18 @@ try:
     from analyzers.simulation import run_simulation_analysis
     from analyzers.smart_factory import run_smart_factory_analysis
     from analyzers.spc import run_spc_analysis
-    from config import ANALYSIS_MODES, DEFAULT_INPUT, OUTPUT_DIR, OutputPaths
+    from config import ANALYSIS_MODES, DEFAULT_INPUT, OutputPaths
     from io_utils import (
         create_output_dirs,
         display_path,
         load_data,
         resolve_project_path,
         resolve_run_name,
+        save_json,
+        save_preprocessing_audit,
     )
-    from preprocessing import clean_data, standardize_column_names
+    from platform_core.version import PLATFORM_VERSION
+    from preprocessing import preprocess_data
 except ModuleNotFoundError as exc:
     missing_dependency = exc.name or "unknown package"
     print(
@@ -167,6 +171,14 @@ def parse_args() -> argparse.Namespace:
             "is used. Example: experiment_process"
         ),
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help=(
+            "Delete and recreate an existing non-empty output run directory. "
+            "Without this flag, existing run artifacts are never overwritten."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -182,17 +194,21 @@ def get_analysis_runner() -> dict[str, Callable[..., dict[str, Path]]]:
     }
 
 
-def run_selected_analysis(args: argparse.Namespace) -> dict[str, Path]:
-    """Load data, run common cleanup, then execute the selected analysis mode."""
-    input_path = resolve_project_path(args.input)
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as input_file:
+        for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-    run_name = resolve_run_name(input_path, args.run_name)
-    output_paths = create_output_dirs(run_name)
 
-    raw_df = load_data(input_path)
-    standardized_df = standardize_column_names(raw_df)
-    cleaned_df = clean_data(standardized_df)
-
+def _run_analysis(
+    args: argparse.Namespace,
+    *,
+    cleaned_df: pd.DataFrame,
+    input_path: Path,
+    output_paths: OutputPaths,
+) -> dict[str, Path]:
     if args.mode == "process":
         return run_process_analysis(
             df=cleaned_df,
@@ -238,13 +254,97 @@ def run_selected_analysis(args: argparse.Namespace) -> dict[str, Path]:
     )
 
 
+def _build_run_manifest(
+    args: argparse.Namespace,
+    *,
+    input_path: Path,
+    run_name: str,
+    raw_df: pd.DataFrame,
+    cleaned_df: pd.DataFrame,
+    preprocessing_audit_path: Path,
+    preprocessing_warning_count: int,
+    output_files: dict[str, Path],
+) -> dict[str, object]:
+    options = {
+        key: value
+        for key, value in vars(args).items()
+        if key not in {"overwrite"}
+    }
+    return {
+        "schema_version": "1.0",
+        "platform_version": PLATFORM_VERSION,
+        "mode": args.mode,
+        "run_name": run_name,
+        "input": {
+            "path": display_path(input_path),
+            "sha256": _sha256_file(input_path),
+            "row_count_before_preprocessing": int(len(raw_df)),
+            "column_count_before_preprocessing": int(raw_df.shape[1]),
+        },
+        "preprocessing": {
+            "audit_path": display_path(preprocessing_audit_path),
+            "warning_count": int(preprocessing_warning_count),
+            "row_count_after_preprocessing": int(len(cleaned_df)),
+            "column_count_after_preprocessing": int(cleaned_df.shape[1]),
+            "column_collision_policy": "fail_on_collision",
+        },
+        "options": options,
+        "overwrite_requested": bool(args.overwrite),
+        "outputs": {
+            name: display_path(path)
+            for name, path in sorted(output_files.items())
+        },
+    }
+
+
+def run_selected_analysis(args: argparse.Namespace) -> dict[str, Path]:
+    """Load data, record preprocessing, and execute the selected analysis mode."""
+    input_path = resolve_project_path(args.input)
+    run_name = resolve_run_name(input_path, args.run_name)
+
+    raw_df = load_data(input_path)
+    preprocessing_result = preprocess_data(
+        raw_df,
+        fail_on_column_collision=True,
+    )
+    cleaned_df = preprocessing_result.dataframe
+
+    output_paths = create_output_dirs(run_name, overwrite=args.overwrite)
+    preprocessing_audit_path = save_preprocessing_audit(
+        preprocessing_result.audit,
+        output_paths,
+    )
+
+    output_files = _run_analysis(
+        args,
+        cleaned_df=cleaned_df,
+        input_path=input_path,
+        output_paths=output_paths,
+    )
+    output_files["preprocessing_audit"] = preprocessing_audit_path
+
+    manifest = _build_run_manifest(
+        args,
+        input_path=input_path,
+        run_name=run_name,
+        raw_df=raw_df,
+        cleaned_df=cleaned_df,
+        preprocessing_audit_path=preprocessing_audit_path,
+        preprocessing_warning_count=len(preprocessing_result.warnings),
+        output_files=output_files,
+    )
+    manifest_path = save_json(manifest, output_paths.root / "run_manifest.json")
+    output_files["run_manifest"] = manifest_path
+    return output_files
+
+
 def main() -> None:
     """Program entry point."""
     args = parse_args()
 
     try:
         output_files = run_selected_analysis(args)
-    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+    except (FileNotFoundError, FileExistsError, ValueError, RuntimeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
     except OSError as exc:
@@ -260,8 +360,15 @@ def main() -> None:
     print("Analysis completed successfully.")
     if "cleaned_data" in output_files:
         print(f"Cleaned data saved to: {display_path(output_files['cleaned_data'])}")
+    if "preprocessing_audit" in output_files:
+        print(
+            "Preprocessing audit saved to: "
+            f"{display_path(output_files['preprocessing_audit'])}"
+        )
     if "report" in output_files:
         print(f"Report saved to: {display_path(output_files['report'])}")
+    if "run_manifest" in output_files:
+        print(f"Run manifest saved to: {display_path(output_files['run_manifest'])}")
 
 
 if __name__ == "__main__":
