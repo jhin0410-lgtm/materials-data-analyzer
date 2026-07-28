@@ -90,9 +90,8 @@ def test_analysis_run_writes_audit_and_manifest(
     assert manifest["run_name"] == "audited_run"
     assert manifest["mode"] == "eda"
     assert len(manifest["input"]["sha256"]) == 64
-    assert manifest["preprocessing"]["audit_path"].endswith(
-        "processed/preprocessing_audit.json"
-    )
+    audit_path = manifest["preprocessing"]["audit_path"].replace("\\", "/")
+    assert audit_path.endswith("processed/preprocessing_audit.json")
     assert manifest["overwrite_requested"] is False
 
 
