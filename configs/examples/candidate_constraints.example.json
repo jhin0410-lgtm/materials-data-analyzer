@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "source_note": "Example only. Replace limits with source-backed equipment, material, and safety constraints.",
+  "constraints": [
+    {
+      "constraint_id": "process_temperature_operating_window",
+      "kind": "range",
+      "feature": "process_temp_c",
+      "minimum": 650.0,
+      "maximum": 850.0
+    },
+    {
+      "constraint_id": "pressure_operating_window",
+      "kind": "range",
+      "feature": "pressure_mpa",
+      "minimum": 0.8,
+      "maximum": 1.5
+    },
+    {
+      "constraint_id": "high_temperature_pressure_requirement",
+      "kind": "conditional_range",
+      "if": {
+        "feature": "process_temp_c",
+        "operator": ">",
+        "value": 800.0
+      },
+      "then": {
+        "feature": "pressure_mpa",
+        "minimum": 1.1,
+        "maximum": 1.5
+      }
+    }
+  ]
+}
