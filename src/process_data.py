@@ -11,10 +11,10 @@ from typing import Callable
 try:
     import pandas as pd
 
+    from analyzers.constrained_simulation import run_constraint_aware_simulation_analysis
     from analyzers.eda import run_eda_analysis
     from analyzers.process import run_process_analysis
     from analyzers.reliability import run_reliability_analysis
-    from analyzers.simulation import run_simulation_analysis
     from analyzers.smart_factory import run_smart_factory_analysis
     from analyzers.spc import run_spc_analysis
     from config import ANALYSIS_MODES, DEFAULT_INPUT, OutputPaths
@@ -83,6 +83,16 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Optional scenario CSV file for simulation what-if prediction. "
             "Example: --scenario-input data/sample/simulation_scenarios.csv"
+        ),
+    )
+    parser.add_argument(
+        "--constraint-config",
+        default=None,
+        required=False,
+        help=(
+            "Optional JSON file containing allowlisted range, allowed-values, "
+            "or conditional-range candidate constraints. Candidates outside the "
+            "training domain or violating a declared constraint are not ranked."
         ),
     )
     parser.add_argument(
@@ -190,7 +200,7 @@ def get_analysis_runner() -> dict[str, Callable[..., dict[str, Path]]]:
         "reliability": run_reliability_analysis,
         "smart_factory": run_smart_factory_analysis,
         "spc": run_spc_analysis,
-        "simulation": run_simulation_analysis,
+        "simulation": run_constraint_aware_simulation_analysis,
     }
 
 
@@ -231,7 +241,7 @@ def _run_analysis(
         )
 
     if args.mode == "simulation":
-        return run_simulation_analysis(
+        return run_constraint_aware_simulation_analysis(
             df=cleaned_df,
             input_path=input_path,
             target=args.target,
@@ -243,6 +253,7 @@ def _run_analysis(
             design_samples=args.design_samples,
             grid_levels=args.grid_levels,
             group_column=args.group_column,
+            constraint_config=args.constraint_config,
         )
 
     analysis_runner = get_analysis_runner()[args.mode]
