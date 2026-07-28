@@ -36,7 +36,11 @@ def test_tracked_v2_7_promotion_preserves_the_release_boundary() -> None:
     assert summary["candidate_version"] == "2.7.0"
     assert summary["superseded_candidate_version"] == "2.6.0"
     assert summary["release_date"] == "2026-07-28"
-    assert summary["post_v2_6_commit_count_at_audit"] == 38
+    assert summary["post_v2_6_feature_scope_commit_count_at_audit"] == 38
+    assert summary["post_v2_6_commit_count_at_audit"] == 41
+    assert summary["audited_main_commit"] == (
+        "2d003aecede89aacc25cdb246bf9cc6adec19bf9"
+    )
     assert summary["separate_v2_5_or_v2_6_public_release_authorized"] is False
     assert summary["software_validation"]["status"] == "supported"
     assert summary["software_validation"]["v2_6_stage_count"] == 13
@@ -64,11 +68,30 @@ def test_promotion_inventory_includes_every_v2_5_and_v2_6_stage() -> None:
     assert config["included_internal_stage_versions"] == expected
     assert config["candidate_version"] == "2.7.0"
     assert config["superseded_candidate_version"] == "2.6.0"
-    assert config["post_v2_6_commit_count_at_audit"] == 38
-    assert len(config["audited_main_commit"]) == 40
+    assert config["post_v2_6_feature_scope_commit_count_at_audit"] == 38
+    assert config["post_v2_6_commit_count_at_audit"] == 41
+    assert config["audited_main_commit"] == (
+        "2d003aecede89aacc25cdb246bf9cc6adec19bf9"
+    )
+    assert len(config["feature_scope_audited_commit"]) == 40
     assert len(config["v2_6_core_closeout_commit"]) == 40
     assert config["public_metadata_promotion_performed"] is True
     assert config["tag_or_release_created"] is False
+
+
+def test_version_inventory_uses_complete_tokens() -> None:
+    module = _module()
+
+    assert module.release_notes_contains_version("stage 2.6.1 complete", "2.6.1")
+    assert not module.release_notes_contains_version("stage 2.6.10 complete", "2.6.1")
+    assert not module.release_notes_contains_version("stage 12.6.1 complete", "2.6.1")
+
+
+def test_unreleased_heading_is_required() -> None:
+    module = _module()
+
+    with pytest.raises(ValueError, match="missing the required"):
+        module.unreleased_text("## v2.7.0\n")
 
 
 def test_superseded_v2_6_candidate_files_are_removed() -> None:
