@@ -1,6 +1,7 @@
 {
   "schema_version": "1.0",
   "source_note": "Example only. Replace limits with source-backed equipment, material, and safety constraints.",
+  "dry_run": true,
   "credential_policy": {
     "network_access_required": false,
     "send_credentials": false,
