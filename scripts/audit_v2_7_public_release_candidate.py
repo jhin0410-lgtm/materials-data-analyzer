@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -42,12 +43,53 @@ def cff_value(text: str, key: str) -> str | None:
 
 
 def unreleased_text(changelog: str) -> str:
+    """Return the Unreleased body and fail when the required heading is absent."""
     match = re.search(r"^##\s+Unreleased\s*$", changelog, re.MULTILINE)
     if not match:
-        return ""
+        raise ValueError("CHANGELOG.md is missing the required '## Unreleased' heading")
     remainder = changelog[match.end() :]
     next_heading = re.search(r"^##\s+", remainder, re.MULTILINE)
     return remainder[: next_heading.start()] if next_heading else remainder
+
+
+def release_notes_contains_version(release_notes: str, version: str) -> bool:
+    """Match a semantic version as a complete token, not a numeric substring."""
+    pattern = rf"(?<![\d.]){re.escape(version)}(?![\d.])"
+    return re.search(pattern, release_notes) is not None
+
+
+def _git_output(root: Path, *args: str) -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(root), *args],
+            text=True,
+            stderr=subprocess.STDOUT,
+        ).strip()
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        details = getattr(exc, "output", "") or str(exc)
+        raise ValueError(f"Git release-boundary verification failed: {details}") from exc
+
+
+def git_commit_distance(root: Path, base: str, head: str) -> int:
+    """Return the exact number of commits in ``base..head``."""
+    value = _git_output(root, "rev-list", "--count", f"{base}..{head}")
+    return int(value)
+
+
+def git_is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    """Return whether Git proves the requested ancestry relationship."""
+    result = subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", ancestor, descendant],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode not in {0, 1}:
+        raise ValueError(
+            "Git ancestry verification failed: "
+            f"{result.stdout.strip()} {result.stderr.strip()}"
+        )
+    return result.returncode == 0
 
 
 def build_summary(root: Path) -> dict[str, Any]:
@@ -90,6 +132,7 @@ def build_summary(root: Path) -> dict[str, Any]:
     changelog = read_text(root, "CHANGELOG.md")
     release_notes_path = f"docs/releases/V{candidate.replace('.', '_')}.md"
     release_notes = read_text(root, release_notes_path)
+    unreleased = unreleased_text(changelog)
 
     actual_stages = [item["version"] for item in closeout["stage_results"]]
     expected_stages = [f"2.6.{index}" for index in range(1, 14)]
@@ -100,6 +143,18 @@ def build_summary(root: Path) -> dict[str, Any]:
         "tests/test_v2_6_public_release_candidate.py",
         ".github/workflows/v2-6-public-release-candidate.yml",
     )
+
+    core_commit = config["v2_6_core_closeout_commit"]
+    feature_scope_commit = config["feature_scope_audited_commit"]
+    audited_release_commit = config["audited_main_commit"]
+    current_head = _git_output(root, "rev-parse", "HEAD")
+    actual_feature_scope_distance = git_commit_distance(
+        root, core_commit, feature_scope_commit
+    )
+    actual_release_distance = git_commit_distance(
+        root, core_commit, audited_release_commit
+    )
+
     checks = {
         "promoted_public_metadata_consistent": (
             public_version == runtime_version == citation_version == candidate
@@ -150,15 +205,23 @@ def build_summary(root: Path) -> dict[str, Any]:
             )
         ),
         "release_heading_promoted": f"## v{candidate}" in changelog,
-        "unreleased_section_empty": not unreleased_text(changelog).strip(),
+        "unreleased_heading_present_and_empty": not unreleased.strip(),
         "release_notes_promoted": release_notes.startswith(f"# v{candidate} -"),
         "all_internal_stages_documented": all(
-            version in release_notes
+            release_notes_contains_version(release_notes, version)
             for version in config["included_internal_stage_versions"]
         ),
-        "post_v2_6_boundary_documented": (
+        "feature_scope_boundary_documented": (
             "38 commits" in release_notes
-            and config["post_v2_6_commit_count_at_audit"] == 38
+            and config["post_v2_6_feature_scope_commit_count_at_audit"] == 38
+            and actual_feature_scope_distance
+            == config["post_v2_6_feature_scope_commit_count_at_audit"]
+            and git_is_ancestor(root, core_commit, feature_scope_commit)
+        ),
+        "actual_release_boundary_verified": (
+            actual_release_distance == config["post_v2_6_commit_count_at_audit"]
+            and git_is_ancestor(root, feature_scope_commit, audited_release_commit)
+            and git_is_ancestor(root, audited_release_commit, current_head)
         ),
         "superseded_v2_6_candidate_removed": not any(
             (root / path).exists() for path in old_candidate_paths
@@ -180,26 +243,28 @@ def build_summary(root: Path) -> dict[str, Any]:
     ]
 
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "workflow": "v2_7_public_release_promotion_closeout",
         "status": "completed",
         "decision": config["release_decision"],
         "candidate_version": candidate,
         "superseded_candidate_version": config["superseded_candidate_version"],
         "release_date": config["release_date"],
-        "audited_main_commit": config["audited_main_commit"],
-        "v2_6_core_closeout_commit": config["v2_6_core_closeout_commit"],
-        "post_v2_6_commit_count_at_audit": config[
-            "post_v2_6_commit_count_at_audit"
-        ],
+        "audited_main_commit": audited_release_commit,
+        "current_head": current_head,
+        "v2_6_core_closeout_commit": core_commit,
+        "feature_scope_audited_commit": feature_scope_commit,
+        "post_v2_6_feature_scope_commit_count_at_audit": actual_feature_scope_distance,
+        "post_v2_6_commit_count_at_audit": actual_release_distance,
         "included_internal_stage_versions": config[
             "included_internal_stage_versions"
         ],
         "separate_v2_5_or_v2_6_public_release_authorized": False,
         "version_rationale": (
-            "v2.6.14 explicitly closed the internal v2.6 evidence line; the "
-            "subsequent 38-commit integration and public-repository scope is a "
-            "distinct additive minor release boundary."
+            "v2.6.14 explicitly closed the internal v2.6 evidence line. The "
+            "38-commit feature and integration scope was audited first, followed "
+            "by three reviewed promotion and post-promotion verification commits, "
+            "giving an exact 41-commit boundary at the published release target."
         ),
         "software_validation": {
             "status": "supported",
@@ -254,10 +319,11 @@ public releases.
 ## Software validation
 
 - v2.6 tracked stages verified: `{summary['software_validation']['v2_6_stage_count']}`
-- post-v2.6 commits at audited boundary: `{summary['post_v2_6_commit_count_at_audit']}`
+- post-v2.6 feature-scope commits: `{summary['post_v2_6_feature_scope_commit_count_at_audit']}`
+- post-v2.6 commits at published release target: `{summary['post_v2_6_commit_count_at_audit']}`
 - v2.6 evidence-line integrity: `verified`
 - public metadata promotion performed: `{summary['public_metadata_promotion_performed']}`
-- tag or release created: `{summary['tag_or_release_created']}`
+- tag or release created by this audit: `{summary['tag_or_release_created']}`
 
 ## Scientific closeout
 
@@ -298,7 +364,7 @@ def run(root: Path, output_dir: Path) -> dict[str, Path]:
     manifest_path.write_text(
         json.dumps(
             {
-                "schema_version": "1.1",
+                "schema_version": "1.2",
                 "generation_status": "completed",
                 "outputs": {name: path.name for name, path in outputs.items()},
                 "output_sha256": {
