@@ -13,7 +13,11 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Check out repository
@@ -40,7 +44,59 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: pytest-diagnostics
+          name: pytest-diagnostics-${{ matrix.os }}
           path: outputs/ci/pytest.log
+          if-no-files-found: error
+          retention-days: 14
+
+  installed-package-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Build wheel and source distribution
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install "build>=1.2,<2"
+          python -m build
+
+      - name: Install built wheel
+        shell: bash
+        run: |
+          python -m pip install --force-reinstall --no-deps dist/*.whl
+
+      - name: Smoke test installed CLI
+        shell: bash
+        run: |
+          python -c "import materials_data_analyzer; print(materials_data_analyzer.__version__)"
+          mda --help
+          mda \
+            --mode eda \
+            --input data/sample/experiment_process.csv \
+            --run-name installed_package_smoke
+          test -f outputs/installed_package_smoke/processed/preprocessing_audit.json
+          test -f outputs/installed_package_smoke/run_manifest.json
+
+      - name: Upload package artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-package-${{ matrix.os }}
+          path: |
+            dist/*
+            outputs/installed_package_smoke/processed/preprocessing_audit.json
+            outputs/installed_package_smoke/run_manifest.json
           if-no-files-found: error
           retention-days: 14
