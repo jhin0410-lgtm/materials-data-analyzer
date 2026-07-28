@@ -2,19 +2,71 @@
 
 `outputs/` is the analyzer-generated run artifact folder.
 
-It is used by CLI commands such as:
+The stable user command is:
+
+```powershell
+mda --mode eda --input data/sample/experiment_process.csv --run-name demo_eda
+```
+
+The historical source-checkout command remains supported:
 
 ```powershell
 python src/process_data.py --mode eda --input data/sample/experiment_process.csv --run-name demo_eda
 ```
 
-Typical run structure:
+## Standard Run Structure
 
 ```text
-outputs/{run_name}/processed/
-outputs/{run_name}/figures/
-outputs/{run_name}/reports/
+outputs/{run_name}/
+├── processed/
+│   ├── cleaned_data.csv
+│   └── preprocessing_audit.json
+├── figures/
+├── reports/
+└── run_manifest.json
 ```
+
+The preprocessing audit records automatic column-name, dtype, blank-value,
+numeric-coercion, missing-value, and empty-row changes. The run manifest records
+the input SHA-256, platform version, command options, row counts, overwrite
+request, preprocessing audit path, and generated artifact paths.
+
+## No Silent Overwrite
+
+A non-empty run directory is rejected by default. This prevents artifacts from
+separate analyses being silently mixed or replaced.
+
+Use one of these approaches:
+
+1. choose a new `--run-name`;
+2. archive or remove the old local run deliberately;
+3. pass `--overwrite` to replace the entire existing run directory.
+
+`--overwrite` does not merge old and new results. It removes the complete old run
+folder and creates a clean replacement. The request is recorded in the new run
+manifest.
+
+Case-study and release scripts may impose an even stricter new-or-empty output
+policy and may not offer an overwrite option.
+
+## Candidate Screening Outputs
+
+Constraint-aware simulation preserves both original and final candidate views:
+
+```text
+candidate_predictions_unconstrained.csv
+candidate_ranking_unconstrained.csv
+candidate_constraint_audit.csv
+candidate_constraint_config_snapshot.json
+candidate_eligibility_summary.csv
+candidate_predictions.csv
+candidate_ranking.csv
+```
+
+The `_unconstrained` files preserve the original surrogate output. The final
+`candidate_ranking.csv` includes only candidates that pass input validation,
+training-domain checks, and any declared allowlisted constraints. Excluded
+candidates remain visible in audit and prediction artifacts.
 
 ## Git Policy
 
@@ -22,25 +74,32 @@ outputs/{run_name}/reports/
 
 Reasons:
 
-- Output folders are regenerable from CLI commands.
-- They can grow quickly as demo, smoke, and case-study runs accumulate.
-- They may contain local run artifacts that are useful during analysis but not durable source material.
-- Committing full run folders can make the repository noisy and harder to review.
+- output folders are regenerable from commands and tracked inputs;
+- they can grow quickly as demo, smoke, and case-study runs accumulate;
+- they may contain row-level predictions or local paths;
+- committing complete run folders makes review and provenance boundaries less
+  clear;
+- raw or proprietary source data may be reproduced inside local outputs.
 
 The preferred policy is:
 
-- Keep `outputs/` local.
-- Commit source code, scripts, tests, and documentation.
-- Commit small curated summary files only when they are intentionally part of a documented case study.
-- Store durable case-study summaries in `data/processed/` and narrative reports in `data/case_studies/` or `docs/`.
-- Do not commit raw datasets, raw archives, full API responses, credentials, temporary outputs, or caches.
-- Treat compact inventories and summaries as optional tracked artifacts only when they are reproducible and documented.
-- Treat large generated tables as local-only by default unless they are explicitly needed for case-study reproducibility.
-- When a tracked processed CSV is refreshed, record the generation command or script and basic row/count validation in the related case-study notes or change summary.
+- keep `outputs/` local;
+- commit source code, scripts, tests, configuration examples, and documentation;
+- commit only small curated summaries intentionally required by a documented
+  case study;
+- store durable compact summaries in `data/processed/` and narrative closeouts in
+  `data/case_studies/` or `docs/`;
+- do not commit raw datasets, raw archives, full API responses, credentials,
+  temporary outputs, or caches;
+- treat row-level predictions and detailed provenance records as local-only by
+  default;
+- when a tracked processed artifact is refreshed, record the generating command,
+  source identity, and basic row/count validation.
 
-## Kaggle Battery Representative Runs
+## Representative Local Runs
 
-The Kaggle NASA battery case study references these representative local simulation runs:
+The Kaggle NASA Battery case study historically references local simulation runs
+such as:
 
 ```text
 kaggle_battery_metadata_only_retention_simulation
@@ -50,9 +109,8 @@ kaggle_battery_feature_enriched_group_retention_simulation
 kaggle_battery_feature_enriched_no_count_group_retention_simulation
 ```
 
-These run folders are useful for local traceability, but the default policy is still to avoid committing the full `outputs/` run folders.
-
-Instead, commit curated case-study artifacts such as:
+These local folders may support traceability, but they are not durable repository
+source material. Prefer curated artifacts such as:
 
 ```text
 data/processed/kaggle_battery_simulation_comparison.csv
@@ -62,20 +120,22 @@ data/case_studies/kaggle_battery/case_study.md
 
 ## Restoring Outputs
 
-If outputs are needed again, prefer regenerating them from documented commands rather than committing run folders.
+When outputs are needed again:
 
-Recommended restoration approach:
-
-1. Keep the input data policy clear: raw data stays local; processed case-study summaries may be committed when small and documented.
-2. Re-run the CLI commands or case-study scripts.
-3. Compare regenerated reports or summary CSVs against the curated case-study documentation.
+1. confirm the correct input source and checksum;
+2. install the reviewed software version or use the exact commit;
+3. rerun the documented command using a new run name;
+4. inspect `preprocessing_audit.json` and `run_manifest.json`;
+5. compare regenerated compact outputs against tracked case-study summaries.
 
 Example:
 
 ```powershell
-python scripts/compare_simulation_runs.py --output data/processed/kaggle_battery_simulation_comparison.csv --report data/case_studies/kaggle_battery/simulation_comparison.md
+python scripts/compare_simulation_runs.py `
+  --output data/processed/kaggle_battery_simulation_comparison.csv `
+  --report data/case_studies/kaggle_battery/simulation_comparison.md
 ```
 
-## Local README Note
-
-`outputs/README.md` may exist locally as an in-folder reminder. Because `outputs/` is ignored by Git, that file may not be tracked. This `docs/OUTPUTS_POLICY.md` file is the durable repository-level policy document.
+`outputs/README.md` may exist locally as an in-folder reminder. Because
+`outputs/` is ignored by Git, this document is the durable repository-level
+policy.
