@@ -298,6 +298,9 @@ New user workflows should not be added directly to the internal governance CLI.
 
 ## Real-Data Case Studies
 
+The **Smart Factory / UCI SECOM** closeout remains a documented chronological
+validation example rather than a production classifier.
+
 | Domain or case study | Dataset or source | Main validation emphasis | Current claim boundary |
 | --- | --- | --- | --- |
 | Process + characterization | NIST AM-Bench 2018-02 IN625 AMMT traces | Explicit identity, source reproduction, design audit | Diagnostic only; no optimization or predictive claim |
