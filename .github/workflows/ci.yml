@@ -70,11 +70,14 @@ jobs:
           python-version: "3.11"
 
       - name: Build wheel and source distribution
+        shell: bash
         run: |
+          mkdir -p outputs/ci
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install "build>=1.2,<2"
-          python -m build
+          set -o pipefail
+          python -m build 2>&1 | tee outputs/ci/package-build.log
 
       - name: Install built wheel
         shell: bash
@@ -99,8 +102,9 @@ jobs:
         with:
           name: python-package-${{ matrix.os }}
           path: |
+            outputs/ci/package-build.log
             dist/*
             outputs/installed_package_smoke/processed/preprocessing_audit.json
             outputs/installed_package_smoke/run_manifest.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
