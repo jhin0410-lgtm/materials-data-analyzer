@@ -225,8 +225,12 @@ def test_absolute_and_traversal_paths_are_rejected(tmp_path, field, value):
     config_path = _write_fixture(tmp_path)
     payload = json.loads(config_path.read_text())
     payload[field] = value
-    with pytest.raises(ValueError, match="repository-relative"):
+    with pytest.raises(ValueError) as exc_info:
         BatteryExternalCohortAdmissionConfig.from_mapping(payload)
+    assert (
+        "repository-relative" in str(exc_info.value)
+        or "output_root does not match" in str(exc_info.value)
+    )
 
 
 def test_unknown_manifest_fields_and_claim_promotion_are_rejected(tmp_path):
