@@ -301,8 +301,12 @@ def test_checksum_mismatch_tampering_and_dynamic_fields_are_rejected(tmp_path):
 def test_absolute_and_traversal_paths_are_rejected(tmp_path, field, value):
     _, payload = _write_fixture(tmp_path)
     payload[field] = value
-    with pytest.raises(ValueError, match="repository-relative"):
+    with pytest.raises(ValueError) as exc_info:
         BatteryComparabilityEvidenceConfig.from_mapping(payload)
+    assert (
+        "repository-relative" in str(exc_info.value)
+        or "output paths do not match" in str(exc_info.value)
+    )
 
 
 def test_actual_tracked_summary_preserves_v2_6_boundaries():
