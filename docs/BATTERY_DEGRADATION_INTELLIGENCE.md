@@ -80,7 +80,7 @@ Optional columns:
 | `step_id` | Explicit step-segment identity; required when a step type repeats within a cycle or elapsed time resets between segments |
 | `temperature_c` | Temperature in degrees Celsius |
 | `capacity_ah` | Instrument-reported cumulative capacity in ampere-hours |
-| `global_time_s` | Monotonic experiment time used to distinguish temperature rise from simple span |
+| `global_time_s` | Monotonic experiment time used for start-to-peak temperature rise and adjacent-sample current-transition analysis |
 
 The workflow rejects duplicate battery-cycle-step-time rows, non-finite required measurements, nonpositive voltage, negative elapsed time, and unknown step labels. It does not infer units from value magnitudes. When `step_id` is absent, the workflow uses `step_type` as the segment identity and records that each step type must occur as one continuous elapsed-time segment within a battery-cycle.
 
@@ -95,12 +95,12 @@ When sufficient raw data are present, the workflow calculates:
 - coulombic and energy efficiency;
 - voltage and current extrema;
 - temperature minimum, maximum, span, and start-to-peak rise when global time is supplied;
-- a current-transition resistance proxy;
-- `dQ/dV` peak height and voltage;
+- a current-transition resistance proxy only when globally ordered adjacent samples contain a measurable current step;
+- `dQ/dV` peak height and voltage for one continuous, mostly monotonic discharge segment;
 - median absolute `dV/dQ`;
 - `dQ/dV` peak sensitivity across smoothing windows 5, 9, and 15.
 
-These are measurement-derived diagnostics. The resistance value is a transition proxy, not a validated electrochemical impedance estimate. Incremental-capacity features are smoothing-sensitive and require adequate unique voltage support; warnings are emitted when peak location or height changes materially across windows.
+These are measurement-derived diagnostics. The resistance value is a current-transition proxy, not a validated electrochemical impedance or internal-resistance estimate; it is withheld when global time or a measurable transition is unavailable. Incremental-capacity features are withheld for multiple discharge segments or non-monotonic voltage/capacity traces, and otherwise remain smoothing-sensitive. Warnings record every unavailable or sensitive result.
 
 No smoothing, interpolation, outlier removal, or record exclusion is performed silently.
 
