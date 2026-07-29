@@ -36,6 +36,7 @@ dev = [
 
 [project.scripts]
 mda = "materials_data_analyzer.cli:main"
+mda-battery-intelligence = "materials_data_analyzer.battery_cli:main"
 
 [project.urls]
 Repository = "https://github.com/jhin0410-lgtm/materials-data-analyzer"
