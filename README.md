@@ -5,22 +5,23 @@
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
 
 `materials-data-analyzer` is a CLI-first research software platform for turning
-materials, process, quality, reliability, battery, and smart-factory tables into
+materials, process, quality, reliability, Battery, and smart-factory tables into
 auditable analysis artifacts with explicit provenance, validation scope, and
 scientific claim boundaries.
 
-It is **not a battery-only program**. Battery trajectories are one case-study
+It is **not a Battery-only program**. Battery trajectories are one case-study
 family inside a broader Virtual Research Partner for materials and manufacturing
 work.
 
-## What the Platform Does
+## Core Workflow
 
 ```text
 engineering data source
--> source and schema contract
+-> source and schema validation
+-> provenance-aware preprocessing audit
 -> readiness, units, identifiers, and leakage audit
 -> EDA / process / SPC / reliability / baseline validation
--> trust-boundary and scientific closeout
+-> candidate eligibility and scientific trust boundary
 -> reproducible tables, figures, manifests, and reports
 ```
 
@@ -29,60 +30,60 @@ The repository supports:
 - tabular process and experiment analysis;
 - quality, SPC, and smart-factory diagnostics;
 - reliability and repeated-asset validation;
-- battery cycle and trajectory analysis;
+- Battery cycle and trajectory analysis;
 - descriptive materials-property screening;
 - group-aware, time-aware, and asset-aware baseline validation;
-- data-driven candidate and scenario screening;
-- bounded scientific checks and compact provenance artifacts;
-- explicit process–characterization integration by `sample_id`.
+- constraint-aware candidate-condition screening;
+- explicit process-characterization integration by `sample_id`;
+- compact provenance, checksum, and scientific-closeout artifacts.
 
 The companion
 [`materials-characterization-analyzer`](https://github.com/jhin0410-lgtm/materials-characterization-analyzer)
 owns instrument-specific XRD, SEM, EDS, Raman, TEM, and SAED feature extraction.
-The two repositories remain independently installable and exchange versioned
-files rather than importing each other's internal modules.
+The two repositories remain separately installable and exchange versioned files
+rather than importing each other's internal modules.
 
-## Architecture
+## Installation
 
-```mermaid
-flowchart LR
-    source["Engineering data source"] --> connector["Connector / access boundary"]
-    connector --> loader["Loader / schema normalization"]
-    characterization["Characterization feature records"] --> handoff["Sample-ID handoff"]
-    handoff --> loader
-    loader --> readiness["Readiness / units / leakage audit"]
-    readiness --> analysis["EDA / process / SPC / reliability / baseline validation"]
-    analysis --> trust["Trust boundary / scientific closeout"]
-    trust --> artifacts["Tables / figures / manifests / reports"]
-```
-
-Responsibilities are separated deliberately:
-
-- `src/connectors/`: source discovery and access boundaries;
-- `src/loaders/`: parsing, normalization, and handoff contracts;
-- `src/analyzers/`: statistical analysis, validation, and diagnostics;
-- `src/platform_core/`: registries, provenance, scientific contracts, and
-  bounded platform workflows;
-- `scripts/`: case-study orchestration;
-- `data/case_studies/`: source notes, compact real-data tables, and scientific
-  limitations;
-- `outputs/`: regenerable local artifacts that are not committed.
-
-## Quickstart
-
-### 1. Install
+### Source checkout for development
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -e ".[dev]"
 ```
 
-### 2. Run a synthetic process example
+The installed user command is:
 
 ```powershell
-python src/process_data.py `
+mda --help
+```
+
+The historical checkout command remains supported:
+
+```powershell
+python src/process_data.py --help
+```
+
+Installed execution writes to the current working directory by default. Set
+`MDA_PROJECT_ROOT` when a different explicit analysis root is required.
+
+## User-Facing Commands
+
+### EDA
+
+```powershell
+mda `
+  --mode eda `
+  --input data/sample/experiment_process.csv `
+  --run-name demo_eda
+```
+
+### Process-condition analysis
+
+```powershell
+mda `
   --mode process `
   --input data/sample/experiment_process.csv `
   --target yield_percent `
@@ -90,10 +91,10 @@ python src/process_data.py `
   --run-name demo_process
 ```
 
-### 3. Run SPC
+### SPC
 
 ```powershell
-python src/process_data.py `
+mda `
   --mode spc `
   --input data/sample/factory_log.csv `
   --target temperature_c `
@@ -102,72 +103,109 @@ python src/process_data.py `
   --run-name demo_spc
 ```
 
-### 4. Run reliability analysis
+### Reliability analysis
 
 ```powershell
-python src/process_data.py `
+mda `
   --mode reliability `
   --input data/sample/experiment_reliability.csv `
   --run-name demo_reliability
 ```
 
-### 5. Run candidate-condition screening
+### Constraint-aware candidate screening
+
+A user-supplied scenario table is preferred over unconstrained generated designs.
 
 ```powershell
-python src/process_data.py `
+mda `
   --mode simulation `
   --input data/sample/experiment_process.csv `
   --target yield_percent `
   --features process_temp_c process_time_min pressure_mpa thickness_um `
   --scenario-input data/sample/candidate_conditions.csv `
+  --constraint-config configs/examples/candidate_constraints.example.json `
   --goal maximize `
   --run-name demo_screening
 ```
 
-Simulation mode is a data-driven screening aid, not a physics simulator or an
-authority for final process decisions.
+The constraint file supports only fixed, auditable operators:
+
+- `range`;
+- `allowed_values`;
+- `conditional_range`.
+
+Arbitrary Python or expression evaluation is not supported. Candidates outside
+observed training ranges or violating declared constraints are retained in the
+audit but excluded from the final ranking. The original unconstrained prediction
+and ranking files are also retained for provenance.
+
+Simulation mode is a surrogate-model screening aid, not a physics simulator,
+process optimizer, machine-control system, or authority for final engineering
+decisions.
+
+## Run Provenance and Output Safety
+
+Every user-facing run writes:
+
+```text
+outputs/<run_name>/
+├── processed/
+│   ├── cleaned_data.csv
+│   └── preprocessing_audit.json
+├── figures/
+├── reports/
+└── run_manifest.json
+```
+
+The preprocessing audit records:
+
+- original and normalized column names;
+- column-name collisions;
+- original and final dtypes;
+- blank-string normalization;
+- numeric coercion success and failure counts;
+- introduced missing values;
+- fully empty rows removed;
+- warnings and policy version.
+
+User-facing analysis fails closed when two source headers normalize to the same
+column name. The compatibility helper still supports historical suffix behavior
+for existing library callers.
+
+A non-empty run directory is never overwritten silently. Choose a new
+`--run-name`, or pass `--overwrite` to replace the entire existing run directory
+explicitly. The manifest records the overwrite request, input SHA-256, platform
+version, row counts, command options, preprocessing audit, and output paths.
 
 ## Recommended Representative Workflow
 
-Run the complete real process–characterization example with one command:
+Run the complete real process-characterization example with one command:
 
 ```powershell
 python scripts/run_representative_process_characterization_workflow.py `
   --output outputs/representative_process_characterization
 ```
 
-This is the recommended user-facing entry point. It performs:
+This performs:
 
 ```text
 verified NIST real-data case
 -> provenance and sample-ID integration
--> artifact integrity closeout
+-> artifact-integrity closeout
 -> process-design identifiability audit
 -> minimum bounded next-experiment plan
 -> Diagnostic scientific closeout
 ```
 
-Expected top-level outputs:
-
-```text
-01_verified_case/
-02_process_design_audit/
-03_minimum_design_plan/
-representative_workflow_summary.json
-representative_workflow_report.md
-representative_workflow_manifest.json
-```
-
 The workflow intentionally stops before model training or optimization because
-the current three coupled process conditions are not scientifically ready for
+the three coupled observed process conditions are not scientifically ready for
 predictive or causal claims. See
 [`docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md`](docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md).
 
-## Representative Real Process–Characterization Case Study
+## Representative NIST Case
 
 The NIST AM-Bench 2018-02 example connects ten IN625 AMMT laser traces to
 source-reported optical-microscopy melt-pool width and depth measurements.
-The component-level case command is:
 
 ```powershell
 python scripts/build_nist_ambench_2018_02_case_study.py `
@@ -181,22 +219,15 @@ The workflow:
 3. converts four optical-metrology measurements per trace into the stable
    characterization feature contract;
 4. joins all ten traces through `sample_id`;
-5. verifies the source-reported rounded case summaries;
-6. writes integrated tables, two plots, a report, and a provenance manifest;
-7. intentionally performs no model training or optimization.
+5. verifies source-reported rounded summaries;
+6. writes integrated tables, figures, a report, and provenance manifests;
+7. intentionally performs no predictive modeling or optimization.
 
-The scientific result is **diagnostic**. Ten traces and three coupled power-speed
+The scientific result is **Diagnostic**. Ten traces and three coupled power-speed
 conditions do not support causal attribution, predictive generalization, or
 process optimization.
 
-See
-[`data/case_studies/nist_ambench_2018_02/README.md`](data/case_studies/nist_ambench_2018_02/README.md).
-
 ## Characterization Feature Handoff
-
-The handoff consumes long-format feature CSVs exported by the characterization
-repository and prepares one-row-per-sample tables for process, quality,
-reliability, or modeling workflows.
 
 ```powershell
 python scripts/build_characterization_handoff.py `
@@ -205,7 +236,7 @@ python scripts/build_characterization_handoff.py `
   --output outputs/characterization_handoff_demo
 ```
 
-Required feature columns:
+Required long-format feature columns:
 
 ```text
 sample_id
@@ -225,28 +256,65 @@ quality_flag
 The handoff rejects ambiguous measurement mappings, mixed methods, mixed
 preprocessing, duplicate semantic features, and duplicate process-table sample
 IDs. It never joins by row order and never silently averages repeated
-measurements.
+measurements. See
+[`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_HANDOFF.md).
 
-See [`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_HANDOFF.md).
+## Architecture
+
+```mermaid
+flowchart LR
+    source["Engineering data source"] --> connector["Connector / access boundary"]
+    connector --> loader["Loader / schema normalization"]
+    characterization["Characterization feature records"] --> handoff["Sample-ID handoff"]
+    handoff --> loader
+    loader --> preprocessing["Preprocessing audit"]
+    preprocessing --> readiness["Readiness / units / leakage audit"]
+    readiness --> analysis["EDA / process / SPC / reliability / baseline validation"]
+    analysis --> eligibility["Candidate eligibility"]
+    eligibility --> trust["Trust boundary / scientific closeout"]
+    trust --> artifacts["Tables / figures / manifests / reports"]
+```
+
+Responsibilities are separated deliberately:
+
+- `src/connectors/`: source discovery and access boundaries;
+- `src/loaders/`: parsing, normalization, and handoff contracts;
+- `src/analyzers/`: statistical analysis, validation, diagnostics, and candidate
+  eligibility;
+- `src/platform_core/`: registries, provenance, scientific contracts, and
+  bounded platform workflows;
+- `scripts/`: case-study and release-governance orchestration;
+- `data/case_studies/`: source notes, compact real-data tables, and limitations;
+- `outputs/`: regenerable local artifacts that are not committed.
+
+### Interface boundary
+
+- `mda`: stable user-facing tabular analysis command;
+- `python scripts/...`: explicit case-study workflows;
+- `python -m src.cli`: internal platform, registry, PGIR, and evidence-governance
+  interface retained for repository development.
+
+New user workflows should not be added directly to the internal governance CLI.
 
 ## Real-Data Case Studies
 
+The [**Smart Factory / UCI SECOM** closeout](data/case_studies/smart_factory/case_study.md)
+remains a documented chronological-validation example rather than a production
+classifier.
+
 | Domain or case study | Dataset or source | Main validation emphasis | Current claim boundary |
 | --- | --- | --- | --- |
-| Process + characterization | [NIST AM-Bench 2018-02 IN625 AMMT traces](data/case_studies/nist_ambench_2018_02/README.md) | Explicit trace identity, source-table reproduction, sample-level handoff | Diagnostic description only; no optimization or predictive claim |
-| Materials Project | [Calculated-property and structure case study](data/case_studies/materials_project/README.md) | Chemical-system and reduced-formula grouping, applicability domain | Reproducible descriptive screening; predictive evidence limited |
-| Smart Factory / UCI SECOM | [Process-quality trust-boundary closeout](data/case_studies/smart_factory/case_study.md) | Chronological validation and random-split optimism | Diagnostic only; no production classifier selected |
-| Reliability / Backblaze Hard Drive Test Data | [Asset and time-aware case study](data/case_studies/reliability/case_study.md) | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
-| Kaggle NASA Li-ion Battery | [Battery analysis case study](data/case_studies/kaggle_battery/case_study.md) | Battery grouping, trajectory quality, source comparability | Descriptive or unsupported predictive results preserved |
-| Battery Archive | [Cycle-data case study](data/case_studies/battery_archive/case_study.md) | Cycle normalization, observed censoring, reliability summaries | Descriptive only; no forecasting or RUL claim |
+| Process + characterization | NIST AM-Bench 2018-02 IN625 AMMT traces | Explicit identity, source reproduction, design audit | Diagnostic only; no optimization or predictive claim |
+| Materials Project | Calculated-property and structure case study | Chemical-system grouping and applicability domain | Descriptive screening; predictive evidence limited |
+| Smart Factory | UCI SECOM | Chronological validation and random-split optimism | Diagnostic only; no production classifier selected |
+| Reliability | Backblaze Hard Drive Test Data | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
+| Battery | Kaggle NASA Li-ion Battery | Battery grouping, trajectory quality, comparability | Descriptive or unsupported predictive results preserved |
+| Battery Archive | Public cycle data | Cycle normalization and censoring | Descriptive only; no forecasting or RUL claim |
 
-These case studies demonstrate reusable workflow boundaries. They are not the
-identity of the core platform and are not presented as deployment systems.
+## Scientific Principles
 
-## Scientific and Engineering Principles
-
-- Treat every row as a physical measurement with sample, processing, method,
-  unit, and provenance context.
+- Treat every row as a physical measurement with sample, process, method, unit,
+  and provenance context.
 - Never infer missing metadata, identifiers, units, preprocessing, or exclusion
   reasons.
 - Preserve source values and record every important transformation.
@@ -254,11 +322,10 @@ identity of the core platform and are not presented as deployment systems.
 - Use group-aware, time-aware, or asset-aware splits when random splitting would
   leak repeated entities or future information.
 - Separate software validation from scientific validation.
-- Preserve negative, weak, limited, and inconclusive results instead of tuning
-  them away.
+- Preserve negative, weak, limited, and inconclusive results.
 - Do not convert correlation into causal or mechanistic claims.
-- Stop blocked external-source work after one bounded screening stage and move
-  to the next ranked source.
+- Add data only when it resolves a defined comparability, identifiability,
+  validation, or engineering-decision blocker.
 
 Scientific closeouts use four evidence levels:
 
@@ -267,57 +334,43 @@ Scientific closeouts use four evidence levels:
 - **Diagnostic**: a useful pattern exists, but mechanism, causality, or
   generalization is unconfirmed;
 - **Inconclusive**: evidence is insufficient;
-- **Unsupported**: the evidence does not support the tested hypothesis.
+- **Unsupported**: evidence does not support the tested hypothesis.
 
 ## What This Project Is Not
 
 This repository is not:
 
-- a fully automatic engineering decision system;
-- a production-quality monitoring or maintenance service;
+- a fully automatic engineering-decision system;
+- a production monitoring or maintenance service;
 - a general-purpose AutoML platform;
 - a general PDE, DFT, FEM, or CFD solver;
-- a production battery degradation or RUL model;
+- a production Battery degradation or RUL model;
 - a raw-data redistribution repository;
-- a substitute for instrument calibration, experimental review, or domain
-  expertise.
+- a substitute for instrument calibration, experimental review, process safety,
+  or domain expertise.
 
-## Repository Structure
+## Testing and Packaging
 
-```text
-src/                  core analyzers, loaders, connectors, and platform code
-scripts/              reproducible workflow entry points
-configs/examples/     sanitized configuration examples
-data/sample/          synthetic examples for tests and quickstarts
-data/case_studies/    real-data source notes and compact reproducible inputs
-data/processed/       compact tracked summaries and selected derivatives
-outputs/              local regenerable outputs; ignored by Git
-docs/                 architecture, methods, trust boundaries, and release notes
-tests/                unit, integration, contract, and clean-checkout tests
-```
-
-See [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) and
-[`docs/PLATFORM_DIRECTION_RESET.md`](docs/PLATFORM_DIRECTION_RESET.md).
-
-## Testing
-
-Run the full suite:
+Run the complete test suite:
 
 ```powershell
 python -m pytest -q
 ```
 
-On Windows:
+Build the installable artifacts:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
+python -m build
 ```
 
-The tracked test suite is designed to run without local raw datasets, private
-credentials, downloaded archives, or previously generated `outputs/` folders.
-Passing tests establishes software behavior, not scientific validity.
+CI validates the complete pytest suite and installs the built wheel on both
+Ubuntu and Windows before running the `mda` CLI smoke workflow. Passing tests
+establish software behavior, not scientific validity.
 
-## Data, Security, and Public-Repository Policy
+The tracked test suite runs without private credentials, downloaded raw archives,
+or previously generated output folders.
+
+## Data, Security, and Licensing
 
 Raw downloaded datasets, proprietary instrument exports, credentials, local
 registries, row-level predictions, and generated outputs must not be committed.
@@ -333,20 +386,16 @@ See:
 
 ## Documentation
 
-Useful entry points:
-
 - [`docs/PORTFOLIO_OVERVIEW.md`](docs/PORTFOLIO_OVERVIEW.md)
-- [`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_HANDOFF.md)
 - [`docs/PLATFORM_DIRECTION_RESET.md`](docs/PLATFORM_DIRECTION_RESET.md)
+- [`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_HANDOFF.md)
 - [`docs/SCIENTIFIC_TRUST_BOUNDARY.md`](docs/SCIENTIFIC_TRUST_BOUNDARY.md)
-- [`docs/PGIR_MODEL_CONTRACT.md`](docs/PGIR_MODEL_CONTRACT.md)
 - [`docs/BATTERY_GENERALIZATION_FORECASTING.md`](docs/BATTERY_GENERALIZATION_FORECASTING.md)
 - [`docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md`](docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md)
 
 ## License
 
-Original code and original documentation in this repository are available under
-the [MIT License](LICENSE).
-
-External datasets, publications, standards, and third-party software remain
-subject to their own licenses, terms of use, and citation requirements.
+Original code and original documentation are available under the
+[MIT License](LICENSE). External datasets, publications, standards, and
+third-party software remain subject to their own licenses, terms, and citation
+requirements.

@@ -41,10 +41,14 @@ jobs:
 
       - name: Verify release-boundary ancestry and distance
         run: |
-          git merge-base --is-ancestor 50e3ee1201ef791b250558a30c373848d615f815 HEAD
-          git merge-base --is-ancestor ed5eac38584a174edbb9216aca10fc8232cdb504 HEAD
-          git merge-base --is-ancestor 1fd6287386f85c4033ef9edb43b7c0c9d5263985 HEAD
-          test "$(git rev-list --count 50e3ee1201ef791b250558a30c373848d615f815..ed5eac38584a174edbb9216aca10fc8232cdb504)" = "38"
+          CORE=50e3ee1201ef791b250558a30c373848d615f815
+          FEATURE_SCOPE=ed5eac38584a174edbb9216aca10fc8232cdb504
+          RELEASE_TARGET=2d003aecede89aacc25cdb246bf9cc6adec19bf9
+          git merge-base --is-ancestor "$CORE" "$FEATURE_SCOPE"
+          git merge-base --is-ancestor "$FEATURE_SCOPE" "$RELEASE_TARGET"
+          git merge-base --is-ancestor "$RELEASE_TARGET" HEAD
+          test "$(git rev-list --count "$CORE..$FEATURE_SCOPE")" = "38"
+          test "$(git rev-list --count "$CORE..$RELEASE_TARGET")" = "41"
 
       - name: Verify superseded v2.6 candidate is absent
         run: |
@@ -121,7 +125,11 @@ jobs:
           assert summary["candidate_version"] == "2.7.0"
           assert summary["superseded_candidate_version"] == "2.6.0"
           assert summary["release_date"] == "2026-07-28"
-          assert summary["post_v2_6_commit_count_at_audit"] == 38
+          assert summary["post_v2_6_feature_scope_commit_count_at_audit"] == 38
+          assert summary["post_v2_6_commit_count_at_audit"] == 41
+          assert summary["audited_main_commit"] == (
+              "2d003aecede89aacc25cdb246bf9cc6adec19bf9"
+          )
           assert summary[
               "separate_v2_5_or_v2_6_public_release_authorized"
           ] is False

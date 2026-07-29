@@ -3,20 +3,89 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
-from preprocessing import clean_column_name, clean_data, standardize_column_names
+from preprocessing import (
+    clean_column_name,
+    clean_data,
+    preprocess_data,
+    standardize_column_names,
+)
 
 
 def test_clean_column_name_converts_to_snake_case() -> None:
     assert clean_column_name("Process Temp C") == "process_temp_c"
 
 
-def test_standardize_column_names_makes_duplicates_unique() -> None:
+def test_standardize_column_names_keeps_compatibility_suffix_behavior() -> None:
     df = pd.DataFrame([[700, 710]], columns=["Process Temp C", "Process-Temp-C"])
 
     result = standardize_column_names(df)
 
     assert result.columns.tolist() == ["process_temp_c", "process_temp_c_2"]
+
+
+def test_standardize_column_names_can_fail_closed_on_collisions() -> None:
+    df = pd.DataFrame([[700, 710]], columns=["Process Temp C", "Process-Temp-C"])
+
+    with pytest.raises(ValueError, match="collide after normalization"):
+        standardize_column_names(df, fail_on_collision=True)
+
+
+def test_preprocess_data_records_numeric_coercion_and_missing_values() -> None:
+    df = pd.DataFrame(
+        {
+            "Sample ID": ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"],
+            "Measured Value": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "not-recorded"],
+        }
+    )
+
+    result = preprocess_data(df)
+
+    assert result.dataframe.columns.tolist() == ["sample_id", "measured_value"]
+    assert pd.api.types.is_numeric_dtype(result.dataframe["measured_value"])
+    assert pd.isna(result.dataframe.loc[9, "measured_value"])
+    operation = next(
+        row
+        for row in result.audit["column_operations"]
+        if row["column"] == "measured_value"
+    )
+    assert operation["numeric_conversion_applied"] is True
+    assert operation["numeric_conversion_failures"] == 1
+    assert operation["introduced_missing_count"] == 1
+    assert result.audit["warning_count"] == 1
+
+
+def test_preprocess_data_records_column_mapping_and_dropped_empty_rows() -> None:
+    df = pd.DataFrame(
+        {
+            "Sample ID": ["S1", None],
+            "Yield (%)": [90.0, None],
+        }
+    )
+
+    result = preprocess_data(df)
+
+    assert result.audit["dropped_all_empty_row_count"] == 1
+    assert result.audit["column_name_policy"] == "fail_on_collision"
+    assert result.audit["column_mappings"] == [
+        {
+            "column_position": 1,
+            "original_name": "Sample ID",
+            "normalized_base_name": "sample_id",
+            "final_name": "sample_id",
+            "collision_detected": False,
+            "action": "normalized",
+        },
+        {
+            "column_position": 2,
+            "original_name": "Yield (%)",
+            "normalized_base_name": "yield",
+            "final_name": "yield",
+            "collision_detected": False,
+            "action": "normalized",
+        },
+    ]
 
 
 def test_clean_data_converts_blank_strings_to_missing_values() -> None:

@@ -1,21 +1,52 @@
 # Portfolio Overview
 
-`materials_data_analyzer` is a CLI-first engineering-data analysis framework
-for provenance, readiness checks, leakage-aware validation, and bounded
-scientific claims.
+`materials-data-analyzer` is an installable, CLI-first engineering-data analysis
+framework for provenance, readiness checks, leakage-aware validation,
+constraint-aware candidate screening, and bounded scientific claims.
 
-The project is intentionally not an AutoML platform, production decision
-system, raw data repository, or physics simulator. Its portfolio value is in
+The project is intentionally not an AutoML platform, production decision system,
+raw-data repository, or general physics simulator. Its portfolio value is in
 turning messy tabular engineering datasets into auditable analysis artifacts
 with explicit validation scope and conservative interpretation.
 
 ## Engineering Problem
 
 Engineering datasets often arrive as CSV-like tables with unclear provenance,
-missing source contracts, repeated observations, temporal dependence, hidden
-group structure, target leakage risks, and ambiguous claim boundaries. This
-project treats those issues as first-class analysis outputs rather than cleanup
-details.
+ambiguous headers, silent dtype conversion, repeated observations, temporal
+dependence, hidden group structure, target leakage risks, and unclear claim
+boundaries.
+
+This project treats those issues as analysis outputs rather than cleanup details.
+A successful run must show what was changed, what evidence was used, what the
+validation design supports, and what remains unsuitable for engineering or
+scientific claims.
+
+## User-Facing Product
+
+The stable user interface is the installed `mda` command:
+
+```powershell
+python -m pip install -e ".[dev]"
+mda --help
+```
+
+Supported user modes include:
+
+- EDA;
+- process-condition analysis;
+- SPC;
+- reliability analysis;
+- Smart Factory diagnostics;
+- surrogate candidate screening.
+
+Each run writes a preprocessing audit and run manifest. Ambiguous normalized
+headers fail closed, non-empty output directories are protected from silent
+overwrite, and candidate predictions outside the observed training range are not
+included in the final ranking.
+
+Case-study scripts remain explicit user workflows. `python -m src.cli` is an
+internal registry, PGIR, scientific-governance, and evidence-management
+interface rather than the primary user product.
 
 ## Architecture
 
@@ -23,175 +54,160 @@ details.
 flowchart LR
     source["Data source"] --> connector["Connector / access gate"]
     connector --> loader["Loader / schema normalization"]
-    loader --> readiness["Readiness and leakage audit"]
+    loader --> preprocessing["Preprocessing audit"]
+    preprocessing --> readiness["Readiness and leakage audit"]
     readiness --> features["Feature engineering"]
     features --> validation["Validation and baseline modeling"]
-    validation --> trust["Trust boundary"]
-    trust --> artifacts["Compact artifacts and case-study docs"]
+    validation --> eligibility["Candidate eligibility"]
+    eligibility --> trust["Trust boundary"]
+    trust --> artifacts["Tables, figures, manifests, and reports"]
 ```
 
-The repository keeps these responsibilities separate:
+Responsibilities remain separated:
 
-- connectors: source access, inventory, and provenance boundaries
-- loaders: file parsing, schema harmonization, and analysis-ready tables
-- analyzers: validation, model diagnostics, and trust-boundary summaries
-- scripts: workflow orchestration for case studies
-- `data/processed/`: compact tracked summaries and local-only generated tables
-- `outputs/`: regenerable local run outputs
+- connectors: source access, inventory, and provenance boundaries;
+- loaders: file parsing, schema harmonization, and analysis-ready tables;
+- analyzers: validation, model diagnostics, and candidate eligibility;
+- platform core: scientific contracts, registries, trust, and evidence metadata;
+- scripts: reproducible real-data and release-governance workflows;
+- `data/processed/`: compact tracked summaries;
+- `outputs/`: local regenerable run artifacts.
 
-v2.0 adds a common platform layer around those responsibilities: explicit
-registries, manifest-first dry runs, one controlled read-only Reliability trust
-verification path, metadata-only onboarding checks, and local-only
-JSON/Markdown platform reporting. v2.1 adds persistent run/artifact lineage,
-policy diagnostics, bounded scientific execution, scientific trust boundaries,
-and metadata-only feature eligibility. v2.2 adds bounded Materials composition
-descriptors, controlled existing-ID structure enrichment, JSON-safe crystal
-structure entities, deterministic periodic graph artifacts, known-structure
-post-relaxation comparison, and a scientific evidence closeout. It does not
-turn the project into an automatic training, physics-aware modeling,
-GNN/DFT-replacement, or production execution system. v2.3 adds PGIR
-representation governance and a Battery evidence workflow that separates
-conformance, mechanism identifiability, bounded descriptive evaluation,
-source-metadata recovery, and policy-stability auditing.
+## Representative End-to-End Workflow
+
+The primary representative workflow uses NIST AM-Bench 2018-02 IN625 data:
+
+```text
+tracked process and optical-metrology tables
+-> explicit trace and sample identity
+-> 40 provenance-bearing characterization feature rows
+-> 10 one-to-one sample joins
+-> source-summary and checksum verification
+-> process-design identifiability audit
+-> minimum next-experiment plan
+-> Diagnostic scientific closeout
+```
+
+The workflow does not train a response model. Ten traces and three coupled
+power-speed conditions cover only three of six combinations in the observed
+2 x 3 grid. They do not identify independent power and speed effects,
+interaction, curvature, prediction, or an optimum.
+
+The bounded next action is to complete the missing factorial combinations with
+independently traceable replicates, not to add a more complicated model.
 
 ## Completed Case Studies
 
-| Release | Case study | Dataset | Focus | Result boundary |
-| --- | --- | --- | --- | --- |
-| v0.8 | Kaggle NASA Battery | Cleaned battery metadata and raw discharge CSVs | Capacity-retention analysis and group-aware simulation | Within-battery diagnostic interpolation; limited unseen-battery generalization |
-| v1.1 | Battery Archive | Cycle-data CSVs in raw zip archives | Cycle normalization, capacity retention, threshold proxies | Descriptive cycle-data case study; no forecasting/RUL claim |
-| v1.2 / v1.3 | Materials Project | Computed-property tables | Descriptive screening and composition-only validation | Screening reproducible; predictive validation weak |
-| v1.4 | Smart Factory / UCI SECOM | Semiconductor process data | Time-aware quality classification | Diagnostic-only; no representative production model |
-| v1.5 | Reliability / Backblaze | 2013 hard-drive daily SMART records | Asset/time-aware 7-day failure-risk ranking | Diagnostic-only; no representative model |
-| v2.2 | Materials Project | 838 Fe/Si-containing multinary MP rows | Composition features, structure descriptors, graph artifacts, and known-structure validation | Composition evidence degraded; known-structure evidence limited; no representative model |
-| v2.3 | Kaggle NASA Battery | 34 trajectories / 2,495 discharge states | PGIR conformance, identifiability, bounded evaluator, source recovery, and policy stability | Descriptive evidence with restrictions; no representative mechanism or predictive claim |
-| v2.6.1 feature stage | Kaggle NASA Battery | 34 trajectories / 2,495 discharge states | Exact five-cycle warm-start cross-battery forecasting with persistence and Ridge | `unsupported`; Ridge pooled MAE exceeded persistence and no engineering claim is allowed |
-| v2.6.2 feature stage | Kaggle NASA Battery | 33 evaluated batteries / 2,100 origins | Influence, trajectory-quality, regime, plausibility, and comparability diagnostics | `diagnostic`; no single battery reverses the negative result and comparability remains unestablished |
+| Area | Dataset | Validation emphasis | Result boundary |
+| --- | --- | --- | --- |
+| Process + characterization | NIST AM-Bench 2018-02 | Sample identity, source reproduction, design identifiability | Diagnostic; no prediction or optimization |
+| Battery | Kaggle NASA Battery | Battery-disjoint warm-start forecast | Unsupported; Ridge worse than persistence |
+| Battery | Battery Archive | Cycle normalization and censoring | Descriptive; no RUL or forecasting claim |
+| Materials | Materials Project | Chemical-system grouping and applicability domain | Descriptive screening; predictive evidence limited |
+| Smart Factory | UCI SECOM | Chronological validation and random-split optimism | Diagnostic; no production classifier |
+| Reliability | Backblaze | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
 
-For the Backblaze v1.5 closeout, the best primary median PR-AUC is 0.0998 and
-the best combined asset/time PR-AUC is 0.1119. The reference combined top 1%
-precision/lift/failed-asset capture is 0.0703 / 62.9x / 0.846, but no
-representative model is selected.
+## Scientific Results Preserved
 
-## Technical Highlights
+The repository keeps negative and limited results rather than tuning them away.
+Important current closeouts include:
 
-- Data contracts for source, schema, target, leakage, validation, and claims
-- Streaming archive processing for large Backblaze daily CSV files
-- Train-only preprocessing and split-aware validation utilities
-- Group-aware validation for batteries and materials
-- Time-aware validation for process quality and asset reliability
-- Asset-disjoint and combined asset/time validation for repeated drive histories
-- Rare-event metrics, top-risk diagnostics, and threshold boundary reporting
-- Deterministic compact artifacts that can be tested in clean clones without
-  raw data
-- Persistent local registry metadata for lineage, diagnostics, scientific
-  findings, trust boundaries, and feature-candidate eligibility
+- Materials composition physics feature comparison: `performance_degraded`;
+- known-structure predictive value: `structure_predictive_value_limited`;
+- representative Materials model: none selected;
+- Battery Ridge pooled MAE: `4.1537`;
+- Battery persistence pooled MAE: `3.4256`;
+- Ridge improvement: 13 of 33 evaluated batteries;
+- Battery predictive-validation readiness: `not_ready`;
+- Battery external-evidence closeout: **Inconclusive**;
+- NIST process-characterization workflow: **Diagnostic**;
+- NIST predictive or causal readiness: blocked.
 
-## Scientific Rigor
+These results demonstrate scientific discipline. They are not product-performance
+claims.
 
-The project does not treat a high random-split score as enough evidence. Each
-case study separates optimistic references from the validation design that
-matches the intended claim:
+## Candidate Screening Safety
 
-- battery-level grouping for unseen-battery generalization
-- chemical-system grouping for unseen-material-family validation
-- chronological validation for process-quality drift
-- asset-disjoint and combined asset/time validation for reliability data
+The simulation mode remains a surrogate screening aid. The final eligibility
+layer now distinguishes:
 
-Negative or limited results are preserved. For example, the Materials Project
-composition-only v2.2 result remains `performance_degraded`; the later
-known-structure comparison remains `structure_predictive_value_limited`; and no
-representative Materials model, graph/GNN model, physics-constrained model, or
-hybrid physics-ML claim is selected. The Smart Factory process-quality
-classifier also remains within conservative trust boundaries. The Backblaze
-v1.5 case study shows top-risk concentration but still selects no
-representative model because of repeated-origin dependence, resource-limited
-training, uncertain censoring, and lack of external validation.
+- valid and rankable candidates;
+- invalid rows with missing required features;
+- candidates outside observed training feature ranges;
+- candidates violating source-backed equipment, material, or safety constraints.
+
+Optional constraint files support only fixed `range`, `allowed_values`, and
+`conditional_range` records. Arbitrary expression execution is prohibited.
+Original unconstrained outputs remain preserved for provenance, while the final
+ranking includes only eligible candidates.
+
+This does not create calibrated uncertainty, multivariate causal validity, or
+machine-operating approval.
+
+## Provenance and Reproducibility
+
+Every stable analysis run records:
+
+- input path and SHA-256;
+- platform version;
+- original and normalized column names;
+- dtype changes and numeric coercion failures;
+- missing values introduced by preprocessing;
+- rows removed as fully empty;
+- command options and overwrite request;
+- generated output paths.
+
+Run folders fail closed when non-empty unless complete replacement is explicitly
+requested. This prevents results from different executions being silently mixed.
+
+## Packaging and CI
+
+The repository includes Python package metadata, a wheel and source-distribution
+build, and the `mda` console entry point. CI performs:
+
+- complete pytest execution on Ubuntu and Windows;
+- full-history release-boundary regression checks;
+- wheel and source-distribution build;
+- installed-wheel import check;
+- installed `mda` command smoke analysis;
+- artifact upload for test and package diagnostics.
+
+The exact current pass count is intentionally not hard-coded in this document.
+The GitHub Actions run attached to the reviewed commit is the source of truth.
+Passing software tests does not establish sample comparability, instrument
+calibration, causal validity, predictive generalization, or engineering release.
+
+## Technical Skills Demonstrated
+
+- Python and pandas for engineering tabular data;
+- scikit-learn baseline modeling and metric reporting;
+- source, schema, preprocessing, target, leakage, and claim contracts;
+- group-aware, time-aware, and asset-disjoint validation;
+- rare-event and top-risk diagnostics;
+- deterministic artifacts and SHA-256 manifests;
+- safe JSON constraint evaluation without arbitrary code execution;
+- package build and installed CLI validation;
+- Windows and Linux CI;
+- cross-repository versioned data handoffs;
+- conservative scientific communication.
 
 ## Data Governance
 
-Raw datasets, downloaded archives, row-level predictions, local credentials,
-and generated `outputs/` folders are not committed. The repository tracks
-compact contracts, manifests, inventories, summary tables, methodology notes,
-and tests.
+Raw datasets, downloaded archives, row-level predictions, local credentials, and
+generated output folders are not committed. The repository tracks compact
+contracts, manifests, inventories, summary tables, methodology notes, and tests.
 
-This makes the public repository useful for review without redistributing large
-or license-sensitive source files.
+The MIT license applies to original code and documentation. It does not relicense
+third-party datasets, publications, standards, or instrument exports.
 
-## Testing and CI
+## Current Limitation
 
-The project has a broad pytest suite covering core analyzers, loaders,
-connectors, feature engineering, validation utilities, scripts, platform
-registries, scientific execution, and case-study artifact contracts. The
-v2.3 release baseline passes `789 passed, 3 skipped` locally; the feature CI
-passes `790 passed, 2 skipped` on Python 3.11. Local Windows additionally skips
-the symlink-escape test when symlink creation is unavailable. Pint remains an
-optional backend, and controlled execution retains its clean-worktree guard.
+The main remaining limitation is not missing model complexity. It is the lack of
+a user-controlled real dataset that carries defensible sample identity,
+composition, process history, characterization, and outcome metadata through one
+complete workflow.
 
-## Skills Demonstrated
-
-- Python and pandas for tabular engineering data
-- scikit-learn baseline modeling and metric reporting
-- Data contracts, schema validation, and provenance manifests
-- Streaming/chunked processing for large archives
-- Feature engineering with cutoff-safe temporal windows
-- Time-aware, group-aware, and asset-disjoint validation
-- Rare-event evaluation and top-risk diagnostics
-- Reproducible artifact generation
-- Pytest coverage for local and clean-checkout workflows
-- Git, GitHub Actions, release documentation, and conservative scientific
-  communication
-
-## Limitations
-
-- The project is CLI-first and does not include a production UI.
-- Case-study outputs are retrospective and should not be treated as deployment
-  systems.
-- Backblaze v1.5 does not provide calibrated failure probabilities, survival
-  estimates, RUL predictions, or maintenance automation.
-- Advanced physics-aware materials modeling, graph neural networks, SHAP, and
-  physics-constrained losses remain intentionally deferred until baseline
-  validity and claim scope justify them.
-
-## Next-Generation Roadmap
-
-v2.4.0 completes a second-domain PGIR representation-reuse audit, a versioned
-external-source metadata contract, and one bounded executable diffusion
-benchmark with analytical-reference validation. The next useful step is not a
-general solver expansion. It is a separately justified portability or
-provenance study with predeclared evidence requirements.
-
-The v2.5.1 feature-stage work performs that first bounded portability check:
-two historical compact artifacts are replayed through explicit versioned
-adapters with separate raw-byte and logical JSON checksums. The software
-compatibility result is supported, while provenance portability remains
-diagnostic because external snapshot, terms, uncertainty, and source-truth
-gaps are preserved rather than inferred.
-
-The v2.5.2 feature stage adds a stricter retrieval-evidence gate. Raw-byte
-identity, canonical logical identity, and metadata comparability are separate
-checks, and a real-world conclusion requires two independent same-domain
-events. The current Materials and Battery evidence therefore remains
-`insufficient_evidence`; equal checksums from one artifact or a self-comparison
-are not presented as reproducibility.
-
-The v2.6.1 feature stage then tests a narrower predictive question without
-changing that provenance conclusion. Its battery-disjoint, history-conditioned
-Ridge benchmark performs worse than persistence on pooled MAE and improves only
-13 of 33 evaluated batteries. This is retained as a software-validated negative
-result, not promoted through extra tuning or model complexity.
-
-v2.6.2 then diagnoses that negative result without changing the benchmark.
-Ridge excess error is concentrated across several batteries, but no
-leave-one-battery-out result reverses persistence superiority, and Ridge is
-worse in all three predeclared cycle regimes. Sparse groups, abrupt-transition
-proximity, and nonphysical predictions are not primary aggregate drivers.
-Because chemistry, nominal capacity, cycle-specific protocol, cutoff,
-calibration, and the official NASA snapshot remain unresolved, the closeout is
-diagnostic rather than causal or predictive evidence.
-
-Mechanism fitting remains blocked until protocol, physical-time,
-calibration/uncertainty, geometry, boundary-condition, and cross-dataset
-comparability evidence are available. The project does not claim to be a
-general physics intelligence system, a real-material diffusion model, or a
-production simulation platform.
+The highest-value next case study is therefore a small compatible experimental
+dataset with explicit identifiers and conditions. When the experimental design
+is insufficient, the software should identify the narrowest useful next
+measurement or experiment rather than force a predictive result.
