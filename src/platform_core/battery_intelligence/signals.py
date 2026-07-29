@@ -120,7 +120,7 @@ def extract_signal_features(
             "battery_id": battery_id,
             "cycle_index": cycle_index,
             "signal_point_count": int(len(cycle)),
-            "signal_step_count": int(cycle["step_type"].nunique()),
+            "signal_step_count": int(cycle["step_id"].nunique()),
             "voltage_min_v": float(cycle["voltage_v"].min()),
             "voltage_max_v": float(cycle["voltage_v"].max()),
             "current_abs_max_a": float(cycle["current_a"].abs().max()),
@@ -135,7 +135,9 @@ def extract_signal_features(
         cc_duration = 0.0
         cv_duration = 0.0
 
-        for step_type, step in cycle.groupby("step_type", sort=True):
+        for (_, step_type), step in cycle.groupby(
+            ["step_id", "step_type"], sort=True
+        ):
             times = step["elapsed_time_s"].to_numpy(dtype=float)
             currents = step["current_a"].to_numpy(dtype=float)
             voltage = step["voltage_v"].to_numpy(dtype=float)
@@ -215,7 +217,7 @@ def extract_signal_features(
             row["temperature_rise_c"] = math.nan
 
         resistance_candidates: list[float] = []
-        for _, step in cycle.groupby("step_type", sort=True):
+        for _, step in cycle.groupby(["step_id", "step_type"], sort=True):
             current = step["current_a"].to_numpy(dtype=float)
             voltage = step["voltage_v"].to_numpy(dtype=float)
             if len(step) < 2:
