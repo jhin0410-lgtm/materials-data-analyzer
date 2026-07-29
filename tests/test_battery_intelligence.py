@@ -69,6 +69,24 @@ def test_signal_feature_integration_and_efficiency():
     assert "capacity_signal_unavailable" in set(flags["code"])
 
 
+def test_signal_contract_supports_repeated_step_types_with_step_id():
+    raw = pd.DataFrame(
+        {
+            "battery_id": ["B1"] * 4,
+            "cycle_index": [1] * 4,
+            "step_id": ["rest_before", "rest_before", "rest_after", "rest_after"],
+            "step_type": ["rest"] * 4,
+            "elapsed_time_s": [0, 10, 0, 20],
+            "voltage_v": [4.1, 4.1, 3.8, 3.8],
+            "current_a": [0.0, 0.0, 0.0, 0.0],
+        }
+    )
+    features, _ = extract_signal_features(raw)
+    row = features.iloc[0]
+    assert row["signal_step_count"] == 2
+    assert row["signal_duration_s"] == pytest.approx(30.0)
+
+
 def test_knee_detection_identifies_acceleration_region():
     cycles = np.arange(1, 61, dtype=float)
     target = 100.0 - 0.03 * cycles - 0.18 * np.maximum(cycles - 32, 0)
