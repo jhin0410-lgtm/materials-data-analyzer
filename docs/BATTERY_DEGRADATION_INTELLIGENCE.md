@@ -77,11 +77,12 @@ Optional columns:
 
 | Column | Unit / meaning |
 |---|---|
+| `step_id` | Explicit step-segment identity; required when a step type repeats within a cycle or elapsed time resets between segments |
 | `temperature_c` | Temperature in degrees Celsius |
 | `capacity_ah` | Instrument-reported cumulative capacity in ampere-hours |
 | `global_time_s` | Monotonic experiment time used to distinguish temperature rise from simple span |
 
-The workflow rejects duplicate battery-cycle-step-time rows, non-finite required measurements, nonpositive voltage, negative elapsed time, and unknown step labels. It does not infer units from value magnitudes.
+The workflow rejects duplicate battery-cycle-step-time rows, non-finite required measurements, nonpositive voltage, negative elapsed time, and unknown step labels. It does not infer units from value magnitudes. When `step_id` is absent, the workflow uses `step_type` as the segment identity and records that each step type must occur as one continuous elapsed-time segment within a battery-cycle.
 
 ## Signal-Derived Features
 
