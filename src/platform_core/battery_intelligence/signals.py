@@ -24,6 +24,17 @@ def _moving_average(values: np.ndarray, window: int) -> np.ndarray:
     return series.rolling(window=window, center=True, min_periods=window).mean().to_numpy()
 
 
+def _mostly_monotonic(values: np.ndarray, *, minimum_fraction: float = 0.90) -> bool:
+    differences = np.diff(values)
+    tolerance = max(float(np.ptp(values)) * 1e-8, 1e-12)
+    signs = np.sign(differences[np.abs(differences) > tolerance])
+    if len(signs) < 2:
+        return False
+    positive_fraction = float(np.mean(signs > 0))
+    negative_fraction = float(np.mean(signs < 0))
+    return max(positive_fraction, negative_fraction) >= minimum_fraction
+
+
 def _incremental_capacity_features(
     cycle: pd.DataFrame,
     windows: Sequence[int] = (5, 9, 15),
@@ -35,20 +46,29 @@ def _incremental_capacity_features(
         "dqdv_peak_voltage_sensitivity_v": math.nan,
         "dqdv_peak_height_relative_sensitivity": math.nan,
     }
-    warnings: list[str] = []
     if "capacity_ah" not in cycle.columns:
         return features, ["capacity_signal_unavailable"]
 
     discharge = cycle[cycle["step_type"] == "discharge"].copy()
+    if discharge.empty:
+        return features, ["discharge_signal_unavailable"]
+    if discharge["step_id"].nunique() != 1:
+        return features, ["incremental_capacity_requires_single_discharge_segment"]
+
+    discharge = discharge.sort_values("elapsed_time_s", kind="mergesort")
     if len(discharge) < max(windows) + 2:
         return features, ["insufficient_discharge_points_for_incremental_capacity"]
 
-    voltage = discharge["voltage_v"].to_numpy(dtype=float)
-    capacity = discharge["capacity_ah"].to_numpy(dtype=float)
-    order = np.argsort(voltage, kind="mergesort")
-    voltage = voltage[order]
-    capacity = capacity[order]
+    chronological_voltage = discharge["voltage_v"].to_numpy(dtype=float)
+    chronological_capacity = discharge["capacity_ah"].to_numpy(dtype=float)
+    if not _mostly_monotonic(chronological_voltage):
+        return features, ["incremental_capacity_voltage_not_monotonic"]
+    if not _mostly_monotonic(chronological_capacity):
+        return features, ["incremental_capacity_capacity_not_monotonic"]
 
+    order = np.argsort(chronological_voltage, kind="mergesort")
+    voltage = chronological_voltage[order]
+    capacity = chronological_capacity[order]
     aggregated = (
         pd.DataFrame({"voltage": voltage, "capacity": capacity})
         .groupby("voltage", as_index=False, sort=True)["capacity"]
@@ -96,6 +116,7 @@ def _incremental_capacity_features(
     features["dqdv_peak_height_relative_sensitivity"] = (
         float(np.ptp(peak_heights) / median_height) if median_height > 0 else math.nan
     )
+    warnings: list[str] = []
     if features["dqdv_peak_voltage_sensitivity_v"] > 0.05:
         warnings.append("incremental_capacity_peak_location_sensitive_to_smoothing")
     if (
@@ -104,6 +125,25 @@ def _incremental_capacity_features(
     ):
         warnings.append("incremental_capacity_peak_height_sensitive_to_smoothing")
     return features, warnings
+
+
+def _resistance_transition_proxy(cycle: pd.DataFrame) -> tuple[float, str | None]:
+    if "global_time_s" not in cycle.columns:
+        return math.nan, "resistance_proxy_requires_global_time"
+    chronological = cycle.sort_values("global_time_s", kind="mergesort")
+    time = chronological["global_time_s"].to_numpy(dtype=float)
+    current = chronological["current_a"].to_numpy(dtype=float)
+    voltage = chronological["voltage_v"].to_numpy(dtype=float)
+    positive_time = np.diff(time) > 0
+    delta_current = np.diff(current)
+    delta_voltage = np.diff(voltage)
+    threshold = max(0.05, 0.05 * float(np.max(np.abs(current))))
+    transition = positive_time & (np.abs(delta_current) >= threshold)
+    values = np.abs(delta_voltage[transition] / delta_current[transition])
+    values = values[np.isfinite(values) & (values > 0)]
+    if not len(values):
+        return math.nan, "resistance_proxy_transition_unavailable"
+    return float(np.median(values)), None
 
 
 def extract_signal_features(
@@ -216,23 +256,21 @@ def extract_signal_features(
             row["temperature_span_c"] = math.nan
             row["temperature_rise_c"] = math.nan
 
-        resistance_candidates: list[float] = []
-        for _, step in cycle.groupby(["step_id", "step_type"], sort=True):
-            current = step["current_a"].to_numpy(dtype=float)
-            voltage = step["voltage_v"].to_numpy(dtype=float)
-            if len(step) < 2:
-                continue
-            delta_current = np.diff(current)
-            delta_voltage = np.diff(voltage)
-            threshold = max(0.05, 0.05 * np.max(np.abs(current)))
-            transition = np.abs(delta_current) >= threshold
-            values = np.abs(delta_voltage[transition] / delta_current[transition])
-            values = values[np.isfinite(values) & (values > 0)]
-            resistance_candidates.extend(values.tolist())
-        resistance_values = np.asarray(resistance_candidates, dtype=float)
-        row["resistance_transition_proxy_ohm"] = (
-            float(np.median(resistance_values)) if len(resistance_values) else math.nan
-        )
+        resistance_proxy, resistance_warning = _resistance_transition_proxy(cycle)
+        row["resistance_transition_proxy_ohm"] = resistance_proxy
+        if resistance_warning is not None:
+            _quality_flag(
+                feature_flags,
+                severity="info",
+                code=resistance_warning,
+                message=(
+                    "The current-transition resistance proxy requires globally "
+                    "ordered adjacent voltage/current samples with a measurable "
+                    "current step; no proxy was reported."
+                ),
+                battery_id=battery_id,
+                cycle_index=cycle_index,
+            )
 
         ic_features, warnings = _incremental_capacity_features(cycle)
         row.update(ic_features)
