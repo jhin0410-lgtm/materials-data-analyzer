@@ -61,8 +61,11 @@ def scientific_closeout(
             "is still required."
         )
 
-    knee_candidate_count = int(
-        trajectory_diagnostics["status"].isin(["candidate", "weak_candidate"]).sum()
+    status = trajectory_diagnostics["status"]
+    knee_candidate_count = int((status == "candidate").sum())
+    weak_knee_candidate_count = int((status == "weak_candidate").sum())
+    knee_uncertainty_available_count = int(
+        trajectory_diagnostics["knee_ci_low"].notna().sum()
     )
     limitations = [
         "No electrochemical degradation mechanism is inferred from statistical features.",
@@ -86,6 +89,8 @@ def scientific_closeout(
             "improved_battery_fraction": improved_fraction,
             "conformal_observed_coverage": coverage,
             "knee_candidate_count": knee_candidate_count,
+            "weak_knee_candidate_count": weak_knee_candidate_count,
+            "knee_uncertainty_available_count": knee_uncertainty_available_count,
         },
         "primary_limitation": (
             "No independent protocol-comparable external validation cohort is available."
