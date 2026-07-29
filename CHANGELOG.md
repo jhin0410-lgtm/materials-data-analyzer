@@ -2,18 +2,6 @@
 
 ## Unreleased
 
-- Added Battery Degradation Intelligence v1 as an additive installed workflow
-  with strict cycle-summary and optional raw-signal contracts, physically
-  interpretable cycle features, rolling degradation-rate and knee-candidate
-  diagnostics, exact-horizon origin-only feature construction, and immutable
-  checksum-backed outputs.
-- Added battery-disjoint GroupKFold Ridge-versus-persistence validation, nested
-  group conformal intervals, feature-range extrapolation diagnostics, physical
-  plausibility flags, and an explicit scientific closeout. The workflow does
-  not issue `Supported` predictive generalization without an independent
-  protocol-comparable external cohort and does not claim zero-shot lifetime,
-  RUL, mechanism identification, optimization, or production control.
-
 ## v2.7.0
 
 - Consolidated internal feature stages v2.5.1-v2.5.2 and v2.6.1-v2.6.14,
