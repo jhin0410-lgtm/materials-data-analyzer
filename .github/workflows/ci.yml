@@ -84,7 +84,7 @@ jobs:
         run: |
           python -m pip install --force-reinstall --no-deps dist/*.whl
 
-      - name: Smoke test installed CLI
+      - name: Smoke test installed CLIs
         shell: bash
         run: |
           python -c "import materials_data_analyzer; print(materials_data_analyzer.__version__)"
@@ -96,6 +96,16 @@ jobs:
           test -f outputs/installed_package_smoke/processed/preprocessing_audit.json
           test -f outputs/installed_package_smoke/run_manifest.json
 
+          mda-battery-intelligence --help
+          mda-battery-intelligence \
+            --cycle-summary data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv \
+            --output outputs/installed_battery_intelligence_smoke \
+            --n-splits 3 \
+            --knee-bootstrap-samples 0
+          test -f outputs/installed_battery_intelligence_smoke/run_manifest.json
+          test -f outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.md
+          test -f outputs/installed_battery_intelligence_smoke/tables/validation_predictions.csv
+
       - name: Upload package artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -106,5 +116,10 @@ jobs:
             dist/*
             outputs/installed_package_smoke/processed/preprocessing_audit.json
             outputs/installed_package_smoke/run_manifest.json
+            outputs/installed_battery_intelligence_smoke/run_manifest.json
+            outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.json
+            outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.md
+            outputs/installed_battery_intelligence_smoke/tables/trajectory_diagnostics.csv
+            outputs/installed_battery_intelligence_smoke/tables/validation_by_battery.csv
           if-no-files-found: warn
           retention-days: 14
