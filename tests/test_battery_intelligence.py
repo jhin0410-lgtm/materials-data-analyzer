@@ -66,6 +66,7 @@ def test_signal_feature_integration_and_efficiency():
     assert row["coulombic_efficiency"] == pytest.approx(0.9)
     assert row["energy_efficiency"] == pytest.approx(3.15 / 4.0)
     assert row["temperature_rise_c"] == pytest.approx(4.0)
+    assert row["resistance_transition_proxy_ohm"] == pytest.approx(0.5 / 1.9)
     assert "capacity_signal_unavailable" in set(flags["code"])
 
 
@@ -81,10 +82,32 @@ def test_signal_contract_supports_repeated_step_types_with_step_id():
             "current_a": [0.0, 0.0, 0.0, 0.0],
         }
     )
-    features, _ = extract_signal_features(raw)
+    features, flags = extract_signal_features(raw)
     row = features.iloc[0]
     assert row["signal_step_count"] == 2
     assert row["signal_duration_s"] == pytest.approx(30.0)
+    assert pd.isna(row["resistance_transition_proxy_ohm"])
+    assert "resistance_proxy_requires_global_time" in set(flags["code"])
+
+
+def test_incremental_capacity_rejects_multiple_discharge_segments():
+    raw = pd.DataFrame(
+        {
+            "battery_id": ["B1"] * 6,
+            "cycle_index": [1] * 6,
+            "step_id": ["d1", "d1", "d1", "d2", "d2", "d2"],
+            "step_type": ["discharge"] * 6,
+            "elapsed_time_s": [0, 1, 2, 0, 1, 2],
+            "voltage_v": [4.2, 4.0, 3.8, 3.7, 3.5, 3.3],
+            "current_a": [-1.0] * 6,
+            "capacity_ah": [0.0, 0.1, 0.2, 0.0, 0.1, 0.2],
+        }
+    )
+    features, flags = extract_signal_features(raw)
+    assert pd.isna(features.iloc[0]["dqdv_peak_voltage_v"])
+    assert "incremental_capacity_requires_single_discharge_segment" in set(
+        flags["code"]
+    )
 
 
 def test_knee_detection_identifies_acceleration_region():
