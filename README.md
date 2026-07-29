@@ -21,7 +21,8 @@ engineering data source
 -> provenance-aware preprocessing audit
 -> readiness, units, identifiers, and leakage audit
 -> EDA / process / SPC / reliability / baseline validation
--> candidate eligibility and scientific trust boundary
+-> uncertainty, applicability-domain, and candidate eligibility checks
+-> scientific trust boundary
 -> reproducible tables, figures, manifests, and reports
 ```
 
@@ -30,7 +31,7 @@ The repository supports:
 - tabular process and experiment analysis;
 - quality, SPC, and smart-factory diagnostics;
 - reliability and repeated-asset validation;
-- Battery cycle and trajectory analysis;
+- Battery trajectory, raw-signal, degradation-rate, and exact-horizon diagnostics;
 - descriptive materials-property screening;
 - group-aware, time-aware, and asset-aware baseline validation;
 - constraint-aware candidate-condition screening;
@@ -54,10 +55,11 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-The installed user command is:
+Installed user commands:
 
 ```powershell
 mda --help
+mda-battery-intelligence --help
 ```
 
 The historical checkout command remains supported:
@@ -143,9 +145,53 @@ Simulation mode is a surrogate-model screening aid, not a physics simulator,
 process optimizer, machine-control system, or authority for final engineering
 decisions.
 
+## Battery Degradation Intelligence v1
+
+The installed Battery workflow adds analysis depth without changing the existing
+v2.6.1 negative forecasting result or promoting a new lifetime claim.
+
+```powershell
+mda-battery-intelligence `
+  --cycle-summary data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv `
+  --output outputs/battery_degradation_intelligence
+```
+
+Optional standardized raw signals can be supplied with `--raw-signal`. The raw
+contract requires battery identity, cycle, allowlisted step type, elapsed time in
+seconds, voltage in volts, and current in amperes. Temperature, cumulative
+capacity, and global experiment time are optional.
+
+The workflow performs:
+
+```text
+cycle-summary and optional raw-signal validation
+-> charge/discharge, CC/CV, energy, efficiency, thermal, resistance-proxy,
+   dQ/dV, and dV/dQ feature extraction when supported
+-> rolling degradation-rate and knee-candidate diagnostics
+-> exact-horizon origin-only feature construction
+-> battery-disjoint GroupKFold Ridge versus persistence validation
+-> nested group conformal prediction intervals
+-> feature-range extrapolation and plausibility checks
+-> bounded scientific closeout
+```
+
+The forecast is **warm-start cross-battery**, not zero-shot lifetime or RUL
+prediction. Knee points are algorithm-sensitive candidates, not degradation
+mechanism evidence. Even a positive internal result remains `Diagnostic` until an
+independent protocol-comparable external cohort is evaluated.
+
+The tracked cycle-summary table does not contain the full voltage/current signal
+trajectories needed to scientifically validate IC, CC/CV, thermal, or energy
+features. Runs without raw signals state that limitation explicitly rather than
+inventing missing measurements.
+
+See
+[`docs/BATTERY_DEGRADATION_INTELLIGENCE.md`](docs/BATTERY_DEGRADATION_INTELLIGENCE.md)
+for schemas, units, algorithms, outputs, and claim boundaries.
+
 ## Run Provenance and Output Safety
 
-Every user-facing run writes:
+Every general `mda` run writes:
 
 ```text
 outputs/<run_name>/
@@ -174,8 +220,8 @@ for existing library callers.
 
 A non-empty run directory is never overwritten silently. Choose a new
 `--run-name`, or pass `--overwrite` to replace the entire existing run directory
-explicitly. The manifest records the overwrite request, input SHA-256, platform
-version, row counts, command options, preprocessing audit, and output paths.
+explicitly. Battery Intelligence applies the same full-directory replacement
+policy through its `--output` and `--overwrite` arguments.
 
 ## Recommended Representative Workflow
 
@@ -269,8 +315,9 @@ flowchart LR
     handoff --> loader
     loader --> preprocessing["Preprocessing audit"]
     preprocessing --> readiness["Readiness / units / leakage audit"]
-    readiness --> analysis["EDA / process / SPC / reliability / baseline validation"]
-    analysis --> eligibility["Candidate eligibility"]
+    readiness --> analysis["EDA / process / SPC / reliability / Battery diagnostics"]
+    analysis --> uncertainty["Uncertainty / applicability domain"]
+    uncertainty --> eligibility["Candidate eligibility"]
     eligibility --> trust["Trust boundary / scientific closeout"]
     trust --> artifacts["Tables / figures / manifests / reports"]
 ```
@@ -281,8 +328,8 @@ Responsibilities are separated deliberately:
 - `src/loaders/`: parsing, normalization, and handoff contracts;
 - `src/analyzers/`: statistical analysis, validation, diagnostics, and candidate
   eligibility;
-- `src/platform_core/`: registries, provenance, scientific contracts, and
-  bounded platform workflows;
+- `src/platform_core/`: registries, provenance, scientific contracts, Battery
+  Intelligence, and bounded platform workflows;
 - `scripts/`: case-study and release-governance orchestration;
 - `data/case_studies/`: source notes, compact real-data tables, and limitations;
 - `outputs/`: regenerable local artifacts that are not committed.
@@ -290,6 +337,7 @@ Responsibilities are separated deliberately:
 ### Interface boundary
 
 - `mda`: stable user-facing tabular analysis command;
+- `mda-battery-intelligence`: stable Battery degradation diagnostic command;
 - `python scripts/...`: explicit case-study workflows;
 - `python -m src.cli`: internal platform, registry, PGIR, and evidence-governance
   interface retained for repository development.
@@ -308,19 +356,21 @@ classifier.
 | Materials Project | Calculated-property and structure case study | Chemical-system grouping and applicability domain | Descriptive screening; predictive evidence limited |
 | Smart Factory | UCI SECOM | Chronological validation and random-split optimism | Diagnostic only; no production classifier selected |
 | Reliability | Backblaze Hard Drive Test Data | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
-| Battery | Kaggle NASA Li-ion Battery | Battery grouping, trajectory quality, comparability | Descriptive or unsupported predictive results preserved |
+| Battery | Kaggle NASA Li-ion Battery | Battery grouping, trajectory, uncertainty, OOD, comparability | Descriptive, Diagnostic, Inconclusive, or Unsupported only; no RUL claim |
 | Battery Archive | Public cycle data | Cycle normalization and censoring | Descriptive only; no forecasting or RUL claim |
 
 ## Scientific Principles
 
-- Treat every row as a physical measurement with sample, process, method, unit,
-  and provenance context.
+- Treat every row and signal point as a physical measurement with sample,
+  process, method, unit, and provenance context.
 - Never infer missing metadata, identifiers, units, preprocessing, or exclusion
   reasons.
 - Preserve source values and record every important transformation.
 - Fit preprocessing only on training partitions when validation is involved.
 - Use group-aware, time-aware, or asset-aware splits when random splitting would
   leak repeated entities or future information.
+- Compare learned models against scientifically relevant simple baselines.
+- Report prediction uncertainty and extrapolation rather than only point metrics.
 - Separate software validation from scientific validation.
 - Preserve negative, weak, limited, and inconclusive results.
 - Do not convert correlation into causal or mechanistic claims.
@@ -364,8 +414,8 @@ python -m build
 ```
 
 CI validates the complete pytest suite and installs the built wheel on both
-Ubuntu and Windows before running the `mda` CLI smoke workflow. Passing tests
-establish software behavior, not scientific validity.
+Ubuntu and Windows before running the `mda` and `mda-battery-intelligence` smoke
+workflows. Passing tests establish software behavior, not scientific validity.
 
 The tracked test suite runs without private credentials, downloaded raw archives,
 or previously generated output folders.
@@ -391,6 +441,7 @@ See:
 - [`docs/CHARACTERIZATION_FEATURE_HANDOFF.md`](docs/CHARACTERIZATION_FEATURE_HANDOFF.md)
 - [`docs/SCIENTIFIC_TRUST_BOUNDARY.md`](docs/SCIENTIFIC_TRUST_BOUNDARY.md)
 - [`docs/BATTERY_GENERALIZATION_FORECASTING.md`](docs/BATTERY_GENERALIZATION_FORECASTING.md)
+- [`docs/BATTERY_DEGRADATION_INTELLIGENCE.md`](docs/BATTERY_DEGRADATION_INTELLIGENCE.md)
 - [`docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md`](docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md)
 
 ## License
