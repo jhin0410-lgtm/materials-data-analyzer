@@ -326,6 +326,24 @@ def validate_raw_signal(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
         )
         raise ValueError("unrecognized raw-signal step_type values: " + ", ".join(unknown))
 
+    if "step_id" in cleaned.columns:
+        if cleaned["step_id"].isna().any():
+            raise ValueError("raw signal step_id may not contain missing values")
+        cleaned["step_id"] = cleaned["step_id"].astype(str).str.strip()
+        if (cleaned["step_id"] == "").any():
+            raise ValueError("raw signal step_id may not be blank")
+    else:
+        cleaned["step_id"] = cleaned["step_type"]
+        _quality_flag(
+            flags,
+            severity="info",
+            code="step_id_not_supplied",
+            message=(
+                "step_id was not supplied; each step_type must occur as one "
+                "continuous elapsed-time segment per battery-cycle."
+            ),
+        )
+
     numeric_columns = ["cycle_index", "elapsed_time_s", "voltage_v", "current_a"]
     numeric_columns += [column for column in RAW_OPTIONAL_COLUMNS if column in cleaned]
     for column in numeric_columns:
@@ -340,7 +358,7 @@ def validate_raw_signal(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
         raise ValueError("voltage_v must be positive")
 
     duplicate_mask = cleaned.duplicated(
-        subset=["battery_id", "cycle_index", "step_type", "elapsed_time_s"],
+        subset=["battery_id", "cycle_index", "step_id", "step_type", "elapsed_time_s"],
         keep=False,
     )
     if duplicate_mask.any():
@@ -349,14 +367,14 @@ def validate_raw_signal(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
         )
 
     original_keys = cleaned[
-        ["battery_id", "cycle_index", "step_type", "elapsed_time_s"]
+        ["battery_id", "cycle_index", "step_id", "step_type", "elapsed_time_s"]
     ].copy()
     cleaned = cleaned.sort_values(
-        ["battery_id", "cycle_index", "step_type", "elapsed_time_s"],
+        ["battery_id", "cycle_index", "step_id", "step_type", "elapsed_time_s"],
         kind="mergesort",
     ).reset_index(drop=True)
     if not original_keys.reset_index(drop=True).equals(
-        cleaned[["battery_id", "cycle_index", "step_type", "elapsed_time_s"]]
+        cleaned[["battery_id", "cycle_index", "step_id", "step_type", "elapsed_time_s"]]
     ):
         _quality_flag(
             flags,
@@ -366,7 +384,7 @@ def validate_raw_signal(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
         )
 
     for keys, group in cleaned.groupby(
-        ["battery_id", "cycle_index", "step_type"], sort=True
+        ["battery_id", "cycle_index", "step_id", "step_type"], sort=True
     ):
         times = group["elapsed_time_s"].to_numpy(dtype=float)
         if np.any(np.diff(times) <= 0):
@@ -382,7 +400,7 @@ def validate_raw_signal(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
                 battery_id=keys[0],
                 cycle_index=keys[1],
                 field="step_type",
-                value=keys[2],
+                value=f"{keys[2]}:{keys[3]}",
             )
 
     if "temperature_c" not in cleaned.columns:
@@ -407,6 +425,12 @@ def validate_raw_signal(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
             cleaned[["battery_id", "cycle_index"]].drop_duplicates().shape[0]
         ),
         "step_types": sorted(cleaned["step_type"].unique().tolist()),
+        "step_id_supplied": "step_id" in frame.columns,
+        "step_count": int(
+            cleaned[["battery_id", "cycle_index", "step_id"]]
+            .drop_duplicates()
+            .shape[0]
+        ),
         "quality_flag_count": int(len(flags)),
         "data_checksum": dataframe_checksum(cleaned),
     }
