@@ -51,6 +51,7 @@ def build_forecast_table(
         column
         for column in base.columns
         if column not in excluded_identifiers
+        and not column.startswith("source_")
         and pd.api.types.is_numeric_dtype(base[column])
     ]
 
