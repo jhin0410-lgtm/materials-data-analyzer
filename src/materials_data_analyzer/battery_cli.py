@@ -7,6 +7,7 @@ from pathlib import Path
 
 from platform_core.battery_intelligence import (
     BatteryIntelligenceConfig,
+    audit_battery_influence_run,
     audit_battery_intelligence_run,
     run_battery_intelligence,
 )
@@ -19,7 +20,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Run leakage-safe battery degradation diagnostics, strong origin-only "
             "baseline comparison, error-structure analysis, optional admitted raw-"
             "signal features, uncertainty, extrapolation checks, target/reference "
-            "comparability auditing, and a bounded scientific closeout."
+            "comparability auditing, battery-level influence triage, and a bounded "
+            "scientific closeout."
         ),
     )
     parser.add_argument("--cycle-summary", required=True, type=Path)
@@ -51,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _top_ids(summary: dict, model: str) -> str:
+    records = summary["top_absolute_error_contributors"].get(model, [])
+    return ",".join(str(next(iter(record.values()))) for record in records)
+
+
 def main() -> None:
     args = build_parser().parse_args()
     config = BatteryIntelligenceConfig(
@@ -77,9 +84,11 @@ def main() -> None:
         overwrite=args.overwrite,
     )
     audit = audit_battery_intelligence_run(args.output)
+    triage = audit_battery_influence_run(args.output)
     summary = manifest["validation_summary"]
     closeout = manifest["scientific_closeout"]
     audit_summary = audit["summary"]
+    triage_summary = triage["summary"]
     print(f"output: {args.output}")
     print(f"evidence_level: {closeout['evidence_level']}")
     print(f"best_baseline: {summary['best_baseline_name']}")
@@ -102,6 +111,15 @@ def main() -> None:
         "pooled_error_stability_status: "
         f"{audit_summary['pooled_error_stability_status']}"
     )
+    print(
+        "source_protocol_review_battery_count: "
+        f"{triage_summary['source_protocol_review_battery_count']}"
+    )
+    print(
+        "persistence_top_error_batteries: "
+        f"{_top_ids(triage_summary, 'persistence')}"
+    )
+    print(f"ridge_top_error_batteries: {_top_ids(triage_summary, 'ridge')}")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from platform_core.battery_intelligence import audit_battery_intelligence_run
+from platform_core.battery_intelligence import (
+    audit_battery_influence_run,
+    audit_battery_intelligence_run,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -12,18 +15,26 @@ def build_parser() -> argparse.ArgumentParser:
         prog="mda-battery-result-audit",
         description=(
             "Audit an existing Battery Degradation Intelligence run for target and "
-            "reference integrity, cycle gaps, observed-condition ranges, and "
-            "battery-level error concentration without filtering or renormalizing data."
+            "reference integrity, cycle gaps, observed-condition ranges, battery-level "
+            "error concentration, and leave-one-battery-out influence without filtering "
+            "or renormalizing data."
         ),
     )
     parser.add_argument("--run-output", required=True, type=Path)
     return parser
 
 
+def _top_ids(summary: dict, model: str) -> str:
+    records = summary["top_absolute_error_contributors"].get(model, [])
+    return ",".join(str(next(iter(record.values()))) for record in records)
+
+
 def main() -> None:
     args = build_parser().parse_args()
     result = audit_battery_intelligence_run(args.run_output)
+    triage = audit_battery_influence_run(args.run_output)
     summary = result["summary"]
+    triage_summary = triage["summary"]
     print(f"run_output: {args.run_output}")
     print(
         "pooled_cross_battery_interpretation: "
@@ -42,7 +53,20 @@ def main() -> None:
         "ridge_top_three_absolute_error_fraction: "
         f"{summary['ridge_top_three_absolute_error_fraction']}"
     )
-    for name, path in result["outputs"].items():
+    print(
+        "source_protocol_review_battery_count: "
+        f"{triage_summary['source_protocol_review_battery_count']}"
+    )
+    print(
+        "disproportionate_error_contributor_battery_count: "
+        f"{triage_summary['disproportionate_error_contributor_battery_count']}"
+    )
+    print(
+        "persistence_top_error_batteries: "
+        f"{_top_ids(triage_summary, 'persistence')}"
+    )
+    print(f"ridge_top_error_batteries: {_top_ids(triage_summary, 'ridge')}")
+    for name, path in {**result["outputs"], **triage["outputs"]}.items():
         print(f"{name}: {path}")
 
 
