@@ -19,6 +19,11 @@ from platform_core.battery_intelligence import (
 from platform_core.battery_intelligence.common import file_sha256
 
 
+OFFICIAL_ARCHIVE_URL = (
+    "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
+)
+
+
 def _write_battery_mat(
     path: Path,
     battery_id: str,
@@ -80,20 +85,49 @@ def _write_cohort(directory: Path, *, batteries: int = 5, cycles: int = 15) -> N
         )
 
 
-def test_nasa_importer_writes_admission_ready_contracts(tmp_path: Path) -> None:
-    source = tmp_path / "mat"
-    _write_cohort(source)
-    output = tmp_path / "imported"
-
-    manifest = import_nasa_pcoe_battery(
-        input_path=source,
-        output_dir=output,
-        retrieved_at="2026-08-01T00:00:00Z",
+def _write_archive_and_receipt(
+    source: Path,
+    root: Path,
+    *,
+    nested: bool = False,
+    source_url: str = OFFICIAL_ARCHIVE_URL,
+) -> tuple[Path, Path]:
+    outer = root / "5_Battery_Data_Set.zip"
+    if nested:
+        inner = root / "BatteryAgingARC-FY08Q4.zip"
+        with zipfile.ZipFile(
+            inner, "w", compression=zipfile.ZIP_DEFLATED
+        ) as archive:
+            for path in sorted(source.glob("*.mat")):
+                archive.write(
+                    path,
+                    arcname=f"BatteryAgingARC-FY08Q4/{path.name}",
+                )
+        with zipfile.ZipFile(
+            outer, "w", compression=zipfile.ZIP_DEFLATED
+        ) as archive:
+            archive.write(inner, arcname=inner.name)
+    else:
+        with zipfile.ZipFile(
+            outer, "w", compression=zipfile.ZIP_DEFLATED
+        ) as archive:
+            for path in sorted(source.glob("*.mat")):
+                archive.write(path, arcname=path.name)
+    receipt = root / "retrieval_receipt.json"
+    receipt.write_text(
+        json.dumps(
+            {
+                "source_url": source_url,
+                "retrieved_at": "2026-08-01T00:00:00Z",
+                "archive_sha256": hashlib.sha256(outer.read_bytes()).hexdigest(),
+            }
+        ),
+        encoding="utf-8",
     )
+    return outer, receipt
 
-    assert manifest["battery_count"] == 5
-    assert manifest["discharge_cycle_count"] == 75
-    assert manifest["raw_point_count"] == 1575
+
+def _load_imported(output: Path) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     cycle_summary = pd.read_csv(output / "nasa_pcoe_cycle_summary.csv")
     raw_signal = pd.read_csv(output / "nasa_pcoe_raw_signal.csv")
     provenance = json.loads(
@@ -101,7 +135,28 @@ def test_nasa_importer_writes_admission_ready_contracts(tmp_path: Path) -> None:
             encoding="utf-8"
         )
     )
+    return cycle_summary, raw_signal, provenance
 
+
+def test_nasa_importer_writes_official_receipt_admission_ready_contracts(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "mat"
+    _write_cohort(source)
+    archive, receipt = _write_archive_and_receipt(source, tmp_path)
+    output = tmp_path / "imported"
+
+    manifest = import_nasa_pcoe_battery(
+        input_path=archive,
+        output_dir=output,
+        retrieval_receipt_path=receipt,
+    )
+
+    assert manifest["battery_count"] == 5
+    assert manifest["discharge_cycle_count"] == 75
+    assert manifest["raw_point_count"] == 1575
+    assert manifest["retrieval_receipt_verified"] is True
+    cycle_summary, raw_signal, provenance = _load_imported(output)
     assert cycle_summary.groupby("battery_id")["cycle_index"].min().eq(1).all()
     assert cycle_summary.groupby("battery_id")["cycle_index"].max().eq(15).all()
     assert raw_signal["step_type"].eq("discharge").all()
@@ -122,6 +177,9 @@ def test_nasa_importer_writes_admission_ready_contracts(tmp_path: Path) -> None:
         cycle_column="cycle_index",
     )
     assert admission["admitted_for_predictive_comparison"] is True
+    assert admission["source_retrieval_verification_status"] == (
+        "nasa_import_official_receipt_verified"
+    )
     assert admission["covered_battery_fraction"] == pytest.approx(1.0)
     assert admission["covered_cycle_fraction"] == pytest.approx(1.0)
 
@@ -131,25 +189,7 @@ def test_nasa_importer_verifies_nested_zip_retrieval_receipt(
 ) -> None:
     source = tmp_path / "mat"
     _write_cohort(source)
-    nested = tmp_path / "BatteryAgingARC-FY08Q4.zip"
-    with zipfile.ZipFile(nested, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(source.glob("*.mat")):
-            archive.write(path, arcname=f"BatteryAgingARC-FY08Q4/{path.name}")
-    outer = tmp_path / "5_Battery_Data_Set.zip"
-    with zipfile.ZipFile(outer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.write(nested, arcname=nested.name)
-
-    receipt = tmp_path / "retrieval_receipt.json"
-    receipt.write_text(
-        json.dumps(
-            {
-                "source_url": "https://example.invalid/nasa-battery.zip",
-                "retrieved_at": "2026-08-01T00:00:00Z",
-                "archive_sha256": hashlib.sha256(outer.read_bytes()).hexdigest(),
-            }
-        ),
-        encoding="utf-8",
-    )
+    outer, receipt = _write_archive_and_receipt(source, tmp_path, nested=True)
     output = tmp_path / "imported"
     manifest = import_nasa_pcoe_battery(
         input_path=outer,
@@ -157,14 +197,8 @@ def test_nasa_importer_verifies_nested_zip_retrieval_receipt(
         retrieval_receipt_path=receipt,
     )
     assert manifest["retrieval_receipt_verified"] is True
-    provenance = json.loads(
-        (output / "nasa_pcoe_raw_signal_provenance.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert provenance["source_identifier"] == (
-        "https://example.invalid/nasa-battery.zip"
-    )
+    _, _, provenance = _load_imported(output)
+    assert provenance["source_identifier"] == OFFICIAL_ARCHIVE_URL
     inventory = pd.read_csv(output / "nasa_pcoe_source_inventory.csv")
     assert inventory["source_location"].str.contains("!").all()
 
@@ -172,23 +206,10 @@ def test_nasa_importer_verifies_nested_zip_retrieval_receipt(
 def test_nasa_importer_rejects_receipt_checksum_mismatch(tmp_path: Path) -> None:
     source = tmp_path / "mat"
     _write_cohort(source, batteries=1)
-    archive_path = tmp_path / "battery.zip"
-    with zipfile.ZipFile(
-        archive_path, "w", compression=zipfile.ZIP_DEFLATED
-    ) as archive:
-        for path in source.glob("*.mat"):
-            archive.write(path, arcname=path.name)
-    receipt = tmp_path / "receipt.json"
-    receipt.write_text(
-        json.dumps(
-            {
-                "source_url": "https://example.invalid/battery.zip",
-                "retrieved_at": "2026-08-01T00:00:00Z",
-                "archive_sha256": "0" * 64,
-            }
-        ),
-        encoding="utf-8",
-    )
+    archive_path, receipt = _write_archive_and_receipt(source, tmp_path)
+    payload = json.loads(receipt.read_text(encoding="utf-8"))
+    payload["archive_sha256"] = "0" * 64
+    receipt.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(ValueError, match="archive_sha256"):
         import_nasa_pcoe_battery(
             input_path=archive_path,
@@ -223,16 +244,17 @@ def test_nasa_importer_rejects_mismatched_signal_lengths(
         )
 
 
-def test_imported_raw_signals_enter_only_admitted_comparison(
+def test_official_receipt_signals_enter_predictive_comparison(
     tmp_path: Path,
 ) -> None:
     source = tmp_path / "mat"
     _write_cohort(source, batteries=5, cycles=15)
+    archive, receipt = _write_archive_and_receipt(source, tmp_path)
     imported = tmp_path / "imported"
     import_nasa_pcoe_battery(
-        input_path=source,
+        input_path=archive,
         output_dir=imported,
-        retrieved_at="2026-08-01T00:00:00Z",
+        retrieval_receipt_path=receipt,
     )
 
     analysis = tmp_path / "analysis"
@@ -257,6 +279,60 @@ def test_imported_raw_signals_enter_only_admitted_comparison(
     assert (
         analysis / "tables" / "forecast_feature_table_capacity_only.csv"
     ).is_file()
+
+
+def test_user_declared_local_import_is_diagnostic_only(tmp_path: Path) -> None:
+    source = tmp_path / "mat"
+    _write_cohort(source, batteries=5, cycles=15)
+    imported = tmp_path / "imported"
+    import_nasa_pcoe_battery(
+        input_path=source,
+        output_dir=imported,
+        retrieved_at="2026-08-01T00:00:00Z",
+    )
+    cycle_summary, raw_signal, provenance = _load_imported(imported)
+    admission = audit_raw_signal_admission(
+        cycle_summary=cycle_summary,
+        raw_signal=raw_signal,
+        provenance=provenance,
+        raw_sha256=file_sha256(imported / "nasa_pcoe_raw_signal.csv"),
+        group_column="battery_id",
+        cycle_column="cycle_index",
+    )
+    assert admission["admitted_for_predictive_comparison"] is False
+    assert admission["status"] == "not_admitted_unverified_source_retrieval"
+    assert admission["source_retrieval_verification_status"] == (
+        "nasa_import_receipt_missing"
+    )
+
+
+def test_nonofficial_receipt_is_not_predictively_admitted(tmp_path: Path) -> None:
+    source = tmp_path / "mat"
+    _write_cohort(source, batteries=5, cycles=15)
+    archive, receipt = _write_archive_and_receipt(
+        source,
+        tmp_path,
+        source_url="https://example.invalid/nasa-battery.zip",
+    )
+    imported = tmp_path / "imported"
+    import_nasa_pcoe_battery(
+        input_path=archive,
+        output_dir=imported,
+        retrieval_receipt_path=receipt,
+    )
+    cycle_summary, raw_signal, provenance = _load_imported(imported)
+    admission = audit_raw_signal_admission(
+        cycle_summary=cycle_summary,
+        raw_signal=raw_signal,
+        provenance=provenance,
+        raw_sha256=file_sha256(imported / "nasa_pcoe_raw_signal.csv"),
+        group_column="battery_id",
+        cycle_column="cycle_index",
+    )
+    assert admission["admitted_for_predictive_comparison"] is False
+    assert admission["source_retrieval_verification_status"] == (
+        "nasa_import_receipt_not_official_archive"
+    )
 
 
 def test_source_provenance_columns_are_not_forecast_features(
