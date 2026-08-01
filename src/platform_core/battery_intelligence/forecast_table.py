@@ -1,9 +1,12 @@
 """Leakage-safe exact-horizon forecast table construction."""
 from __future__ import annotations
+
 import math
 from typing import Any
+
 import numpy as np
 import pandas as pd
+
 from .common import BatteryIntelligenceConfig
 from .degradation import _rolling_slope
 
@@ -43,6 +46,8 @@ def build_forecast_table(
         "source_filename",
         "uid",
         "test_id",
+        "reference_capacity_ah",
+        "rated_capacity_ah",
         "reference_capacity_method",
         "retention_quality_flag",
     }
@@ -72,11 +77,16 @@ def build_forecast_table(
                 exclusion_counts["missing_exact_horizon_target"] += 1
                 continue
 
+            origin_target = float(row[config.target_column])
             record: dict[str, Any] = {
                 config.group_column: battery_id,
                 "origin_cycle": origin_cycle,
                 "target_cycle": target_cycle,
-                "current_target": float(row[config.target_column]),
+                "origin_target_percent": origin_target,
+                # Backward-compatible artifact alias. It means the target value at
+                # the forecast origin, never electrical current, and is excluded
+                # from fitted feature columns to avoid duplicate predictors.
+                "current_target": origin_target,
                 "future_target": float(future[config.target_column]),
             }
             history = target_values[: position + 1]
@@ -101,6 +111,7 @@ def build_forecast_table(
                     config.group_column,
                     "origin_cycle",
                     "target_cycle",
+                    "current_target",
                     "future_target",
                 }
             ]
@@ -137,5 +148,8 @@ def build_forecast_table(
         "dropped_sparse_feature_columns": missing_feature_columns,
         "exclusion_counts": exclusion_counts,
         "exact_horizon_only": True,
+        "origin_target_field": "origin_target_percent",
+        "legacy_current_target_alias_retained": True,
+        "legacy_current_target_alias_is_electrical_current": False,
     }
     return table, ordered_features, metadata
