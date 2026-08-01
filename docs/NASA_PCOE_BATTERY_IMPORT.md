@@ -215,11 +215,12 @@ timestamps are valid.
 
 ### Forecast target semantics
 
-The forecast table now exposes `origin_target_percent` as the explicit target
-value available at the forecast origin. The legacy `current_target` column is
-retained only as a backward-compatible artifact alias and is not an electrical
-current field. It is excluded from fitted feature columns to avoid duplicate
-predictors.
+The forecast table now exposes `origin_target_value` as the configured target
+value available at the forecast origin. For the default NASA workflow that
+source target is `capacity_retention_percent`; a custom target may use a
+different unit. The legacy `current_target` column is retained only as a
+backward-compatible artifact alias and is not an electrical-current field. It
+is excluded from fitted feature columns to avoid duplicate predictors.
 
 Physical current conditions are represented by raw-signal features such as
 `current_abs_max_a`. Comparability reports no longer emit the misleading
