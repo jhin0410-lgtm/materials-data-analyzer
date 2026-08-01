@@ -96,6 +96,42 @@ jobs:
           test -f outputs/installed_package_smoke/processed/preprocessing_audit.json
           test -f outputs/installed_package_smoke/run_manifest.json
 
+          mda-nasa-battery-import --help
+          python - <<'PY'
+          from pathlib import Path
+          import numpy as np
+          from scipy.io import savemat
+
+          output = Path("outputs/ci/nasa_import_input")
+          output.mkdir(parents=True, exist_ok=True)
+          cycles = []
+          for cycle in range(1, 4):
+              elapsed = np.linspace(0.0, 3600.0, 21)
+              cycles.append(
+                  {
+                      "type": "discharge",
+                      "ambient_temperature": 24.0,
+                      "time": np.array([2026, 1, cycle, 0, 0, 0], dtype=float),
+                      "data": {
+                          "Voltage_measured": np.linspace(4.2, 3.0, 21),
+                          "Current_measured": -np.ones(21),
+                          "Temperature_measured": np.linspace(24.0, 27.0, 21),
+                          "Time": elapsed,
+                          "Capacity": 2.0 - 0.01 * cycle,
+                      },
+                  }
+              )
+          savemat(output / "B0005.mat", {"B0005": {"cycle": np.array(cycles, dtype=object)}})
+          PY
+          mda-nasa-battery-import \
+            --input outputs/ci/nasa_import_input \
+            --output outputs/installed_nasa_battery_import_smoke \
+            --retrieved-at 2026-08-01T00:00:00Z
+          test -f outputs/installed_nasa_battery_import_smoke/nasa_pcoe_cycle_summary.csv
+          test -f outputs/installed_nasa_battery_import_smoke/nasa_pcoe_raw_signal.csv
+          test -f outputs/installed_nasa_battery_import_smoke/nasa_pcoe_raw_signal_provenance.json
+          test -f outputs/installed_nasa_battery_import_smoke/nasa_pcoe_import_manifest.json
+
           mda-battery-intelligence --help
           mda-battery-intelligence \
             --cycle-summary data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv \
@@ -124,6 +160,9 @@ jobs:
             dist/*
             outputs/installed_package_smoke/processed/preprocessing_audit.json
             outputs/installed_package_smoke/run_manifest.json
+            outputs/installed_nasa_battery_import_smoke/nasa_pcoe_cycle_summary.csv
+            outputs/installed_nasa_battery_import_smoke/nasa_pcoe_raw_signal_provenance.json
+            outputs/installed_nasa_battery_import_smoke/nasa_pcoe_import_manifest.json
             outputs/installed_battery_intelligence_smoke/run_manifest.json
             outputs/installed_battery_intelligence_smoke/reports/validation_summary.json
             outputs/installed_battery_intelligence_smoke/reports/error_diagnostics_summary.json

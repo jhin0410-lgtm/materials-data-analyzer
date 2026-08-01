@@ -24,10 +24,51 @@ EXPECTED_UNITS = {
     "capacity_ah": {"ah", "a*h", "ampere_hour", "ampere_hours"},
     "global_time_s": {"s", "sec", "second", "seconds"},
 }
+NASA_IMPORT_TRANSFORMATION = "mda_nasa_pcoe_mat_to_canonical_csv"
+NASA_PCOE_OFFICIAL_ARCHIVE_URL = (
+    "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
+)
 
 
 def _normalized_unit(value: Any) -> str:
     return str(value).strip().lower().replace(" ", "_")
+
+
+def _source_retrieval_check(
+    provenance: Mapping[str, Any] | None,
+) -> tuple[bool, bool, str]:
+    """Return (required, passed, status) for source-acquisition verification.
+
+    Generic user-authored provenance contracts retain their existing behavior.
+    NASA PCoE importer artifacts are more specific: because the importer knows
+    its official acquisition URL and receipt schema, predictive admission
+    requires a complete receipt for that exact official archive.
+    """
+    if provenance is None:
+        return False, True, "not_applicable_no_provenance"
+    transformation = provenance.get("transformation", {})
+    if not isinstance(transformation, Mapping):
+        transformation = {}
+    is_nasa_import = transformation.get("name") == NASA_IMPORT_TRANSFORMATION
+    if not is_nasa_import:
+        return False, True, "not_required_for_generic_provenance"
+    receipt = provenance.get("retrieval_receipt")
+    if not isinstance(receipt, Mapping):
+        return True, False, "nasa_import_receipt_missing"
+    required_receipt_fields = {
+        "source_url",
+        "retrieved_at",
+        "archive_sha256",
+        "receipt_sha256",
+    }
+    complete = all(
+        receipt.get(field) not in {None, ""} for field in required_receipt_fields
+    )
+    if not complete:
+        return True, False, "nasa_import_receipt_incomplete"
+    if str(receipt.get("source_url", "")) != NASA_PCOE_OFFICIAL_ARCHIVE_URL:
+        return True, False, "nasa_import_receipt_not_official_archive"
+    return True, True, "nasa_import_official_receipt_verified"
 
 
 def audit_raw_signal_admission(
@@ -42,8 +83,8 @@ def audit_raw_signal_admission(
     """Assess whether raw signals may enter predictive feature comparison.
 
     Signal extraction remains available for software diagnostics, but predictive
-    use is admitted only when source identity, checksum, units, and battery-cycle
-    mapping are explicit and coverage is sufficient for grouped validation.
+    use is admitted only when source identity, checksum, units, battery-cycle
+    mapping, and any source-specific acquisition check are explicit and valid.
     """
     summary_pairs = {
         (str(row[group_column]), float(row[cycle_column]))
@@ -51,7 +92,9 @@ def audit_raw_signal_admission(
     }
     raw_pairs = {
         (str(row["battery_id"]), float(row["cycle_index"]))
-        for _, row in raw_signal[["battery_id", "cycle_index"]].drop_duplicates().iterrows()
+        for _, row in raw_signal[["battery_id", "cycle_index"]]
+        .drop_duplicates()
+        .iterrows()
     }
     unknown_pairs = sorted(raw_pairs - summary_pairs)
     covered_pairs = raw_pairs & summary_pairs
@@ -72,23 +115,37 @@ def audit_raw_signal_admission(
             or provenance[field] is None
             or provenance[field] == ""
         )
-        checksum_matches = str(provenance.get("source_sha256", "")).lower() == raw_sha256.lower()
+        checksum_matches = (
+            str(provenance.get("source_sha256", "")).lower()
+            == raw_sha256.lower()
+        )
         declared_units = provenance.get("unit_declarations", {})
         if not isinstance(declared_units, Mapping):
             declared_units = {}
         for column, accepted in EXPECTED_UNITS.items():
             if column not in raw_signal.columns:
                 continue
-            unit_checks[column] = _normalized_unit(declared_units.get(column, "")) in accepted
+            unit_checks[column] = (
+                _normalized_unit(declared_units.get(column, "")) in accepted
+            )
 
+    retrieval_required, retrieval_verified, retrieval_status = (
+        _source_retrieval_check(provenance)
+    )
     identity_mapping_complete = len(unknown_pairs) == 0
     unit_declarations_valid = bool(unit_checks) and all(unit_checks.values())
     covered_battery_fraction = (
-        len(covered_batteries) / len(summary_batteries) if summary_batteries else 0.0
+        len(covered_batteries) / len(summary_batteries)
+        if summary_batteries
+        else 0.0
     )
-    covered_cycle_fraction = len(covered_pairs) / len(summary_pairs) if summary_pairs else 0.0
+    covered_cycle_fraction = (
+        len(covered_pairs) / len(summary_pairs) if summary_pairs else 0.0
+    )
     grouped_validation_support = len(covered_batteries) >= 5
-    coverage_support = covered_battery_fraction >= 0.5 and covered_cycle_fraction >= 0.5
+    coverage_support = (
+        covered_battery_fraction >= 0.5 and covered_cycle_fraction >= 0.5
+    )
 
     checks = {
         "provenance_sidecar_present": provenance_present,
@@ -96,6 +153,7 @@ def audit_raw_signal_admission(
         "source_checksum_matches": checksum_matches,
         "unit_declarations_valid": unit_declarations_valid,
         "battery_cycle_identity_mapping_complete": identity_mapping_complete,
+        "source_specific_retrieval_verification": retrieval_verified,
         "at_least_five_covered_batteries": grouped_validation_support,
         "minimum_half_cohort_and_cycle_coverage": coverage_support,
     }
@@ -104,6 +162,8 @@ def audit_raw_signal_admission(
         status = "admitted_for_predictive_comparison"
     elif not provenance_present:
         status = "not_admitted_missing_provenance"
+    elif not retrieval_verified:
+        status = "not_admitted_unverified_source_retrieval"
     elif not checksum_matches:
         status = "not_admitted_checksum_mismatch"
     elif not identity_mapping_complete:
@@ -114,12 +174,14 @@ def audit_raw_signal_admission(
         status = "not_admitted_insufficient_coverage"
 
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "status": status,
         "admitted_for_predictive_comparison": admitted,
         "checks": checks,
         "missing_provenance_fields": missing_fields,
         "unit_checks": unit_checks,
+        "source_retrieval_verification_required": retrieval_required,
+        "source_retrieval_verification_status": retrieval_status,
         "summary_battery_count": len(summary_batteries),
         "covered_battery_count": len(covered_batteries),
         "covered_battery_fraction": covered_battery_fraction,
@@ -133,6 +195,8 @@ def audit_raw_signal_admission(
         ],
         "predictive_use_policy": (
             "Raw-signal features enter model comparison only when every admission "
-            "check passes. Extraction alone does not establish scientific value."
+            "check passes. NASA importer artifacts additionally require a verified "
+            "receipt for the exact official archive URL. Extraction alone does not "
+            "establish scientific value."
         ),
     }

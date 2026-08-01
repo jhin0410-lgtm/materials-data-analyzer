@@ -13,6 +13,7 @@ from .error_diagnostics import build_error_diagnostics
 from .raw_signal_admission import audit_raw_signal_admission
 from .closeout import scientific_closeout
 from .workflow import run_battery_intelligence
+from .nasa_pcoe import import_nasa_pcoe_battery
 
 __all__ = [
     "BatteryIntelligenceConfig",
@@ -28,4 +29,5 @@ __all__ = [
     "audit_raw_signal_admission",
     "scientific_closeout",
     "run_battery_intelligence",
+    "import_nasa_pcoe_battery",
 ]
