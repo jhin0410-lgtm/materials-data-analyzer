@@ -15,13 +15,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mda-battery-intelligence",
         description=(
-            "Run leakage-safe battery degradation diagnostics, optional raw-signal "
-            "feature extraction, uncertainty calibration, extrapolation checks, "
-            "and a bounded scientific closeout."
+            "Run leakage-safe battery degradation diagnostics, strong origin-only "
+            "baseline comparison, error-structure analysis, optional admitted raw-"
+            "signal features, uncertainty, extrapolation checks, and a bounded "
+            "scientific closeout."
         ),
     )
     parser.add_argument("--cycle-summary", required=True, type=Path)
     parser.add_argument("--raw-signal", type=Path)
+    parser.add_argument(
+        "--raw-signal-provenance",
+        type=Path,
+        help=(
+            "JSON sidecar declaring source identity, checksum, units, license/terms, "
+            "and battery/cycle mapping. Raw signals are not predictive inputs unless "
+            "the admission gate passes."
+        ),
+    )
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--group-column", default="battery_id")
     parser.add_argument("--cycle-column", default="cycle_index")
@@ -60,6 +70,7 @@ def main() -> None:
     manifest = run_battery_intelligence(
         cycle_summary_path=args.cycle_summary,
         raw_signal_path=args.raw_signal,
+        raw_signal_provenance_path=args.raw_signal_provenance,
         output_dir=args.output,
         config=config,
         overwrite=args.overwrite,
@@ -68,9 +79,18 @@ def main() -> None:
     closeout = manifest["scientific_closeout"]
     print(f"output: {args.output}")
     print(f"evidence_level: {closeout['evidence_level']}")
+    print(f"best_baseline: {summary['best_baseline_name']}")
+    print(f"best_baseline_mae: {summary['best_baseline_metrics']['mae']:.6f}")
     print(f"ridge_mae: {summary['ridge_metrics']['mae']:.6f}")
+    print(
+        "ridge_improvement_vs_best_baseline: "
+        f"{summary['ridge_improvement_percent_vs_best_baseline']:.6f}%"
+    )
     print(f"persistence_mae: {summary['persistence_metrics']['mae']:.6f}")
     print(f"ood_prediction_fraction: {summary['ood_prediction_fraction']:.6f}")
+    admission = manifest.get("raw_signal_admission")
+    if admission is not None:
+        print(f"raw_signal_admission: {admission['status']}")
 
 
 if __name__ == "__main__":
