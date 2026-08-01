@@ -21,7 +21,7 @@ _CONCENTRATION_EXCESS_RATIO_THRESHOLD = 1.5
 _MEAN_MEDIAN_ERROR_RATIO_THRESHOLD = 5.0
 _CONDITION_COLUMNS = (
     "ambient_temperature_c",
-    "current_target",
+    "current_abs_max_a",
     "discharge_duration_s",
     "voltage_min_v",
     "voltage_max_v",
@@ -342,7 +342,7 @@ def build_target_comparability_audit(
         }
 
     summary = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "battery_count": int(len(target)),
         "prediction_battery_count": int(errors[config.group_column].nunique()),
         "target_comparability_flag_battery_count": target_flag_count,
@@ -380,6 +380,13 @@ def build_target_comparability_audit(
             "reference_target_reconstruction": reconstruction_available,
             "observed_condition_columns": condition_columns,
             "battery_level_error_concentration": True,
+        },
+        "condition_semantics": {
+            "origin_target_field": "origin_target_value/current_target",
+            "origin_target_source_column": config.target_column,
+            "origin_target_is_electrical_current": False,
+            "electrical_current_condition_field": "current_abs_max_a",
+            "legacy_median_observed_current_target_emitted": False,
         },
         "observed_condition_ranges": condition_ranges,
         "thresholds": {

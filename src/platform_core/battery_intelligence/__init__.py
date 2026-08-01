@@ -21,7 +21,7 @@ from .influence_triage import (
 )
 from .closeout import scientific_closeout
 from .workflow import run_battery_intelligence
-from .nasa_pcoe_resilient import import_nasa_pcoe_battery
+from .nasa_pcoe_rated import import_nasa_pcoe_battery
 
 __all__ = [
     "BatteryIntelligenceConfig",
