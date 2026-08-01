@@ -37,12 +37,15 @@ def test_forecast_table_exposes_explicit_origin_target_without_duplicate_feature
     )
     table, features, metadata = build_forecast_table(_cycle_summary(), config)
 
-    assert "origin_target_percent" in table.columns
+    assert "origin_target_value" in table.columns
     assert "current_target" in table.columns
-    assert table["origin_target_percent"].equals(table["current_target"])
-    assert "origin_target_percent" in features
+    assert table["origin_target_value"].equals(table["current_target"])
+    assert "origin_target_value" in features
     assert "current_target" not in features
     assert "reference_capacity_ah" not in features
+    assert metadata["origin_target_source_column"] == (
+        "capacity_retention_percent"
+    )
     assert metadata["legacy_current_target_alias_is_electrical_current"] is False
 
 
@@ -57,7 +60,7 @@ def test_comparability_audit_never_labels_origin_target_as_current_condition():
                     "battery_id": battery,
                     "origin_cycle": origin,
                     "target_cycle": origin + 2,
-                    "origin_target_percent": 101.0 - origin,
+                    "origin_target_value": 101.0 - origin,
                     "current_target": 101.0 - origin,
                     "current_abs_max_a": 1.5 if battery == "A" else 2.0,
                     "future_target": 99.0 - origin,
@@ -87,6 +90,9 @@ def test_comparability_audit_never_labels_origin_target_as_current_condition():
         "ambient_temperature_c",
         "current_abs_max_a",
     ]
+    assert summary["condition_semantics"]["origin_target_field"] == (
+        "origin_target_value/current_target"
+    )
     assert summary["condition_semantics"][
         "origin_target_is_electrical_current"
     ] is False
