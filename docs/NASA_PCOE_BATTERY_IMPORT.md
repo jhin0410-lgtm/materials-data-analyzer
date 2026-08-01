@@ -59,7 +59,8 @@ data/raw/battery/nasa_pcoe/
 
 The script does not embed an expected archive checksum. It records the checksum
 of the bytes actually retrieved so later import can verify that the supplied
-ZIP is the same file represented by the receipt.
+ZIP is the same file represented by the receipt. The JSON receipt is written as
+UTF-8 without a byte-order mark for deterministic cross-platform parsing.
 
 Use `-Force` only when intentionally replacing an existing local archive and
 receipt.
@@ -80,9 +81,15 @@ The importer accepts:
 - a ZIP archive, including bounded nested ZIP archives.
 
 It rejects unsafe archive paths, excessive nesting or member counts, oversized
-members, ambiguous battery identities, duplicate battery files, malformed
-vectors, non-finite measurements, non-positive voltage, and non-monotonic
-source time.
+members, ambiguous battery identities, same-ID files with different checksums,
+malformed vectors, non-finite measurements, non-positive voltage, and
+non-monotonic source time.
+
+The official outer archive contains overlapping sub-bundles. A repeated
+`battery_id` is therefore deduplicated only when the complete MAT SHA-256 is
+identical to the previously imported copy. The duplicate remains visible in the
+source inventory with `duplicate_identical_source_copy`. A same-ID file with
+different bytes remains a fatal ambiguity.
 
 ## 3. Run the signal-enriched analysis
 
@@ -119,7 +126,7 @@ nasa_pcoe_battery_import/
 ### Cycle identity
 
 `cycle_index` is the one-based sequential ordinal of `discharge` operations in
-source order within each battery MAT file.
+source order within each unique battery MAT file.
 
 Charge and impedance operations are counted in inventory but are not assigned
 to a discharge cycle by inference. This avoids silently creating a
@@ -133,8 +140,10 @@ A MAT file is imported only when:
   structure; and
 - that variable agrees case-insensitively with the original MAT filename stem.
 
-The source variable text becomes `battery_id`. Duplicate normalized identities
-fail the entire import.
+The source variable text becomes `battery_id`. Repeated normalized identities
+are accepted only when their complete MAT SHA-256 values are identical. The
+first copy supplies canonical rows; identical later copies are inventory-only.
+Different same-ID content fails the entire import.
 
 ### Raw-signal mapping
 
@@ -147,7 +156,7 @@ For each discharge operation:
 | `Temperature_measured` | `temperature_c` when complete |
 | `Time` | `elapsed_time_s` |
 | derived current integral | `capacity_ah` |
-| operation timestamp plus elapsed time | `global_time_s` when complete |
+| relative source operation time plus elapsed time | `global_time_s` when complete |
 
 `capacity_ah` is the cumulative trapezoidal integral of the absolute measured
 current over source elapsed time. It is explicitly recorded as derived and is
@@ -156,6 +165,12 @@ not represented as the source scalar discharge capacity.
 The source scalar `Capacity` becomes `discharge_capacity_ah` in the cycle
 summary. Retention is normalized to the first observed discharge capacity in
 each battery, avoiding use of future cycles for the normalization reference.
+
+The MATLAB date vector is preserved as
+`operation_started_at_source_time`. The source documentation does not declare a
+timezone, so the importer does not label it UTC. `global_time_s` uses only
+within-battery timestamp differences; it is omitted unless all imported source
+timestamps are valid.
 
 ### No silent preprocessing
 
@@ -166,7 +181,8 @@ The importer performs no:
 - outlier removal;
 - cycle deletion after a malformed discharge operation;
 - inferred unit conversion;
-- inferred charge-discharge pairing.
+- inferred charge-discharge pairing;
+- timezone inference.
 
 Optional temperature and global-time columns are emitted only when complete for
 the imported table. They are omitted with an explicit warning rather than
@@ -193,8 +209,9 @@ those checks and is evaluated battery-disjoint from development data.
 ## Validation status
 
 Synthetic MAT files are used only to test parser behavior, nested-archive
-handling, checksum verification, fail-closed identity rules, canonical schema,
-raw-signal admission, installed packaging, and end-to-end software execution.
+handling, checksum verification, checksum-safe duplicate handling, fail-closed
+identity rules, timezone preservation, canonical schema, raw-signal admission,
+installed packaging, and end-to-end software execution.
 
 Passing those tests is software validation. Scientific validation begins only
 after the official archive is acquired, its receipt and per-file checksums are
