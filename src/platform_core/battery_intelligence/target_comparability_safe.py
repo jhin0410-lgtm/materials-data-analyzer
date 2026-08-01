@@ -1,9 +1,9 @@
 """Semantic guard for battery target-comparability diagnostics.
 
-``current_target`` in the forecast table means the target value observed at the
-forecast origin. It is not electrical current. The original audit accidentally
-listed it beside ambient temperature, voltage, and discharge duration, producing
-a misleading ``median_observed_current_target`` field.
+``current_target`` in the forecast table means the configured target value
+observed at the forecast origin. It is not electrical current. The original
+audit accidentally listed it beside ambient temperature, voltage, and discharge
+duration, producing a misleading ``median_observed_current_target`` field.
 
 This wrapper keeps the existing audit implementation and artifact contract while
 restricting observed-condition profiles to physical measurement fields. Actual
@@ -60,7 +60,8 @@ def build_target_comparability_audit(
         config=config,
     )
     result["summary"]["condition_semantics"] = {
-        "origin_target_field": "origin_target_percent/current_target",
+        "origin_target_field": "origin_target_value/current_target",
+        "origin_target_source_column": config.target_column,
         "origin_target_is_electrical_current": False,
         "electrical_current_condition_field": "current_abs_max_a",
         "legacy_median_observed_current_target_emitted": False,
