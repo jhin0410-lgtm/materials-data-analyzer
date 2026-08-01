@@ -1,0 +1,17 @@
+{
+  "source_name": "replace_with_authoritative_source_name",
+  "source_identifier": "replace_with_stable_url_doi_archive_or_package_id",
+  "retrieved_at": "2026-08-01T00:00:00Z",
+  "source_sha256": "replace_with_exact_sha256_of_raw_signal_csv",
+  "license_or_terms": "replace_with_source_license_or_access_terms",
+  "battery_id_mapping_method": "replace_with_exact_source_to_battery_id_mapping_rule",
+  "cycle_mapping_method": "replace_with_exact_source_to_cycle_index_mapping_rule",
+  "unit_declarations": {
+    "elapsed_time_s": "s",
+    "voltage_v": "V",
+    "current_a": "A",
+    "temperature_c": "degC",
+    "capacity_ah": "Ah",
+    "global_time_s": "s"
+  }
+}
