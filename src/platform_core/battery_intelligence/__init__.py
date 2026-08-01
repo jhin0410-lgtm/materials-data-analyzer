@@ -11,7 +11,7 @@ from .forecast_baselines import build_baseline_predictions
 from .forecast_validation import evaluate_grouped_forecast
 from .error_diagnostics import build_error_diagnostics
 from .raw_signal_admission import audit_raw_signal_admission
-from .target_comparability import (
+from .target_comparability_safe import (
     audit_battery_intelligence_run,
     build_target_comparability_audit,
 )
@@ -21,7 +21,7 @@ from .influence_triage import (
 )
 from .closeout import scientific_closeout
 from .workflow import run_battery_intelligence
-from .nasa_pcoe_resilient import import_nasa_pcoe_battery
+from .nasa_pcoe_rated import import_nasa_pcoe_battery
 
 __all__ = [
     "BatteryIntelligenceConfig",
