@@ -1,16 +1,19 @@
-"""Public NASA PCoE importer with explicit invalid-capacity quarantine.
+"""NASA PCoE importer with auditable invalid-capacity quarantine.
 
-The official NASA archive contains a small number of discharge operations whose
-scalar ``Capacity`` field is zero or negative. Those operations cannot serve as
-physical degradation targets. They are therefore excluded from the canonical
-cycle-summary and raw-signal tables, while their original discharge ordinal,
-source operation index, observed value, and exclusion counts remain auditable.
+Some official NASA PCoE discharge operations contain a ``Capacity`` field that
+cannot be used as a physical degradation target: it may be missing, nonnumeric,
+non-scalar, complex-valued, non-finite, zero, or negative. Those operations are excluded from
+canonical cycle-summary and raw-signal tables, while their original source
+identity, discharge ordinal, observed representation, and exclusion reason
+remain auditable.
 
-No value is imputed, clipped, smoothed, or renumbered.
+No capacity value is imputed, clipped, smoothed, interpolated, or renumbered.
+Structural signal corruption remains fatal.
 """
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from threading import RLock
@@ -25,6 +28,80 @@ from .common import canonical_json, file_sha256
 
 _IMPORT_LOCK = RLock()
 _DUPLICATE_SKIP_REASON = "duplicate_identical_source_copy"
+_EXCLUDED_OPERATIONS_FILENAME = "nasa_pcoe_excluded_operations.csv"
+_INVALID_CAPACITY_REASONS = (
+    "missing",
+    "nonnumeric",
+    "nonscalar",
+    "complex",
+    "nonfinite",
+    "nonpositive",
+)
+
+
+def _capacity_observation(value: Any, *, present: bool) -> tuple[float | None, str | None, str]:
+    """Return ``(valid_value, issue, observed_repr)`` for one Capacity field."""
+    if not present:
+        return None, "missing", "missing:<missing>"
+    try:
+        raw = np.asarray(value)
+    except (TypeError, ValueError):
+        text = repr(value)
+        return None, "nonnumeric", ("nonnumeric:" + text)[:500]
+    flat = raw.reshape(-1)
+    if np.iscomplexobj(raw) or any(isinstance(item, complex) for item in flat.tolist()):
+        return None, "complex", ("complex:" + np.array2string(raw, threshold=20))[:500]
+    try:
+        array = np.asarray(value, dtype=float).reshape(-1)
+    except (TypeError, ValueError):
+        text = repr(value)
+        return None, "nonnumeric", ("nonnumeric:" + text)[:500]
+    if array.size != 1:
+        return None, "nonscalar", ("nonscalar:" + np.array2string(array, threshold=20))[:500]
+    scalar = float(array[0])
+    if not math.isfinite(scalar):
+        return None, "nonfinite", f"nonfinite:{scalar!r}"
+    if scalar <= 0:
+        return None, "nonpositive", f"nonpositive:{scalar!r}"
+    return scalar, None, repr(scalar)
+
+
+def _inventory_with_capacity_counts(source: Any) -> dict[str, Any]:
+    inventory = _base._empty_inventory(source)
+    inventory["imported_discharge_operation_count"] = 0
+    inventory["excluded_discharge_operation_count"] = 0
+    inventory["invalid_capacity_operation_count"] = 0
+    for reason in _INVALID_CAPACITY_REASONS:
+        inventory[f"{reason}_capacity_operation_count"] = 0
+    return inventory
+
+
+def _invalid_capacity_warning(
+    *,
+    issue: str,
+    observed: str,
+    source_location: str,
+    battery_id: str,
+    operation_index: int,
+    discharge_index: int,
+) -> dict[str, Any]:
+    warning = _base._warning(
+        "invalid_discharge_capacity_excluded",
+        (
+            f"Source discharge Capacity is {issue} ({observed}) and cannot serve "
+            "as a physical degradation target. The operation was excluded from "
+            "canonical cycle-summary and raw-signal tables without changing later "
+            "source discharge ordinals. No value was imputed, clipped, smoothed, "
+            "or interpolated."
+        ),
+        source_location=source_location,
+        battery_id=battery_id,
+        source_operation_index=operation_index,
+        cycle_index=discharge_index,
+    )
+    warning["capacity_issue"] = issue
+    warning["observed_value"] = observed
+    return warning
 
 
 def _load_source_with_invalid_capacity_quarantine(
@@ -36,7 +113,7 @@ def _load_source_with_invalid_capacity_quarantine(
     dict[str, Any],
     list[dict[str, Any]],
 ]:
-    """Load one MAT source while quarantining nonpositive capacity operations."""
+    """Load one MAT source while quarantining unusable Capacity targets."""
     try:
         loaded = _base.loadmat(source.path, simplify_cells=True)
     except NotImplementedError as error:
@@ -50,10 +127,7 @@ def _load_source_with_invalid_capacity_quarantine(
     variables = {
         key: value for key, value in loaded.items() if not str(key).startswith("__")
     }
-    inventory = _base._empty_inventory(source)
-    inventory["imported_discharge_operation_count"] = 0
-    inventory["excluded_discharge_operation_count"] = 0
-    inventory["nonpositive_capacity_operation_count"] = 0
+    inventory = _inventory_with_capacity_counts(source)
     warnings: list[dict[str, Any]] = []
     if len(variables) != 1:
         inventory["skip_reason"] = "expected_exactly_one_top_level_variable"
@@ -99,6 +173,10 @@ def _load_source_with_invalid_capacity_quarantine(
         discharge_index += 1
         context = f"{source.source_location}.cycle[{operation_index}]"
         data = _base._as_mapping(operation.get("data"), context=f"{context}.data")
+
+        # Validate the measured trajectory before deciding whether its target can
+        # enter canonical tables. Corrupt vectors remain fatal rather than hidden
+        # behind a target quarantine.
         voltage = _base._numeric_vector(
             data.get("Voltage_measured"),
             context=f"{context}.data.Voltage_measured",
@@ -128,30 +206,25 @@ def _load_source_with_invalid_capacity_quarantine(
         if temperature is not None and len(temperature) != len(elapsed):
             raise ValueError(f"{context}: Temperature_measured length must match Time")
 
-        capacity = _base._optional_scalar(data.get("Capacity"))
-        if capacity is None:
-            raise ValueError(
-                f"{context}.data.Capacity must contain one finite numeric value"
-            )
-        if capacity <= 0:
+        capacity, issue, observed = _capacity_observation(
+            data.get("Capacity"), present="Capacity" in data
+        )
+        if issue is not None:
             inventory["excluded_discharge_operation_count"] += 1
-            inventory["nonpositive_capacity_operation_count"] += 1
-            warning = _base._warning(
-                "nonpositive_discharge_capacity_excluded",
-                (
-                    f"Source discharge Capacity={capacity!r} Ah is not a valid "
-                    "positive degradation target. The operation was excluded from "
-                    "canonical cycle and raw-signal tables without changing later "
-                    "source discharge ordinals. No value was imputed or clipped."
-                ),
-                source_location=source.source_location,
-                battery_id=battery_id,
-                source_operation_index=operation_index,
-                cycle_index=discharge_index,
+            inventory["invalid_capacity_operation_count"] += 1
+            inventory[f"{issue}_capacity_operation_count"] += 1
+            warnings.append(
+                _invalid_capacity_warning(
+                    issue=issue,
+                    observed=observed,
+                    source_location=source.source_location,
+                    battery_id=battery_id,
+                    operation_index=operation_index,
+                    discharge_index=discharge_index,
+                )
             )
-            warning["observed_value"] = float(capacity)
-            warnings.append(warning)
             continue
+        assert capacity is not None
 
         ambient = _base._optional_scalar(operation.get("ambient_temperature"))
         started_at = _base._parse_matlab_datetime(operation.get("time"))
@@ -205,56 +278,119 @@ def _load_source_with_invalid_capacity_quarantine(
             if inventory["discharge_operation_count"]
             else "no_discharge_operations"
         )
-        return None, [], [], inventory, warnings
+        return battery_id, [], [], inventory, warnings
     inventory["imported"] = True
     return battery_id, cycle_rows, raw_rows, inventory, warnings
+
+
+def _count_inventory(inventory: pd.DataFrame, column: str) -> int:
+    countable = inventory[
+        inventory["skip_reason"].fillna("") != _DUPLICATE_SKIP_REASON
+    ]
+    return int(countable.get(column, pd.Series(dtype=int)).fillna(0).sum())
+
+
+def _write_excluded_operations(
+    output: Path, inventory: pd.DataFrame
+) -> tuple[Path, pd.DataFrame]:
+    warnings_path = output / "nasa_pcoe_import_warnings.csv"
+    warnings = pd.read_csv(warnings_path)
+    excluded = warnings[
+        warnings.get("code", pd.Series(dtype=str)).eq(
+            "invalid_discharge_capacity_excluded"
+        )
+    ].copy()
+    duplicate_locations = set(
+        inventory.loc[
+            inventory["skip_reason"].fillna("") == _DUPLICATE_SKIP_REASON,
+            "source_location",
+        ].astype(str)
+    )
+    if duplicate_locations and "source_location" in excluded:
+        excluded = excluded[
+            ~excluded["source_location"].astype(str).isin(duplicate_locations)
+        ].copy()
+    columns = [
+        "source_location",
+        "battery_id",
+        "source_operation_index",
+        "cycle_index",
+        "capacity_issue",
+        "observed_value",
+        "severity",
+        "code",
+        "message",
+    ]
+    for column in columns:
+        if column not in excluded:
+            excluded[column] = pd.Series(dtype="object")
+    excluded = excluded[columns].sort_values(
+        ["battery_id", "cycle_index", "source_operation_index"],
+        kind="mergesort",
+        na_position="last",
+    )
+    path = output / _EXCLUDED_OPERATIONS_FILENAME
+    excluded.to_csv(path, index=False, lineterminator="\n")
+    return path, excluded
 
 
 def _enrich_audit_outputs(output: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     inventory_path = output / "nasa_pcoe_source_inventory.csv"
     provenance_path = output / "nasa_pcoe_raw_signal_provenance.json"
     inventory = pd.read_csv(inventory_path)
-    countable = inventory[
-        inventory["skip_reason"].fillna("") != _DUPLICATE_SKIP_REASON
-    ]
 
-    excluded = int(
-        countable.get(
-            "excluded_discharge_operation_count", pd.Series(dtype=int)
-        ).fillna(0).sum()
-    )
-    nonpositive = int(
-        countable.get(
-            "nonpositive_capacity_operation_count", pd.Series(dtype=int)
-        ).fillna(0).sum()
-    )
-    imported = int(
-        countable.get(
-            "imported_discharge_operation_count", pd.Series(dtype=int)
-        ).fillna(0).sum()
-    )
+    counts = {
+        "imported_discharge_operation_count": _count_inventory(
+            inventory, "imported_discharge_operation_count"
+        ),
+        "excluded_discharge_operation_count": _count_inventory(
+            inventory, "excluded_discharge_operation_count"
+        ),
+        "invalid_capacity_operation_count": _count_inventory(
+            inventory, "invalid_capacity_operation_count"
+        ),
+    }
+    for reason in _INVALID_CAPACITY_REASONS:
+        counts[f"{reason}_capacity_operation_count"] = _count_inventory(
+            inventory, f"{reason}_capacity_operation_count"
+        )
+
+    excluded_path, excluded_table = _write_excluded_operations(output, inventory)
+    if len(excluded_table) != counts["invalid_capacity_operation_count"]:
+        raise RuntimeError(
+            "excluded-operation artifact count does not reconcile with inventory"
+        )
 
     provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
     transformation = provenance.setdefault("transformation", {})
-    transformation["nonpositive_capacity_policy"] = (
-        "A discharge operation with finite Capacity <= 0 Ah is retained in source "
-        "inventory and import warnings but excluded from canonical cycle-summary "
-        "and raw-signal tables. Later discharge ordinals are not renumbered. No "
-        "imputation, clipping, interpolation, smoothing, or outlier deletion is used."
+    transformation["invalid_capacity_policy"] = (
+        "A discharge operation whose Capacity target is missing, nonnumeric, "
+        "non-scalar, complex-valued, non-finite, zero, or negative is retained in source inventory "
+        "and exclusion artifacts but omitted from canonical cycle-summary and "
+        "raw-signal tables. Later discharge ordinals are not renumbered. Measured "
+        "trajectory vectors are validated before quarantine. No capacity value is "
+        "imputed, clipped, interpolated, smoothed, or inferred."
     )
-    transformation["excluded_nonpositive_capacity_operation_count"] = nonpositive
+    transformation["excluded_invalid_capacity_operation_count"] = counts[
+        "invalid_capacity_operation_count"
+    ]
+    transformation["invalid_capacity_counts_by_reason"] = {
+        reason: counts[f"{reason}_capacity_operation_count"]
+        for reason in _INVALID_CAPACITY_REASONS
+    }
     provenance_path.write_text(canonical_json(provenance), encoding="utf-8")
 
-    manifest["imported_discharge_operation_count"] = imported
-    manifest["excluded_discharge_operation_count"] = excluded
-    manifest["nonpositive_capacity_operation_count"] = nonpositive
+    manifest.update(counts)
+    manifest["excluded_operation_artifact_count"] = int(len(excluded_table))
+    manifest["outputs"]["excluded_operations"] = str(excluded_path)
+    manifest["output_sha256"]["excluded_operations"] = file_sha256(excluded_path)
     manifest["output_sha256"]["raw_signal_provenance"] = file_sha256(
         provenance_path
     )
     manifest["scientific_boundary"] = (
         str(manifest["scientific_boundary"])
-        + " Nonpositive source Capacity operations are explicit quarantines, not "
-        "evidence of zero physical capacity and not silently repaired data."
+        + " Invalid source Capacity operations are explicit target quarantines, "
+        "not evidence of physical zero capacity and not silently repaired data."
     )
     manifest_path = output / "nasa_pcoe_import_manifest.json"
     manifest_path.write_text(canonical_json(manifest), encoding="utf-8")
@@ -270,7 +406,7 @@ def import_nasa_pcoe_battery(
     source_identifier: str = _base.NASA_PCOE_SOURCE_IDENTIFIER,
     overwrite: bool = False,
 ) -> dict[str, Any]:
-    """Import NASA PCoE data with auditable nonpositive-capacity quarantine."""
+    """Import NASA PCoE data with auditable invalid-capacity quarantine."""
     output = Path(output_dir)
     with _IMPORT_LOCK:
         original_loader = _base._load_source
