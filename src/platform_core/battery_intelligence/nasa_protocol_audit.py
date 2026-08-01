@@ -47,6 +47,17 @@ def _as_bool(series: pd.Series) -> pd.Series:
     )
 
 
+def _numeric_series(
+    frame: pd.DataFrame,
+    column: str,
+    *,
+    default: float = 0.0,
+) -> pd.Series:
+    if column not in frame.columns:
+        return pd.Series(default, index=frame.index, dtype=float)
+    return pd.to_numeric(frame[column], errors="coerce").fillna(default)
+
+
 def _require_columns(frame: pd.DataFrame, required: set[str], *, context: str) -> None:
     missing = sorted(required - set(frame.columns))
     if missing:
@@ -66,8 +77,7 @@ def _stable_ids(frame: pd.DataFrame, *, context: str) -> set[str]:
 
 def _inventory_by_battery(inventory: pd.DataFrame) -> pd.DataFrame:
     _require_columns(inventory, {"battery_id"}, context="NASA source inventory")
-    working = inventory.copy()
-    working = working[working["battery_id"].notna()].copy()
+    working = inventory[inventory["battery_id"].notna()].copy()
     working["battery_id"] = working["battery_id"].astype(str).str.strip()
     if "skip_reason" in working.columns:
         working = working[
@@ -91,7 +101,6 @@ def _inventory_by_battery(inventory: pd.DataFrame) -> pd.DataFrame:
     ]
     if not count_columns:
         return pd.DataFrame({"battery_id": sorted(set(working["battery_id"]))})
-
     for column in count_columns:
         working[column] = pd.to_numeric(working[column], errors="coerce").fillna(0)
     return (
@@ -111,15 +120,11 @@ def _battery_errors(predictions: pd.DataFrame) -> pd.DataFrame:
     _require_columns(predictions, required, context="validation predictions")
     working = predictions[list(required)].copy()
     working["battery_id"] = working["battery_id"].astype(str).str.strip()
-    for column in ("actual", "persistence_prediction", "ridge_prediction"):
+    numeric_columns = ("actual", "persistence_prediction", "ridge_prediction")
+    for column in numeric_columns:
         working[column] = pd.to_numeric(working[column], errors="coerce")
-    if working[["actual", "persistence_prediction", "ridge_prediction"]].isna().any().any():
-        raise ValueError("validation predictions must contain finite numeric values")
-    if not np.isfinite(
-        working[["actual", "persistence_prediction", "ridge_prediction"]].to_numpy(
-            dtype=float
-        )
-    ).all():
+    numeric = working[list(numeric_columns)].to_numpy(dtype=float)
+    if not np.isfinite(numeric).all():
         raise ValueError("validation predictions must contain finite numeric values")
 
     working["persistence_absolute_error"] = (
@@ -151,34 +156,29 @@ def _battery_errors(predictions: pd.DataFrame) -> pd.DataFrame:
 def _reason_columns(profile: pd.DataFrame) -> pd.DataFrame:
     result = profile.copy()
     result["reference_start_context_flag"] = (
-        pd.to_numeric(
-            result["first_target_deviation_from_100_percent"], errors="coerce"
-        ).fillna(0)
+        _numeric_series(
+            result,
+            "first_target_deviation_from_100_percent",
+        )
         > _FIRST_TARGET_CONTEXT_THRESHOLD_PERCENT
     )
     result["reference_consistency_issue"] = _as_bool(
         result["reference_consistency_flag"]
     )
     result["plausibility_issue"] = (
-        pd.to_numeric(result["outside_plausibility_count"], errors="coerce").fillna(0)
-        > 0
+        _numeric_series(result, "outside_plausibility_count") > 0
     )
-    result["cycle_gap_issue"] = (
-        pd.to_numeric(result["cycle_gap_count"], errors="coerce").fillna(0) > 0
-    )
+    result["cycle_gap_issue"] = _numeric_series(result, "cycle_gap_count") > 0
     result["large_adjacent_target_jump_issue"] = (
-        pd.to_numeric(
-            result["maximum_absolute_adjacent_target_change_percent"],
-            errors="coerce",
-        ).fillna(0)
+        _numeric_series(
+            result,
+            "maximum_absolute_adjacent_target_change_percent",
+        )
         > _LARGE_TARGET_STEP_PERCENT
     )
-    invalid = pd.to_numeric(
-        result.get("invalid_capacity_operation_count", 0), errors="coerce"
+    result["invalid_capacity_quarantine_issue"] = (
+        _numeric_series(result, "invalid_capacity_operation_count") > 0
     )
-    if not isinstance(invalid, pd.Series):
-        invalid = pd.Series(0, index=result.index, dtype=float)
-    result["invalid_capacity_quarantine_issue"] = invalid.fillna(0) > 0
     result["evaluation_coverage_issue"] = ~_as_bool(result["is_evaluated"])
 
     disproportionate_columns = [
@@ -268,21 +268,28 @@ def _association_table(profile: pd.DataFrame) -> pd.DataFrame:
         values = pd.to_numeric(profile[field], errors="coerce")
         for outcome in outcomes:
             outcome_values = pd.to_numeric(profile[outcome], errors="coerce")
-            pair = pd.DataFrame({"condition": values, "outcome": outcome_values}).dropna()
+            pair = pd.DataFrame(
+                {"condition": values, "outcome": outcome_values}
+            ).dropna()
             rho = _spearman(pair["condition"], pair["outcome"])
             rows.append(
                 {
                     "condition_field": field,
                     "outcome_field": outcome,
                     "complete_battery_count": int(len(pair)),
-                    "condition_unique_value_count": int(pair["condition"].nunique()),
+                    "condition_unique_value_count": int(
+                        pair["condition"].nunique()
+                    ),
                     "spearman_rho": rho,
                     "association_status": (
-                        "diagnostic_available" if rho is not None else "insufficient_variation_or_support"
+                        "diagnostic_available"
+                        if rho is not None
+                        else "insufficient_variation_or_support"
                     ),
                     "interpretation_boundary": (
-                        "Univariate battery-level rank association only; protocol fields "
-                        "are observational, confounded, and do not establish causality."
+                        "Univariate battery-level rank association only; protocol "
+                        "fields are observational, confounded, and do not establish "
+                        "causality."
                     ),
                 }
             )
@@ -294,22 +301,31 @@ def _temperature_strata(
     predictions: pd.DataFrame,
 ) -> pd.DataFrame:
     field = "ambient_temperature_median_c"
+    columns = [
+        field,
+        "battery_count",
+        "evaluated_battery_count",
+        "prediction_count",
+        "supported_for_within_stratum_description",
+        "minimum_required_evaluated_batteries",
+        "persistence_row_weighted_mae",
+        "ridge_row_weighted_mae",
+        "persistence_battery_macro_mae",
+        "ridge_battery_macro_mae",
+        "ridge_improvement_vs_persistence_percent",
+        "interpretation_boundary",
+    ]
     if field not in profile.columns:
-        return pd.DataFrame(
-            columns=[
-                field,
-                "battery_count",
-                "evaluated_battery_count",
-                "prediction_count",
-                "supported_for_within_stratum_description",
-            ]
-        )
+        return pd.DataFrame(columns=columns)
+
     mapping = profile[["battery_id", field]].copy()
     mapping[field] = pd.to_numeric(mapping[field], errors="coerce")
     rows: list[dict[str, Any]] = []
     for temperature, group in mapping.dropna().groupby(field, sort=True):
         battery_ids = set(group["battery_id"].astype(str))
-        subset = predictions[predictions["battery_id"].astype(str).isin(battery_ids)].copy()
+        subset = predictions[
+            predictions["battery_id"].astype(str).isin(battery_ids)
+        ].copy()
         evaluated = set(subset["battery_id"].astype(str))
         supported = len(evaluated) >= _MIN_TEMPERATURE_STRATUM_BATTERIES
         row: dict[str, Any] = {
@@ -318,10 +334,13 @@ def _temperature_strata(
             "evaluated_battery_count": int(len(evaluated)),
             "prediction_count": int(len(subset)),
             "supported_for_within_stratum_description": supported,
-            "minimum_required_evaluated_batteries": _MIN_TEMPERATURE_STRATUM_BATTERIES,
+            "minimum_required_evaluated_batteries": (
+                _MIN_TEMPERATURE_STRATUM_BATTERIES
+            ),
             "interpretation_boundary": (
                 "Descriptive exact-temperature stratum only; not a replacement "
-                "validation score and not evidence of transferable protocol performance."
+                "validation score and not evidence of transferable protocol "
+                "performance."
             ),
         }
         if subset.empty:
@@ -344,7 +363,9 @@ def _temperature_strata(
             persistence_row = float(subset["persistence_absolute_error"].mean())
             ridge_row = float(subset["ridge_absolute_error"].mean())
             persistence_macro = float(
-                subset.groupby("battery_id")["persistence_absolute_error"].mean().mean()
+                subset.groupby("battery_id")["persistence_absolute_error"]
+                .mean()
+                .mean()
             )
             ridge_macro = float(
                 subset.groupby("battery_id")["ridge_absolute_error"].mean().mean()
@@ -356,13 +377,26 @@ def _temperature_strata(
                     "persistence_battery_macro_mae": persistence_macro,
                     "ridge_battery_macro_mae": ridge_macro,
                     "ridge_improvement_vs_persistence_percent": float(
-                        100.0 * (persistence_row - ridge_row)
+                        100.0
+                        * (persistence_row - ridge_row)
                         / max(persistence_row, np.finfo(float).eps)
                     ),
                 }
             )
         rows.append(row)
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _primary_model_result(persistence_mae: float, ridge_mae: float) -> str:
+    if ridge_mae > persistence_mae:
+        return "Persistence remains better than Ridge on the declared pooled validation."
+    if ridge_mae < persistence_mae:
+        return (
+            "Ridge is lower than persistence on the declared pooled validation; "
+            "protocol diagnostics remain post-hoc and do not independently upgrade "
+            "the declared evidence level."
+        )
+    return "Persistence and Ridge have equal pooled MAE on the declared validation."
 
 
 def build_nasa_protocol_audit(
@@ -373,6 +407,7 @@ def build_nasa_protocol_audit(
     diagnostic_priority: pd.DataFrame,
     predictions: pd.DataFrame,
     signal_feature_comparison: Mapping[str, Any] | None = None,
+    declared_evidence_level: str | None = None,
 ) -> dict[str, Any]:
     """Build protocol-aware diagnostics from existing official-run artifacts."""
     protocol_ids = _stable_ids(protocol_summary, context="NASA protocol summary")
@@ -386,8 +421,8 @@ def build_nasa_protocol_audit(
     unknown = prediction_ids - protocol_ids
     if unknown:
         raise ValueError(
-            "validation predictions contain batteries absent from NASA protocol summary: "
-            + ", ".join(sorted(unknown))
+            "validation predictions contain batteries absent from NASA protocol "
+            "summary: " + ", ".join(sorted(unknown))
         )
 
     protocol = protocol_summary.copy()
@@ -414,33 +449,58 @@ def build_nasa_protocol_audit(
         *[
             column
             for column in priority.columns
-            if column.endswith("_is_disproportionate_absolute_error_contributor")
+            if column.endswith(
+                "_is_disproportionate_absolute_error_contributor"
+            )
         ],
     ]
-    profile = protocol.merge(target, on="battery_id", how="left", validate="one_to_one")
-    profile = profile.merge(
-        priority[priority_columns], on="battery_id", how="left", validate="one_to_one"
+    profile = protocol.merge(
+        target,
+        on="battery_id",
+        how="left",
+        validate="one_to_one",
     )
-    profile = profile.merge(inventory, on="battery_id", how="left", validate="one_to_one")
-    profile = profile.merge(errors, on="battery_id", how="left", validate="one_to_one")
+    profile = profile.merge(
+        priority[priority_columns],
+        on="battery_id",
+        how="left",
+        validate="one_to_one",
+    )
+    profile = profile.merge(
+        inventory,
+        on="battery_id",
+        how="left",
+        validate="one_to_one",
+    )
+    profile = profile.merge(
+        errors,
+        on="battery_id",
+        how="left",
+        validate="one_to_one",
+    )
     profile["is_evaluated"] = profile["prediction_count"].notna()
     profile["prediction_count"] = profile["prediction_count"].fillna(0).astype(int)
     profile = _reason_columns(profile)
 
     predictions_working = predictions.copy()
-    predictions_working["battery_id"] = predictions_working["battery_id"].astype(str).str.strip()
+    predictions_working["battery_id"] = (
+        predictions_working["battery_id"].astype(str).str.strip()
+    )
     for column in ("actual", "persistence_prediction", "ridge_prediction"):
-        predictions_working[column] = pd.to_numeric(predictions_working[column], errors="coerce")
+        predictions_working[column] = pd.to_numeric(
+            predictions_working[column], errors="coerce"
+        )
 
     associations = _association_table(profile)
     strata = _temperature_strata(profile, predictions_working)
-
     evaluated = profile[profile["is_evaluated"]].copy()
     persistence_row = float(
         np.mean(
             np.abs(
                 predictions_working["actual"].to_numpy(dtype=float)
-                - predictions_working["persistence_prediction"].to_numpy(dtype=float)
+                - predictions_working["persistence_prediction"].to_numpy(
+                    dtype=float
+                )
             )
         )
     )
@@ -453,18 +513,22 @@ def build_nasa_protocol_audit(
         )
     )
     signal_comparison = dict(signal_feature_comparison or {})
-    signal_improvement = signal_comparison.get("improvement_percent")
+    evidence_level = str(declared_evidence_level or "Inconclusive")
 
     summary = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "battery_count": int(len(profile)),
         "evaluated_battery_count": int(profile["is_evaluated"].sum()),
         "unevaluated_battery_count": int((~profile["is_evaluated"]).sum()),
         "reference_start_context_battery_count": int(
             profile["reference_start_context_flag"].sum()
         ),
-        "reference_context_only_battery_count": int(profile["reference_context_only"].sum()),
-        "source_quality_issue_battery_count": int(profile["source_quality_issue"].sum()),
+        "reference_context_only_battery_count": int(
+            profile["reference_context_only"].sum()
+        ),
+        "source_quality_issue_battery_count": int(
+            profile["source_quality_issue"].sum()
+        ),
         "trajectory_continuity_issue_battery_count": int(
             profile["trajectory_continuity_issue"].sum()
         ),
@@ -475,9 +539,7 @@ def build_nasa_protocol_audit(
             profile["disproportionate_error_influence"].sum()
         ),
         "invalid_capacity_quarantine_operation_count": int(
-            pd.to_numeric(
-                profile.get("invalid_capacity_operation_count", 0), errors="coerce"
-            ).fillna(0).sum()
+            _numeric_series(profile, "invalid_capacity_operation_count").sum()
         ),
         "cycle_gap_battery_count": int(profile["cycle_gap_issue"].sum()),
         "large_adjacent_target_jump_battery_count": int(
@@ -486,45 +548,69 @@ def build_nasa_protocol_audit(
         "persistence_row_weighted_mae": persistence_row,
         "ridge_row_weighted_mae": ridge_row,
         "ridge_improvement_vs_persistence_percent": float(
-            100.0 * (persistence_row - ridge_row)
+            100.0
+            * (persistence_row - ridge_row)
             / max(persistence_row, np.finfo(float).eps)
         ),
         "ridge_better_than_persistence_battery_count": int(
             evaluated["ridge_better_than_persistence"].sum()
         ),
-        "evaluated_battery_count_for_pairwise_model_comparison": int(len(evaluated)),
-        "capacity_only_ridge_mae": signal_comparison.get("capacity_only_ridge_mae"),
-        "signal_enriched_ridge_mae": signal_comparison.get("signal_enriched_ridge_mae"),
-        "signal_enriched_improvement_percent": signal_improvement,
+        "evaluated_battery_count_for_pairwise_model_comparison": int(
+            len(evaluated)
+        ),
+        "capacity_only_ridge_mae": signal_comparison.get(
+            "capacity_only_ridge_mae"
+        ),
+        "signal_enriched_ridge_mae": signal_comparison.get(
+            "signal_enriched_ridge_mae"
+        ),
+        "signal_enriched_improvement_percent": signal_comparison.get(
+            "improvement_percent"
+        ),
         "temperature_stratum_count": int(len(strata)),
         "supported_temperature_stratum_count": int(
             strata.get(
                 "supported_for_within_stratum_description",
                 pd.Series(dtype=bool),
-            ).fillna(False).sum()
+            )
+            .fillna(False)
+            .sum()
         ),
         "association_count": int(len(associations)),
         "diagnostic_association_count": int(
-            (associations.get("association_status", pd.Series(dtype=str)) == "diagnostic_available").sum()
+            (
+                associations.get(
+                    "association_status",
+                    pd.Series(dtype=str),
+                )
+                == "diagnostic_available"
+            ).sum()
         ),
-        "predictive_evidence_level": "Unsupported",
+        "predictive_evidence_level": evidence_level,
         "protocol_audit_status": "Diagnostic",
-        "primary_model_result": (
-            "Persistence remains better than Ridge on the declared pooled validation."
+        "primary_model_result": _primary_model_result(
+            persistence_row,
+            ridge_row,
         ),
         "reference_start_semantics": (
-            "Deviation of the first observed discharge from the documented 2 Ah rating "
-            "is context, not by itself a hard target-integrity failure."
+            "Deviation of the first observed discharge from the documented 2 Ah "
+            "rating is context, not by itself a hard target-integrity failure."
+        ),
+        "evidence_preservation_boundary": (
+            "The protocol audit preserves the pre-existing scientific closeout "
+            "evidence level and does not independently upgrade or downgrade it."
         ),
         "scientific_boundary": (
-            "All batteries remain in the profile. Exact-temperature strata and rank "
-            "associations are post-hoc diagnostics only. No protocol identity is "
-            "invented, no battery is deleted, no model is refit, and no subgroup metric "
-            "replaces the declared battery-disjoint validation result."
+            "All batteries remain in the profile. Exact-temperature strata and "
+            "rank associations are post-hoc diagnostics only. No protocol identity "
+            "is invented, no battery is deleted, no model is refit, and no subgroup "
+            "metric replaces the declared battery-disjoint validation result."
         ),
     }
     return {
-        "battery_profile": profile.sort_values("battery_id", kind="mergesort").reset_index(drop=True),
+        "battery_profile": profile.sort_values(
+            "battery_id", kind="mergesort"
+        ).reset_index(drop=True),
         "temperature_strata": strata,
         "error_associations": associations,
         "summary": summary,
@@ -539,7 +625,7 @@ def _markdown(summary: Mapping[str, Any]) -> str:
             "## Result",
             "",
             f"- Protocol audit status: `{summary['protocol_audit_status']}`",
-            f"- Predictive evidence level: `{summary['predictive_evidence_level']}`",
+            f"- Preserved predictive evidence level: `{summary['predictive_evidence_level']}`",
             f"- Evaluated batteries: `{summary['evaluated_battery_count']}` / `{summary['battery_count']}`",
             f"- Rated-reference start context: `{summary['reference_start_context_battery_count']}` batteries",
             f"- Reference-context-only batteries: `{summary['reference_context_only_battery_count']}`",
@@ -558,6 +644,10 @@ def _markdown(summary: Mapping[str, Any]) -> str:
             "",
             str(summary["reference_start_semantics"]),
             "",
+            "## Evidence preservation",
+            "",
+            str(summary["evidence_preservation_boundary"]),
+            "",
             "## Scientific boundary",
             "",
             str(summary["scientific_boundary"]),
@@ -571,9 +661,10 @@ def _update_closeout(analysis_output: Path, summary: Mapping[str, Any]) -> None:
     closeout_path = reports / "scientific_closeout.json"
     markdown_path = reports / "scientific_closeout.md"
     limitation = (
-        "Protocol-aware post-hoc diagnostics show heterogeneous starting discharge, "
-        "trajectory discontinuities, and condition-dependent error structure; these "
-        "diagnostics do not establish a transferable predictive model."
+        "Protocol-aware post-hoc diagnostics show heterogeneous starting "
+        "discharge, trajectory discontinuities, and condition-dependent error "
+        "structure; these diagnostics do not establish a transferable predictive "
+        "model."
     )
     if closeout_path.is_file():
         closeout = json.loads(closeout_path.read_text(encoding="utf-8"))
@@ -582,9 +673,9 @@ def _update_closeout(analysis_output: Path, summary: Mapping[str, Any]) -> None:
         ] = {
             "status": "Diagnostic",
             "scope": (
-                "Rated-reference start context, source-quality quarantine, trajectory "
-                "continuity, validation coverage, protocol fields, and model error were "
-                "separated without filtering or refitting."
+                "Rated-reference start context, source-quality quarantine, "
+                "trajectory continuity, validation coverage, protocol fields, and "
+                "model error were separated without filtering or refitting."
             ),
         }
         closeout.setdefault("strongest_evidence", {})[
@@ -602,11 +693,16 @@ def _update_closeout(analysis_output: Path, summary: Mapping[str, Any]) -> None:
         start = "<!-- nasa-protocol-audit:start -->"
         end = "<!-- nasa-protocol-audit:end -->"
         current = markdown_path.read_text(encoding="utf-8")
-        prefix = current.split(start, 1)[0].rstrip() if start in current else current.rstrip()
+        prefix = (
+            current.split(start, 1)[0].rstrip()
+            if start in current
+            else current.rstrip()
+        )
         section = (
             f"{start}\n\n## NASA Protocol-Aware Post-hoc Audit\n\n"
             f"- Status: `Diagnostic`\n"
-            f"- Predictive evidence: `{summary['predictive_evidence_level']}`\n"
+            f"- Preserved predictive evidence: "
+            f"`{summary['predictive_evidence_level']}`\n"
             f"- Structural or coverage issues: "
             f"`{summary['structural_or_coverage_issue_battery_count']}` / "
             f"`{summary['battery_count']}` batteries\n"
@@ -637,14 +733,23 @@ def audit_nasa_protocol_run(
     missing = [name for name, path in required.items() if not path.is_file()]
     if missing:
         raise FileNotFoundError(
-            "NASA protocol audit missing required artifacts: " + ", ".join(missing)
+            "NASA protocol audit missing required artifacts: "
+            + ", ".join(missing)
         )
+
     signal_path = reports / "signal_feature_comparison.json"
     signal_comparison = (
         json.loads(signal_path.read_text(encoding="utf-8"))
         if signal_path.is_file()
         else None
     )
+    closeout_path = reports / "scientific_closeout.json"
+    declared_evidence_level: str | None = None
+    if closeout_path.is_file():
+        closeout = json.loads(closeout_path.read_text(encoding="utf-8"))
+        if closeout.get("evidence_level") is not None:
+            declared_evidence_level = str(closeout["evidence_level"])
+
     audit = build_nasa_protocol_audit(
         protocol_summary=pd.read_csv(required["protocol"]),
         source_inventory=pd.read_csv(required["inventory"]),
@@ -652,6 +757,7 @@ def audit_nasa_protocol_run(
         diagnostic_priority=pd.read_csv(required["priority"]),
         predictions=pd.read_csv(required["predictions"]),
         signal_feature_comparison=signal_comparison,
+        declared_evidence_level=declared_evidence_level,
     )
 
     profile_path = tables / "nasa_protocol_battery_profile.csv"
@@ -670,13 +776,13 @@ def audit_nasa_protocol_run(
     if manifest_path.is_file():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["nasa_protocol_aware_posthoc_audit"] = audit["summary"]
-        closeout_path = reports / "scientific_closeout.json"
         if closeout_path.is_file():
             closeout = json.loads(closeout_path.read_text(encoding="utf-8"))
             manifest["scientific_closeout"] = closeout
             manifest["limitations"] = list(closeout.get("limitations", []))
             manifest["scientific_validation"] = closeout.get(
-                "evidence_level", manifest.get("scientific_validation")
+                "evidence_level",
+                manifest.get("scientific_validation"),
             )
         paths = [
             profile_path,
@@ -687,7 +793,9 @@ def audit_nasa_protocol_run(
             reports / "scientific_closeout.json",
             reports / "scientific_closeout.md",
         ]
-        relative = [path.relative_to(analysis_root).as_posix() for path in paths]
+        relative = [
+            path.relative_to(analysis_root).as_posix() for path in paths
+        ]
         manifest["artifact_paths"] = sorted(
             set(manifest.get("artifact_paths", [])) | set(relative)
         )
