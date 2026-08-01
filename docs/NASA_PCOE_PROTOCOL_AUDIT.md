@@ -62,7 +62,11 @@ The audit requires:
 ```
 
 Battery identities in protocol, target-integrity, and priority artifacts must
-match exactly. A prediction for an unknown battery fails explicitly.
+match exactly. Every protocol battery must also appear in the filtered source
+inventory. Extra skipped inventory rows are allowed, but a missing protocol
+battery fails explicitly so import and analysis outputs from different runs
+cannot silently suppress quarantine evidence. A prediction for an unknown
+battery also fails explicitly.
 
 The audit reads the existing `scientific_closeout.json` evidence level and
 preserves it. The audit does not independently upgrade or downgrade the declared
@@ -82,17 +86,24 @@ Every imported battery remains visible with:
 - persistence and Ridge battery-level error;
 - context, structural-review, and influence-review reason codes.
 
-No row or battery is filtered.
+No row or battery is filtered. Older or minimal inventories that contain valid
+battery identities but no quarantine counter columns remain readable; their
+missing counters are reported as zero rather than causing a scalar/Series error.
 
 ### Temperature strata
 
-The audit reports descriptive metrics for exact repeated
-`ambient_temperature_median_c` values. A stratum is marked supported for
+The audit retains metadata for exact repeated
+`ambient_temperature_median_c` values. A stratum is supported for
 within-stratum description only when at least three evaluated batteries share
 that value.
 
-These metrics are not replacement validation scores. A favorable stratum cannot
-be selected to override the declared battery-disjoint pooled result.
+For one- or two-battery strata, battery and prediction counts remain visible but
+all model MAE and improvement fields are unavailable. This prevents sparse,
+favorable subgroup scores from being promoted despite the declared support
+threshold.
+
+Supported stratum metrics are still not replacement validation scores. A
+favorable stratum cannot override the declared battery-disjoint pooled result.
 
 ### Error associations
 
@@ -118,7 +129,13 @@ identify a degradation mechanism or causal protocol effect.
 
 The run manifest and scientific closeout are updated with checksums and a
 `Diagnostic` component. The existing overall predictive evidence level is
-preserved unchanged.
+preserved unchanged. Re-running the audit replaces only its paired Markdown
+marker section and preserves all sections written after it by other tools.
+
+The limitation added to the closeout is constructed from observed nonzero
+counts and supported diagnostics. When those dimensions are absent or
+underpowered, the text remains neutral rather than asserting trajectory or
+condition effects that were not observed.
 
 ## Scientific interpretation
 
@@ -127,6 +144,7 @@ software behavior. They do not establish predictive value.
 
 For the current official NASA run, persistence remains better than Ridge and
 signal-enriched Ridge is worse than capacity-only Ridge, so the pre-existing
-predictive evidence remains `Unsupported`. Protocol-aware diagnostics explain
-where error and heterogeneity occur; they do not manufacture a positive model
-result.
+predictive evidence remains `Unsupported`. The primary model sentence is always
+derived from the loaded pooled metrics, while the overall evidence level is
+preserved from the existing closeout. Protocol-aware diagnostics explain where
+error and heterogeneity occur; they do not manufacture a positive model result.
