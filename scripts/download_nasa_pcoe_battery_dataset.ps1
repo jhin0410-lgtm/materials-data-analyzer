@@ -9,6 +9,7 @@ $ProgressPreference = "SilentlyContinue"
 $sourceUrl = "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
 $archivePath = Join-Path $outputRoot "5_Battery_Data_Set.zip"
+$partialPath = "$archivePath.partial"
 $receiptPath = Join-Path $outputRoot "retrieval_receipt.json"
 
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
@@ -17,8 +18,37 @@ if ((Test-Path $archivePath) -and -not $Force) {
     throw "Archive already exists: $archivePath. Use -Force to replace it explicitly."
 }
 
+if (Test-Path $partialPath) {
+    Remove-Item -Force $partialPath
+}
+
 $startedAt = [DateTimeOffset]::UtcNow
-Invoke-WebRequest -Uri $sourceUrl -OutFile $archivePath
+try {
+    Invoke-WebRequest -Uri $sourceUrl -OutFile $partialPath
+
+    $partialFile = Get-Item $partialPath
+    if ($partialFile.Length -le 0) {
+        throw "Downloaded archive is empty: $partialPath"
+    }
+
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($partialPath)
+    try {
+        if ($zip.Entries.Count -le 0) {
+            throw "Downloaded ZIP contains no entries: $partialPath"
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+
+    Move-Item -Force $partialPath $archivePath
+}
+catch {
+    if (Test-Path $partialPath) {
+        Remove-Item -Force $partialPath
+    }
+    throw
+}
 $completedAt = [DateTimeOffset]::UtcNow
 
 $file = Get-Item $archivePath
@@ -34,6 +64,7 @@ $receipt = [ordered]@{
     archive_filename = $file.Name
     archive_sha256 = $sha256
     size_bytes = $file.Length
+    zip_entry_count = $zip.Entries.Count
     credential_policy = [ordered]@{
         network_access_required = $true
         send_credentials = $false
