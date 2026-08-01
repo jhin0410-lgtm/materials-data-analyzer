@@ -44,11 +44,7 @@ For each battery the audit records:
 - maximum reconstruction error for `100 * discharge_capacity_ah / reference_capacity_ah` when both source fields exist;
 - medians of available physical observed-condition features such as ambient temperature, absolute current, discharge duration, voltage range, and temperature range.
 
-`current_target` is a legacy forecast-table alias for the target value at the
-forecast origin. It is not electrical current and is never emitted as an
-observed-condition field. New forecast tables expose the same value explicitly
-as `origin_target_percent`; fitted features use that explicit name. Physical
-current conditions use raw-signal-derived fields such as `current_abs_max_a`.
+`current_target` is a legacy forecast-table alias for the configured target value at the forecast origin. It is not electrical current and is never emitted as an observed-condition field. New forecast tables expose the same value explicitly as `origin_target_value`; metadata records the source target column and therefore its units. Physical current conditions use raw-signal-derived fields such as `current_abs_max_a`.
 
 Condition profiles prefer all validated cycle observations. Forecast-table values are used only for condition fields not available in the validated cycle summary. This prevents short trajectories or forecast-table feature omission from hiding available condition differences.
 
