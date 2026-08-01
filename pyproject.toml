@@ -38,6 +38,7 @@ dev = [
 [project.scripts]
 mda = "materials_data_analyzer.cli:main"
 mda-battery-intelligence = "materials_data_analyzer.battery_cli:main"
+mda-battery-result-audit = "materials_data_analyzer.battery_audit_cli:main"
 mda-nasa-battery-import = "materials_data_analyzer.nasa_battery_cli:main"
 
 [project.urls]
