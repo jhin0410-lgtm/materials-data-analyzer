@@ -57,11 +57,17 @@ The audit requires:
 │   ├── battery_diagnostic_priority.csv
 │   └── validation_predictions.csv
 └── reports/
+    ├── scientific_closeout.json
     └── signal_feature_comparison.json  # optional
 ```
 
 Battery identities in protocol, target-integrity, and priority artifacts must
 match exactly. A prediction for an unknown battery fails explicitly.
+
+The audit reads the existing `scientific_closeout.json` evidence level and
+preserves it. The audit does not independently upgrade or downgrade the declared
+predictive evidence. When no prior evidence level exists, the audit reports
+`Inconclusive` rather than inventing a stronger conclusion.
 
 ## Diagnostics
 
@@ -111,15 +117,16 @@ identify a degradation mechanism or causal protocol effect.
 ```
 
 The run manifest and scientific closeout are updated with checksums and a
-`Diagnostic` component. The existing overall predictive evidence level is not
-upgraded.
+`Diagnostic` component. The existing overall predictive evidence level is
+preserved unchanged.
 
 ## Scientific interpretation
 
 A valid official-source import and admitted raw signal establish provenance and
 software behavior. They do not establish predictive value.
 
-When persistence remains better than Ridge and signal-enriched Ridge is worse
-than capacity-only Ridge, the Ridge predictive hypothesis remains
-`Unsupported`. Protocol-aware diagnostics explain where error and heterogeneity
-occur; they do not manufacture a positive model result.
+For the current official NASA run, persistence remains better than Ridge and
+signal-enriched Ridge is worse than capacity-only Ridge, so the pre-existing
+predictive evidence remains `Unsupported`. Protocol-aware diagnostics explain
+where error and heterogeneity occur; they do not manufacture a positive model
+result.
