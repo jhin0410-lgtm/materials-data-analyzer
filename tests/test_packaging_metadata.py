@@ -28,6 +28,9 @@ def test_pyproject_declares_stable_console_commands() -> None:
     assert payload["project"]["scripts"]["mda-battery-intelligence"] == (
         "materials_data_analyzer.battery_cli:main"
     )
+    assert payload["project"]["scripts"]["mda-nasa-battery-import"] == (
+        "materials_data_analyzer.nasa_battery_cli:main"
+    )
     assert payload["tool"]["setuptools"]["dynamic"]["version"]["attr"] == (
         "platform_core.version.PLATFORM_VERSION"
     )
