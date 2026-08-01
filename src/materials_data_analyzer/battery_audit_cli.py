@@ -4,9 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from platform_core.battery_intelligence.target_comparability import (
-    audit_battery_intelligence_run,
-)
+from platform_core.battery_intelligence import audit_battery_intelligence_run
 
 
 def build_parser() -> argparse.ArgumentParser:
