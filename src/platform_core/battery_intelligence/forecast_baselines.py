@@ -13,7 +13,7 @@ import pandas as pd
 
 
 BASELINE_DEFINITIONS: dict[str, str] = {
-    "persistence": "Use the current retention as the future prediction.",
+    "persistence": "Use the origin retention as the future prediction.",
     "trailing_mean": "Use the origin-only trailing retention mean.",
     "local_linear": "Extrapolate the trailing ordinary-least-squares slope.",
     "damped_trend": "Extrapolate one half of the trailing slope to limit instability.",
@@ -22,13 +22,23 @@ BASELINE_DEFINITIONS: dict[str, str] = {
 }
 
 
+def _origin_target(row: pd.Series) -> float:
+    if "origin_target_percent" in row and pd.notna(row["origin_target_percent"]):
+        return float(row["origin_target_percent"])
+    if "current_target" in row and pd.notna(row["current_target"]):
+        return float(row["current_target"])
+    raise ValueError(
+        "forecast row missing origin_target_percent and legacy current_target"
+    )
+
+
 def _history_points(row: pd.Series, lags: Sequence[int]) -> tuple[np.ndarray, np.ndarray]:
     points: list[tuple[float, float]] = []
     for lag in sorted(lags, reverse=True):
         column = f"target_lag_{lag}"
         if column in row and pd.notna(row[column]):
             points.append((-float(lag), float(row[column])))
-    points.append((0.0, float(row["current_target"])))
+    points.append((0.0, _origin_target(row)))
     x = np.asarray([item[0] for item in points], dtype=float)
     y = np.asarray([item[1] for item in points], dtype=float)
     return x, y
@@ -65,14 +75,21 @@ def build_baseline_predictions(
     lags: Sequence[int],
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Return deterministic origin-only predictions for transparent baselines."""
-    required = {"current_target", "target_rolling_mean", "target_rolling_slope"}
+    required = {"target_rolling_mean", "target_rolling_slope"}
     missing = sorted(required - set(forecast_table.columns))
     if missing:
         raise ValueError("forecast table missing baseline columns: " + ", ".join(missing))
+    if not {
+        "origin_target_percent",
+        "current_target",
+    }.intersection(forecast_table.columns):
+        raise ValueError(
+            "forecast table missing origin_target_percent and legacy current_target"
+        )
 
     rows: list[dict[str, float]] = []
     for _, row in forecast_table.iterrows():
-        current = float(row["current_target"])
+        current = _origin_target(row)
         trailing_slope = float(row["target_rolling_slope"])
         history_x, history_y = _history_points(row, lags)
         robust_slope = _median_pairwise_slope(history_x, history_y)
@@ -95,6 +112,12 @@ def build_baseline_predictions(
         "baseline_names": list(BASELINE_DEFINITIONS),
         "definitions": BASELINE_DEFINITIONS,
         "origin_only": True,
+        "origin_target_field": (
+            "origin_target_percent"
+            if "origin_target_percent" in forecast_table.columns
+            else "current_target"
+        ),
+        "legacy_current_target_alias_is_electrical_current": False,
         "full_trajectory_knee_used": False,
         "silent_clipping": False,
     }
