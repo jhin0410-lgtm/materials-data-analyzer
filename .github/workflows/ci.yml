@@ -133,22 +133,30 @@ jobs:
           test -f outputs/installed_nasa_battery_import_smoke/nasa_pcoe_import_manifest.json
 
           mda-battery-intelligence --help
+          mda-battery-result-audit --help
           mda-battery-intelligence \
             --cycle-summary data/processed/kaggle_nasa_battery_cycle_summary_analysis_ready.csv \
             --output outputs/installed_battery_intelligence_smoke \
             --n-splits 3 \
             --knee-bootstrap-samples 0
+          mda-battery-result-audit \
+            --run-output outputs/installed_battery_intelligence_smoke
           test -f outputs/installed_battery_intelligence_smoke/run_manifest.json
           test -f outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.md
           test -f outputs/installed_battery_intelligence_smoke/reports/error_diagnostics_summary.json
+          test -f outputs/installed_battery_intelligence_smoke/reports/target_comparability_audit.json
+          test -f outputs/installed_battery_intelligence_smoke/reports/target_comparability_audit.md
           test -f outputs/installed_battery_intelligence_smoke/tables/validation_predictions.csv
           test -f outputs/installed_battery_intelligence_smoke/tables/model_comparison.csv
           test -f outputs/installed_battery_intelligence_smoke/tables/error_by_battery.csv
           test -f outputs/installed_battery_intelligence_smoke/tables/error_by_lifecycle_segment.csv
           test -f outputs/installed_battery_intelligence_smoke/tables/high_error_predictions.csv
+          test -f outputs/installed_battery_intelligence_smoke/tables/target_integrity_by_battery.csv
+          test -f outputs/installed_battery_intelligence_smoke/tables/error_concentration_by_battery.csv
           test -f outputs/installed_battery_intelligence_smoke/figures/model_mae_comparison.png
           python -c "import json, pathlib; p=json.loads(pathlib.Path('outputs/installed_battery_intelligence_smoke/reports/validation_summary.json').read_text()); assert p['summary']['best_baseline_name']; assert len(p['summary']['model_metrics']) == 7"
-          python -c "import json, pathlib; p=json.loads(pathlib.Path('outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.json').read_text()); assert p['component_statuses']['battery_disjoint_leakage_control']['status'] == 'Supported'; assert p['component_statuses']['engineering_decision_readiness']['status'] == 'Not ready'"
+          python -c "import json, pathlib; p=json.loads(pathlib.Path('outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.json').read_text()); assert p['component_statuses']['battery_disjoint_leakage_control']['status'] == 'Supported'; assert p['component_statuses']['engineering_decision_readiness']['status'] == 'Not ready'; assert 'target_and_cross_battery_comparability' in p['component_statuses']"
+          python -c "import json, pathlib; p=json.loads(pathlib.Path('outputs/installed_battery_intelligence_smoke/run_manifest.json').read_text()); assert 'target_comparability_audit' in p"
 
       - name: Upload package artifacts
         if: always()
@@ -168,6 +176,8 @@ jobs:
             outputs/installed_battery_intelligence_smoke/reports/error_diagnostics_summary.json
             outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.json
             outputs/installed_battery_intelligence_smoke/reports/scientific_closeout.md
+            outputs/installed_battery_intelligence_smoke/reports/target_comparability_audit.json
+            outputs/installed_battery_intelligence_smoke/reports/target_comparability_audit.md
             outputs/installed_battery_intelligence_smoke/tables/model_comparison.csv
             outputs/installed_battery_intelligence_smoke/tables/trajectory_diagnostics.csv
             outputs/installed_battery_intelligence_smoke/tables/validation_by_battery.csv
@@ -176,6 +186,8 @@ jobs:
             outputs/installed_battery_intelligence_smoke/tables/error_by_knee_phase.csv
             outputs/installed_battery_intelligence_smoke/tables/error_by_domain_status.csv
             outputs/installed_battery_intelligence_smoke/tables/high_error_predictions.csv
+            outputs/installed_battery_intelligence_smoke/tables/target_integrity_by_battery.csv
+            outputs/installed_battery_intelligence_smoke/tables/error_concentration_by_battery.csv
             outputs/installed_battery_intelligence_smoke/figures/model_mae_comparison.png
             outputs/installed_battery_intelligence_smoke/figures/ridge_vs_best_baseline_error_delta.png
           if-no-files-found: warn
