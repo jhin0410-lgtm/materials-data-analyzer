@@ -267,7 +267,6 @@ def _parse_matlab_datetime(value: Any) -> datetime | None:
             minute,
             second,
             microsecond,
-            tzinfo=timezone.utc,
         )
     except ValueError:
         return None
@@ -726,7 +725,7 @@ def import_nasa_pcoe_battery(
             }
         )
 
-    cycle_summary["operation_started_at_utc"] = cycle_summary[
+    cycle_summary["operation_started_at_source_time"] = cycle_summary[
         "_operation_started_at"
     ].map(lambda value: value.isoformat() if value is not None else None)
     cycle_summary = cycle_summary.drop(columns=["_operation_started_at"])
@@ -739,7 +738,7 @@ def import_nasa_pcoe_battery(
         "reference_capacity_ah",
         "capacity_retention_percent",
         "ambient_temperature_c",
-        "operation_started_at_utc",
+        "operation_started_at_source_time",
         "source_mat_file",
         "source_operation_index",
     ]
@@ -837,9 +836,9 @@ def import_nasa_pcoe_battery(
                 "source Time, divided by 3600."
             ),
             "global_time_s_derivation": (
-                "Discharge operation timestamp relative to the earliest valid "
-                "discharge timestamp in each battery plus source elapsed Time; "
-                "column omitted unless every imported operation timestamp is valid."
+                "Relative difference between source operation timestamps within each battery "
+                "plus source elapsed Time. Source timezone is not asserted; the "
+                "column is omitted unless every operation timestamp is valid."
             ),
             "no_interpolation": True,
             "no_smoothing": True,
