@@ -129,19 +129,17 @@ def _write_required_summary_artifacts(
         (reports / "nasa_protocol_audit.json").write_text(
             json.dumps(
                 {
-                    "summary": {
-                        "protocol_audit_status": "Diagnostic",
-                        "predictive_evidence_level": "Unsupported",
-                        "reference_start_context_battery_count": 2,
-                        "reference_context_only_battery_count": 1,
-                        "source_quality_issue_battery_count": 1,
-                        "trajectory_continuity_issue_battery_count": 1,
-                        "structural_or_coverage_issue_battery_count": 1,
-                        "disproportionate_error_influence_battery_count": 1,
-                        "ridge_improvement_vs_persistence_percent": -33.3333,
-                        "ridge_better_than_persistence_battery_count": 0,
-                        "supported_temperature_stratum_count": 1,
-                    }
+                    "protocol_audit_status": "Diagnostic",
+                    "predictive_evidence_level": "Unsupported",
+                    "reference_start_context_battery_count": 2,
+                    "reference_context_only_battery_count": 1,
+                    "source_quality_issue_battery_count": 1,
+                    "trajectory_continuity_issue_battery_count": 1,
+                    "structural_or_coverage_issue_battery_count": 1,
+                    "disproportionate_error_influence_battery_count": 1,
+                    "ridge_improvement_vs_persistence_percent": -33.3333,
+                    "ridge_better_than_persistence_battery_count": 0,
+                    "supported_temperature_stratum_count": 1,
                 }
             ),
             encoding="utf-8",
