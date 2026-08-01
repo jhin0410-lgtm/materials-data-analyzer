@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from materials_data_analyzer.battery_audit_cli import _top_ids as audit_top_ids
+from materials_data_analyzer.battery_cli import _top_ids as battery_top_ids
 from platform_core.battery_intelligence.influence_triage import (
     audit_battery_influence_run,
     build_battery_influence_triage,
@@ -96,6 +98,25 @@ def test_balanced_small_cohort_is_not_disproportionately_flagged() -> None:
         result["summary"]["pooled_interpretation"]
         == "not_flagged_but_protocol_identity_unverified"
     )
+
+
+def test_cli_top_ids_support_custom_group_column() -> None:
+    summary = {
+        "top_absolute_error_contributors": {
+            "persistence": [
+                {
+                    "cell_name": "CELL-7",
+                    "battery_mae": 4.0,
+                    "total_absolute_error_fraction": 0.7,
+                    "row_weighted_mae_reduction_if_omitted": 2.0,
+                    "battery_macro_mae_reduction_if_omitted": 1.0,
+                }
+            ]
+        }
+    }
+
+    assert audit_top_ids(summary, "persistence") == "CELL-7"
+    assert battery_top_ids(summary, "persistence") == "CELL-7"
 
 
 def test_audit_persists_artifacts_and_updates_manifest(tmp_path: Path) -> None:
