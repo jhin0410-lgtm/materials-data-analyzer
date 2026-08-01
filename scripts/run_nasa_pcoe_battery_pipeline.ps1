@@ -81,6 +81,31 @@ function Write-DiagnosticReasonSummary {
     }
 }
 
+function Write-ProtocolAuditSummary {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$ProtocolAudit
+    )
+
+    $summary = $ProtocolAudit.summary
+    if ($null -eq $summary) {
+        throw "NASA protocol audit JSON is missing the summary object"
+    }
+
+    Write-Host "protocol_audit_available: True"
+    Write-Host "protocol_audit_status: $($summary.protocol_audit_status)"
+    Write-Host "predictive_evidence_level: $($summary.predictive_evidence_level)"
+    Write-Host "reference_start_context_battery_count: $($summary.reference_start_context_battery_count)"
+    Write-Host "reference_context_only_battery_count: $($summary.reference_context_only_battery_count)"
+    Write-Host "source_quality_issue_battery_count: $($summary.source_quality_issue_battery_count)"
+    Write-Host "trajectory_continuity_issue_battery_count: $($summary.trajectory_continuity_issue_battery_count)"
+    Write-Host "structural_or_coverage_issue_battery_count: $($summary.structural_or_coverage_issue_battery_count)"
+    Write-Host "disproportionate_error_influence_battery_count: $($summary.disproportionate_error_influence_battery_count)"
+    Write-Host "ridge_improvement_vs_persistence_percent: $($summary.ridge_improvement_vs_persistence_percent)"
+    Write-Host "ridge_better_than_persistence_battery_count: $($summary.ridge_better_than_persistence_battery_count)"
+    Write-Host "supported_temperature_stratum_count: $($summary.supported_temperature_stratum_count)"
+}
+
 $repositoryRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $PSScriptRoot "..")
 )
@@ -133,7 +158,7 @@ try {
             }
         }
 
-        Write-Host "[1/2] Importing official NASA PCoE archive with rated 2 Ah target reference..."
+        Write-Host "[1/3] Importing official NASA PCoE archive with rated 2 Ah target reference..."
         $importArguments = @(
             "-m",
             "materials_data_analyzer.nasa_battery_cli",
@@ -154,7 +179,7 @@ try {
         $rawSignalPath = Join-Path $ImportOutput "nasa_pcoe_raw_signal.csv"
         $provenancePath = Join-Path $ImportOutput "nasa_pcoe_raw_signal_provenance.json"
 
-        Write-Host "[2/2] Running signal-enriched battery intelligence and audits..."
+        Write-Host "[2/3] Running signal-enriched battery intelligence and audits..."
         $analysisArguments = @(
             "-m",
             "materials_data_analyzer.battery_cli",
@@ -176,6 +201,20 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Battery Intelligence analysis failed with exit code $LASTEXITCODE"
         }
+
+        Write-Host "[3/3] Running protocol-aware post-hoc audit..."
+        $protocolAuditArguments = @(
+            "-m",
+            "materials_data_analyzer.nasa_protocol_audit_cli",
+            "--import-output",
+            $ImportOutput,
+            "--analysis-output",
+            $AnalysisOutput
+        )
+        & $PythonExecutable @protocolAuditArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "NASA PCoE protocol audit failed with exit code $LASTEXITCODE"
+        }
     }
     else {
         Write-Host "Summary-only mode: existing import and analysis artifacts will not be recomputed."
@@ -187,6 +226,7 @@ try {
     $closeoutPath = Join-Path $AnalysisOutput "reports/scientific_closeout.json"
     $priorityPath = Join-Path $AnalysisOutput "tables/battery_diagnostic_priority.csv"
     $signalComparisonPath = Join-Path $AnalysisOutput "reports/signal_feature_comparison.json"
+    $protocolAuditPath = Join-Path $AnalysisOutput "reports/nasa_protocol_audit.json"
 
     $importManifest = Read-RequiredJson -Path $importManifestPath
     $targetAudit = Read-RequiredJson -Path $targetAuditPath
@@ -196,6 +236,7 @@ try {
     Write-Host ""
     Write-Host "NASA PCoE pipeline summary"
     Write-Host "analysis_recomputed: $(-not $SummaryOnly)"
+    Write-Host "protocol_audit_recomputed: $(-not $SummaryOnly)"
     Write-Host "target_reference_method: $($importManifest.target_reference.method)"
     Write-Host "rated_capacity_ah: $($importManifest.target_reference.rated_capacity_ah)"
     Write-Host "retrieval_receipt_verified: $($importManifest.retrieval_receipt_verified)"
@@ -219,6 +260,14 @@ try {
         Write-Host "capacity_only_ridge_mae: $($signalComparison.capacity_only_ridge_mae)"
         Write-Host "signal_enriched_ridge_mae: $($signalComparison.signal_enriched_ridge_mae)"
         Write-Host "signal_enriched_improvement_percent: $($signalComparison.improvement_percent)"
+    }
+
+    if (Test-Path -LiteralPath $protocolAuditPath -PathType Leaf) {
+        $protocolAudit = Read-RequiredJson -Path $protocolAuditPath
+        Write-ProtocolAuditSummary -ProtocolAudit $protocolAudit
+    }
+    else {
+        Write-Host "protocol_audit_available: False"
     }
 
     Write-DiagnosticReasonSummary -PriorityPath $priorityPath
