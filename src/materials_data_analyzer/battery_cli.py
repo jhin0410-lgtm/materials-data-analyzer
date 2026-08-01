@@ -55,7 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _top_ids(summary: dict, model: str) -> str:
     records = summary["top_absolute_error_contributors"].get(model, [])
-    return ",".join(str(record["battery_id"]) for record in records)
+    return ",".join(str(next(iter(record.values()))) for record in records)
 
 
 def main() -> None:
