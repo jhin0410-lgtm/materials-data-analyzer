@@ -15,6 +15,10 @@ from .target_comparability import (
     audit_battery_intelligence_run,
     build_target_comparability_audit,
 )
+from .influence_triage import (
+    audit_battery_influence_run,
+    build_battery_influence_triage,
+)
 from .closeout import scientific_closeout
 from .workflow import run_battery_intelligence
 from .nasa_pcoe_resilient import import_nasa_pcoe_battery
@@ -33,6 +37,8 @@ __all__ = [
     "audit_raw_signal_admission",
     "build_target_comparability_audit",
     "audit_battery_intelligence_run",
+    "build_battery_influence_triage",
+    "audit_battery_influence_run",
     "scientific_closeout",
     "run_battery_intelligence",
     "import_nasa_pcoe_battery",
