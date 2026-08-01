@@ -25,6 +25,9 @@ EXPECTED_UNITS = {
     "global_time_s": {"s", "sec", "second", "seconds"},
 }
 NASA_IMPORT_TRANSFORMATION = "mda_nasa_pcoe_mat_to_canonical_csv"
+NASA_PCOE_OFFICIAL_ARCHIVE_URL = (
+    "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
+)
 
 
 def _normalized_unit(value: Any) -> str:
@@ -38,8 +41,8 @@ def _source_retrieval_check(
 
     Generic user-authored provenance contracts retain their existing behavior.
     NASA PCoE importer artifacts are more specific: because the importer knows
-    its acquisition receipt schema, predictive admission requires a verified
-    receipt rather than a user-entered timestamp alone.
+    its official acquisition URL and receipt schema, predictive admission
+    requires a complete receipt for that exact official archive.
     """
     if provenance is None:
         return False, True, "not_applicable_no_provenance"
@@ -52,11 +55,20 @@ def _source_retrieval_check(
     receipt = provenance.get("retrieval_receipt")
     if not isinstance(receipt, Mapping):
         return True, False, "nasa_import_receipt_missing"
-    required_receipt_fields = {"source_url", "retrieved_at", "archive_sha256", "receipt_sha256"}
-    complete = all(receipt.get(field) not in {None, ""} for field in required_receipt_fields)
+    required_receipt_fields = {
+        "source_url",
+        "retrieved_at",
+        "archive_sha256",
+        "receipt_sha256",
+    }
+    complete = all(
+        receipt.get(field) not in {None, ""} for field in required_receipt_fields
+    )
     if not complete:
         return True, False, "nasa_import_receipt_incomplete"
-    return True, True, "nasa_import_receipt_verified"
+    if str(receipt.get("source_url", "")) != NASA_PCOE_OFFICIAL_ARCHIVE_URL:
+        return True, False, "nasa_import_receipt_not_official_archive"
+    return True, True, "nasa_import_official_receipt_verified"
 
 
 def audit_raw_signal_admission(
@@ -184,6 +196,7 @@ def audit_raw_signal_admission(
         "predictive_use_policy": (
             "Raw-signal features enter model comparison only when every admission "
             "check passes. NASA importer artifacts additionally require a verified "
-            "retrieval receipt. Extraction alone does not establish scientific value."
+            "receipt for the exact official archive URL. Extraction alone does not "
+            "establish scientific value."
         ),
     }
