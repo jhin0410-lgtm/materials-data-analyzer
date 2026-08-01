@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from materials_data_analyzer.battery_audit_cli import _top_ids as audit_top_ids
 from materials_data_analyzer.battery_cli import _top_ids as battery_top_ids
@@ -98,6 +99,61 @@ def test_balanced_small_cohort_is_not_disproportionately_flagged() -> None:
         result["summary"]["pooled_interpretation"]
         == "not_flagged_but_protocol_identity_unverified"
     )
+
+
+def test_unevaluated_battery_remains_visible_with_unavailable_metrics() -> None:
+    target = pd.concat(
+        [
+            _target_integrity(),
+            pd.DataFrame(
+                {
+                    "battery_id": ["E"],
+                    "outside_plausibility_count": [0],
+                    "reference_consistency_flag": [False],
+                    "first_target_deviation_from_100_percent": [0.0],
+                    "maximum_absolute_adjacent_target_change_percent": [1.0],
+                    "cycle_gap_count": [0],
+                    "target_comparability_flag": [False],
+                    "median_observed_ambient_temperature_c": [24.0],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    result = build_battery_influence_triage(
+        target_integrity=target,
+        predictions=_predictions(),
+        group_column="battery_id",
+    )
+
+    influence = result["influence_by_model"]
+    battery_e = influence[influence["battery_id"] == "E"]
+    assert len(battery_e) == len(result["summary"]["models"])
+    assert (battery_e["prediction_count"] == 0).all()
+    assert not battery_e["is_evaluated"].any()
+    assert battery_e["battery_mae"].isna().all()
+    assert battery_e["total_absolute_error_fraction"].isna().all()
+
+    priority_e = result["diagnostic_priority"].loc[
+        result["diagnostic_priority"]["battery_id"] == "E"
+    ].iloc[0]
+    assert bool(priority_e["unevaluated_in_any_model"]) is True
+    assert "no_exact_horizon_forecast_rows" in priority_e["diagnostic_flag_reasons"]
+    assert bool(priority_e["requires_source_protocol_review"]) is True
+    assert result["summary"]["unevaluated_battery_count"] == 1
+
+
+def test_reserved_group_column_collision_is_rejected() -> None:
+    target = _target_integrity().rename(columns={"battery_id": "model"})
+    predictions = _predictions().rename(columns={"battery_id": "model"})
+
+    with pytest.raises(ValueError, match="collides with a reserved"):
+        build_battery_influence_triage(
+            target_integrity=target,
+            predictions=predictions,
+            group_column="model",
+        )
 
 
 def test_cli_top_ids_support_custom_group_column() -> None:
