@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from platform_core.battery_intelligence import BatteryIntelligenceConfig
-from platform_core.battery_intelligence.target_comparability import (
+from platform_core.battery_intelligence import (
+    BatteryIntelligenceConfig,
     audit_battery_intelligence_run,
     build_target_comparability_audit,
 )
