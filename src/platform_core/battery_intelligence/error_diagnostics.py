@@ -218,6 +218,15 @@ def build_error_diagnostics(
         enriched["ridge_absolute_error"]
         - enriched["row_oracle_baseline_absolute_error"]
     )
+    # Compatibility aliases retain the v1 output names while the summary makes
+    # clear that this is an outcome-known row oracle, not a deployable baseline.
+    enriched["best_baseline_name"] = enriched["row_oracle_baseline_name"]
+    enriched["best_baseline_absolute_error"] = enriched[
+        "row_oracle_baseline_absolute_error"
+    ]
+    enriched["ridge_minus_best_baseline_absolute_error"] = enriched[
+        "ridge_minus_row_oracle_baseline_absolute_error"
+    ]
     enriched["domain_status"] = np.where(
         enriched["outside_training_range_feature_count"] > 0,
         "out_of_domain",
