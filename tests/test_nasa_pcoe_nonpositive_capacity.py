@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -11,41 +12,59 @@ from scipy.io import savemat
 from platform_core.battery_intelligence import import_nasa_pcoe_battery
 
 
-def _write_battery_with_nonpositive_capacity(
+_MISSING = object()
+
+
+def _write_battery_with_invalid_capacity(
     path: Path,
     *,
-    capacity_value: float,
+    capacity_value: Any,
 ) -> None:
     operations: list[dict[str, object]] = []
     for cycle in range(1, 6):
         elapsed = np.linspace(0.0, 3600.0, 11)
-        capacity = 2.0 - 0.05 * cycle
+        data: dict[str, object] = {
+            "Voltage_measured": np.linspace(4.2, 3.0, 11),
+            "Current_measured": np.full(11, -1.0),
+            "Temperature_measured": np.linspace(25.0, 28.0, 11),
+            "Time": elapsed,
+            "Capacity": 2.0 - 0.05 * cycle,
+        }
         if cycle == 3:
-            capacity = capacity_value
+            if capacity_value is _MISSING:
+                data.pop("Capacity")
+            else:
+                data["Capacity"] = capacity_value
         operations.append(
             {
                 "type": "discharge",
                 "ambient_temperature": 25.0,
                 "time": np.array([2026, 1, cycle, 0, 0, 0], dtype=float),
-                "data": {
-                    "Voltage_measured": np.linspace(4.2, 3.0, 11),
-                    "Current_measured": np.full(11, -1.0),
-                    "Temperature_measured": np.linspace(25.0, 28.0, 11),
-                    "Time": elapsed,
-                    "Capacity": capacity,
-                },
+                "data": data,
             }
         )
-    savemat(path, {"B0042": {"cycle": np.array(operations, dtype=object)}})
+    savemat(path, {"B0050": {"cycle": np.array(operations, dtype=object)}})
 
 
-@pytest.mark.parametrize("capacity_value", [0.0, -0.25])
-def test_nonpositive_capacity_is_quarantined_without_renumbering(
+@pytest.mark.parametrize(
+    ("capacity_value", "expected_issue"),
+    [
+        (0.0, "nonpositive"),
+        (-0.25, "nonpositive"),
+        (np.nan, "nonfinite"),
+        (np.inf, "nonfinite"),
+        (np.array([1.0, 2.0]), "nonscalar"),
+        ("not-a-number", "nonnumeric"),
+        (_MISSING, "missing"),
+    ],
+)
+def test_invalid_capacity_is_quarantined_without_renumbering(
     tmp_path: Path,
-    capacity_value: float,
+    capacity_value: Any,
+    expected_issue: str,
 ) -> None:
-    source = tmp_path / "B0042.mat"
-    _write_battery_with_nonpositive_capacity(
+    source = tmp_path / "B0050.mat"
+    _write_battery_with_invalid_capacity(
         source,
         capacity_value=capacity_value,
     )
@@ -61,6 +80,7 @@ def test_nonpositive_capacity_is_quarantined_without_renumbering(
     raw_signal = pd.read_csv(output / "nasa_pcoe_raw_signal.csv")
     inventory = pd.read_csv(output / "nasa_pcoe_source_inventory.csv")
     warnings = pd.read_csv(output / "nasa_pcoe_import_warnings.csv")
+    excluded = pd.read_csv(output / "nasa_pcoe_excluded_operations.csv")
     provenance = json.loads(
         (output / "nasa_pcoe_raw_signal_provenance.json").read_text(
             encoding="utf-8"
@@ -73,24 +93,55 @@ def test_nonpositive_capacity_is_quarantined_without_renumbering(
     assert manifest["discharge_cycle_count"] == 4
     assert manifest["imported_discharge_operation_count"] == 4
     assert manifest["excluded_discharge_operation_count"] == 1
-    assert manifest["nonpositive_capacity_operation_count"] == 1
+    assert manifest["invalid_capacity_operation_count"] == 1
+    assert manifest[f"{expected_issue}_capacity_operation_count"] == 1
+    assert manifest["excluded_operation_artifact_count"] == 1
+    assert "excluded_operations" in manifest["outputs"]
+    assert "excluded_operations" in manifest["output_sha256"]
 
     row = inventory.iloc[0]
     assert int(row["discharge_operation_count"]) == 5
     assert int(row["imported_discharge_operation_count"]) == 4
     assert int(row["excluded_discharge_operation_count"]) == 1
-    assert int(row["nonpositive_capacity_operation_count"]) == 1
+    assert int(row["invalid_capacity_operation_count"]) == 1
+    assert int(row[f"{expected_issue}_capacity_operation_count"]) == 1
 
     warning = warnings[
-        warnings["code"] == "nonpositive_discharge_capacity_excluded"
+        warnings["code"] == "invalid_discharge_capacity_excluded"
     ].iloc[0]
-    assert warning["battery_id"] == "B0042"
+    assert warning["battery_id"] == "B0050"
     assert int(warning["cycle_index"]) == 3
-    assert float(warning["observed_value"]) == pytest.approx(capacity_value)
-    assert "No value was imputed or clipped" in warning["message"]
+    assert warning["capacity_issue"] == expected_issue
+    assert expected_issue in str(warning["observed_value"])
+    assert "No value was imputed" in warning["message"]
 
-    policy = provenance["transformation"]["nonpositive_capacity_policy"]
-    assert "excluded from canonical cycle-summary and raw-signal tables" in policy
+    excluded_row = excluded.iloc[0]
+    assert excluded_row["battery_id"] == "B0050"
+    assert int(excluded_row["cycle_index"]) == 3
+    assert excluded_row["capacity_issue"] == expected_issue
+
+    policy = provenance["transformation"]["invalid_capacity_policy"]
+    assert "missing, nonnumeric, non-scalar, non-finite, zero, or negative" in policy
     assert provenance["transformation"][
-        "excluded_nonpositive_capacity_operation_count"
+        "excluded_invalid_capacity_operation_count"
     ] == 1
+    assert provenance["transformation"]["invalid_capacity_counts_by_reason"][
+        expected_issue
+    ] == 1
+
+
+def test_valid_capacity_import_has_empty_exclusion_artifact(tmp_path: Path) -> None:
+    source = tmp_path / "B0050.mat"
+    _write_battery_with_invalid_capacity(source, capacity_value=1.75)
+    output = tmp_path / "imported"
+
+    manifest = import_nasa_pcoe_battery(
+        input_path=source,
+        output_dir=output,
+        retrieved_at="2026-08-01T00:00:00Z",
+    )
+
+    excluded = pd.read_csv(output / "nasa_pcoe_excluded_operations.csv")
+    assert excluded.empty
+    assert manifest["invalid_capacity_operation_count"] == 0
+    assert manifest["excluded_operation_artifact_count"] == 0
