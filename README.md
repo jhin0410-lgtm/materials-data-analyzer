@@ -31,7 +31,7 @@ The repository supports:
 - tabular process and experiment analysis;
 - quality, SPC, and smart-factory diagnostics;
 - reliability and repeated-asset validation;
-- Battery trajectory, raw-signal, degradation-rate, and exact-horizon diagnostics;
+- Battery trajectory, raw-signal, degradation-rate, exact-horizon, and error-structure diagnostics;
 - descriptive materials-property screening;
 - group-aware, time-aware, and asset-aware baseline validation;
 - constraint-aware candidate-condition screening;
@@ -147,8 +147,9 @@ decisions.
 
 ## Battery Degradation Intelligence v1
 
-The installed Battery workflow adds analysis depth without changing the existing
-v2.6.1 negative forecasting result or promoting a new lifetime claim.
+The installed Battery workflow tests a fixed exact-horizon Ridge hypothesis
+against strong origin-only baselines and preserves negative results rather than
+promoting a lifetime claim.
 
 ```powershell
 mda-battery-intelligence `
@@ -156,38 +157,47 @@ mda-battery-intelligence `
   --output outputs/battery_degradation_intelligence
 ```
 
-Optional standardized raw signals can be supplied with `--raw-signal`. The raw
-contract requires battery identity, cycle, allowlisted step type, elapsed time in
-seconds, voltage in volts, and current in amperes. Temperature, cumulative
-capacity, and global experiment time are optional.
-
 The workflow performs:
 
 ```text
 cycle-summary and optional raw-signal validation
+-> raw-signal checksum, unit, source, and battery-cycle admission gate
 -> charge/discharge, CC/CV, energy, efficiency, thermal, resistance-proxy,
-   dQ/dV, and dV/dQ feature extraction when supported
+   dQ/dV, and dV/dQ extraction when supported
 -> rolling degradation-rate and knee-candidate diagnostics
 -> exact-horizon origin-only feature construction
--> battery-disjoint GroupKFold Ridge versus persistence validation
+-> battery-disjoint GroupKFold validation
+-> persistence, trailing mean, local linear, damped, robust, and weighted baselines
+-> Ridge comparison against the strongest predeclared baseline
 -> nested group conformal prediction intervals
--> feature-range extrapolation and plausibility checks
--> bounded scientific closeout
+-> OOD, plausibility, lifecycle, knee-phase, regime, and high-error diagnostics
+-> component-level scientific closeout
 ```
 
+Generated diagnostics identify where Ridge wins or loses by battery, lifecycle
+segment, knee phase, OOD status, observed degradation rate, trajectory regime,
+and interval width. A row-level baseline oracle is retained only as an error
+envelope and is not treated as a deployable comparator.
+
+Optional raw signals may be supplied with `--raw-signal`, but signal-derived
+features do not enter predictive comparison unless a
+`--raw-signal-provenance` JSON sidecar passes checksum, unit, identity, source,
+license/terms, and coverage checks. Unverified signals may be inspected for
+software behavior but cannot silently strengthen a scientific claim.
+
 The forecast is **warm-start cross-battery**, not zero-shot lifetime or RUL
-prediction. Knee points are algorithm-sensitive candidates, not degradation
-mechanism evidence. Even a positive internal result remains `Diagnostic` until an
+prediction. Lifecycle and knee-phase strata are post-hoc diagnostics, not model
+features. Even a positive internal result remains `Diagnostic` until an
 independent protocol-comparable external cohort is evaluated.
 
-The tracked cycle-summary table does not contain the full voltage/current signal
-trajectories needed to scientifically validate IC, CC/CV, thermal, or energy
-features. Runs without raw signals state that limitation explicitly rather than
-inventing missing measurements.
+The tracked cycle-summary table does not contain the authoritative full
+voltage/current/temperature trajectories needed to scientifically validate IC,
+CC/CV, thermal, energy, or transition-resistance predictive value. Runs state
+that limitation explicitly rather than inventing missing measurements.
 
 See
 [`docs/BATTERY_DEGRADATION_INTELLIGENCE.md`](docs/BATTERY_DEGRADATION_INTELLIGENCE.md)
-for schemas, units, algorithms, outputs, and claim boundaries.
+for schemas, admission rules, baseline definitions, outputs, and claim boundaries.
 
 ## Run Provenance and Output Safety
 
@@ -356,7 +366,7 @@ classifier.
 | Materials Project | Calculated-property and structure case study | Chemical-system grouping and applicability domain | Descriptive screening; predictive evidence limited |
 | Smart Factory | UCI SECOM | Chronological validation and random-split optimism | Diagnostic only; no production classifier selected |
 | Reliability | Backblaze Hard Drive Test Data | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
-| Battery | Kaggle NASA Li-ion Battery | Battery grouping, trajectory, uncertainty, OOD, comparability | Descriptive, Diagnostic, Inconclusive, or Unsupported only; no RUL claim |
+| Battery | Kaggle NASA Li-ion Battery | Battery grouping, strong baselines, trajectory, uncertainty, OOD, and error structure | Component-specific Supported/Diagnostic/Inconclusive/Unsupported; no RUL claim |
 | Battery Archive | Public cycle data | Cycle normalization and censoring | Descriptive only; no forecasting or RUL claim |
 
 ## Scientific Principles
