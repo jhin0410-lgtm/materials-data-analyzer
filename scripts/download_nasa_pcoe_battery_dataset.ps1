@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $sourceUrl = "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
@@ -23,6 +24,7 @@ if (Test-Path $partialPath) {
 }
 
 $startedAt = [DateTimeOffset]::UtcNow
+$zipEntryCount = 0
 try {
     Invoke-WebRequest -Uri $sourceUrl -OutFile $partialPath
 
@@ -33,7 +35,8 @@ try {
 
     $zip = [System.IO.Compression.ZipFile]::OpenRead($partialPath)
     try {
-        if ($zip.Entries.Count -le 0) {
+        $zipEntryCount = $zip.Entries.Count
+        if ($zipEntryCount -le 0) {
             throw "Downloaded ZIP contains no entries: $partialPath"
         }
     }
@@ -64,7 +67,7 @@ $receipt = [ordered]@{
     archive_filename = $file.Name
     archive_sha256 = $sha256
     size_bytes = $file.Length
-    zip_entry_count = $zip.Entries.Count
+    zip_entry_count = $zipEntryCount
     credential_policy = [ordered]@{
         network_access_required = $true
         send_credentials = $false
