@@ -1,8 +1,9 @@
-"""Local import of NASA PCoE battery-aging MATLAB files.
+"""Offline conversion of NASA PCoE battery-aging MATLAB files.
 
-The importer performs no network access. It converts source `.mat` files (or
-ZIP archives containing them) into the canonical cycle-summary and raw-signal
-contracts used by Battery Degradation Intelligence.
+The module performs no network access. It converts one local ``.mat`` file, a
+MAT directory, or a ZIP archive (including bounded nested ZIPs) into the
+canonical cycle-summary and raw-signal contracts consumed by Battery
+Degradation Intelligence.
 """
 from __future__ import annotations
 
@@ -52,9 +53,29 @@ class _MatSource:
     source_location: str
 
 
+def _warning(
+    code: str,
+    message: str,
+    *,
+    source_location: str,
+    battery_id: str | None = None,
+    source_operation_index: int | None = None,
+    cycle_index: int | None = None,
+    severity: str = "warning",
+) -> dict[str, Any]:
+    return {
+        "severity": severity,
+        "code": code,
+        "message": message,
+        "source_location": source_location,
+        "battery_id": battery_id,
+        "source_operation_index": source_operation_index,
+        "cycle_index": cycle_index,
+    }
+
+
 def _safe_archive_path(name: str) -> PurePosixPath:
-    normalized = name.replace("\\", "/")
-    path = PurePosixPath(normalized)
+    path = PurePosixPath(name.replace("\\", "/"))
     if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
         raise ValueError(f"unsafe archive member path: {name!r}")
     if path.parts and ":" in path.parts[0]:
@@ -89,15 +110,14 @@ def _extract_zip_recursive(
                 raise ValueError(
                     f"archive member exceeds {MAX_MEMBER_BYTES} bytes: {info.filename}"
                 )
-            suffix = member.suffix.lower()
-            if suffix not in {".mat", ".zip"}:
+            if member.suffix.lower() not in {".mat", ".zip"}:
                 continue
             state["files"] += 1
             local = destination / f"{state['files']:06d}_{member.name}"
             with archive.open(info) as source, local.open("wb") as target:
                 shutil.copyfileobj(source, target)
             location = f"{source_prefix}!{member.as_posix()}"
-            if suffix == ".mat":
+            if member.suffix.lower() == ".mat":
                 sources.append(_MatSource(local, location))
             else:
                 sources.extend(
@@ -170,8 +190,8 @@ def _as_mapping(value: Any, *, context: str) -> Mapping[str, Any]:
 
 def _as_records(value: Any, *, context: str) -> list[Mapping[str, Any]]:
     if isinstance(value, Mapping):
-        return [value]
-    if isinstance(value, np.ndarray):
+        values = [value]
+    elif isinstance(value, np.ndarray):
         values = value.reshape(-1).tolist()
     elif isinstance(value, Sequence) and not isinstance(
         value, (str, bytes, bytearray)
@@ -179,10 +199,10 @@ def _as_records(value: Any, *, context: str) -> list[Mapping[str, Any]]:
         values = list(value)
     else:
         values = [value]
-    records: list[Mapping[str, Any]] = []
-    for index, item in enumerate(values, start=1):
-        records.append(_as_mapping(item, context=f"{context}[{index}]"))
-    return records
+    return [
+        _as_mapping(item, context=f"{context}[{index}]")
+        for index, item in enumerate(values, start=1)
+    ]
 
 
 def _text_scalar(value: Any, *, context: str) -> str:
@@ -211,10 +231,7 @@ def _numeric_vector(value: Any, *, context: str) -> np.ndarray:
 
 
 def _optional_numeric_vector(
-    data: Mapping[str, Any],
-    field: str,
-    *,
-    context: str,
+    data: Mapping[str, Any], field: str, *, context: str
 ) -> np.ndarray | None:
     if field not in data:
         return None
@@ -252,22 +269,14 @@ def _parse_matlab_datetime(value: Any) -> datetime | None:
     if vector.size < 6 or not np.isfinite(vector[:6]).all():
         return None
     year, month, day, hour, minute = (int(item) for item in vector[:5])
-    second_value = float(vector[5])
-    second = int(math.floor(second_value))
-    microsecond = int(round((second_value - second) * 1_000_000))
+    seconds = float(vector[5])
+    second = int(math.floor(seconds))
+    microsecond = int(round((seconds - second) * 1_000_000))
     if microsecond == 1_000_000:
         second += 1
         microsecond = 0
     try:
-        return datetime(
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-        )
+        return datetime(year, month, day, hour, minute, second, microsecond)
     except ValueError:
         return None
 
@@ -281,6 +290,22 @@ def _cumulative_capacity_ah(current_a: np.ndarray, time_s: np.ndarray) -> np.nda
         / 3600.0
     )
     return np.concatenate(([0.0], np.cumsum(trapezoids)))
+
+
+def _empty_inventory(source: _MatSource) -> dict[str, Any]:
+    return {
+        "source_location": source.source_location,
+        "mat_sha256": file_sha256(source.path),
+        "size_bytes": int(source.path.stat().st_size),
+        "battery_id": None,
+        "total_operation_count": 0,
+        "discharge_operation_count": 0,
+        "charge_operation_count": 0,
+        "impedance_operation_count": 0,
+        "other_operation_count": 0,
+        "imported": False,
+        "skip_reason": None,
+    }
 
 
 def _load_source(
@@ -305,19 +330,7 @@ def _load_source(
     variables = {
         key: value for key, value in loaded.items() if not str(key).startswith("__")
     }
-    inventory = {
-        "source_location": source.source_location,
-        "mat_sha256": file_sha256(source.path),
-        "size_bytes": int(source.path.stat().st_size),
-        "battery_id": None,
-        "total_operation_count": 0,
-        "discharge_operation_count": 0,
-        "charge_operation_count": 0,
-        "impedance_operation_count": 0,
-        "other_operation_count": 0,
-        "imported": False,
-        "skip_reason": None,
-    }
+    inventory = _empty_inventory(source)
     warnings: list[dict[str, Any]] = []
     if len(variables) != 1:
         inventory["skip_reason"] = "expected_exactly_one_top_level_variable"
@@ -329,7 +342,7 @@ def _load_source(
         return None, [], [], inventory, warnings
 
     expected_stem = PurePosixPath(source.source_location.split("!")[-1]).stem
-    if variable_name.strip().lower() != expected_stem.strip().lower():
+    if variable_name.strip().casefold() != expected_stem.strip().casefold():
         raise ValueError(
             f"{source.source_location}: top-level variable {variable_name!r} does "
             f"not match file stem {expected_stem!r}; battery identity is ambiguous"
@@ -389,7 +402,6 @@ def _load_source(
         )
         if temperature is not None and len(temperature) != len(elapsed):
             raise ValueError(f"{context}: Temperature_measured length must match Time")
-
         capacity = _positive_scalar(
             data.get("Capacity"), context=f"{context}.data.Capacity"
         )
@@ -397,18 +409,14 @@ def _load_source(
         started_at = _parse_matlab_datetime(operation.get("time"))
         if elapsed[0] != 0.0:
             warnings.append(
-                {
-                    "severity": "warning",
-                    "code": "discharge_time_does_not_start_at_zero",
-                    "message": (
-                        "Source discharge Time was retained without shifting; verify "
-                        "the source timing convention."
-                    ),
-                    "source_location": source.source_location,
-                    "battery_id": battery_id,
-                    "source_operation_index": operation_index,
-                    "cycle_index": discharge_index,
-                }
+                _warning(
+                    "discharge_time_does_not_start_at_zero",
+                    "Source discharge Time was retained without shifting; verify the source timing convention.",
+                    source_location=source.source_location,
+                    battery_id=battery_id,
+                    source_operation_index=operation_index,
+                    cycle_index=discharge_index,
+                )
             )
 
         cycle_rows.append(
@@ -470,19 +478,11 @@ def _load_retrieval_receipt(
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     if path is None:
         return None, [
-            {
-                "severity": "warning",
-                "code": "retrieval_receipt_not_supplied",
-                "message": (
-                    "The importer cannot verify when or from which URL the local "
-                    "source was acquired. Generated provenance will remain incomplete "
-                    "for predictive admission unless --retrieved-at is explicitly supplied."
-                ),
-                "source_location": str(input_path),
-                "battery_id": None,
-                "source_operation_index": None,
-                "cycle_index": None,
-            }
+            _warning(
+                "retrieval_receipt_not_supplied",
+                "The importer cannot verify when or from which URL the local source was acquired. Generated provenance remains incomplete unless --retrieved-at is supplied.",
+                source_location=str(input_path),
+            )
         ]
     if not path.is_file():
         raise FileNotFoundError(f"retrieval receipt not found: {path}")
@@ -505,12 +505,10 @@ def _load_retrieval_receipt(
     if not source_url.lower().startswith("https://"):
         raise ValueError("retrieval receipt source_url must use HTTPS")
     _validate_aware_timestamp(
-        str(loaded["retrieved_at"]),
-        context="retrieval receipt retrieved_at",
+        str(loaded["retrieved_at"]), context="retrieval receipt retrieved_at"
     )
     actual = str(input_metadata["input_sha256"])
-    declared = str(loaded["archive_sha256"]).lower()
-    if declared != actual.lower():
+    if str(loaded["archive_sha256"]).lower() != actual.lower():
         raise ValueError(
             "retrieval receipt archive_sha256 does not match the supplied ZIP"
         )
@@ -532,8 +530,7 @@ def _prepare_output(output: Path, *, overwrite: bool) -> None:
 
 
 def _protocol_summary(
-    cycle_summary: pd.DataFrame,
-    raw_signal: pd.DataFrame,
+    cycle_summary: pd.DataFrame, raw_signal: pd.DataFrame
 ) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for battery_id, cycle_group in cycle_summary.groupby("battery_id", sort=True):
@@ -554,25 +551,15 @@ def _protocol_summary(
                 "battery_id": battery_id,
                 "discharge_cycle_count": int(len(cycle_group)),
                 "raw_point_count": int(len(raw_group)),
-                "ambient_temperature_min_c": (
-                    float(np.min(ambient)) if len(ambient) else math.nan
-                ),
-                "ambient_temperature_median_c": (
-                    float(np.median(ambient)) if len(ambient) else math.nan
-                ),
-                "ambient_temperature_max_c": (
-                    float(np.max(ambient)) if len(ambient) else math.nan
-                ),
+                "ambient_temperature_min_c": float(np.min(ambient)) if len(ambient) else math.nan,
+                "ambient_temperature_median_c": float(np.median(ambient)) if len(ambient) else math.nan,
+                "ambient_temperature_max_c": float(np.max(ambient)) if len(ambient) else math.nan,
                 "voltage_min_v": float(raw_group["voltage_v"].min()),
                 "voltage_max_v": float(raw_group["voltage_v"].max()),
                 "current_abs_median_a": float(raw_group["current_a"].abs().median()),
                 "current_abs_max_a": float(raw_group["current_a"].abs().max()),
-                "sample_interval_median_s": (
-                    float(np.median(intervals)) if intervals else math.nan
-                ),
-                "discharge_duration_median_s": (
-                    float(np.median(durations)) if len(durations) else math.nan
-                ),
+                "sample_interval_median_s": float(np.median(intervals)) if intervals else math.nan,
+                "discharge_duration_median_s": float(np.median(durations)) if len(durations) else math.nan,
                 "initial_discharge_capacity_ah": float(capacity[0]),
                 "final_discharge_capacity_ah": float(capacity[-1]),
                 "minimum_discharge_capacity_ah": float(np.min(capacity)),
@@ -580,6 +567,44 @@ def _protocol_summary(
             }
         )
     return pd.DataFrame(rows)
+
+
+def _deduplicate_source(
+    *,
+    battery_id: str,
+    inventory: dict[str, Any],
+    seen: dict[str, tuple[str, str]],
+    warnings: list[dict[str, Any]],
+) -> bool:
+    """Return True only for an identical duplicate source copy.
+
+    The official outer archive contains overlapping sub-bundles. Repeated battery
+    IDs are accepted only when the MAT bytes are exactly identical; same-ID files
+    with different checksums remain an ambiguity and fail closed.
+    """
+    normalized = battery_id.casefold()
+    checksum = str(inventory["mat_sha256"])
+    if normalized not in seen:
+        seen[normalized] = (str(inventory["source_location"]), checksum)
+        return False
+    first_location, first_checksum = seen[normalized]
+    if checksum != first_checksum:
+        raise ValueError(
+            f"duplicate battery identity {battery_id!r} has different MAT checksums in "
+            f"{first_location!r} and {inventory['source_location']!r}"
+        )
+    inventory["imported"] = False
+    inventory["skip_reason"] = "duplicate_identical_source_copy"
+    warnings.append(
+        _warning(
+            "duplicate_identical_source_copy",
+            f"An identical MAT copy was already imported from {first_location}; the repeated copy was retained in inventory and excluded from canonical rows.",
+            source_location=str(inventory["source_location"]),
+            battery_id=battery_id,
+            severity="info",
+        )
+    )
+    return True
 
 
 def import_nasa_pcoe_battery(
@@ -599,38 +624,26 @@ def import_nasa_pcoe_battery(
     _prepare_output(output, overwrite=overwrite)
 
     with tempfile.TemporaryDirectory(prefix="mda_nasa_pcoe_") as temporary:
-        temporary_directory = Path(temporary)
         sources, input_metadata = _discover_mat_sources(
-            source_input, temporary_directory
+            source_input, Path(temporary)
         )
         receipt, receipt_warnings = _load_retrieval_receipt(
-            (
-                Path(retrieval_receipt_path)
-                if retrieval_receipt_path is not None
-                else None
-            ),
+            Path(retrieval_receipt_path) if retrieval_receipt_path else None,
             input_path=source_input,
             input_metadata=input_metadata,
         )
         if retrieved_at is not None:
             retrieved_at = _validate_aware_timestamp(
-                retrieved_at,
-                context="retrieved_at",
+                retrieved_at, context="retrieved_at"
             )
             if receipt is None:
                 receipt_warnings = [
-                    {
-                        "severity": "info",
-                        "code": "retrieval_time_user_declared_without_receipt",
-                        "message": (
-                            "The acquisition timestamp was explicitly supplied, "
-                            "but archive transport was not verified by a receipt."
-                        ),
-                        "source_location": str(source_input),
-                        "battery_id": None,
-                        "source_operation_index": None,
-                        "cycle_index": None,
-                    }
+                    _warning(
+                        "retrieval_time_user_declared_without_receipt",
+                        "The acquisition timestamp was explicitly supplied, but archive transport was not verified by a receipt.",
+                        source_location=str(source_input),
+                        severity="info",
+                    )
                 ]
         if not str(source_identifier).strip():
             raise ValueError("source_identifier may not be blank")
@@ -639,24 +652,22 @@ def import_nasa_pcoe_battery(
         all_raw: list[dict[str, Any]] = []
         inventory_rows: list[dict[str, Any]] = []
         warnings = list(receipt_warnings)
-        battery_locations: dict[str, str] = {}
+        seen_batteries: dict[str, tuple[str, str]] = {}
         for source in sources:
-            battery_id, cycle_rows, raw_rows, inventory, source_warnings = (
-                _load_source(source)
-            )
+            battery_id, cycles, raw, inventory, source_warnings = _load_source(source)
             inventory_rows.append(inventory)
             warnings.extend(source_warnings)
             if battery_id is None:
                 continue
-            normalized = battery_id.casefold()
-            if normalized in battery_locations:
-                raise ValueError(
-                    f"duplicate battery identity {battery_id!r} in "
-                    f"{battery_locations[normalized]!r} and {source.source_location!r}"
-                )
-            battery_locations[normalized] = source.source_location
-            all_cycles.extend(cycle_rows)
-            all_raw.extend(raw_rows)
+            if _deduplicate_source(
+                battery_id=battery_id,
+                inventory=inventory,
+                seen=seen_batteries,
+                warnings=warnings,
+            ):
+                continue
+            all_cycles.extend(cycles)
+            all_raw.extend(raw)
 
     if not all_cycles or not all_raw:
         raise ValueError("no valid NASA PCoE discharge trajectories were imported")
@@ -667,7 +678,6 @@ def import_nasa_pcoe_battery(
     raw_signal = pd.DataFrame(all_raw).sort_values(
         ["battery_id", "cycle_index", "elapsed_time_s"], kind="mergesort"
     )
-
     reference = cycle_summary.groupby("battery_id", sort=True)[
         "discharge_capacity_ah"
     ].transform("first")
@@ -676,8 +686,7 @@ def import_nasa_pcoe_battery(
         100.0 * cycle_summary["discharge_capacity_ah"] / reference
     )
 
-    starts = cycle_summary["_operation_started_at"]
-    if starts.notna().all():
+    if cycle_summary["_operation_started_at"].notna().all():
         base_by_battery = (
             cycle_summary.groupby("battery_id", sort=True)["_operation_started_at"]
             .min()
@@ -694,35 +703,21 @@ def import_nasa_pcoe_battery(
         ]
     else:
         warnings.append(
-            {
-                "severity": "warning",
-                "code": "global_time_omitted_incomplete_operation_timestamps",
-                "message": (
-                    "At least one MATLAB operation timestamp was missing or invalid; "
-                    "global_time_s was omitted for the complete canonical table."
-                ),
-                "source_location": str(source_input),
-                "battery_id": None,
-                "source_operation_index": None,
-                "cycle_index": None,
-            }
+            _warning(
+                "global_time_omitted_incomplete_operation_timestamps",
+                "At least one MATLAB operation timestamp was missing or invalid; global_time_s was omitted for the complete canonical table.",
+                source_location=str(source_input),
+            )
         )
 
     if "temperature_c" in raw_signal.columns and raw_signal["temperature_c"].isna().any():
         raw_signal = raw_signal.drop(columns=["temperature_c"])
         warnings.append(
-            {
-                "severity": "warning",
-                "code": "temperature_omitted_incomplete_coverage",
-                "message": (
-                    "Temperature_measured was not available for every imported point; "
-                    "temperature_c was omitted rather than partially imputed."
-                ),
-                "source_location": str(source_input),
-                "battery_id": None,
-                "source_operation_index": None,
-                "cycle_index": None,
-            }
+            _warning(
+                "temperature_omitted_incomplete_coverage",
+                "Temperature_measured was not available for every imported point; temperature_c was omitted rather than partially imputed.",
+                source_location=str(source_input),
+            )
         )
 
     cycle_summary["operation_started_at_source_time"] = cycle_summary[
@@ -731,17 +726,19 @@ def import_nasa_pcoe_battery(
     cycle_summary = cycle_summary.drop(columns=["_operation_started_at"])
     raw_signal = raw_signal.drop(columns=["_operation_started_at"])
 
-    cycle_columns = [
-        "battery_id",
-        "cycle_index",
-        "discharge_capacity_ah",
-        "reference_capacity_ah",
-        "capacity_retention_percent",
-        "ambient_temperature_c",
-        "operation_started_at_source_time",
-        "source_mat_file",
-        "source_operation_index",
-    ]
+    cycle_summary = cycle_summary[
+        [
+            "battery_id",
+            "cycle_index",
+            "discharge_capacity_ah",
+            "reference_capacity_ah",
+            "capacity_retention_percent",
+            "ambient_temperature_c",
+            "operation_started_at_source_time",
+            "source_mat_file",
+            "source_operation_index",
+        ]
+    ].reset_index(drop=True)
     raw_columns = [
         "battery_id",
         "cycle_index",
@@ -751,13 +748,14 @@ def import_nasa_pcoe_battery(
         "voltage_v",
         "current_a",
     ]
-    for optional in ("temperature_c", "capacity_ah", "global_time_s"):
-        if optional in raw_signal.columns:
-            raw_columns.append(optional)
+    raw_columns.extend(
+        column
+        for column in ("temperature_c", "capacity_ah", "global_time_s")
+        if column in raw_signal.columns
+    )
     raw_columns.extend(
         ["source_mat_file", "source_operation_index", "source_point_index"]
     )
-    cycle_summary = cycle_summary[cycle_columns].reset_index(drop=True)
     raw_signal = raw_signal[raw_columns].reset_index(drop=True)
     inventory = pd.DataFrame(inventory_rows).sort_values(
         "source_location", kind="mergesort"
@@ -777,19 +775,20 @@ def import_nasa_pcoe_battery(
             ]
         )
 
-    cycle_path = output / "nasa_pcoe_cycle_summary.csv"
-    raw_path = output / "nasa_pcoe_raw_signal.csv"
-    inventory_path = output / "nasa_pcoe_source_inventory.csv"
-    protocol_path = output / "nasa_pcoe_protocol_summary.csv"
-    warnings_path = output / "nasa_pcoe_import_warnings.csv"
-    provenance_path = output / "nasa_pcoe_raw_signal_provenance.json"
-    manifest_path = output / "nasa_pcoe_import_manifest.json"
-
-    cycle_summary.to_csv(cycle_path, index=False, lineterminator="\n")
-    raw_signal.to_csv(raw_path, index=False, lineterminator="\n")
-    inventory.to_csv(inventory_path, index=False, lineterminator="\n")
-    protocol.to_csv(protocol_path, index=False, lineterminator="\n")
-    warning_table.to_csv(warnings_path, index=False, lineterminator="\n")
+    paths = {
+        "cycle_summary": output / "nasa_pcoe_cycle_summary.csv",
+        "raw_signal": output / "nasa_pcoe_raw_signal.csv",
+        "source_inventory": output / "nasa_pcoe_source_inventory.csv",
+        "protocol_summary": output / "nasa_pcoe_protocol_summary.csv",
+        "import_warnings": output / "nasa_pcoe_import_warnings.csv",
+        "raw_signal_provenance": output / "nasa_pcoe_raw_signal_provenance.json",
+        "manifest": output / "nasa_pcoe_import_manifest.json",
+    }
+    cycle_summary.to_csv(paths["cycle_summary"], index=False, lineterminator="\n")
+    raw_signal.to_csv(paths["raw_signal"], index=False, lineterminator="\n")
+    inventory.to_csv(paths["source_inventory"], index=False, lineterminator="\n")
+    protocol.to_csv(paths["protocol_summary"], index=False, lineterminator="\n")
+    warning_table.to_csv(paths["import_warnings"], index=False, lineterminator="\n")
 
     explicit_retrieved_at = retrieved_at
     if receipt is not None:
@@ -804,16 +803,13 @@ def import_nasa_pcoe_battery(
         "source_name": NASA_PCOE_SOURCE_NAME,
         "source_identifier": source_identifier,
         "retrieved_at": explicit_retrieved_at or "",
-        "source_sha256": file_sha256(raw_path),
+        "source_sha256": file_sha256(paths["raw_signal"]),
         "license_or_terms": NASA_PCOE_TERMS,
         "battery_id_mapping_method": (
-            "Exact case-insensitive agreement between each MATLAB filename stem "
-            "and its sole top-level variable; the original variable text is retained."
+            "Exact case-insensitive agreement between each MATLAB filename stem and its sole top-level variable. Repeated battery IDs are deduplicated only when MAT SHA-256 values are identical."
         ),
         "cycle_mapping_method": (
-            "One-based sequential ordinal of discharge operations in source order "
-            "within each battery MATLAB file. Charge and impedance operations are "
-            "not inferred into discharge-cycle identities."
+            "One-based sequential ordinal of discharge operations in source order within each unique battery MATLAB file. Charge and impedance operations are not inferred into discharge-cycle identities."
         ),
         "unit_declarations": {
             "elapsed_time_s": "s",
@@ -832,13 +828,13 @@ def import_nasa_pcoe_battery(
             "version": IMPORT_SCHEMA_VERSION,
             "imported_operation_type": "discharge",
             "capacity_ah_derivation": (
-                "Cumulative trapezoidal integral of absolute Current_measured over "
-                "source Time, divided by 3600."
+                "Cumulative trapezoidal integral of absolute Current_measured over source Time, divided by 3600."
             ),
             "global_time_s_derivation": (
-                "Relative difference between source operation timestamps within each battery "
-                "plus source elapsed Time. Source timezone is not asserted; the "
-                "column is omitted unless every operation timestamp is valid."
+                "Relative difference between source operation timestamps within each battery plus source elapsed Time. Source timezone is not asserted; the column is omitted unless every operation timestamp is valid."
+            ),
+            "identical_duplicate_policy": (
+                "Same battery ID and identical MAT SHA-256: one canonical copy; same ID and different SHA-256: fatal ambiguity."
             ),
             "no_interpolation": True,
             "no_smoothing": True,
@@ -849,7 +845,9 @@ def import_nasa_pcoe_battery(
             for _, row in inventory[inventory["imported"]].iterrows()
         },
     }
-    provenance_path.write_text(canonical_json(provenance), encoding="utf-8")
+    paths["raw_signal_provenance"].write_text(
+        canonical_json(provenance), encoding="utf-8"
+    )
 
     manifest = {
         "schema_version": IMPORT_SCHEMA_VERSION,
@@ -862,29 +860,19 @@ def import_nasa_pcoe_battery(
         "raw_point_count": int(len(raw_signal)),
         "source_mat_file_count": int(inventory["imported"].sum()),
         "skipped_mat_file_count": int((~inventory["imported"]).sum()),
+        "identical_duplicate_copy_count": int(
+            (inventory["skip_reason"] == "duplicate_identical_source_copy").sum()
+        ),
         "warning_count": int(len(warning_table)),
-        "outputs": {
-            "cycle_summary": str(cycle_path),
-            "raw_signal": str(raw_path),
-            "raw_signal_provenance": str(provenance_path),
-            "source_inventory": str(inventory_path),
-            "protocol_summary": str(protocol_path),
-            "import_warnings": str(warnings_path),
-            "manifest": str(manifest_path),
-        },
+        "outputs": {name: str(path) for name, path in paths.items()},
         "output_sha256": {
-            "cycle_summary": file_sha256(cycle_path),
-            "raw_signal": file_sha256(raw_path),
-            "raw_signal_provenance": file_sha256(provenance_path),
-            "source_inventory": file_sha256(inventory_path),
-            "protocol_summary": file_sha256(protocol_path),
-            "import_warnings": file_sha256(warnings_path),
+            name: file_sha256(path)
+            for name, path in paths.items()
+            if name != "manifest"
         },
         "scientific_boundary": (
-            "Successful import validates software conversion and provenance fields. "
-            "It does not establish source comparability, degradation mechanism, "
-            "predictive value, external generalization, or engineering readiness."
+            "Successful import validates software conversion and provenance fields. It does not establish source comparability, degradation mechanism, predictive value, external generalization, or engineering readiness."
         ),
     }
-    manifest_path.write_text(canonical_json(manifest), encoding="utf-8")
+    paths["manifest"].write_text(canonical_json(manifest), encoding="utf-8")
     return manifest
