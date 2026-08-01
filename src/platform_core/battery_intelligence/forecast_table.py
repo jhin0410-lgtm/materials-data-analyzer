@@ -82,10 +82,10 @@ def build_forecast_table(
                 config.group_column: battery_id,
                 "origin_cycle": origin_cycle,
                 "target_cycle": target_cycle,
-                "origin_target_percent": origin_target,
-                # Backward-compatible artifact alias. It means the target value at
-                # the forecast origin, never electrical current, and is excluded
-                # from fitted feature columns to avoid duplicate predictors.
+                "origin_target_value": origin_target,
+                # Backward-compatible artifact alias. It means the configured
+                # target value at the forecast origin, never electrical current,
+                # and is excluded from fitted features to avoid duplication.
                 "current_target": origin_target,
                 "future_target": float(future[config.target_column]),
             }
@@ -148,7 +148,8 @@ def build_forecast_table(
         "dropped_sparse_feature_columns": missing_feature_columns,
         "exclusion_counts": exclusion_counts,
         "exact_horizon_only": True,
-        "origin_target_field": "origin_target_percent",
+        "origin_target_field": "origin_target_value",
+        "origin_target_source_column": config.target_column,
         "legacy_current_target_alias_retained": True,
         "legacy_current_target_alias_is_electrical_current": False,
     }
