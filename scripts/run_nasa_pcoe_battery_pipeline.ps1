@@ -87,9 +87,9 @@ function Write-ProtocolAuditSummary {
         [object]$ProtocolAudit
     )
 
-    $summary = $ProtocolAudit.summary
-    if ($null -eq $summary) {
-        throw "NASA protocol audit JSON is missing the summary object"
+    $summary = $ProtocolAudit
+    if ($null -eq $summary.protocol_audit_status) {
+        throw "NASA protocol audit JSON is missing required top-level summary fields"
     }
 
     Write-Host "protocol_audit_available: True"
