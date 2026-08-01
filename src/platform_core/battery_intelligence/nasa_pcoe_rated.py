@@ -15,7 +15,6 @@ conditions scientifically interchangeable.
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +22,7 @@ import numpy as np
 import pandas as pd
 
 from .common import canonical_json, file_sha256
+from .nasa_pcoe import NASA_PCOE_SOURCE_IDENTIFIER
 from .nasa_pcoe_resilient import import_nasa_pcoe_battery as _import_resilient
 
 NASA_PCOE_RATED_CAPACITY_AH = 2.0
@@ -35,7 +35,8 @@ NASA_PCOE_RATED_CAPACITY_EVIDENCE = (
 
 def _finite_positive(series: pd.Series, *, field: str) -> pd.Series:
     values = pd.to_numeric(series, errors="coerce")
-    valid = np.isfinite(values.to_numpy(dtype=float)) & (values.to_numpy(dtype=float) > 0)
+    array = values.to_numpy(dtype=float)
+    valid = np.isfinite(array) & (array > 0)
     if not bool(np.all(valid)):
         raise ValueError(
             f"NASA rated-capacity normalization requires finite positive {field}"
@@ -78,7 +79,9 @@ def _rewrite_cycle_summary(output: Path) -> tuple[Path, pd.DataFrame]:
         "source_operation_index",
     ]
     ordered = [column for column in preferred if column in cycle_summary.columns]
-    ordered.extend(column for column in cycle_summary.columns if column not in ordered)
+    ordered.extend(
+        column for column in cycle_summary.columns if column not in ordered
+    )
     cycle_summary = cycle_summary[ordered]
     cycle_summary.to_csv(path, index=False, lineterminator="\n")
     return path, cycle_summary
@@ -215,7 +218,7 @@ def import_nasa_pcoe_battery(
     output_dir: str | Path,
     retrieval_receipt_path: str | Path | None = None,
     retrieved_at: str | None = None,
-    source_identifier: str,
+    source_identifier: str = NASA_PCOE_SOURCE_IDENTIFIER,
     overwrite: bool = False,
 ) -> dict[str, Any]:
     """Import NASA PCoE data and derive retention from documented 2 Ah rating."""
