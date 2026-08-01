@@ -1,4 +1,12 @@
 {
+  "schema_version": "1.0",
+  "source_note": "Example only. Replace every placeholder with source-backed provenance before use.",
+  "dry_run": true,
+  "credential_policy": {
+    "network_access_required": false,
+    "send_credentials": false,
+    "store_credentials": false
+  },
   "source_name": "replace_with_authoritative_source_name",
   "source_identifier": "replace_with_stable_url_doi_archive_or_package_id",
   "retrieved_at": "2026-08-01T00:00:00Z",
