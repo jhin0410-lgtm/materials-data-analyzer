@@ -73,6 +73,10 @@ def main() -> None:
         "retrieval_receipt_verified: "
         f"{manifest['retrieval_receipt_verified']}"
     )
+    target_reference = manifest.get("target_reference")
+    if target_reference is not None:
+        print(f"target_reference_method: {target_reference['method']}")
+        print(f"rated_capacity_ah: {target_reference['rated_capacity_ah']}")
     for name, path in manifest["outputs"].items():
         print(f"{name}: {path}")
 
