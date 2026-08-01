@@ -9,8 +9,9 @@ The importer classifies these target defects as:
 - `missing`: the field is absent;
 - `nonnumeric`: the value cannot be converted to a numeric value;
 - `nonscalar`: more or fewer than one numeric value is present;
-- `nonfinite`: the scalar is `NaN`, positive infinity, or negative infinity;
-- `nonpositive`: the finite scalar is zero or negative.
+- `complex`: the value is represented with a complex dtype or complex scalar;
+- `nonfinite`: the real scalar is `NaN`, positive infinity, or negative infinity;
+- `nonpositive`: the finite real scalar is zero or negative.
 
 ## Import behavior
 
@@ -24,7 +25,9 @@ For any invalid `Capacity` target, the importer:
 6. preserves later source discharge ordinals, so canonical `cycle_index` may contain explicit gaps;
 7. reports imported, excluded, and per-reason invalid-capacity counts in the inventory, provenance, and import manifest.
 
-The importer does **not** replace the value, clip it to a positive number, interpolate or infer a target, smooth the trajectory, or renumber later cycles.
+Identical duplicate MAT files in overlapping NASA bundles are counted once in the dedicated exclusion artifact and summary counts. A same-ID MAT file with different bytes remains a fatal identity conflict even when every target in one copy is quarantined.
+
+The importer does **not** discard a complex component during real conversion, replace the value, clip it to a positive number, interpolate or infer a target, smooth the trajectory, or renumber later cycles.
 
 ## Fatal versus recoverable conditions
 
@@ -45,6 +48,6 @@ This distinction prevents invalid targets from aborting a complete official arch
 
 ## Scientific interpretation
 
-An excluded operation is not evidence that the physical cell had exactly zero capacity, infinite capacity, or no discharge. It means the source operation does not provide a valid positive finite scalar capacity target under the canonical degradation contract.
+An excluded operation is not evidence that the physical cell had exactly zero capacity, infinite capacity, complex capacity, or no discharge. It means the source operation does not provide a valid positive finite real scalar capacity target under the canonical degradation contract.
 
 Any resulting cycle gap remains visible in quality review and downstream trajectory diagnostics. Predictive conclusions must report the exclusion count and reason distribution, especially when exclusions are concentrated in particular batteries, protocols, or lifecycle regions.
