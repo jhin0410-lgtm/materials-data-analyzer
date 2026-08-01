@@ -40,9 +40,11 @@ For each battery the audit records:
 - count and fraction outside the configured plausibility range;
 - first-target deviation from 100%;
 - maximum and median absolute adjacent target change;
-- reference-capacity uniqueness and invalid-reference count when available;
-- maximum reconstruction error for `100 * discharge_capacity_ah / reference_capacity_ah`;
+- reference-capacity uniqueness and invalid-reference count whenever `reference_capacity_ah` exists;
+- maximum reconstruction error for `100 * discharge_capacity_ah / reference_capacity_ah` when both source fields exist;
 - medians of available observed-condition features such as ambient temperature, current target, discharge duration, voltage, and temperature range.
+
+Condition profiles prefer all validated cycle observations. Forecast-table values are used only for condition fields not available in the validated cycle summary. This prevents short trajectories or forecast-table feature omission from hiding available condition differences.
 
 Thresholds are diagnostic flags only. They do not trigger automatic deletion, clipping, renormalization, interpolation, or cohort reassignment.
 
@@ -55,7 +57,19 @@ For every predicted battery and model the audit records:
 - absolute-error sum, MAE, median absolute error, and maximum absolute error;
 - fraction of the model's total pooled absolute error contributed by that battery.
 
-The summary reports top-one and top-three battery error shares and the ratio of pooled mean absolute error to median absolute error. A pooled result is marked `diagnostic_only` when target/reference concerns or heavy-tail error concentration are detected.
+The summary reports top-one and top-three battery error shares, mean-to-median absolute-error ratios, and a cohort-size-normalized top-three concentration excess ratio. The normalization compares the observed top-three share with the share expected if every predicted battery contributed equally. Therefore a balanced cohort of two through five batteries is not automatically labeled concentrated merely because the top three necessarily represent most of the cohort.
+
+A pooled result is marked `diagnostic_only` when target/reference concerns or heavy-tail error concentration are detected.
+
+## Evidence availability
+
+The closeout component is classified as:
+
+- `Diagnostic` when target/reference flags or error-instability criteria are triggered;
+- `Supported` only when the audit is not flagged and both reference-capacity and observed-condition dimensions are available;
+- `Inconclusive` when the available inputs do not support the full declared comparability scope.
+
+Missing reference or condition dimensions are never silently treated as evidence of comparability.
 
 ## Outputs
 
@@ -69,7 +83,7 @@ The summary reports top-one and top-three battery error shares and the ratio of 
     └── target_comparability_audit.md
 ```
 
-The audit also adds a component status and limitation to the scientific closeout and records the new artifacts and checksums in `run_manifest.json`.
+The audit also adds a component status and limitation to the scientific closeout and records the new artifacts and checksums in `run_manifest.json`. The embedded `scientific_closeout`, top-level `limitations`, and `scientific_validation` fields in the manifest are synchronized with the updated checksummed closeout report.
 
 ## Scientific boundary
 
