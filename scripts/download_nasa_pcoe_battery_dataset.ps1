@@ -8,7 +8,22 @@ $ProgressPreference = "SilentlyContinue"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $sourceUrl = "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
-$outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
+$repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+if ($PSBoundParameters.ContainsKey("OutputDirectory")) {
+    if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
+        $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
+    }
+    else {
+        $outputRoot = [System.IO.Path]::GetFullPath(
+            (Join-Path (Get-Location).Path $OutputDirectory)
+        )
+    }
+}
+else {
+    $outputRoot = [System.IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $OutputDirectory)
+    )
+}
 $archivePath = Join-Path $outputRoot "5_Battery_Data_Set.zip"
 $partialPath = "$archivePath.partial"
 $receiptPath = Join-Path $outputRoot "retrieval_receipt.json"
