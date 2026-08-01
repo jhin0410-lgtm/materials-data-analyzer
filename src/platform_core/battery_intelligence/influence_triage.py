@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,32 @@ from .common import canonical_json, file_sha256
 
 _FIRST_TARGET_TOLERANCE_PERCENT = 5.0
 _LARGE_TARGET_STEP_PERCENT = 20.0
+_RESERVED_GROUP_COLUMN_NAMES = {
+    "__mda_group_id__",
+    "actual",
+    "model",
+    "prediction_count",
+    "is_evaluated",
+    "battery_absolute_error_sum",
+    "battery_mae",
+    "battery_median_absolute_error",
+    "battery_maximum_absolute_error",
+    "total_absolute_error_fraction",
+    "equal_error_share_baseline",
+    "absolute_error_contribution_excess_ratio",
+    "full_row_weighted_mae",
+    "row_weighted_mae_without_battery",
+    "row_weighted_mae_reduction_if_omitted",
+    "full_battery_macro_mae",
+    "battery_macro_mae_without_battery",
+    "battery_macro_mae_reduction_if_omitted",
+    "interpretation_boundary",
+    "absolute_error_contribution_rank",
+    "row_weighted_influence_rank",
+    "is_top_three_absolute_error_contributor",
+    "is_top_three_row_weighted_influence",
+    "is_disproportionate_absolute_error_contributor",
+}
 
 
 def _model_names(predictions: pd.DataFrame) -> list[str]:
@@ -32,6 +58,16 @@ def _model_names(predictions: pd.DataFrame) -> list[str]:
     if not models:
         raise ValueError("validation predictions contain no model prediction columns")
     return models
+
+
+def _validate_group_column(group_column: str) -> None:
+    if not str(group_column).strip():
+        raise ValueError("group column may not be blank")
+    if group_column in _RESERVED_GROUP_COLUMN_NAMES:
+        raise ValueError(
+            f"configured group column {group_column!r} collides with a reserved "
+            "battery influence output field"
+        )
 
 
 def _flag_reasons(row: pd.Series) -> list[str]:
@@ -55,11 +91,60 @@ def _flag_reasons(row: pd.Series) -> list[str]:
     return reasons
 
 
+def _supplied_battery_ids(values: Iterable[Any]) -> list[Any]:
+    series = pd.Series(list(values), dtype="object")
+    if series.empty:
+        raise ValueError("target integrity table contains no batteries")
+    if series.isna().any():
+        raise ValueError("target integrity group identifiers may not be missing")
+    if series.duplicated().any():
+        duplicates = series[series.duplicated(keep=False)].astype(str).unique().tolist()
+        raise ValueError(
+            "target integrity table contains duplicate group identifiers: "
+            + ", ".join(sorted(duplicates))
+        )
+    return series.tolist()
+
+
+def _unevaluated_row(
+    *,
+    battery_id: Any,
+    model: str,
+    full_row_mae: float,
+    full_macro_mae: float,
+) -> dict[str, Any]:
+    return {
+        "__mda_group_id__": battery_id,
+        "model": model,
+        "prediction_count": 0,
+        "is_evaluated": False,
+        "battery_absolute_error_sum": None,
+        "battery_mae": None,
+        "battery_median_absolute_error": None,
+        "battery_maximum_absolute_error": None,
+        "total_absolute_error_fraction": None,
+        "equal_error_share_baseline": None,
+        "absolute_error_contribution_excess_ratio": None,
+        "full_row_weighted_mae": full_row_mae,
+        "row_weighted_mae_without_battery": None,
+        "row_weighted_mae_reduction_if_omitted": None,
+        "full_battery_macro_mae": full_macro_mae,
+        "battery_macro_mae_without_battery": None,
+        "battery_macro_mae_reduction_if_omitted": None,
+        "interpretation_boundary": (
+            "No exact-horizon validation rows were available for this battery; "
+            "error and omission metrics are unavailable rather than zero."
+        ),
+    }
+
+
 def _build_influence_table(
     predictions: pd.DataFrame,
     *,
+    battery_ids: Iterable[Any],
     group_column: str,
-) -> tuple[pd.DataFrame, dict[str, dict[str, float]]]:
+) -> tuple[pd.DataFrame, dict[str, dict[str, Any]]]:
+    _validate_group_column(group_column)
     required = {group_column, "actual"}
     missing = sorted(required - set(predictions.columns))
     if missing:
@@ -67,9 +152,19 @@ def _build_influence_table(
             "validation predictions missing required influence columns: "
             + ", ".join(missing)
         )
+    supplied_ids = _supplied_battery_ids(battery_ids)
+    supplied_set = set(supplied_ids)
+    prediction_ids = set(predictions[group_column].dropna().tolist())
+    unknown = prediction_ids - supplied_set
+    if unknown:
+        raise ValueError(
+            "validation predictions contain groups absent from target integrity: "
+            + ", ".join(sorted(str(value) for value in unknown))
+        )
+
     models = _model_names(predictions)
     rows: list[dict[str, Any]] = []
-    model_summary: dict[str, dict[str, float]] = {}
+    model_summary: dict[str, dict[str, Any]] = {}
 
     for model in models:
         prediction_column = f"{model}_prediction"
@@ -79,13 +174,19 @@ def _build_influence_table(
         if not np.isfinite(errors).all():
             raise ValueError(f"{model} absolute errors must be finite")
 
-        working = predictions[[group_column]].copy()
-        working["absolute_error"] = errors
-        per_battery = (
-            working.groupby(group_column, sort=True)["absolute_error"]
-            .agg(["count", "sum", "mean", "median", "max"])
-            .reset_index()
+        working = pd.DataFrame(
+            {
+                "__mda_group_id__": predictions[group_column].to_numpy(),
+                "absolute_error": errors,
+            }
         )
+        per_battery = (
+            working.groupby("__mda_group_id__", sort=True)["absolute_error"]
+            .agg(["count", "sum", "mean", "median", "max"])
+        )
+        evaluated_count = int(len(per_battery))
+        if evaluated_count == 0:
+            raise ValueError("validation predictions contain no evaluated batteries")
         full_row_mae = float(np.mean(errors))
         full_macro_mae = float(per_battery["mean"].mean())
         total_error = float(np.sum(errors))
@@ -95,10 +196,24 @@ def _build_influence_table(
             "row_to_macro_mae_ratio": float(
                 full_row_mae / max(full_macro_mae, np.finfo(float).eps)
             ),
+            "supplied_battery_count": int(len(supplied_ids)),
+            "evaluated_battery_count": evaluated_count,
+            "unevaluated_battery_count": int(len(supplied_ids) - evaluated_count),
         }
 
-        for _, battery in per_battery.iterrows():
-            battery_id = battery[group_column]
+        for battery_id in supplied_ids:
+            if battery_id not in per_battery.index:
+                rows.append(
+                    _unevaluated_row(
+                        battery_id=battery_id,
+                        model=model,
+                        full_row_mae=full_row_mae,
+                        full_macro_mae=full_macro_mae,
+                    )
+                )
+                continue
+
+            battery = per_battery.loc[battery_id]
             mask = predictions[group_column] != battery_id
             remaining = predictions.loc[mask]
             if remaining.empty:
@@ -113,11 +228,11 @@ def _build_influence_table(
                 remaining_macro = (
                     pd.DataFrame(
                         {
-                            group_column: remaining[group_column].to_numpy(),
+                            "__mda_group_id__": remaining[group_column].to_numpy(),
                             "absolute_error": remaining_errors,
                         }
                     )
-                    .groupby(group_column, sort=True)["absolute_error"]
+                    .groupby("__mda_group_id__", sort=True)["absolute_error"]
                     .mean()
                 )
                 omitted_macro_mae = float(remaining_macro.mean())
@@ -125,12 +240,13 @@ def _build_influence_table(
             error_fraction = float(
                 battery["sum"] / max(total_error, np.finfo(float).eps)
             )
-            equal_share = float(1.0 / len(per_battery))
+            equal_share = float(1.0 / evaluated_count)
             rows.append(
                 {
-                    group_column: battery_id,
+                    "__mda_group_id__": battery_id,
                     "model": model,
                     "prediction_count": int(battery["count"]),
+                    "is_evaluated": True,
                     "battery_absolute_error_sum": float(battery["sum"]),
                     "battery_mae": float(battery["mean"]),
                     "battery_median_absolute_error": float(battery["median"]),
@@ -161,29 +277,40 @@ def _build_influence_table(
                 }
             )
 
-    result = pd.DataFrame(rows)
-    result["absolute_error_contribution_rank"] = (
-        result.groupby("model", sort=False)["total_absolute_error_fraction"]
-        .rank(method="first", ascending=False)
-        .astype(int)
+    result = pd.DataFrame(rows).rename(columns={"__mda_group_id__": group_column})
+    result["absolute_error_contribution_rank"] = pd.Series(
+        pd.NA, index=result.index, dtype="Int64"
     )
-    result["row_weighted_influence_rank"] = (
-        result.groupby("model", sort=False)["row_weighted_mae_reduction_if_omitted"]
-        .rank(method="first", ascending=False, na_option="bottom")
-        .astype(int)
+    result["row_weighted_influence_rank"] = pd.Series(
+        pd.NA, index=result.index, dtype="Int64"
     )
+    for model in models:
+        evaluated = (result["model"] == model) & result["is_evaluated"]
+        result.loc[evaluated, "absolute_error_contribution_rank"] = (
+            result.loc[evaluated, "total_absolute_error_fraction"]
+            .rank(method="first", ascending=False)
+            .astype("Int64")
+        )
+        result.loc[evaluated, "row_weighted_influence_rank"] = (
+            result.loc[evaluated, "row_weighted_mae_reduction_if_omitted"]
+            .rank(method="first", ascending=False, na_option="bottom")
+            .astype("Int64")
+        )
     result["is_top_three_absolute_error_contributor"] = (
-        result["absolute_error_contribution_rank"] <= 3
+        (result["absolute_error_contribution_rank"] <= 3).fillna(False).astype(bool)
     )
     result["is_top_three_row_weighted_influence"] = (
-        result["row_weighted_influence_rank"] <= 3
+        (result["row_weighted_influence_rank"] <= 3).fillna(False).astype(bool)
     )
     result["is_disproportionate_absolute_error_contributor"] = (
-        result["absolute_error_contribution_excess_ratio"] > 1.5
+        (result["absolute_error_contribution_excess_ratio"] > 1.5)
+        .fillna(False)
+        .astype(bool)
     )
     return (
         result.sort_values(
-            ["model", "absolute_error_contribution_rank", group_column],
+            ["model", "is_evaluated", "absolute_error_contribution_rank", group_column],
+            ascending=[True, False, True, True],
             kind="mergesort",
         ).reset_index(drop=True),
         model_summary,
@@ -200,12 +327,10 @@ def _build_priority_table(
     priority["diagnostic_flag_reasons"] = priority.apply(
         lambda row: ";".join(_flag_reasons(row)), axis=1
     )
-    priority["has_diagnostic_flag_reason"] = (
-        priority["diagnostic_flag_reasons"].str.len() > 0
-    )
 
     for model in sorted(influence["model"].unique()):
         columns = [
+            "is_evaluated",
             "battery_mae",
             "total_absolute_error_fraction",
             "row_weighted_mae_reduction_if_omitted",
@@ -226,6 +351,27 @@ def _build_priority_table(
             how="left",
             validate="one_to_one",
         )
+
+    evaluation_columns = [
+        column for column in priority.columns if column.endswith("_is_evaluated")
+    ]
+    priority["unevaluated_in_any_model"] = (
+        (~priority[evaluation_columns].fillna(False)).any(axis=1)
+        if evaluation_columns
+        else True
+    )
+    no_forecast = priority["unevaluated_in_any_model"]
+    empty_reason = priority["diagnostic_flag_reasons"].str.len() == 0
+    priority.loc[no_forecast & empty_reason, "diagnostic_flag_reasons"] = (
+        "no_exact_horizon_forecast_rows"
+    )
+    priority.loc[no_forecast & ~empty_reason, "diagnostic_flag_reasons"] = (
+        priority.loc[no_forecast & ~empty_reason, "diagnostic_flag_reasons"]
+        + ";no_exact_horizon_forecast_rows"
+    )
+    priority["has_diagnostic_flag_reason"] = (
+        priority["diagnostic_flag_reasons"].str.len() > 0
+    )
 
     disproportionate_columns = [
         column
@@ -260,15 +406,17 @@ def _build_priority_table(
     priority["requires_source_protocol_review"] = (
         priority["has_diagnostic_flag_reason"]
         | priority["disproportionate_error_contributor_any_model"]
+        | priority["unevaluated_in_any_model"]
     )
     priority = priority.sort_values(
         [
             "requires_source_protocol_review",
+            "unevaluated_in_any_model",
             "maximum_model_absolute_error_fraction",
             "maximum_row_weighted_mae_reduction_if_omitted",
             group_column,
         ],
-        ascending=[False, False, False, True],
+        ascending=[False, False, False, False, True],
         kind="mergesort",
     ).reset_index(drop=True)
     priority["diagnostic_review_order"] = np.arange(1, len(priority) + 1)
@@ -284,7 +432,7 @@ def _top_records(
     count: int = 5,
 ) -> list[dict[str, Any]]:
     subset = (
-        influence[influence["model"] == model]
+        influence[(influence["model"] == model) & influence["is_evaluated"]]
         .sort_values(
             [order_column, group_column],
             ascending=[False, True],
@@ -321,12 +469,14 @@ def build_battery_influence_triage(
     group_column: str,
 ) -> dict[str, Any]:
     """Build influence and condition-review tables without changing validation."""
+    _validate_group_column(group_column)
     if group_column not in target_integrity.columns:
         raise ValueError(
             f"target integrity table missing configured group column: {group_column}"
         )
     influence, model_summary = _build_influence_table(
         predictions,
+        battery_ids=target_integrity[group_column].tolist(),
         group_column=group_column,
     )
     priority = _build_priority_table(
@@ -362,7 +512,8 @@ def build_battery_influence_triage(
     model_profile_columns = [
         column
         for column in priority.columns
-        if column.endswith("_battery_mae")
+        if column.endswith("_is_evaluated")
+        or column.endswith("_battery_mae")
         or column.endswith("_total_absolute_error_fraction")
         or column.endswith("_row_weighted_mae_reduction_if_omitted")
     ]
@@ -372,6 +523,7 @@ def build_battery_influence_triage(
             "diagnostic_review_order",
             "diagnostic_flag_reasons",
             "requires_source_protocol_review",
+            "unevaluated_in_any_model",
             *condition_columns,
             *model_profile_columns,
         ]
@@ -379,11 +531,12 @@ def build_battery_influence_triage(
 
     review_count = int(priority["requires_source_protocol_review"].sum())
     summary = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "battery_count": int(len(priority)),
         "models": models,
         "model_metric_summary": model_summary,
         "source_protocol_review_battery_count": review_count,
+        "unevaluated_battery_count": int(priority["unevaluated_in_any_model"].sum()),
         "target_or_continuity_flag_battery_count": int(
             priority["has_diagnostic_flag_reason"].sum()
         ),
@@ -402,7 +555,8 @@ def build_battery_influence_triage(
             "Leave-one-battery-out deltas quantify sensitivity of the already "
             "computed pooled metric. They are not replacement validation scores, "
             "do not prove a battery is erroneous, do not infer protocol identity, "
-            "and do not justify deletion or favorable cohort selection."
+            "and do not justify deletion or favorable cohort selection. Batteries "
+            "without exact-horizon rows remain visible with unavailable metrics."
         ),
     }
     return {
@@ -423,7 +577,8 @@ def _markdown(summary: Mapping[str, Any]) -> str:
         "",
         f"- Pooled interpretation: `{summary['pooled_interpretation']}`",
         f"- Batteries requiring source/protocol review: `{summary['source_protocol_review_battery_count']}` / `{summary['battery_count']}`",
-        f"- Batteries with target or continuity reasons: `{summary['target_or_continuity_flag_battery_count']}`",
+        f"- Batteries without exact-horizon validation rows: `{summary['unevaluated_battery_count']}`",
+        f"- Batteries with target, continuity, or coverage reasons: `{summary['target_or_continuity_flag_battery_count']}`",
         f"- Batteries with disproportionate error contribution: `{summary['disproportionate_error_contributor_battery_count']}`",
         "",
         "## Model Metrics",
@@ -433,7 +588,9 @@ def _markdown(summary: Mapping[str, Any]) -> str:
         lines.append(
             f"- `{model}` row-weighted MAE `{metrics['row_weighted_mae']}`, "
             f"battery-macro MAE `{metrics['battery_macro_mae']}`, "
-            f"row/macro ratio `{metrics['row_to_macro_mae_ratio']}`"
+            f"row/macro ratio `{metrics['row_to_macro_mae_ratio']}`, "
+            f"evaluated batteries `{metrics['evaluated_battery_count']}` / "
+            f"`{metrics['supplied_battery_count']}`"
         )
     lines.extend(["", "## Top Absolute-Error Contributors", ""])
     for model, records in summary["top_absolute_error_contributors"].items():
@@ -475,7 +632,8 @@ def _update_closeout(output: Path, summary: Mapping[str, Any]) -> None:
             ),
             "scope": (
                 "Battery-level pooled-error influence, target/continuity reasons, "
-                "and observed-condition profiles were reported without filtering."
+                "evaluation coverage, and observed-condition profiles were reported "
+                "without filtering."
             ),
         }
         closeout.setdefault("strongest_evidence", {})[
@@ -506,6 +664,8 @@ def _update_closeout(output: Path, summary: Mapping[str, Any]) -> None:
             f"- Batteries requiring source/protocol review: "
             f"`{summary['source_protocol_review_battery_count']}` / "
             f"`{summary['battery_count']}`\n"
+            f"- Batteries without exact-horizon rows: "
+            f"`{summary['unevaluated_battery_count']}`\n"
             f"- Scientific boundary: {summary['scientific_boundary']}\n\n{end}\n"
         )
         markdown_path.write_text(prefix + "\n\n" + section, encoding="utf-8")
