@@ -146,15 +146,20 @@ def _signal_comparison() -> dict[str, float]:
     }
 
 
-def test_protocol_audit_separates_reference_context_from_structural_issues() -> None:
-    result = build_nasa_protocol_audit(
+def _build_audit(*, declared_evidence_level: str = "Unsupported") -> dict[str, object]:
+    return build_nasa_protocol_audit(
         protocol_summary=_protocol_summary(),
         source_inventory=_inventory(),
         target_integrity=_target_integrity(),
         diagnostic_priority=_priority(),
         predictions=_predictions(),
         signal_feature_comparison=_signal_comparison(),
+        declared_evidence_level=declared_evidence_level,
     )
+
+
+def test_protocol_audit_separates_reference_context_from_structural_issues() -> None:
+    result = _build_audit()
     summary = result["summary"]
     profile = result["battery_profile"].set_index("battery_id")
 
@@ -178,14 +183,7 @@ def test_protocol_audit_separates_reference_context_from_structural_issues() -> 
 
 
 def test_protocol_audit_reports_model_failure_without_favorable_filtering() -> None:
-    result = build_nasa_protocol_audit(
-        protocol_summary=_protocol_summary(),
-        source_inventory=_inventory(),
-        target_integrity=_target_integrity(),
-        diagnostic_priority=_priority(),
-        predictions=_predictions(),
-        signal_feature_comparison=_signal_comparison(),
-    )
+    result = _build_audit()
     summary = result["summary"]
     strata = result["temperature_strata"].set_index("ambient_temperature_median_c")
 
@@ -200,6 +198,15 @@ def test_protocol_audit_reports_model_failure_without_favorable_filtering() -> N
     assert bool(strata.loc[4.0, "supported_for_within_stratum_description"]) is False
     assert summary["supported_temperature_stratum_count"] == 1
     assert not result["error_associations"].empty
+
+
+def test_protocol_audit_preserves_declared_evidence_level() -> None:
+    result = _build_audit(declared_evidence_level="Inconclusive")
+    summary = result["summary"]
+
+    assert summary["predictive_evidence_level"] == "Inconclusive"
+    assert "preserves" in summary["evidence_preservation_boundary"]
+    assert "Persistence remains better" in summary["primary_model_result"]
 
 
 def test_protocol_audit_rejects_unknown_prediction_identity() -> None:
@@ -218,6 +225,7 @@ def test_protocol_audit_rejects_unknown_prediction_identity() -> None:
             diagnostic_priority=_priority(),
             predictions=predictions,
             signal_feature_comparison=_signal_comparison(),
+            declared_evidence_level="Unsupported",
         )
 
 
@@ -278,6 +286,7 @@ def test_existing_run_audit_writes_provenance_and_is_idempotent(tmp_path: Path) 
     closeout_path = analysis_output / "reports" / "scientific_closeout.json"
     closeout = json.loads(closeout_path.read_text(encoding="utf-8"))
     assert closeout["evidence_level"] == "Unsupported"
+    assert result["summary"]["predictive_evidence_level"] == "Unsupported"
     assert (
         closeout["component_statuses"]["nasa_protocol_aware_posthoc_audit"]["status"]
         == "Diagnostic"
