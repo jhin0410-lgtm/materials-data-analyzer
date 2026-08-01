@@ -103,6 +103,45 @@ def _knee_phase(row: pd.Series, horizon: int) -> str:
     return "near_knee"
 
 
+def _profile_comparison(
+    battery_profiles: pd.DataFrame,
+    *,
+    comparison_flag: str,
+    reference_name: str,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    improved = battery_profiles[battery_profiles[comparison_flag]]
+    not_improved = battery_profiles[~battery_profiles[comparison_flag]]
+    excluded = {
+        "ridge_mae",
+        "persistence_mae",
+        "ridge_improvement_percent",
+        "best_baseline_mae",
+    }
+    for column in battery_profiles.select_dtypes(include=[np.number]).columns:
+        if column in excluded or column.endswith("_mae"):
+            continue
+        improved_values = improved[column].dropna().to_numpy(dtype=float)
+        failed_values = not_improved[column].dropna().to_numpy(dtype=float)
+        if not len(improved_values) or not len(failed_values):
+            continue
+        improved_mean = float(np.mean(improved_values))
+        failed_mean = float(np.mean(failed_values))
+        rows.append(
+            {
+                "comparison_reference": reference_name,
+                "metric": column,
+                "ridge_improved_battery_count": int(len(improved_values)),
+                "ridge_not_improved_battery_count": int(len(failed_values)),
+                "ridge_improved_mean": improved_mean,
+                "ridge_not_improved_mean": failed_mean,
+                "mean_difference": improved_mean - failed_mean,
+                "interpretation_boundary": "descriptive association only",
+            }
+        )
+    return rows
+
+
 def build_error_diagnostics(
     *,
     predictions: pd.DataFrame,
@@ -161,20 +200,23 @@ def build_error_diagnostics(
     baseline_names = [name for name in model_names if name != "ridge"]
     baseline_error_columns = [f"{name}_absolute_error" for name in baseline_names]
     all_error_columns = [f"{name}_absolute_error" for name in model_names]
-    enriched["best_baseline_name"] = (
+    enriched["row_oracle_baseline_name"] = (
         enriched[baseline_error_columns]
         .idxmin(axis=1)
         .str.removesuffix("_absolute_error")
     )
-    enriched["best_baseline_absolute_error"] = enriched[baseline_error_columns].min(axis=1)
+    enriched["row_oracle_baseline_absolute_error"] = enriched[
+        baseline_error_columns
+    ].min(axis=1)
     enriched["best_model_name"] = (
         enriched[all_error_columns].idxmin(axis=1).str.removesuffix("_absolute_error")
     )
     enriched["ridge_minus_persistence_absolute_error"] = (
         enriched["ridge_absolute_error"] - enriched["persistence_absolute_error"]
     )
-    enriched["ridge_minus_best_baseline_absolute_error"] = (
-        enriched["ridge_absolute_error"] - enriched["best_baseline_absolute_error"]
+    enriched["ridge_minus_row_oracle_baseline_absolute_error"] = (
+        enriched["ridge_absolute_error"]
+        - enriched["row_oracle_baseline_absolute_error"]
     )
     enriched["domain_status"] = np.where(
         enriched["outside_training_range_feature_count"] > 0,
@@ -199,10 +241,7 @@ def build_error_diagnostics(
     enriched["trajectory_regime"] = enriched["status"].fillna("unknown")
     try:
         enriched["interval_width_bin"] = pd.qcut(
-            enriched["interval_width"],
-            q=4,
-            labels=["narrowest", "narrow", "wide", "widest"],
-            duplicates="drop",
+            enriched["interval_width"], q=4, duplicates="drop"
         ).astype(str)
     except ValueError:
         enriched["interval_width_bin"] = "single_width"
@@ -215,9 +254,13 @@ def build_error_diagnostics(
             actual, enriched[f"{model}_prediction"].to_numpy(dtype=float)
         )
         metrics["improvement_percent_vs_persistence"] = float(
-            100.0 * (persistence_mae - metrics["mae"]) / max(persistence_mae, np.finfo(float).eps)
+            100.0
+            * (persistence_mae - metrics["mae"])
+            / max(persistence_mae, np.finfo(float).eps)
         )
-        metrics["row_win_fraction"] = float(np.mean(enriched["best_model_name"] == model))
+        metrics["row_win_fraction"] = float(
+            np.mean(enriched["best_model_name"] == model)
+        )
         global_rows.append({"model": model, **metrics})
     model_comparison = pd.DataFrame(global_rows).sort_values(
         ["mae", "model"], kind="mergesort"
@@ -258,32 +301,23 @@ def build_error_diagnostics(
             validate="one_to_one",
         )
 
-    profile_rows: list[dict[str, Any]] = []
-    improved = battery_profiles[battery_profiles["ridge_improved"]]
-    not_improved = battery_profiles[~battery_profiles["ridge_improved"]]
-    for column in battery_profiles.select_dtypes(include=[np.number]).columns:
-        if column in {"ridge_mae", "persistence_mae", "ridge_improvement_percent"}:
-            continue
-        improved_values = improved[column].dropna().to_numpy(dtype=float)
-        failed_values = not_improved[column].dropna().to_numpy(dtype=float)
-        if not len(improved_values) or not len(failed_values):
-            continue
-        improved_mean = float(np.mean(improved_values))
-        failed_mean = float(np.mean(failed_values))
-        profile_rows.append(
-            {
-                "metric": column,
-                "ridge_improved_battery_count": int(len(improved_values)),
-                "ridge_not_improved_battery_count": int(len(failed_values)),
-                "ridge_improved_mean": improved_mean,
-                "ridge_not_improved_mean": failed_mean,
-                "mean_difference": improved_mean - failed_mean,
-                "interpretation_boundary": "descriptive association only",
-            }
+    profile_rows = _profile_comparison(
+        battery_profiles,
+        comparison_flag="ridge_improved",
+        reference_name="persistence",
+    )
+    profile_rows.extend(
+        _profile_comparison(
+            battery_profiles,
+            comparison_flag="ridge_improved_vs_best_baseline",
+            reference_name="battery_specific_best_baseline",
         )
+    )
     success_failure_profiles = pd.DataFrame(profile_rows)
 
-    high_error_count = min(len(enriched), max(20, int(math.ceil(0.05 * len(enriched)))))
+    high_error_count = min(
+        len(enriched), max(20, int(math.ceil(0.05 * len(enriched))))
+    )
     high_error_predictions = enriched.nlargest(
         high_error_count, "ridge_absolute_error"
     ).reset_index(drop=True)
@@ -324,6 +358,10 @@ def build_error_diagnostics(
             else None
         ),
         "high_error_prediction_count": int(len(high_error_predictions)),
+        "row_oracle_boundary": (
+            "The row-oracle baseline selects the lowest-error baseline after the "
+            "outcome is known. It is an error-envelope diagnostic, not a deployable model."
+        ),
         "diagnostic_label_boundary": (
             "Lifecycle and knee-phase labels may use the complete observed trajectory. "
             "They are post-hoc diagnostic strata and are not forecast inputs."
