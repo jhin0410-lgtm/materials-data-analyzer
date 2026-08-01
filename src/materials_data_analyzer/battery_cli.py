@@ -7,6 +7,7 @@ from pathlib import Path
 
 from platform_core.battery_intelligence import (
     BatteryIntelligenceConfig,
+    audit_battery_intelligence_run,
     run_battery_intelligence,
 )
 
@@ -17,8 +18,8 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Run leakage-safe battery degradation diagnostics, strong origin-only "
             "baseline comparison, error-structure analysis, optional admitted raw-"
-            "signal features, uncertainty, extrapolation checks, and a bounded "
-            "scientific closeout."
+            "signal features, uncertainty, extrapolation checks, target/reference "
+            "comparability auditing, and a bounded scientific closeout."
         ),
     )
     parser.add_argument("--cycle-summary", required=True, type=Path)
@@ -75,8 +76,10 @@ def main() -> None:
         config=config,
         overwrite=args.overwrite,
     )
+    audit = audit_battery_intelligence_run(args.output)
     summary = manifest["validation_summary"]
     closeout = manifest["scientific_closeout"]
+    audit_summary = audit["summary"]
     print(f"output: {args.output}")
     print(f"evidence_level: {closeout['evidence_level']}")
     print(f"best_baseline: {summary['best_baseline_name']}")
@@ -91,6 +94,14 @@ def main() -> None:
     admission = manifest.get("raw_signal_admission")
     if admission is not None:
         print(f"raw_signal_admission: {admission['status']}")
+    print(
+        "pooled_cross_battery_interpretation: "
+        f"{audit_summary['pooled_cross_battery_interpretation']}"
+    )
+    print(
+        "pooled_error_stability_status: "
+        f"{audit_summary['pooled_error_stability_status']}"
+    )
 
 
 if __name__ == "__main__":
