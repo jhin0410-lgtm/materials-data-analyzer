@@ -2,7 +2,7 @@
 
 Some official NASA PCoE discharge operations contain a ``Capacity`` field that
 cannot be used as a physical degradation target: it may be missing, nonnumeric,
-non-scalar, non-finite, zero, or negative. Those operations are excluded from
+non-scalar, complex-valued, non-finite, zero, or negative. Those operations are excluded from
 canonical cycle-summary and raw-signal tables, while their original source
 identity, discharge ordinal, observed representation, and exclusion reason
 remain auditable.
@@ -33,6 +33,7 @@ _INVALID_CAPACITY_REASONS = (
     "missing",
     "nonnumeric",
     "nonscalar",
+    "complex",
     "nonfinite",
     "nonpositive",
 )
@@ -42,6 +43,14 @@ def _capacity_observation(value: Any, *, present: bool) -> tuple[float | None, s
     """Return ``(valid_value, issue, observed_repr)`` for one Capacity field."""
     if not present:
         return None, "missing", "missing:<missing>"
+    try:
+        raw = np.asarray(value)
+    except (TypeError, ValueError):
+        text = repr(value)
+        return None, "nonnumeric", ("nonnumeric:" + text)[:500]
+    flat = raw.reshape(-1)
+    if np.iscomplexobj(raw) or any(isinstance(item, complex) for item in flat.tolist()):
+        return None, "complex", ("complex:" + np.array2string(raw, threshold=20))[:500]
     try:
         array = np.asarray(value, dtype=float).reshape(-1)
     except (TypeError, ValueError):
@@ -269,7 +278,7 @@ def _load_source_with_invalid_capacity_quarantine(
             if inventory["discharge_operation_count"]
             else "no_discharge_operations"
         )
-        return None, [], [], inventory, warnings
+        return battery_id, [], [], inventory, warnings
     inventory["imported"] = True
     return battery_id, cycle_rows, raw_rows, inventory, warnings
 
@@ -281,7 +290,9 @@ def _count_inventory(inventory: pd.DataFrame, column: str) -> int:
     return int(countable.get(column, pd.Series(dtype=int)).fillna(0).sum())
 
 
-def _write_excluded_operations(output: Path) -> tuple[Path, pd.DataFrame]:
+def _write_excluded_operations(
+    output: Path, inventory: pd.DataFrame
+) -> tuple[Path, pd.DataFrame]:
     warnings_path = output / "nasa_pcoe_import_warnings.csv"
     warnings = pd.read_csv(warnings_path)
     excluded = warnings[
@@ -289,6 +300,16 @@ def _write_excluded_operations(output: Path) -> tuple[Path, pd.DataFrame]:
             "invalid_discharge_capacity_excluded"
         )
     ].copy()
+    duplicate_locations = set(
+        inventory.loc[
+            inventory["skip_reason"].fillna("") == _DUPLICATE_SKIP_REASON,
+            "source_location",
+        ].astype(str)
+    )
+    if duplicate_locations and "source_location" in excluded:
+        excluded = excluded[
+            ~excluded["source_location"].astype(str).isin(duplicate_locations)
+        ].copy()
     columns = [
         "source_location",
         "battery_id",
@@ -334,13 +355,17 @@ def _enrich_audit_outputs(output: Path, manifest: dict[str, Any]) -> dict[str, A
             inventory, f"{reason}_capacity_operation_count"
         )
 
-    excluded_path, excluded_table = _write_excluded_operations(output)
+    excluded_path, excluded_table = _write_excluded_operations(output, inventory)
+    if len(excluded_table) != counts["invalid_capacity_operation_count"]:
+        raise RuntimeError(
+            "excluded-operation artifact count does not reconcile with inventory"
+        )
 
     provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
     transformation = provenance.setdefault("transformation", {})
     transformation["invalid_capacity_policy"] = (
         "A discharge operation whose Capacity target is missing, nonnumeric, "
-        "non-scalar, non-finite, zero, or negative is retained in source inventory "
+        "non-scalar, complex-valued, non-finite, zero, or negative is retained in source inventory "
         "and exclusion artifacts but omitted from canonical cycle-summary and "
         "raw-signal tables. Later discharge ordinals are not renumbered. Measured "
         "trajectory vectors are validated before quarantine. No capacity value is "
