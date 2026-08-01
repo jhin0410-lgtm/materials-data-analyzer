@@ -60,6 +60,7 @@ Installed user commands:
 ```powershell
 mda --help
 mda-battery-intelligence --help
+mda-nasa-battery-import --help
 ```
 
 The historical checkout command remains supported:
@@ -182,8 +183,10 @@ envelope and is not treated as a deployable comparator.
 Optional raw signals may be supplied with `--raw-signal`, but signal-derived
 features do not enter predictive comparison unless a
 `--raw-signal-provenance` JSON sidecar passes checksum, unit, identity, source,
-license/terms, and coverage checks. Unverified signals may be inspected for
-software behavior but cannot silently strengthen a scientific claim.
+license/terms, and coverage checks. NASA importer artifacts additionally require
+a verified receipt for the exact official archive URL. Unverified local or
+mirror signals remain diagnostic-only and cannot silently strengthen a
+scientific claim.
 
 The forecast is **warm-start cross-battery**, not zero-shot lifetime or RUL
 prediction. Lifecycle and knee-phase strata are post-hoc diagnostics, not model
@@ -195,9 +198,46 @@ voltage/current/temperature trajectories needed to scientifically validate IC,
 CC/CV, thermal, energy, or transition-resistance predictive value. Runs state
 that limitation explicitly rather than inventing missing measurements.
 
-See
-[`docs/BATTERY_DEGRADATION_INTELLIGENCE.md`](docs/BATTERY_DEGRADATION_INTELLIGENCE.md)
-for schemas, admission rules, baseline definitions, outputs, and claim boundaries.
+### Official NASA PCoE raw-signal path
+
+Acquire the official archive and record a checksum-backed retrieval receipt:
+
+```powershell
+.\scripts\download_nasa_pcoe_battery_dataset.ps1
+```
+
+Convert the local nested ZIP and MAT files without network access:
+
+```powershell
+mda-nasa-battery-import `
+  --input data/raw/battery/nasa_pcoe/5_Battery_Data_Set.zip `
+  --retrieval-receipt data/raw/battery/nasa_pcoe/retrieval_receipt.json `
+  --output data/processed/nasa_pcoe_battery_import
+```
+
+Run the internally consistent signal-enriched analysis from the imported cycle
+summary and raw trajectories:
+
+```powershell
+mda-battery-intelligence `
+  --cycle-summary data/processed/nasa_pcoe_battery_import/nasa_pcoe_cycle_summary.csv `
+  --raw-signal data/processed/nasa_pcoe_battery_import/nasa_pcoe_raw_signal.csv `
+  --raw-signal-provenance data/processed/nasa_pcoe_battery_import/nasa_pcoe_raw_signal_provenance.json `
+  --output outputs/nasa_pcoe_signal_enriched_battery_intelligence `
+  --n-splits 5 `
+  --knee-bootstrap-samples 200
+```
+
+The importer records per-file hashes, source inventory, protocol summaries,
+transformation details, warnings, and an immutable manifest. It performs no
+interpolation, smoothing, inferred unit conversion, charge-discharge pairing,
+or timezone inference. Import success is software validation; predictive value
+and external generalization remain separate scientific questions.
+
+See:
+
+- [`docs/BATTERY_DEGRADATION_INTELLIGENCE.md`](docs/BATTERY_DEGRADATION_INTELLIGENCE.md)
+- [`docs/NASA_PCOE_BATTERY_IMPORT.md`](docs/NASA_PCOE_BATTERY_IMPORT.md)
 
 ## Run Provenance and Output Safety
 
@@ -340,7 +380,7 @@ Responsibilities are separated deliberately:
   eligibility;
 - `src/platform_core/`: registries, provenance, scientific contracts, Battery
   Intelligence, and bounded platform workflows;
-- `scripts/`: case-study and release-governance orchestration;
+- `scripts/`: case-study, source-acquisition, and release-governance orchestration;
 - `data/case_studies/`: source notes, compact real-data tables, and limitations;
 - `outputs/`: regenerable local artifacts that are not committed.
 
@@ -348,7 +388,8 @@ Responsibilities are separated deliberately:
 
 - `mda`: stable user-facing tabular analysis command;
 - `mda-battery-intelligence`: stable Battery degradation diagnostic command;
-- `python scripts/...`: explicit case-study workflows;
+- `mda-nasa-battery-import`: stable offline NASA PCoE MAT/ZIP conversion command;
+- `python scripts/...`: explicit acquisition and case-study workflows;
 - `python -m src.cli`: internal platform, registry, PGIR, and evidence-governance
   interface retained for repository development.
 
@@ -366,7 +407,7 @@ classifier.
 | Materials Project | Calculated-property and structure case study | Chemical-system grouping and applicability domain | Descriptive screening; predictive evidence limited |
 | Smart Factory | UCI SECOM | Chronological validation and random-split optimism | Diagnostic only; no production classifier selected |
 | Reliability | Backblaze Hard Drive Test Data | Asset-disjoint and time-aware validation | Diagnostic risk ranking; no RUL or maintenance automation |
-| Battery | Kaggle NASA Li-ion Battery | Battery grouping, strong baselines, trajectory, uncertainty, OOD, and error structure | Component-specific Supported/Diagnostic/Inconclusive/Unsupported; no RUL claim |
+| Battery | NASA PCoE Li-ion Battery archive and tracked cycle summary | Receipt-backed raw-signal provenance, battery grouping, strong baselines, trajectory, uncertainty, OOD, and error structure | Component-specific Supported/Diagnostic/Inconclusive/Unsupported; no RUL claim |
 | Battery Archive | Public cycle data | Cycle normalization and censoring | Descriptive only; no forecasting or RUL claim |
 
 ## Scientific Principles
@@ -424,8 +465,9 @@ python -m build
 ```
 
 CI validates the complete pytest suite and installs the built wheel on both
-Ubuntu and Windows before running the `mda` and `mda-battery-intelligence` smoke
-workflows. Passing tests establish software behavior, not scientific validity.
+Ubuntu and Windows before running the `mda`, `mda-nasa-battery-import`, and
+`mda-battery-intelligence` smoke workflows. Passing tests establish software
+behavior, not scientific validity.
 
 The tracked test suite runs without private credentials, downloaded raw archives,
 or previously generated output folders.
@@ -452,6 +494,7 @@ See:
 - [`docs/SCIENTIFIC_TRUST_BOUNDARY.md`](docs/SCIENTIFIC_TRUST_BOUNDARY.md)
 - [`docs/BATTERY_GENERALIZATION_FORECASTING.md`](docs/BATTERY_GENERALIZATION_FORECASTING.md)
 - [`docs/BATTERY_DEGRADATION_INTELLIGENCE.md`](docs/BATTERY_DEGRADATION_INTELLIGENCE.md)
+- [`docs/NASA_PCOE_BATTERY_IMPORT.md`](docs/NASA_PCOE_BATTERY_IMPORT.md)
 - [`docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md`](docs/REPRESENTATIVE_PROCESS_CHARACTERIZATION_WORKFLOW.md)
 
 ## License
