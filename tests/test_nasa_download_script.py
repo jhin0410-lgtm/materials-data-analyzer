@@ -23,6 +23,15 @@ def test_nasa_download_script_preserves_transport_provenance_contract() -> None:
     assert "UTF8Encoding]::new($false)" in text
 
 
+def test_nasa_download_script_resolves_paths_from_explicit_context() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert 'Join-Path $PSScriptRoot ".."' in text
+    assert '$PSBoundParameters.ContainsKey("OutputDirectory")' in text
+    assert "Join-Path (Get-Location).Path $OutputDirectory" in text
+    assert "Join-Path $repositoryRoot $OutputDirectory" in text
+    assert "$outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)" in text
+
+
 def test_nasa_download_script_has_valid_powershell_syntax() -> None:
     executable = shutil.which("pwsh")
     if executable is None:
