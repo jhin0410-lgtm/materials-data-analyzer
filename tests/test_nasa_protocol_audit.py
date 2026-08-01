@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from platform_core.battery_intelligence.nasa_protocol_audit import (
+    _diagnostic_limitation,
     audit_nasa_protocol_run,
     build_nasa_protocol_audit,
 )
@@ -20,7 +21,14 @@ BATTERIES = ["A", "B", "C", "D", "E", "F"]
 
 
 def _protocol_summary() -> pd.DataFrame:
-    temperature = {"A": 25.0, "B": 25.0, "C": 25.0, "D": 40.0, "E": 40.0, "F": 4.0}
+    temperatures = {
+        "A": 25.0,
+        "B": 25.0,
+        "C": 25.0,
+        "D": 40.0,
+        "E": 40.0,
+        "F": 4.0,
+    }
     rows = []
     for index, battery in enumerate(BATTERIES):
         rows.append(
@@ -28,9 +36,9 @@ def _protocol_summary() -> pd.DataFrame:
                 "battery_id": battery,
                 "discharge_cycle_count": 20 if battery != "F" else 3,
                 "raw_point_count": 1000 if battery != "F" else 100,
-                "ambient_temperature_min_c": temperature[battery],
-                "ambient_temperature_median_c": temperature[battery],
-                "ambient_temperature_max_c": temperature[battery],
+                "ambient_temperature_min_c": temperatures[battery],
+                "ambient_temperature_median_c": temperatures[battery],
+                "ambient_temperature_max_c": temperatures[battery],
                 "voltage_min_v": 2.0 + 0.01 * index,
                 "voltage_max_v": 4.2,
                 "current_abs_median_a": 1.0 + 0.1 * index,
@@ -120,11 +128,15 @@ def _inventory() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _predictions() -> pd.DataFrame:
+def _predictions(*, ridge_error: float | None = None) -> pd.DataFrame:
     rows = []
     for battery in BATTERIES[:-1]:
         persistence_error = 1.0
-        ridge_error = 0.5 if battery == "B" else 2.0
+        battery_ridge_error = (
+            ridge_error
+            if ridge_error is not None
+            else 0.5 if battery == "B" else 2.0
+        )
         for cycle in range(3):
             actual = 90.0 - cycle
             rows.append(
@@ -132,7 +144,7 @@ def _predictions() -> pd.DataFrame:
                     "battery_id": battery,
                     "actual": actual,
                     "persistence_prediction": actual + persistence_error,
-                    "ridge_prediction": actual + ridge_error,
+                    "ridge_prediction": actual + battery_ridge_error,
                 }
             )
     return pd.DataFrame(rows)
@@ -146,19 +158,26 @@ def _signal_comparison() -> dict[str, float]:
     }
 
 
-def _build_audit(*, declared_evidence_level: str = "Unsupported") -> dict[str, object]:
+def _build_audit(
+    *,
+    source_inventory: pd.DataFrame | None = None,
+    predictions: pd.DataFrame | None = None,
+    declared_evidence_level: str = "Unsupported",
+) -> dict[str, object]:
     return build_nasa_protocol_audit(
         protocol_summary=_protocol_summary(),
-        source_inventory=_inventory(),
+        source_inventory=(
+            _inventory() if source_inventory is None else source_inventory
+        ),
         target_integrity=_target_integrity(),
         diagnostic_priority=_priority(),
-        predictions=_predictions(),
+        predictions=_predictions() if predictions is None else predictions,
         signal_feature_comparison=_signal_comparison(),
         declared_evidence_level=declared_evidence_level,
     )
 
 
-def test_protocol_audit_separates_reference_context_from_structural_issues() -> None:
+def test_protocol_audit_separates_context_from_structural_issues() -> None:
     result = _build_audit()
     summary = result["summary"]
     profile = result["battery_profile"].set_index("battery_id")
@@ -177,36 +196,56 @@ def test_protocol_audit_separates_reference_context_from_structural_issues() -> 
     assert bool(profile.loc["B", "reference_context_only"]) is True
     assert bool(profile.loc["D", "invalid_capacity_quarantine_issue"]) is True
     assert bool(profile.loc["F", "evaluation_coverage_issue"]) is True
-    assert "first_target_not_near_rated_capacity" in profile.loc["A", "context_reasons"]
+    assert "first_target_not_near_rated_capacity" in profile.loc[
+        "A", "context_reasons"
+    ]
     assert profile.loc["A", "structural_review_reasons"] == ""
     assert len(profile) == 6
 
 
-def test_protocol_audit_reports_model_failure_without_favorable_filtering() -> None:
+def test_protocol_audit_reports_model_failure_and_suppresses_sparse_strata() -> None:
     result = _build_audit()
     summary = result["summary"]
-    strata = result["temperature_strata"].set_index("ambient_temperature_median_c")
+    strata = result["temperature_strata"].set_index(
+        "ambient_temperature_median_c"
+    )
 
     assert summary["persistence_row_weighted_mae"] == pytest.approx(1.0)
     assert summary["ridge_row_weighted_mae"] == pytest.approx(1.7)
-    assert summary["ridge_improvement_vs_persistence_percent"] == pytest.approx(-70.0)
+    assert summary["ridge_improvement_vs_persistence_percent"] == pytest.approx(
+        -70.0
+    )
     assert summary["ridge_better_than_persistence_battery_count"] == 1
     assert summary["signal_enriched_improvement_percent"] == -6.0
     assert summary["predictive_evidence_level"] == "Unsupported"
-    assert bool(strata.loc[25.0, "supported_for_within_stratum_description"]) is True
-    assert bool(strata.loc[40.0, "supported_for_within_stratum_description"]) is False
-    assert bool(strata.loc[4.0, "supported_for_within_stratum_description"]) is False
+    assert "Persistence remains better" in summary["primary_model_result"]
+
+    assert bool(
+        strata.loc[25.0, "supported_for_within_stratum_description"]
+    ) is True
+    assert bool(
+        strata.loc[40.0, "supported_for_within_stratum_description"]
+    ) is False
+    assert bool(
+        strata.loc[4.0, "supported_for_within_stratum_description"]
+    ) is False
+    assert pd.notna(strata.loc[25.0, "ridge_row_weighted_mae"])
+    assert pd.isna(strata.loc[40.0, "ridge_row_weighted_mae"])
+    assert pd.isna(strata.loc[4.0, "ridge_row_weighted_mae"])
     assert summary["supported_temperature_stratum_count"] == 1
     assert not result["error_associations"].empty
 
 
-def test_protocol_audit_preserves_declared_evidence_level() -> None:
-    result = _build_audit(declared_evidence_level="Inconclusive")
+def test_protocol_audit_preserves_evidence_and_derives_model_result() -> None:
+    result = _build_audit(
+        predictions=_predictions(ridge_error=0.5),
+        declared_evidence_level="Inconclusive",
+    )
     summary = result["summary"]
 
     assert summary["predictive_evidence_level"] == "Inconclusive"
+    assert "Ridge is lower than persistence" in summary["primary_model_result"]
     assert "preserves" in summary["evidence_preservation_boundary"]
-    assert "Persistence remains better" in summary["primary_model_result"]
 
 
 def test_protocol_audit_rejects_unknown_prediction_identity() -> None:
@@ -218,15 +257,42 @@ def test_protocol_audit_rejects_unknown_prediction_identity() -> None:
         "ridge_prediction": 88.0,
     }
     with pytest.raises(ValueError, match="absent from NASA protocol summary"):
-        build_nasa_protocol_audit(
-            protocol_summary=_protocol_summary(),
-            source_inventory=_inventory(),
-            target_integrity=_target_integrity(),
-            diagnostic_priority=_priority(),
-            predictions=predictions,
-            signal_feature_comparison=_signal_comparison(),
-            declared_evidence_level="Unsupported",
-        )
+        _build_audit(predictions=predictions)
+
+
+def test_protocol_audit_accepts_inventory_without_quarantine_counters() -> None:
+    inventory = pd.DataFrame(
+        {"battery_id": BATTERIES, "skip_reason": [""] * len(BATTERIES)}
+    )
+    result = _build_audit(source_inventory=inventory)
+
+    assert result["summary"]["invalid_capacity_quarantine_operation_count"] == 0
+    assert result["summary"]["source_quality_issue_battery_count"] == 1
+
+
+def test_protocol_audit_rejects_missing_inventory_battery() -> None:
+    inventory = _inventory()
+    inventory = inventory[inventory["battery_id"] != "F"].copy()
+
+    with pytest.raises(ValueError, match="missing protocol batteries: F"):
+        _build_audit(source_inventory=inventory)
+
+
+def test_neutral_limitation_does_not_invent_findings() -> None:
+    limitation = _diagnostic_limitation(
+        {
+            "reference_start_context_battery_count": 0,
+            "source_quality_issue_battery_count": 0,
+            "trajectory_continuity_issue_battery_count": 0,
+            "unevaluated_battery_count": 0,
+            "supported_temperature_stratum_count": 0,
+            "diagnostic_association_count": 0,
+        }
+    )
+
+    assert "did not identify supported" in limitation
+    assert "trajectory discontinuities" not in limitation
+    assert "condition-dependent error structure" not in limitation
 
 
 def _write_existing_run(import_output: Path, analysis_output: Path) -> None:
@@ -236,9 +302,15 @@ def _write_existing_run(import_output: Path, analysis_output: Path) -> None:
     reports.mkdir(parents=True)
     tables.mkdir(parents=True)
 
-    _protocol_summary().to_csv(import_output / "nasa_pcoe_protocol_summary.csv", index=False)
-    _inventory().to_csv(import_output / "nasa_pcoe_source_inventory.csv", index=False)
-    _target_integrity().to_csv(tables / "target_integrity_by_battery.csv", index=False)
+    _protocol_summary().to_csv(
+        import_output / "nasa_pcoe_protocol_summary.csv", index=False
+    )
+    _inventory().to_csv(
+        import_output / "nasa_pcoe_source_inventory.csv", index=False
+    )
+    _target_integrity().to_csv(
+        tables / "target_integrity_by_battery.csv", index=False
+    )
     _priority().to_csv(tables / "battery_diagnostic_priority.csv", index=False)
     _predictions().to_csv(tables / "validation_predictions.csv", index=False)
     (reports / "signal_feature_comparison.json").write_text(
@@ -271,7 +343,9 @@ def _write_existing_run(import_output: Path, analysis_output: Path) -> None:
     )
 
 
-def test_existing_run_audit_writes_provenance_and_is_idempotent(tmp_path: Path) -> None:
+def test_existing_run_audit_is_idempotent_and_preserves_markdown_suffix(
+    tmp_path: Path,
+) -> None:
     import_output = tmp_path / "import"
     analysis_output = tmp_path / "analysis"
     _write_existing_run(import_output, analysis_output)
@@ -284,31 +358,46 @@ def test_existing_run_audit_writes_provenance_and_is_idempotent(tmp_path: Path) 
         assert Path(path).is_file()
 
     closeout_path = analysis_output / "reports" / "scientific_closeout.json"
+    markdown_path = analysis_output / "reports" / "scientific_closeout.md"
     closeout = json.loads(closeout_path.read_text(encoding="utf-8"))
+    limitation = closeout["limitations"][-1]
     assert closeout["evidence_level"] == "Unsupported"
     assert result["summary"]["predictive_evidence_level"] == "Unsupported"
     assert (
-        closeout["component_statuses"]["nasa_protocol_aware_posthoc_audit"]["status"]
+        closeout["component_statuses"][
+            "nasa_protocol_aware_posthoc_audit"
+        ]["status"]
         == "Diagnostic"
     )
-    manifest = json.loads(
-        (analysis_output / "run_manifest.json").read_text(encoding="utf-8")
+
+    suffix = (
+        "<!-- later-tool:start -->\n\n## Later Tool\n\nkeep me\n\n"
+        "<!-- later-tool:end -->\n"
     )
-    assert "nasa_protocol_aware_posthoc_audit" in manifest
-    assert "reports/nasa_protocol_audit.json" in manifest["artifact_checksums"]
+    markdown_path.write_text(
+        markdown_path.read_text(encoding="utf-8").rstrip()
+        + "\n\n"
+        + suffix,
+        encoding="utf-8",
+    )
 
     audit_nasa_protocol_run(
         import_output=import_output,
         analysis_output=analysis_output,
     )
     rerun = json.loads(closeout_path.read_text(encoding="utf-8"))
-    limitation = (
-        "Protocol-aware post-hoc diagnostics show heterogeneous starting discharge, "
-        "trajectory discontinuities, and condition-dependent error structure; these "
-        "diagnostics do not establish a transferable predictive model."
+    markdown = markdown_path.read_text(encoding="utf-8")
+    manifest = json.loads(
+        (analysis_output / "run_manifest.json").read_text(encoding="utf-8")
     )
+
     assert rerun["limitations"].count(limitation) == 1
     assert rerun["primary_limitation"].count(limitation) == 1
+    assert markdown.count("<!-- nasa-protocol-audit:start -->") == 1
+    assert "<!-- later-tool:start -->" in markdown
+    assert "keep me" in markdown
+    assert "nasa_protocol_aware_posthoc_audit" in manifest
+    assert "reports/nasa_protocol_audit.json" in manifest["artifact_checksums"]
 
 
 def test_protocol_audit_script_has_valid_powershell_syntax() -> None:
