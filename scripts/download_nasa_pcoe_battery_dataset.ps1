@@ -42,7 +42,9 @@ $receipt = [ordered]@{
     note = "The receipt records transport provenance only. Import and scientific admission remain separate checks."
 }
 
-$receipt | ConvertTo-Json -Depth 6 | Set-Content -Path $receiptPath -Encoding utf8
+$receiptJson = $receipt | ConvertTo-Json -Depth 6
+$utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($receiptPath, $receiptJson, $utf8WithoutBom)
 
 Write-Output "archive: $archivePath"
 Write-Output "sha256: $sha256"
