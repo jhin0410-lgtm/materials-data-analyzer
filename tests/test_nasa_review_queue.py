@@ -203,6 +203,7 @@ def test_focused_review_queue_rejects_evaluation_inconsistency() -> None:
 
 def test_focused_review_queue_rejects_invalid_boolean_cells() -> None:
     profile = _profile()
+    profile["source_quality_issue"] = profile["source_quality_issue"].astype(object)
     profile.loc[profile["battery_id"] == "A", "source_quality_issue"] = "tru"
     with pytest.raises(ValueError, match="invalid boolean values"):
         build_nasa_focused_review_queue(
