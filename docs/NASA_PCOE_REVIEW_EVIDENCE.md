@@ -1,4 +1,4 @@
-# NASA PCoE Battery Review Evidence
+# NASA PCoE Battery Revidence
 
 ## Purpose
 
@@ -17,12 +17,20 @@ extract new features, refit a model, repair targets, or remove batteries.
 
 ## Invocation
 
-After the focused review queue exists, generate the evidence from the existing
-import and analysis artifacts:
+After pulling the change, first refresh the existing-artifact protocol audit. This
+step also writes an explicit binding between the verified NASA import manifest and
+the analysis run, then regenerates the focused queue from the current protocol
+audit:
 
 ```powershell
+.\scripts\run_nasa_pcoe_protocol_audit.ps1
 .\scripts\run_nasa_pcoe_review_evidence.ps1
 ```
+
+Neither command imports the NASA ZIP or refits a model. The first command reads the
+existing import and analysis artifacts, refreshes protocol diagnostics, records the
+import-to-analysis binding, and regenerates the queue. The second command creates
+the evidence packets.
 
 Custom paths are supported:
 
@@ -37,17 +45,25 @@ Custom paths are supported:
 Generation fails rather than silently combining incompatible artifacts when:
 
 - required queue, validation, import, or manifest files are missing;
-- analysis-manifest checksums do not match the review queue, queue summary, or
-  validation predictions;
+- analysis-manifest checksums do not match the review queue, queue summary,
+  validation predictions, protocol profile, or protocol-audit JSON;
+- the queue's recorded source hashes do not match the current protocol profile and
+  protocol-audit JSON;
+- the analysis run lacks a verified import-artifact binding written by the
+  protocol-audit CLI;
+- the supplied import manifest identity or bound artifact hashes differ from the
+  import recorded for the analysis run;
 - import-manifest checksums do not match the protocol summary, source inventory,
   or excluded-operation table;
-- the queue summary differs from the summary stored in `run_manifest.json`;
-- queue battery identities differ from the import protocol or inventory;
+- queue battery identities differ from the import protocol or are missing from the
+  source inventory;
 - overlapping protocol or inventory values differ between the queue and import;
 - per-battery prediction counts, exclusion counts, or MAE values do not reconcile.
 
-This binds the evidence table to one analysis run and one import run without
-relying only on aggregate counts or filenames.
+An import may contain an inventory-only battery when every usable degradation
+target for that battery was quarantined. Such a battery is outside the protocol
+profile and review queue. It is not converted into a packet; its identity and
+ignored exclusion count are recorded explicitly in the evidence summary.
 
 ## Outputs
 
@@ -60,9 +76,10 @@ relying only on aggregate counts or filenames.
     └── nasa_protocol_review_evidence.md
 ```
 
-The CSV contains one row per battery in review order. The JSON preserves the same
-flat records with a provenance summary. The Markdown report provides a human
-review packet for every battery.
+The CSV contains one row per queue battery in review order. The JSON preserves the
+same records with their boolean types and provenance summary. The Markdown report
+includes exact source locations, source operation indices, and highest-error
+validation row references for human review.
 
 ## Interpretation
 

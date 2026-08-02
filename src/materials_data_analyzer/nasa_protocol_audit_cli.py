@@ -4,6 +4,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from platform_core.battery_intelligence.nasa_import_binding import (
+    bind_nasa_import_to_analysis,
+)
 from platform_core.battery_intelligence.nasa_protocol_audit import (
     audit_nasa_protocol_run,
 )
@@ -38,6 +41,10 @@ def main() -> None:
         import_output=args.import_output,
         analysis_output=args.analysis_output,
     )
+    binding_result = bind_nasa_import_to_analysis(
+        import_output=args.import_output,
+        analysis_output=args.analysis_output,
+    )
     queue_result = audit_nasa_focused_review_queue(
         analysis_output=args.analysis_output,
     )
@@ -47,6 +54,7 @@ def main() -> None:
     print(f"analysis_output: {args.analysis_output}")
     print(f"protocol_audit_status: {summary['protocol_audit_status']}")
     print(f"predictive_evidence_level: {summary['predictive_evidence_level']}")
+    print(f"import_binding_status: {binding_result['binding_status']}")
     print(
         "reference_start_context_battery_count: "
         f"{summary['reference_start_context_battery_count']}"
