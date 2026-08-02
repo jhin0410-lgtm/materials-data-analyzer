@@ -7,6 +7,9 @@ from pathlib import Path
 from platform_core.battery_intelligence.nasa_protocol_audit import (
     audit_nasa_protocol_run,
 )
+from platform_core.battery_intelligence.nasa_review_queue import (
+    audit_nasa_focused_review_queue,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,13 +25,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _ids(summary: dict[str, object], field: str) -> str:
+    values = summary.get(field, [])
+    if not isinstance(values, list):
+        return ""
+    return ",".join(str(value) for value in values)
+
+
 def main() -> None:
     args = build_parser().parse_args()
     result = audit_nasa_protocol_run(
         import_output=args.import_output,
         analysis_output=args.analysis_output,
     )
+    queue_result = audit_nasa_focused_review_queue(
+        analysis_output=args.analysis_output,
+    )
     summary = result["summary"]
+    queue_summary = queue_result["summary"]
     print(f"import_output: {args.import_output}")
     print(f"analysis_output: {args.analysis_output}")
     print(f"protocol_audit_status: {summary['protocol_audit_status']}")
@@ -73,7 +87,28 @@ def main() -> None:
         "supported_temperature_stratum_count: "
         f"{summary['supported_temperature_stratum_count']}"
     )
-    for name, path in result["outputs"].items():
+    print(f"focused_review_status: {queue_summary['review_status']}")
+    print(
+        "influence_with_source_quality_count: "
+        f"{queue_summary['influence_with_source_quality_count']}"
+    )
+    print(
+        "influence_with_trajectory_continuity_count: "
+        f"{queue_summary['influence_with_trajectory_continuity_count']}"
+    )
+    print(
+        "influence_without_structural_or_coverage_count: "
+        f"{queue_summary['influence_without_structural_or_coverage_count']}"
+    )
+    print(
+        "structural_or_coverage_without_influence_count: "
+        f"{queue_summary['structural_or_coverage_without_influence_count']}"
+    )
+    print(
+        "unevaluated_battery_ids: "
+        f"{_ids(queue_summary, 'unevaluated_battery_ids')}"
+    )
+    for name, path in {**result["outputs"], **queue_result["outputs"]}.items():
         print(f"{name}: {path}")
 
 
