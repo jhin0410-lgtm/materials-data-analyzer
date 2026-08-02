@@ -60,6 +60,14 @@ _REVIEW_TIER_LABELS = {
     8: "no_current_review_flag",
 }
 
+_SOURCE_ARTIFACT_PATHS = {
+    "tables/nasa_protocol_battery_profile.csv": "battery_profile",
+    "reports/nasa_protocol_audit.json": "protocol_audit",
+}
+
+_TRUE_TOKENS = {"true", "1", "yes"}
+_FALSE_TOKENS = {"false", "0", "no"}
+
 
 def _require_columns(frame: pd.DataFrame, required: set[str], *, context: str) -> None:
     missing = sorted(required - set(frame.columns))
@@ -81,15 +89,20 @@ def _normalized_ids(frame: pd.DataFrame, *, context: str) -> pd.Series:
     return values
 
 
-def _as_bool(series: pd.Series) -> pd.Series:
+def _as_bool(series: pd.Series, *, context: str) -> pd.Series:
+    if series.isna().any():
+        raise ValueError(f"{context} contains missing boolean values")
     if pd.api.types.is_bool_dtype(series):
-        return series.fillna(False).astype(bool)
-    return (
-        series.astype(str)
-        .str.strip()
-        .str.casefold()
-        .isin({"true", "1", "yes"})
-    )
+        return series.astype(bool)
+    normalized = series.astype(str).str.strip().str.casefold()
+    allowed = _TRUE_TOKENS | _FALSE_TOKENS
+    invalid = ~normalized.isin(allowed)
+    if invalid.any():
+        values = sorted({repr(value) for value in series.loc[invalid].tolist()})
+        raise ValueError(
+            f"{context} contains invalid boolean values: {', '.join(values)}"
+        )
+    return normalized.isin(_TRUE_TOKENS)
 
 
 def _numeric(series: pd.Series) -> pd.Series:
@@ -97,15 +110,10 @@ def _numeric(series: pd.Series) -> pd.Series:
 
 
 def _validated_profile(profile: pd.DataFrame) -> pd.DataFrame:
-    _require_columns(
-        profile,
-        _REQUIRED_PROFILE_COLUMNS,
-        context="NASA protocol battery profile",
-    )
+    context = "NASA protocol battery profile"
+    _require_columns(profile, _REQUIRED_PROFILE_COLUMNS, context=context)
     result = profile.copy()
-    result["battery_id"] = _normalized_ids(
-        result, context="NASA protocol battery profile"
-    )
+    result["battery_id"] = _normalized_ids(result, context=context)
     boolean_columns = {
         column
         for column in _REQUIRED_PROFILE_COLUMNS
@@ -115,7 +123,10 @@ def _validated_profile(profile: pd.DataFrame) -> pd.DataFrame:
         or column in {"is_evaluated", "disproportionate_error_influence"}
     }
     for column in boolean_columns:
-        result[column] = _as_bool(result[column])
+        result[column] = _as_bool(
+            result[column],
+            context=f"{context}.{column}",
+        )
     result["prediction_count"] = (
         _numeric(result["prediction_count"]).fillna(0).astype(int)
     )
@@ -185,6 +196,55 @@ def _validate_summary(profile: pd.DataFrame, summary: Mapping[str, Any]) -> None
                 "NASA protocol audit summary/profile count mismatch for "
                 f"{field}: summary={observed}, profile={expected}"
             )
+
+
+def _validate_source_binding(
+    *,
+    output: Path,
+    profile_path: Path,
+    protocol_audit_path: Path,
+    protocol_summary: Mapping[str, Any],
+) -> dict[str, str]:
+    manifest_path = output / "run_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            "NASA focused review queue requires run_manifest.json to bind source "
+            "artifacts to one audited run"
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_summary = manifest.get("nasa_protocol_aware_posthoc_audit")
+    if not isinstance(manifest_summary, Mapping):
+        raise ValueError(
+            "run_manifest.json is missing nasa_protocol_aware_posthoc_audit"
+        )
+    if dict(manifest_summary) != dict(protocol_summary):
+        raise ValueError(
+            "run_manifest.json protocol audit summary does not match "
+            "reports/nasa_protocol_audit.json"
+        )
+    checksums = manifest.get("artifact_checksums")
+    if not isinstance(checksums, Mapping):
+        raise ValueError("run_manifest.json is missing artifact_checksums")
+    paths = {
+        "tables/nasa_protocol_battery_profile.csv": profile_path,
+        "reports/nasa_protocol_audit.json": protocol_audit_path,
+    }
+    verified: dict[str, str] = {}
+    for relative_path, path in paths.items():
+        expected = checksums.get(relative_path)
+        if not isinstance(expected, str) or not expected.strip():
+            raise ValueError(
+                "run_manifest.json is missing source artifact checksum: "
+                f"{relative_path}"
+            )
+        observed = file_sha256(path)
+        if observed.lower() != expected.strip().lower():
+            raise ValueError(
+                "NASA focused review queue source artifact checksum mismatch: "
+                f"{relative_path}"
+            )
+        verified[relative_path] = observed
+    return verified
 
 
 def _review_dimensions(row: pd.Series) -> str:
@@ -373,7 +433,7 @@ def audit_nasa_focused_review_queue(
     *,
     analysis_output: str | Path,
 ) -> dict[str, Any]:
-    """Persist a focused review queue from an existing NASA protocol audit."""
+    """Persist a focused review queue from one manifest-bound protocol audit."""
     output = Path(analysis_output)
     tables = output / "tables"
     reports = output / "reports"
@@ -394,10 +454,18 @@ def audit_nasa_focused_review_queue(
         )
 
     protocol_summary = json.loads(protocol_audit_path.read_text(encoding="utf-8"))
+    verified_source_checksums = _validate_source_binding(
+        output=output,
+        profile_path=profile_path,
+        protocol_audit_path=protocol_audit_path,
+        protocol_summary=protocol_summary,
+    )
     result = build_nasa_focused_review_queue(
         battery_profile=pd.read_csv(profile_path),
         protocol_audit_summary=protocol_summary,
     )
+    result["summary"]["source_run_manifest"] = "run_manifest.json"
+    result["summary"]["source_artifact_checksums"] = verified_source_checksums
 
     queue_path = tables / "nasa_protocol_review_queue.csv"
     report_path = reports / "nasa_protocol_review_queue.json"
@@ -407,19 +475,18 @@ def audit_nasa_focused_review_queue(
     markdown_path.write_text(_markdown(result["summary"]), encoding="utf-8")
 
     manifest_path = output / "run_manifest.json"
-    if manifest_path.is_file():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["nasa_focused_review_queue"] = result["summary"]
-        paths = [queue_path, report_path, markdown_path]
-        relative = [path.relative_to(output).as_posix() for path in paths]
-        manifest["artifact_paths"] = sorted(
-            set(manifest.get("artifact_paths", [])) | set(relative)
-        )
-        checksums = dict(manifest.get("artifact_checksums", {}))
-        for path, name in zip(paths, relative, strict=True):
-            checksums[name] = file_sha256(path)
-        manifest["artifact_checksums"] = checksums
-        manifest_path.write_text(canonical_json(manifest), encoding="utf-8")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["nasa_focused_review_queue"] = result["summary"]
+    paths = [queue_path, report_path, markdown_path]
+    relative = [path.relative_to(output).as_posix() for path in paths]
+    manifest["artifact_paths"] = sorted(
+        set(manifest.get("artifact_paths", [])) | set(relative)
+    )
+    checksums = dict(manifest.get("artifact_checksums", {}))
+    for path, name in zip(paths, relative, strict=True):
+        checksums[name] = file_sha256(path)
+    manifest["artifact_checksums"] = checksums
+    manifest_path.write_text(canonical_json(manifest), encoding="utf-8")
 
     return {
         "summary": result["summary"],
