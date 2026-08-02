@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from platform_core.battery_intelligence.common import file_sha256
 from platform_core.battery_intelligence.nasa_review_queue import (
     audit_nasa_focused_review_queue,
     build_nasa_focused_review_queue,
@@ -200,17 +201,40 @@ def test_focused_review_queue_rejects_evaluation_inconsistency() -> None:
         )
 
 
+def test_focused_review_queue_rejects_invalid_boolean_cells() -> None:
+    profile = _profile()
+    profile.loc[profile["battery_id"] == "A", "source_quality_issue"] = "tru"
+    with pytest.raises(ValueError, match="invalid boolean values"):
+        build_nasa_focused_review_queue(
+            battery_profile=profile,
+            protocol_audit_summary=_summary(),
+        )
+
+
 def _write_existing_audit(output: Path) -> None:
     tables = output / "tables"
     reports = output / "reports"
     tables.mkdir(parents=True)
     reports.mkdir(parents=True)
-    _profile().to_csv(tables / "nasa_protocol_battery_profile.csv", index=False)
-    (reports / "nasa_protocol_audit.json").write_text(
-        json.dumps(_summary()), encoding="utf-8"
-    )
+    profile_path = tables / "nasa_protocol_battery_profile.csv"
+    audit_path = reports / "nasa_protocol_audit.json"
+    profile = _profile()
+    summary = _summary()
+    profile.to_csv(profile_path, index=False)
+    audit_path.write_text(json.dumps(summary), encoding="utf-8")
+    manifest = {
+        "artifact_paths": [
+            "tables/nasa_protocol_battery_profile.csv",
+            "reports/nasa_protocol_audit.json",
+        ],
+        "artifact_checksums": {
+            "tables/nasa_protocol_battery_profile.csv": file_sha256(profile_path),
+            "reports/nasa_protocol_audit.json": file_sha256(audit_path),
+        },
+        "nasa_protocol_aware_posthoc_audit": summary,
+    }
     (output / "run_manifest.json").write_text(
-        json.dumps({"artifact_paths": [], "artifact_checksums": {}}),
+        json.dumps(manifest),
         encoding="utf-8",
     )
 
@@ -226,10 +250,28 @@ def test_existing_audit_queue_persists_outputs_and_updates_manifest(tmp_path: Pa
     queue = pd.read_csv(result["outputs"]["review_queue"])
     assert len(queue) == 6
     assert queue.iloc[0]["battery_id"] == "F"
+    assert result["summary"]["source_run_manifest"] == "run_manifest.json"
+    assert set(result["summary"]["source_artifact_checksums"]) == {
+        "tables/nasa_protocol_battery_profile.csv",
+        "reports/nasa_protocol_audit.json",
+    }
     manifest = json.loads((output / "run_manifest.json").read_text(encoding="utf-8"))
     assert "nasa_focused_review_queue" in manifest
     assert "tables/nasa_protocol_review_queue.csv" in manifest["artifact_checksums"]
     assert "reports/nasa_protocol_review_queue.json" in manifest["artifact_checksums"]
+
+
+def test_existing_audit_queue_rejects_same_count_mixed_run_artifact(tmp_path: Path) -> None:
+    output = tmp_path / "analysis"
+    _write_existing_audit(output)
+    profile_path = output / "tables" / "nasa_protocol_battery_profile.csv"
+    profile = pd.read_csv(profile_path)
+    profile.loc[profile["battery_id"] == "B", "persistence_mae"] = 11.0
+    profile.loc[profile["battery_id"] == "B", "ridge_minus_persistence_mae"] = 1.0
+    profile.to_csv(profile_path, index=False)
+
+    with pytest.raises(ValueError, match="source artifact checksum mismatch"):
+        audit_nasa_focused_review_queue(analysis_output=output)
 
 
 def test_review_queue_script_has_valid_powershell_syntax() -> None:
