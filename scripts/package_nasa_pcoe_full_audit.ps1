@@ -32,7 +32,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 if ([string]::IsNullOrWhiteSpace($Destination)) {
     $Destination = Join-Path $repositoryRoot "outputs/nasa_pcoe_full_audit_bundle.zip"
 }
-elif (-not [System.IO.Path]::IsPathRooted($Destination)) {
+elseif (-not [System.IO.Path]::IsPathRooted($Destination)) {
     $Destination = [System.IO.Path]::GetFullPath(
         (Join-Path (Get-Location).Path $Destination)
     )
