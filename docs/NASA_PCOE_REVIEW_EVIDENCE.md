@@ -1,4 +1,4 @@
-# NASA PCoE Battery Revidence
+# NASA PCoE Battery Review Evidence
 
 ## Purpose
 
@@ -17,22 +17,40 @@ extract new features, refit a model, repair targets, or remove batteries.
 
 ## Invocation
 
-After pulling the change, first refresh the existing-artifact protocol audit. This
-step also writes an explicit binding between the verified NASA import manifest and
-the analysis run, then regenerates the focused queue from the current protocol
-audit:
+After pulling the change, use the combined existing-artifact workflow:
+
+```powershell
+.\scripts\run_nasa_pcoe_review_workflow.ps1
+```
+
+The workflow first refreshes the protocol-aware audit, verified import-to-analysis
+binding, and focused review queue. It then creates the review evidence packets.
+The order is intentional: evidence generation fails closed when the binding or
+queue is stale relative to the current import and analysis artifacts.
+
+Custom paths and a custom Python executable are supported:
+
+```powershell
+.\scripts\run_nasa_pcoe_review_workflow.ps1 `
+  -PythonExecutable python `
+  -ImportOutput <import-output> `
+  -AnalysisOutput <analysis-output>
+```
+
+The same workflow may be run as two explicit steps when stage-by-stage inspection
+is required:
 
 ```powershell
 .\scripts\run_nasa_pcoe_protocol_audit.ps1
 .\scripts\run_nasa_pcoe_review_evidence.ps1
 ```
 
-Neither command imports the NASA ZIP or refits a model. The first command reads the
-existing import and analysis artifacts, refreshes protocol diagnostics, records the
-import-to-analysis binding, and regenerates the queue. The second command creates
-the evidence packets.
+Neither form imports the NASA ZIP or refits a model. The protocol-audit stage reads
+the existing import and analysis artifacts, refreshes protocol diagnostics,
+records the import-to-analysis binding, and regenerates the queue. The evidence
+stage creates the linked battery packets.
 
-Custom paths are supported:
+The evidence stage also supports custom paths when run separately:
 
 ```powershell
 .\scripts\run_nasa_pcoe_review_evidence.ps1 `
