@@ -9,9 +9,9 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, Iterator
 
 
 def _resolved(path: str | Path) -> Path:
