@@ -11,6 +11,13 @@ import pytest
 
 import io_utils
 from io_utils import create_output_dirs
+from platform_core.runtime_provenance import (
+    artifact_inventory,
+    dependency_versions,
+    file_sha256,
+    git_commit,
+    runtime_environment,
+)
 from process_data import run_selected_analysis
 
 
@@ -121,3 +128,98 @@ def test_analysis_run_rejects_ambiguous_headers_before_output_creation(
         run_selected_analysis(_eda_args(input_path, "collision"))
 
     assert not (tmp_path / "outputs" / "collision").exists()
+
+
+def test_git_commit_prefers_explicit_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    monkeypatch.setenv("MDA_GIT_COMMIT", "fallback")
+
+    assert git_commit() == "abc123"
+
+
+def test_git_commit_reads_loose_detached_and_packed_refs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    monkeypatch.delenv("MDA_GIT_COMMIT", raising=False)
+
+    loose_repo = tmp_path / "loose"
+    loose_git = loose_repo / ".git"
+    (loose_git / "refs" / "heads").mkdir(parents=True)
+    (loose_git / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    (loose_git / "refs" / "heads" / "main").write_text(
+        "1" * 40 + "\n", encoding="utf-8"
+    )
+    assert git_commit(loose_repo) == "1" * 40
+
+    detached_repo = tmp_path / "detached"
+    detached_git = detached_repo / ".git"
+    detached_git.mkdir(parents=True)
+    (detached_git / "HEAD").write_text("2" * 40 + "\n", encoding="utf-8")
+    assert git_commit(detached_repo) == "2" * 40
+
+    packed_repo = tmp_path / "packed"
+    packed_git = packed_repo / ".git"
+    packed_git.mkdir(parents=True)
+    (packed_git / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    (packed_git / "packed-refs").write_text(
+        "# pack-refs with: peeled fully-peeled\n"
+        + "3" * 40
+        + " refs/heads/main\n",
+        encoding="utf-8",
+    )
+    assert git_commit(packed_repo) == "3" * 40
+
+
+def test_git_commit_resolves_worktree_gitdir_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    monkeypatch.delenv("MDA_GIT_COMMIT", raising=False)
+    repo = tmp_path / "worktree"
+    repo.mkdir()
+    git_dir = tmp_path / "actual-git-dir"
+    git_dir.mkdir()
+    (repo / ".git").write_text("gitdir: ../actual-git-dir\n", encoding="utf-8")
+    (git_dir / "HEAD").write_text("4" * 40 + "\n", encoding="utf-8")
+
+    assert git_commit(repo) == "4" * 40
+    assert git_commit(tmp_path / "not-a-repository") is None
+
+
+def test_dependency_and_artifact_inventory_are_deterministic(tmp_path: Path) -> None:
+    artifact = tmp_path / "run" / "artifact.txt"
+    artifact.parent.mkdir()
+    artifact.write_text("evidence", encoding="utf-8")
+    missing = tmp_path / "missing.txt"
+
+    inventory = artifact_inventory(
+        {"missing": missing, "evidence": artifact}, root=tmp_path
+    )
+
+    assert list(inventory) == ["evidence"]
+    assert inventory["evidence"]["path"] == "run/artifact.txt"
+    assert inventory["evidence"]["byte_count"] == len("evidence")
+    assert inventory["evidence"]["sha256"] == file_sha256(artifact)
+    assert dependency_versions(["definitely-not-installed-mda-package"])[
+        "definitely-not-installed-mda-package"
+    ] == "not-installed"
+
+
+def test_runtime_environment_records_bounded_reproducibility_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MDA_GIT_COMMIT", "5" * 40)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+
+    environment = runtime_environment(project_root=tmp_path)
+
+    assert environment["git_commit"] == "5" * 40
+    assert environment["python_version"]
+    assert environment["python_implementation"]
+    assert environment["os"]
+    assert environment["architecture"]
+    assert environment["executable_name"]
+    assert "numpy" in environment["dependencies"]
