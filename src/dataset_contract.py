@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -40,7 +41,7 @@ def load_dataset_contract(path: str | Path) -> dict[str, Any]:
         raise FileNotFoundError(f"dataset contract not found: {source}")
     payload = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(payload, Mapping):
-        raise ValueError("dataset contract must be a JSON object")
+        raise TypeError("dataset contract must be a JSON object")
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise ValueError(
             f"unsupported dataset contract schema_version: {payload.get('schema_version')!r}"
@@ -56,7 +57,7 @@ def load_dataset_contract(path: str | Path) -> dict[str, Any]:
         if name in normalized:
             raise ValueError(f"dataset contract columns collide after normalization: {name}")
         if not isinstance(raw_spec, Mapping):
-            raise ValueError(f"dataset contract column spec must be an object: {raw_name}")
+            raise TypeError(f"dataset contract column spec must be an object: {raw_name}")
         role = str(raw_spec.get("role", "")).strip()
         if role not in ALLOWED_ROLES:
             raise ValueError(
@@ -130,10 +131,18 @@ def audit_dataset_contract(
     if decision_grade and "identifier" not in roles:
         issues.append({"code": "identifier_role_missing", "column": ""})
     if decision_grade and mode == "simulation" and "group" not in roles:
-        issues.append({"code": "group_role_missing_for_decision_grade_simulation", "column": ""})
+        issues.append({
+            "code": "group_role_missing_for_decision_grade_simulation",
+            "column": "",
+        })
     if decision_grade and mode == "spc" and "timestamp" not in roles:
-        issues.append({"code": "timestamp_role_missing_for_decision_grade_spc", "column": ""})
-    if decision_grade and mode == "reliability" and not ({"exposure", "censoring"} <= roles):
+        issues.append({
+            "code": "timestamp_role_missing_for_decision_grade_spc",
+            "column": "",
+        })
+    if decision_grade and mode == "reliability" and not (
+        {"exposure", "censoring"} <= roles
+    ):
         issues.append({"code": "exposure_or_censoring_role_missing", "column": ""})
 
     status = "valid" if not issues else "invalid"
