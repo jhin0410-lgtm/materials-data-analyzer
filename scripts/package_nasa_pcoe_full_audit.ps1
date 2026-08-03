@@ -107,7 +107,13 @@ try {
     if (Test-Path -LiteralPath $Destination -PathType Leaf) {
         Remove-Item -LiteralPath $Destination -Force
     }
-    Compress-Archive -Path (Join-Path $stagingRoot "*") -DestinationPath $Destination -Force
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory(
+        $stagingRoot,
+        $Destination,
+        [System.IO.Compression.CompressionLevel]::Optimal,
+        $false
+    )
 
     if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
         throw "NASA PCoE full-audit bundle was not created: $Destination"
