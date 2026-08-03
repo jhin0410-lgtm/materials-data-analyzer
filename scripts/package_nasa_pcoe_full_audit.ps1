@@ -156,9 +156,6 @@ try {
             $backupArchive,
             $true
         )
-        if (Test-Path -LiteralPath $backupArchive -PathType Leaf) {
-            Remove-Item -LiteralPath $backupArchive -Force
-        }
     }
     else {
         [System.IO.File]::Move($temporaryArchive, $Destination)
@@ -171,7 +168,16 @@ try {
         Get-FileHash -LiteralPath $Destination -Algorithm SHA256
     ).Hash.ToLowerInvariant()
     if ($bundleHash -ne $temporaryHash) {
+        if (Test-Path -LiteralPath $Destination -PathType Leaf) {
+            Remove-Item -LiteralPath $Destination -Force
+        }
+        if (Test-Path -LiteralPath $backupArchive -PathType Leaf) {
+            [System.IO.File]::Move($backupArchive, $Destination)
+        }
         throw "NASA PCoE audit bundle hash changed during final placement"
+    }
+    if (Test-Path -LiteralPath $backupArchive -PathType Leaf) {
+        Remove-Item -LiteralPath $backupArchive -Force
     }
 
     Write-Host "analysis_output: $AnalysisOutput"
@@ -187,6 +193,9 @@ finally {
         Remove-Item -LiteralPath $temporaryArchive -Force
     }
     if (Test-Path -LiteralPath $backupArchive -PathType Leaf) {
-        Remove-Item -LiteralPath $backupArchive -Force
+        if (Test-Path -LiteralPath $Destination -PathType Leaf) {
+            Remove-Item -LiteralPath $Destination -Force
+        }
+        [System.IO.File]::Move($backupArchive, $Destination)
     }
 }
