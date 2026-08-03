@@ -30,6 +30,9 @@ elseif (-not [System.IO.Path]::IsPathRooted($AnalysisOutput)) {
         (Join-Path (Get-Location).Path $AnalysisOutput)
     )
 }
+else {
+    $AnalysisOutput = [System.IO.Path]::GetFullPath($AnalysisOutput)
+}
 if (-not [string]::IsNullOrWhiteSpace($DispositionInput) -and
     -not [System.IO.Path]::IsPathRooted($DispositionInput)) {
     $DispositionInput = [System.IO.Path]::GetFullPath(
@@ -73,6 +76,16 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "NASA PCoE review disposition failed with exit code $LASTEXITCODE"
     }
+
+    if (-not (Test-Path -LiteralPath $AnalysisOutput -PathType Container)) {
+        throw "NASA PCoE analysis output directory was not created: $AnalysisOutput"
+    }
+    $outputFileCount = @(
+        Get-ChildItem -LiteralPath $AnalysisOutput -Recurse -File -Force
+    ).Count
+    Write-Host "analysis_output_exists: true"
+    Write-Host "analysis_output_file_count: $outputFileCount"
+    Write-Host "analysis_output_open_command: explorer.exe `"$AnalysisOutput`""
 }
 finally {
     Pop-Location

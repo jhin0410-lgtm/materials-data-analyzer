@@ -12,6 +12,33 @@ file's SHA-256, validates reviewer entries, and persists an immutable snapshot a
 summary. It does not inspect the NASA archive automatically, infer a degradation
 mechanism, or change the existing predictive closeout.
 
+The priority list is an ordering aid only. The worksheet always contains all 34
+battery records, and a complete audit requires every row to receive an explicit
+review disposition.
+
+## Local output visibility
+
+NASA analysis outputs are generated locally under `outputs/` and are intentionally
+excluded from Git by `.gitignore`. They therefore do not appear in the GitHub file
+browser after a pull or push.
+
+The review script now prints whether the analysis directory exists, the recursive
+file count, and an `explorer.exe` command for opening the exact directory. The same
+location can be inspected manually with:
+
+```powershell
+Get-ChildItem `
+  .\outputs\nasa_pcoe_signal_enriched_battery_intelligence `
+  -Recurse -File -Force |
+  Select-Object FullName, Length
+```
+
+Open the directory directly on Windows with:
+
+```powershell
+explorer.exe ".\outputs\nasa_pcoe_signal_enriched_battery_intelligence"
+```
+
 ## 1. Refresh evidence
 
 Run the combined existing-artifact workflow first:
@@ -126,6 +153,41 @@ It writes:
 The immutable snapshot and reports are checksummed in `run_manifest.json`.
 Incremental snapshots are allowed: pending rows remain visible and the summary is
 reported as `in_progress` until all rows are reviewed.
+
+## 4. Package every generated file for a full audit
+
+To review the complete generated analysis rather than only the priority queue,
+package the entire analysis-output directory:
+
+```powershell
+.\scripts\package_nasa_pcoe_full_audit.ps1
+```
+
+The command creates:
+
+```text
+outputs/nasa_pcoe_full_audit_bundle.zip
+```
+
+The ZIP includes every file recursively under the current NASA analysis-output
+directory plus:
+
+- `_audit_bundle_inventory.csv`, containing each relative path, byte count, and
+  SHA-256;
+- `_audit_bundle_readme.txt`, recording the source directory, creation time, source
+  file count, audit scope, and scientific boundary.
+
+A custom source or destination can be supplied:
+
+```powershell
+.\scripts\package_nasa_pcoe_full_audit.ps1 `
+  -AnalysisOutput <analysis-output-directory> `
+  -Destination <audit-bundle.zip>
+```
+
+This is the preferred artifact for an external full-file audit because it avoids
+selectively omitting non-priority reports, tables, manifests, or diagnostic files.
+Bundling itself does not validate scientific conclusions.
 
 ## Scientific boundary
 
