@@ -201,25 +201,94 @@ def calculate_target_score(series: pd.Series, goal: str) -> pd.Series:
 
 
 def build_multi_objective_scores(
-    df: pd.DataFrame, target_columns: list[str], goals: list[str]
+    df: pd.DataFrame,
+    target_columns: list[str],
+    goals: list[str],
+    weights: list[float] | None = None,
 ) -> tuple[pd.DataFrame, list[str]]:
     """Add per-target score columns and one average composite score."""
     scores_df = df.copy()
     score_columns: list[str] = []
+    if weights is None:
+        normalized_weights = np.full(len(target_columns), 1.0 / len(target_columns))
+    else:
+        if len(weights) != len(target_columns):
+            raise ValueError("target weights must match the number of targets")
+        numeric_weights = np.asarray(weights, dtype=float)
+        if not np.isfinite(numeric_weights).all() or (numeric_weights < 0).any():
+            raise ValueError("target weights must be finite and non-negative")
+        if np.isclose(numeric_weights.sum(), 0):
+            raise ValueError("at least one target weight must be positive")
+        normalized_weights = numeric_weights / numeric_weights.sum()
 
+    percentile_columns: list[str] = []
     for target_column, goal in zip(target_columns, goals):
         score_column = f"score_{target_column}"
         scores_df[score_column] = calculate_target_score(
             scores_df[target_column], goal
         )
         score_columns.append(score_column)
+        percentile_column = f"percentile_score_{target_column}"
+        percentile = scores_df[target_column].rank(pct=True, method="average")
+        if goal == "minimize":
+            percentile = 1.0 - percentile + (1.0 / max(scores_df[target_column].notna().sum(), 1))
+        scores_df[percentile_column] = percentile
+        percentile_columns.append(percentile_column)
 
-    # The composite score treats every target equally. Missing target values are
-    # ignored by pandas mean(), so a row can still be ranked when at least one
-    # target score is available.
-    scores_df["composite_score"] = scores_df[score_columns].mean(axis=1)
+    scores_df["target_coverage_count"] = scores_df[score_columns].notna().sum(axis=1)
+    scores_df["target_coverage_fraction"] = (
+        scores_df["target_coverage_count"] / len(score_columns)
+    )
+    scores_df["ranking_eligible"] = (
+        scores_df["target_coverage_count"] == len(score_columns)
+    )
+    scores_df["ranking_exclusion_reason"] = np.where(
+        scores_df["ranking_eligible"],
+        "",
+        "incomplete_multi_objective_targets",
+    )
+    score_matrix = scores_df[score_columns].to_numpy(dtype=float)
+    percentile_matrix = scores_df[percentile_columns].to_numpy(dtype=float)
+    complete_mask = scores_df["ranking_eligible"].to_numpy(dtype=bool)
+    scores_df["composite_score"] = np.nan
+    scores_df["composite_percentile_score"] = np.nan
+    scores_df.loc[complete_mask, "composite_score"] = (
+        score_matrix[complete_mask] @ normalized_weights
+    )
+    scores_df.loc[complete_mask, "composite_percentile_score"] = (
+        percentile_matrix[complete_mask] @ normalized_weights
+    )
+    scores_df["ranking_sensitivity_delta"] = (
+        scores_df["composite_score"] - scores_df["composite_percentile_score"]
+    )
+    scores_df["target_weight_policy"] = ",".join(
+        f"{column}:{weight:.6g}"
+        for column, weight in zip(target_columns, normalized_weights, strict=True)
+    )
     return scores_df, score_columns
 
+
+
+def build_replicate_condition_summary(
+    df: pd.DataFrame, target_columns: list[str]
+) -> pd.DataFrame:
+    """Summarize repeated process conditions when an explicit identity exists."""
+    condition_column = next(
+        (name for name in ("process_condition_id", "condition_id") if name in df.columns),
+        None,
+    )
+    if condition_column is None:
+        return pd.DataFrame(
+            [{
+                "status": "not_available",
+                "reason": "explicit process_condition_id or condition_id not supplied",
+            }]
+        )
+    grouped = df.groupby(condition_column, dropna=False)[target_columns].agg(
+        ["count", "mean", "std"]
+    )
+    grouped.columns = [f"{target}_{stat}" for target, stat in grouped.columns]
+    return grouped.reset_index()
 
 def run_multi_objective_process_analysis(
     df: pd.DataFrame,
@@ -227,6 +296,7 @@ def run_multi_objective_process_analysis(
     output_paths: OutputPaths,
     targets: list[str] | None,
     goals: list[str] | None,
+    target_weights: list[float] | None = None,
 ) -> dict[str, Path]:
     """Run process screening with several targets at the same time."""
     target_columns, validated_goals = validate_multi_objective_inputs(
@@ -238,19 +308,25 @@ def run_multi_objective_process_analysis(
         df=df,
         target_columns=target_columns,
         goals=validated_goals,
+        weights=target_weights,
     )
 
     # Composite score is a screening score: higher values mean a row better
     # matches the requested target directions in the observed dataset.
-    best_conditions = scores_df.sort_values(
+    eligible_scores = scores_df[scores_df["ranking_eligible"]].copy()
+    best_conditions = eligible_scores.sort_values(
         "composite_score", ascending=False, na_position="last"
     ).head(5)
-    worst_conditions = scores_df.sort_values(
+    worst_conditions = eligible_scores.sort_values(
         "composite_score", ascending=True, na_position="last"
     ).head(5)
 
     scores_path = save_dataframe(
         scores_df, output_paths.processed / "multi_objective_scores.csv"
+    )
+    replicate_summary_path = save_dataframe(
+        build_replicate_condition_summary(df, target_columns),
+        output_paths.processed / "replicate_condition_summary.csv",
     )
     best_conditions_path = save_dataframe(
         best_conditions,
@@ -290,6 +366,7 @@ def run_multi_objective_process_analysis(
         "cleaned_data": cleaned_data_path,
         "report": report_path,
         "multi_objective_scores": scores_path,
+        "replicate_condition_summary": replicate_summary_path,
     }
 
 
@@ -301,6 +378,7 @@ def run_process_analysis(
     goal: str = "maximize",
     targets: list[str] | None = None,
     goals: list[str] | None = None,
+    target_weights: list[float] | None = None,
 ) -> dict[str, Path]:
     """Analyze process-condition candidates based on the target column."""
     if targets is not None:
@@ -310,6 +388,7 @@ def run_process_analysis(
             output_paths=output_paths,
             targets=targets,
             goals=goals,
+            target_weights=target_weights,
         )
 
     target_name = target or DEFAULT_PROCESS_TARGET

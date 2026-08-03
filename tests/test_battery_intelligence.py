@@ -198,3 +198,38 @@ def test_module_has_no_network_dynamic_execution_or_pickle():
     assert "eval(" not in text
     assert "exec(" not in text
     assert "pickle" not in text
+
+
+def test_sparse_signal_feature_is_retained_for_fold_local_eligibility() -> None:
+    config = BatteryIntelligenceConfig(n_splits=3, knee_bootstrap_samples=0)
+    frame = _cycle_summary()
+    frame["sparse_sensor_value"] = np.where(
+        frame["battery_id"].eq("B000"), frame["cycle_index"] * 0.1, np.nan
+    )
+    validated, _, _ = validate_cycle_summary(frame, config)
+
+    table, features, metadata = build_forecast_table(validated, config)
+    predictions, _, validation = evaluate_grouped_forecast(table, features, config)
+
+    assert "sparse_sensor_value" in features
+    assert "sparse_sensor_value" not in metadata["dropped_sparse_feature_columns"]
+    assert table["sparse_sensor_value"].isna().any()
+    assert len(predictions) == len(table)
+    assert all(
+        fold["train_only_feature_eligibility"]
+        for fold in validation["folds"]
+    )
+
+
+def test_battery_macro_mae_is_primary_model_decision_metric() -> None:
+    config = BatteryIntelligenceConfig(n_splits=3, knee_bootstrap_samples=0)
+    validated, _, _ = validate_cycle_summary(_cycle_summary(), config)
+    table, features, _ = build_forecast_table(validated, config)
+
+    _, _, validation = evaluate_grouped_forecast(table, features, config)
+    summary = validation["summary"]
+
+    assert summary["primary_decision_metric"] == "battery_macro_mae"
+    assert summary["best_model_name"] == summary["model_ranking_by_battery_macro_mae"][0]
+    for metrics in summary["decision_metrics"].values():
+        assert {"battery_macro_mae", "fold_balanced_mae", "pooled_row_mae"} <= set(metrics)

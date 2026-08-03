@@ -1,0 +1,200 @@
+name: Quality and Release Evidence
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install development environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+      - name: Run coverage evidence and safety-contract gate
+        run: |
+          mkdir -p outputs/quality
+          python -m pytest -q \
+            --cov=analyzers \
+            --cov=connectors \
+            --cov=materials_data_analyzer \
+            --cov=platform_core \
+            --cov=dataset_contract \
+            --cov-report=term-missing \
+            --cov-report=xml:outputs/quality/coverage.xml
+          python -m coverage report \
+            --include='src/platform_core/output_safety.py,src/platform_core/runtime_provenance.py,src/dataset_contract.py' \
+            --fail-under=80
+      - name: Upload coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-evidence
+          path: outputs/quality/coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+
+  python-compatibility:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install and test supported Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+          python -m pytest -q
+
+  source-distribution-self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Build source distribution
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "build>=1.2,<2"
+          python -m build --sdist
+      - name: Install source distribution in a clean environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv outputs/sdist-venv
+          VENV_PYTHON="$PWD/outputs/sdist-venv/bin/python"
+          VENV_BIN="$PWD/outputs/sdist-venv/bin"
+          "$VENV_PYTHON" -m pip install --upgrade pip
+          "$VENV_PYTHON" -m pip install dist/*.tar.gz -c constraints-release.txt
+
+          SMOKE_ROOT="$(mktemp -d)"
+          export SMOKE_ROOT VENV_PYTHON VENV_BIN
+          cd "$SMOKE_ROOT"
+          "$VENV_PYTHON" - <<'PY'
+          from pathlib import Path
+          import os
+          import numpy as np
+          from scipy.io import savemat
+
+          root = Path(os.environ["SMOKE_ROOT"])
+          (root / "process.csv").write_text(
+              "sample_id,process_temp_c,yield_percent\n"
+              "S001,690,91.0\n"
+              "S002,700,93.0\n"
+              "S003,710,92.0\n",
+              encoding="utf-8",
+          )
+          nasa = root / "nasa_input"
+          nasa.mkdir()
+          cycles = []
+          for cycle in range(1, 4):
+              elapsed = np.linspace(0.0, 3600.0, 21)
+              cycles.append(
+                  {
+                      "type": "discharge",
+                      "ambient_temperature": 24.0,
+                      "time": np.array([2026, 1, cycle, 0, 0, 0], dtype=float),
+                      "data": {
+                          "Voltage_measured": np.linspace(4.2, 3.0, 21),
+                          "Current_measured": -np.ones(21),
+                          "Temperature_measured": np.linspace(24.0, 27.0, 21),
+                          "Time": elapsed,
+                          "Capacity": 2.0 - 0.01 * cycle,
+                      },
+                  }
+              )
+          savemat(nasa / "B0005.mat", {"B0005": {"cycle": np.array(cycles, dtype=object)}})
+          PY
+
+          "$VENV_PYTHON" -c "import materials_data_analyzer; print(materials_data_analyzer.__version__)"
+          "$VENV_BIN/mda" --help
+          "$VENV_BIN/mda-battery-intelligence" --help
+          "$VENV_BIN/mda-battery-result-audit" --help
+          "$VENV_BIN/mda-nasa-battery-import" --help
+          "$VENV_BIN/mda" --mode eda --input process.csv --run-name sdist_eda
+          test -f outputs/sdist_eda/run_manifest.json
+          "$VENV_BIN/mda-nasa-battery-import" \
+            --input nasa_input \
+            --output nasa_import \
+            --retrieved-at 2026-08-03T00:00:00Z
+          test -f nasa_import/nasa_pcoe_cycle_summary.csv
+          test -f nasa_import/nasa_pcoe_import_manifest.json
+
+  static-and-dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install quality tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+      - name: Critical repository lint
+        shell: bash
+        run: |
+          mkdir -p outputs/quality
+          set -o pipefail
+          python -m ruff check src tests \
+            --select E9,F63,F7,F82 \
+            --output-format=concise 2>&1 | tee outputs/quality/ruff-critical.log
+      - name: Strict lint for new safety contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m ruff check \
+            src/platform_core/output_safety.py \
+            src/platform_core/runtime_provenance.py \
+            src/dataset_contract.py \
+            --output-format=concise 2>&1 | tee outputs/quality/ruff-contracts.log
+      - name: Upload Ruff diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ruff-diagnostics
+          path: outputs/quality/ruff-*.log
+          if-no-files-found: error
+          retention-days: 14
+      - name: Focused type contract
+        run: >-
+          python -m mypy --ignore-missing-imports
+          src/platform_core/output_safety.py
+          src/platform_core/runtime_provenance.py
+          src/dataset_contract.py
+      - name: Dependency vulnerability audit
+        run: python -m pip_audit -r requirements.txt --strict
+      - name: Record exact environment
+        run: |
+          mkdir -p outputs/quality
+          python -m pip freeze --all > outputs/quality/environment-freeze.txt
+      - name: Upload environment evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-environment-freeze
+          path: outputs/quality/environment-freeze.txt
+          if-no-files-found: warn
+          retention-days: 14

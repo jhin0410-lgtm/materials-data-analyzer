@@ -4,13 +4,30 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
 
 
 PREPROCESSING_AUDIT_SCHEMA_VERSION = "1.0"
 DEFAULT_NUMERIC_CONVERSION_THRESHOLD = 0.9
+
+
+def is_protected_semantic_column(column: str) -> bool:
+    """Return whether automatic numeric coercion could damage column semantics."""
+    name = clean_column_name(column)
+    identifier_names = {
+        "id", "uid", "uuid", "sample", "sample_id", "battery_id", "measurement_id",
+        "material_id", "lot_id", "batch_id", "wafer_id", "asset_id", "group_id",
+        "serial_number", "source_file", "source_filename", "source_path",
+        "file_path", "sha256", "checksum", "method", "unit", "label", "code",
+    }
+    return (
+        name in identifier_names
+        or name.endswith(("_id", "_identifier", "_uuid", "_uid", "_sha256", "_checksum"))
+        or name.endswith(("_path", "_filename", "_file"))
+        or name.startswith(("id_", "uuid_", "uid_"))
+    )
 
 
 @dataclass(frozen=True)
@@ -117,15 +134,23 @@ def _clean_data_with_operations(
     df: pd.DataFrame,
     *,
     numeric_conversion_threshold: float,
-) -> tuple[pd.DataFrame, list[dict[str, Any]], list[str], int]:
+    protected_columns: Iterable[str] = (),
+) -> tuple[pd.DataFrame, list[dict[str, Any]], list[str], int, list[dict[str, Any]]]:
     if not 0.0 <= numeric_conversion_threshold <= 1.0:
         raise ValueError("numeric_conversion_threshold must be between 0 and 1")
 
     cleaned_df = df.copy()
     input_row_count = len(cleaned_df)
-    cleaned_df = cleaned_df.dropna(how="all")
+    empty_mask = cleaned_df.isna().all(axis=1)
+    excluded_rows = [
+        {"source_row_number": int(position + 2), "reason": "all_values_missing"}
+        for position, excluded in enumerate(empty_mask.tolist())
+        if excluded
+    ]
+    cleaned_df = cleaned_df.loc[~empty_mask].copy()
     dropped_all_empty_rows = input_row_count - len(cleaned_df)
 
+    protected_column_set = {clean_column_name(name) for name in protected_columns}
     operations: list[dict[str, Any]] = []
     warnings: list[str] = []
 
@@ -137,6 +162,11 @@ def _clean_data_with_operations(
         numeric_conversion_applied = False
         numeric_conversion_success_rate: float | None = None
         numeric_conversion_failures = 0
+        numeric_conversion_skipped_reason: str | None = None
+        protected_semantic_column = (
+            is_protected_semantic_column(str(column))
+            or clean_column_name(str(column)) in protected_column_set
+        )
 
         if (
             pd.api.types.is_object_dtype(cleaned_df[column])
@@ -150,7 +180,9 @@ def _clean_data_with_operations(
 
             converted = pd.to_numeric(text_series, errors="coerce")
             original_non_missing = text_series.notna()
-            if original_non_missing.any():
+            if protected_semantic_column:
+                numeric_conversion_skipped_reason = "protected_identifier_or_provenance_semantics"
+            elif original_non_missing.any():
                 numeric_conversion_success_rate = float(
                     converted[original_non_missing].notna().mean()
                 )
@@ -179,6 +211,8 @@ def _clean_data_with_operations(
                 "numeric_conversion_applied": numeric_conversion_applied,
                 "numeric_conversion_success_rate": numeric_conversion_success_rate,
                 "numeric_conversion_failures": numeric_conversion_failures,
+                "protected_semantic_column": protected_semantic_column,
+                "numeric_conversion_skipped_reason": numeric_conversion_skipped_reason,
             }
         )
 
@@ -187,6 +221,7 @@ def _clean_data_with_operations(
         operations,
         warnings,
         dropped_all_empty_rows,
+        excluded_rows,
     )
 
 
@@ -195,6 +230,7 @@ def preprocess_data(
     *,
     fail_on_column_collision: bool = True,
     numeric_conversion_threshold: float = DEFAULT_NUMERIC_CONVERSION_THRESHOLD,
+    protected_columns: Iterable[str] = (),
 ) -> PreprocessingResult:
     """Run conservative preprocessing and return a complete transformation audit."""
     standardized_df = df.copy()
@@ -204,9 +240,16 @@ def preprocess_data(
     )
     standardized_df.columns = final_names
 
-    cleaned_df, column_operations, warnings, dropped_rows = _clean_data_with_operations(
+    (
+        cleaned_df,
+        column_operations,
+        warnings,
+        dropped_rows,
+        excluded_rows,
+    ) = _clean_data_with_operations(
         standardized_df,
         numeric_conversion_threshold=numeric_conversion_threshold,
+        protected_columns=protected_columns,
     )
 
     audit: dict[str, Any] = {
@@ -216,6 +259,8 @@ def preprocess_data(
         "input_column_count": int(df.shape[1]),
         "output_column_count": int(cleaned_df.shape[1]),
         "dropped_all_empty_row_count": int(dropped_rows),
+        "excluded_rows": excluded_rows,
+        "source_row_number_convention": "one-based CSV row including header",
         "duplicate_rows_preserved": True,
         "column_name_policy": (
             "fail_on_collision"
@@ -241,7 +286,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     Use :func:`preprocess_data` in user-facing workflows when provenance of
     automatic conversions and exclusions must be retained.
     """
-    cleaned_df, _, _, _ = _clean_data_with_operations(
+    cleaned_df, _, _, _, _ = _clean_data_with_operations(
         df,
         numeric_conversion_threshold=DEFAULT_NUMERIC_CONVERSION_THRESHOLD,
     )

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "dataset_name": "example_process_measurements",
+  "columns": {
+    "sample_id": {
+      "role": "identifier"
+    },
+    "lot_id": {
+      "role": "group"
+    },
+    "timestamp": {
+      "role": "timestamp"
+    },
+    "process_temp_c": {
+      "role": "feature",
+      "unit": "degC"
+    },
+    "yield_percent": {
+      "role": "target",
+      "unit": "%"
+    }
+  },
+  "credential_policy": {
+    "store_credentials": false,
+    "network_access_required": false
+  },
+  "dry_run": true
+}

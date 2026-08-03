@@ -5,10 +5,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from config import PROJECT_ROOT
+
 from connectors.base import BaseConnector, IngestionResult
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_ROOT = PROJECT_ROOT / "data" / "raw" / "kaggle"
 
 

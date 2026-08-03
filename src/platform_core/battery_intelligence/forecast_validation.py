@@ -6,6 +6,7 @@ from typing import Any, Sequence
 
 import numpy as np
 import pandas as pd
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GroupKFold
@@ -42,11 +43,23 @@ def _group_oof_residuals(
     splitter = GroupKFold(n_splits=min(max_splits, len(unique_groups)))
     residuals: list[float] = []
     for train_index, test_index in splitter.split(x, y, groups):
+        inner_train_raw = x.iloc[train_index]
+        eligible = [
+            column for column in x.columns if inner_train_raw[column].notna().any()
+        ]
+        if not eligible:
+            continue
+        inner_train = inner_train_raw[eligible]
+        inner_test = x.iloc[test_index][eligible]
         model = Pipeline(
-            [("scale", StandardScaler()), ("ridge", Ridge(alpha=alpha))]
+            [
+                ("impute", SimpleImputer(strategy="median", add_indicator=True)),
+                ("scale", StandardScaler()),
+                ("ridge", Ridge(alpha=alpha)),
+            ]
         )
-        model.fit(x.iloc[train_index], y[train_index])
-        prediction = model.predict(x.iloc[test_index])
+        model.fit(inner_train, y[train_index])
+        prediction = model.predict(inner_test)
         residuals.extend(np.abs(y[test_index] - prediction).tolist())
     return np.asarray(residuals, dtype=float)
 
@@ -119,13 +132,26 @@ def evaluate_grouped_forecast(
         overlap = sorted(train_groups & test_groups)
         if overlap:
             leakage_violations += 1
+        train_x_raw = x.iloc[train_index]
+        test_x_raw = x.iloc[test_index]
+        eligible_features = [
+            column for column in feature_columns if train_x_raw[column].notna().any()
+        ]
+        if not eligible_features:
+            raise ValueError(f"fold {fold} has no train-eligible forecast features")
+        train_x = train_x_raw[eligible_features]
+        test_x = test_x_raw[eligible_features]
         model = Pipeline(
-            [("scale", StandardScaler()), ("ridge", Ridge(alpha=config.ridge_alpha))]
+            [
+                ("impute", SimpleImputer(strategy="median", add_indicator=True)),
+                ("scale", StandardScaler()),
+                ("ridge", Ridge(alpha=config.ridge_alpha)),
+            ]
         )
-        model.fit(x.iloc[train_index], y[train_index])
-        ridge_prediction = model.predict(x.iloc[test_index])
+        model.fit(train_x, y[train_index])
+        ridge_prediction = model.predict(test_x)
         calibration_residuals = _group_oof_residuals(
-            x.iloc[train_index].reset_index(drop=True),
+            train_x.reset_index(drop=True),
             y[train_index],
             groups[train_index],
             alpha=config.ridge_alpha,
@@ -134,9 +160,10 @@ def evaluate_grouped_forecast(
         interval_half_width = _finite_sample_conformal_quantile(
             calibration_residuals, config.conformal_coverage
         )
-        outside_count, max_distance = _ood_diagnostics(
-            x.iloc[train_index], x.iloc[test_index]
-        )
+        train_medians = train_x.median(axis=0, skipna=True)
+        ood_train = train_x.fillna(train_medians)
+        ood_test = test_x.fillna(train_medians)
+        outside_count, max_distance = _ood_diagnostics(ood_train, ood_test)
 
         actual = y[test_index]
         fold_model_metrics: dict[str, dict[str, float]] = {}
@@ -162,6 +189,9 @@ def evaluate_grouped_forecast(
                     persistence_mae, ridge_mae
                 ),
                 "model_metrics": fold_model_metrics,
+                "eligible_feature_count": len(eligible_features),
+                "eligible_feature_columns": list(eligible_features),
+                "train_only_feature_eligibility": True,
             }
         )
 
@@ -197,6 +227,9 @@ def evaluate_grouped_forecast(
                 ),
                 "maximum_normalized_extrapolation_distance": float(
                     max_distance[local_position]
+                ),
+                "missing_origin_feature_count": int(
+                    test_x_raw.iloc[local_position].isna().sum()
                 ),
                 "prediction_outside_plausibility_range": bool(
                     ridge_prediction[local_position] < config.plausibility_min
@@ -258,6 +291,26 @@ def evaluate_grouped_forecast(
         per_group_rows.append(row)
     per_group = pd.DataFrame(per_group_rows)
 
+    decision_metrics: dict[str, dict[str, float]] = {}
+    for name in model_names:
+        battery_macro_mae = float(per_group[f"{name}_mae"].mean())
+        fold_balanced_mae = float(
+            np.mean([row["model_metrics"][name]["mae"] for row in fold_rows])
+        )
+        decision_metrics[name] = {
+            "battery_macro_mae": battery_macro_mae,
+            "fold_balanced_mae": fold_balanced_mae,
+            "pooled_row_mae": model_metrics[name]["mae"],
+        }
+    primary_ranking = sorted(
+        model_names,
+        key=lambda name: (decision_metrics[name]["battery_macro_mae"], name),
+    )
+    primary_best_baseline_name = min(
+        baseline_names,
+        key=lambda name: (decision_metrics[name]["battery_macro_mae"], name),
+    )
+
     interval_available = predictions["interval_contains_actual"].notna()
     coverage = (
         float(
@@ -272,6 +325,7 @@ def evaluate_grouped_forecast(
     improved_best_count = int(per_group["ridge_improved_vs_best_baseline"].sum())
     persistence_metrics = model_metrics["persistence"]
     ridge_metrics = model_metrics["ridge"]
+    best_baseline_name = primary_best_baseline_name
     best_baseline_metrics = model_metrics[best_baseline_name]
     summary = {
         "split_method": "group_kfold",
@@ -283,7 +337,11 @@ def evaluate_grouped_forecast(
         "baseline_metadata": baseline_metadata,
         "model_metrics": model_metrics,
         "model_ranking_by_mae": ranking,
-        "best_model_name": ranking[0],
+        "model_ranking_by_battery_macro_mae": primary_ranking,
+        "primary_decision_metric": "battery_macro_mae",
+        "primary_decision_rule": "lowest battery-macro MAE; pooled row MAE is secondary",
+        "decision_metrics": decision_metrics,
+        "best_model_name": primary_ranking[0],
         "best_baseline_name": best_baseline_name,
         "best_baseline_metrics": best_baseline_metrics,
         "persistence_metrics": persistence_metrics,
@@ -293,6 +351,10 @@ def evaluate_grouped_forecast(
         ),
         "ridge_improvement_percent_vs_best_baseline": _improvement_percent(
             best_baseline_metrics["mae"], ridge_metrics["mae"]
+        ),
+        "ridge_battery_macro_improvement_percent_vs_best_baseline": _improvement_percent(
+            decision_metrics[best_baseline_name]["battery_macro_mae"],
+            decision_metrics["ridge"]["battery_macro_mae"],
         ),
         "improved_battery_count": improved_group_count,
         "not_improved_battery_count": int(len(per_group) - improved_group_count),

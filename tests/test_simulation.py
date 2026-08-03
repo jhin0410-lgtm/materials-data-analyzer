@@ -839,9 +839,11 @@ def test_run_simulation_analysis_with_scenario_creates_candidate_predictions() -
         ].iloc[0]
         assert invalid_ranking_row["ranking_status"] == "invalid_candidate"
         assert pd.isna(invalid_ranking_row["rank"])
-        assert warning_ranking_row["ranking_status"] == "ranked"
-        assert warning_ranking_row["ranking_note"] == "ranked_with_domain_warning"
+        assert warning_ranking_row["ranking_status"] == "exploratory_unvalidated"
+        assert warning_ranking_row["ranking_note"] == "ranking_suppressed_no_out_of_sample_holdout"
         assert warning_ranking_row["domain_warning_count"] > 0
+        assert candidate_ranking["rank"].isna().all()
+        assert (output_paths.processed / "simulation_validation_decision.csv").exists()
         report_text = result["report"].read_text(encoding="utf-8")
         assert "## Run Summary" in report_text
         assert "## Model Validation Summary" in report_text

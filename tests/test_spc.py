@@ -5,7 +5,11 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from analyzers.spc import calculate_process_capability, calculate_spc_summary
+from analyzers.spc import (
+    assess_capability_readiness,
+    calculate_process_capability,
+    calculate_spc_summary,
+)
 
 
 def value_for_metric(df: pd.DataFrame, metric: str) -> float:
@@ -54,3 +58,40 @@ def test_calculate_process_capability_rejects_invalid_spec_limits() -> None:
             mean_value=10.0,
             sigma_estimate=1.0,
         )
+
+
+def test_capability_readiness_blocks_small_sample_cp_cpk() -> None:
+    spc_df = pd.DataFrame(
+        {
+            "temperature_c": [10.0] * 10,
+            "any_spc_violation": [False] * 10,
+        }
+    )
+
+    readiness = assess_capability_readiness(spc_df, lsl=5.0, usl=15.0)
+    capability = calculate_process_capability(
+        lsl=5.0,
+        usl=15.0,
+        mean_value=10.0,
+        sigma_estimate=1.0,
+        readiness=readiness,
+    )
+
+    assert readiness["status"] == "not_ready"
+    assert "insufficient_observations" in readiness["reason_codes"]
+    assert pd.isna(value_for_metric(capability, "cp"))
+    assert pd.isna(value_for_metric(capability, "cpk"))
+
+
+def test_capability_readiness_blocks_uncontrolled_process() -> None:
+    spc_df = pd.DataFrame(
+        {
+            "temperature_c": [10.0] * 20,
+            "any_spc_violation": [False] * 19 + [True],
+        }
+    )
+
+    readiness = assess_capability_readiness(spc_df, lsl=5.0, usl=15.0)
+
+    assert readiness["status"] == "not_ready"
+    assert "process_not_in_statistical_control" in readiness["reason_codes"]

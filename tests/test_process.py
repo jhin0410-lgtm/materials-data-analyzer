@@ -48,3 +48,42 @@ def test_minimize_target_lower_value_gets_higher_score() -> None:
     )
 
     assert result.loc[2, "score_resistivity_ohm_cm"] > result.loc[0, "score_resistivity_ohm_cm"]
+
+
+def test_multi_objective_incomplete_rows_are_not_ranked() -> None:
+    df = pd.DataFrame(
+        {
+            "yield_percent": [80.0, 95.0],
+            "resistivity_ohm_cm": [1.0, None],
+        }
+    )
+
+    result, _ = build_multi_objective_scores(
+        df,
+        target_columns=["yield_percent", "resistivity_ohm_cm"],
+        goals=["maximize", "minimize"],
+    )
+
+    assert bool(result.loc[0, "ranking_eligible"]) is True
+    assert bool(result.loc[1, "ranking_eligible"]) is False
+    assert pd.isna(result.loc[1, "composite_score"])
+    assert result.loc[1, "ranking_exclusion_reason"] == "incomplete_multi_objective_targets"
+
+
+def test_multi_objective_explicit_weights_are_normalized() -> None:
+    df = pd.DataFrame(
+        {
+            "yield_percent": [80.0, 100.0],
+            "resistivity_ohm_cm": [1.0, 5.0],
+        }
+    )
+
+    result, _ = build_multi_objective_scores(
+        df,
+        target_columns=["yield_percent", "resistivity_ohm_cm"],
+        goals=["maximize", "minimize"],
+        weights=[3.0, 1.0],
+    )
+
+    assert result.loc[0, "composite_score"] == 0.25
+    assert result.loc[1, "composite_score"] == 0.75

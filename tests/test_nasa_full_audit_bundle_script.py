@@ -94,7 +94,11 @@ def test_full_audit_bundle_contains_all_analysis_output_files(tmp_path: Path) ->
         assert "_audit_bundle_inventory.csv" in names
         assert "_audit_bundle_readme.txt" in names
         inventory_text = archive.read("_audit_bundle_inventory.csv").decode("utf-8-sig")
+        readme_text = archive.read("_audit_bundle_readme.txt").decode("utf-8-sig")
         rows = list(csv.DictReader(io.StringIO(inventory_text)))
+        assert "source_path_redacted=true" in readme_text
+        assert "source_analysis_label=nasa_pcoe_signal_enriched_battery_intelligence" in readme_text
+        assert str(analysis_output) not in readme_text
         archived_bytes = {
             row["relative_path"]: archive.read(row["relative_path"])
             for row in rows

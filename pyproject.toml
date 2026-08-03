@@ -7,7 +7,7 @@ name = "materials-data-analyzer"
 dynamic = ["version"]
 description = "Auditable tabular engineering-data analysis and scientific trust-boundary workflows"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 license = "MIT"
 authors = [
   {name = "jhin0410-lgtm"},
@@ -25,6 +25,8 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
 ]
 
@@ -32,7 +34,26 @@ classifiers = [
 dev = [
   "build>=1.2,<2",
   "pytest>=8,<10",
+  "pytest-cov>=5,<8",
   "ruff>=0.12,<1",
+  "mypy>=1.11,<2",
+  "pip-audit>=2.7,<3",
+]
+connectors = [
+  "requests>=2.31,<3",
+  "kaggle>=1.6,<2",
+]
+materials = [
+  "mp-api>=0.41,<1",
+]
+units = [
+  "pint>=0.24,<1",
+]
+all = [
+  "requests>=2.31,<3",
+  "kaggle>=1.6,<2",
+  "mp-api>=0.41,<1",
+  "pint>=0.24,<1",
 ]
 
 [project.scripts]
@@ -59,6 +80,7 @@ py-modules = [
   "results",
   "schema_mapping",
   "visualization",
+  "dataset_contract",
 ]
 
 [tool.setuptools.dynamic]

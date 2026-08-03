@@ -1,0 +1,14 @@
+include README.md LICENSE pyproject.toml requirements.txt constraints-release.txt
+include TESTING.md CONTRIBUTING.md SECURITY.md CITATION.cff CHANGELOG.md
+include src/cli.py
+
+graft tests
+graft scripts
+graft configs
+graft data
+graft docs
+
+prune outputs
+prune data/raw
+prune .git
+recursive-exclude * __pycache__ *.py[cod]

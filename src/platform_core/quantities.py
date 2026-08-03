@@ -181,7 +181,8 @@ def quantity_from_payload(payload: Mapping[str, Any], *, backend: UnitBackend | 
         )
         return ScientificQuantity(str(payload["quantity_id"]), value=quantity_value)
     array_payload = payload["array_metadata"]
-    assert isinstance(array_payload, Mapping)
+    if not isinstance(array_payload, Mapping):
+        raise ValueError("validated array_metadata must be a mapping")
     array_metadata = QuantityArrayMetadata(
         artifact_ref=str(array_payload["artifact_ref"]),
         shape=tuple(int(item) for item in array_payload["shape"]),

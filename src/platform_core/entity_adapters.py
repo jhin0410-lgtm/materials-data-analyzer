@@ -94,7 +94,8 @@ def measurement_dataframe_metadata_to_entity(
 
 def quantity_to_legacy_value(quantity: ScientificQuantity) -> dict[str, Any]:
     if quantity.value is None:
-        assert quantity.array_metadata is not None
+        if quantity.array_metadata is None:
+            raise ValueError("quantity without scalar value requires array_metadata")
         return {
             "artifact_ref": quantity.array_metadata.artifact_ref,
             "unit": quantity.array_metadata.unit,

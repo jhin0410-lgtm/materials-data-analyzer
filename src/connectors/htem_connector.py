@@ -8,17 +8,14 @@ from typing import Any
 
 import pandas as pd
 
+from config import PROJECT_ROOT
+
 from connectors.base import BaseConnector, IngestionResult
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = PROJECT_ROOT / "data" / "raw" / "htem"
 PROCESSED_PATH = PROJECT_ROOT / "data" / "processed" / "htem_sample_properties.csv"
-DEFAULT_BASE_URLS = [
-    "https://htem.nrel.gov",
-    "https://htem-api.nrel.gov",
-    "https://htem-api.nlr.gov",
-]
+DEFAULT_BASE_URL = "https://htem.nrel.gov"
 
 
 class HTEMConnector(BaseConnector):
@@ -32,7 +29,7 @@ class HTEMConnector(BaseConnector):
         base_url: str | None = None,
     ) -> None:
         self.elements = ["Zn", "Sn"] if elements is None else elements
-        self.base_url = (base_url or DEFAULT_BASE_URLS[0]).rstrip("/")
+        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
 
     def get_json(self, path: str, params: dict[str, Any] | None = None) -> Any:
         """GET JSON from the configured HTEM endpoint."""

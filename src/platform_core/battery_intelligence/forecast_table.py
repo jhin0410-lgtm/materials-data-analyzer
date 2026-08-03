@@ -128,16 +128,9 @@ def build_forecast_table(
     ordered_features = sorted(feature_columns)
     if table.empty:
         raise ValueError("no leakage-safe exact-horizon forecast rows were available")
-    missing_feature_columns = [
+    sparse_feature_columns = [
         column for column in ordered_features if table[column].isna().any()
     ]
-    if missing_feature_columns:
-        table = table.drop(columns=missing_feature_columns)
-        ordered_features = [
-            column
-            for column in ordered_features
-            if column not in missing_feature_columns
-        ]
     if not ordered_features:
         raise ValueError("no finite numeric forecast features were available")
     metadata = {
@@ -145,7 +138,9 @@ def build_forecast_table(
         "battery_count": int(table[config.group_column].nunique()),
         "feature_count": int(len(ordered_features)),
         "feature_columns": ordered_features,
-        "dropped_sparse_feature_columns": missing_feature_columns,
+        "dropped_sparse_feature_columns": [],
+        "sparse_feature_columns_retained_for_fold_local_handling": sparse_feature_columns,
+        "feature_missingness_policy": "train_fold_eligibility_and_median_imputation",
         "exclusion_counts": exclusion_counts,
         "exact_horizon_only": True,
         "origin_target_field": "origin_target_value",
