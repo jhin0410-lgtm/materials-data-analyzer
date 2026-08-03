@@ -123,7 +123,7 @@ def test_contract_loader_rejects_invalid_or_ambiguous_definitions(
 
     scalar = tmp_path / "scalar.json"
     scalar.write_text("[]", encoding="utf-8")
-    with pytest.raises(ValueError, match="JSON object"):
+    with pytest.raises(TypeError, match="JSON object"):
         load_dataset_contract(scalar)
 
     wrong_version = tmp_path / "wrong-version.json"
@@ -149,7 +149,7 @@ def test_contract_loader_rejects_invalid_or_ambiguous_definitions(
         load_dataset_contract(collision)
 
     invalid_spec = _write_contract(tmp_path / "invalid-spec.json", {"x": "feature"})
-    with pytest.raises(ValueError, match="spec must be an object"):
+    with pytest.raises(TypeError, match="spec must be an object"):
         load_dataset_contract(invalid_spec)
 
     invalid_role = _write_contract(
