@@ -99,6 +99,26 @@ same records with their boolean types and provenance summary. The Markdown repor
 includes exact source locations, source operation indices, and highest-error
 validation row references for human review.
 
+## Record human review outcomes
+
+Evidence packets intentionally stop before assigning a reviewer conclusion. After
+generation, initialize the evidence-bound review worksheet:
+
+```powershell
+.\scripts\run_nasa_pcoe_review_disposition.ps1 -Initialize
+```
+
+Reviewers fill only the controlled disposition fields and then validate and
+snapshot their work with:
+
+```powershell
+.\scripts\run_nasa_pcoe_review_disposition.ps1 -Finalize
+```
+
+See [`NASA_PCOE_REVIEW_DISPOSITION.md`](NASA_PCOE_REVIEW_DISPOSITION.md) for the
+allowed statuses, conclusion codes, evidence-reference requirements, and
+scientific boundary.
+
 ## Interpretation
 
 `recommended_action_class` is a work-routing label, not a scientific diagnosis.
