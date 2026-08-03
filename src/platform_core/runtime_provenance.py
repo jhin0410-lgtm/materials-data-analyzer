@@ -7,8 +7,8 @@ import importlib.metadata
 import os
 import platform
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 
 def file_sha256(path: str | Path) -> str:
