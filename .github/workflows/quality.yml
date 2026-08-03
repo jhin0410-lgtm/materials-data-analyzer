@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]" -c constraints-release.txt
-      - name: Run coverage gate
+      - name: Run coverage evidence and safety-contract gate
         run: |
           mkdir -p outputs/quality
           python -m pytest -q \
@@ -33,9 +33,12 @@ jobs:
             --cov=connectors \
             --cov=materials_data_analyzer \
             --cov=platform_core \
+            --cov=dataset_contract \
             --cov-report=term-missing \
-            --cov-report=xml:outputs/quality/coverage.xml \
-            --cov-fail-under=60
+            --cov-report=xml:outputs/quality/coverage.xml
+          python -m coverage report \
+            --include='src/platform_core/output_safety.py,src/platform_core/runtime_provenance.py,src/dataset_contract.py' \
+            --fail-under=80
       - name: Upload coverage evidence
         if: always()
         uses: actions/upload-artifact@v7
