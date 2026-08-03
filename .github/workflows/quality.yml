@@ -182,7 +182,7 @@ jobs:
           src/platform_core/runtime_provenance.py
           src/dataset_contract.py
       - name: Dependency vulnerability audit
-        run: python -m pip_audit --strict
+        run: python -m pip_audit -r requirements.txt --strict
       - name: Record exact environment
         run: |
           mkdir -p outputs/quality
