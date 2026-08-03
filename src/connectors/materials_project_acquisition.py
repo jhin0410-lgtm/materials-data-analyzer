@@ -25,8 +25,9 @@ from typing import Any, Callable, Iterable
 
 import pandas as pd
 
+from config import PROJECT_ROOT
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 SECRET_VALUE_PATTERN = re.compile(
     r"(?:api[_-]?key|token|secret|credential|password|sk-[A-Za-z0-9])",
     flags=re.IGNORECASE,

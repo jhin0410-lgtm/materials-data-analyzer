@@ -12,10 +12,11 @@ import zipfile
 
 import pandas as pd
 
+from config import PROJECT_ROOT
+
 from connectors.base import BaseConnector, IngestionResult
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = PROJECT_ROOT / "data" / "raw" / "battery_archive"
 PROCESSED_PATH = PROJECT_ROOT / "data" / "processed" / "battery_archive_records.csv"
 BATTERY_ARCHIVE_INVENTORY_COLUMNS = [

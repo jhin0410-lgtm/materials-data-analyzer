@@ -171,3 +171,13 @@ def test_schema_inventory_identifies_roles(tmp_path: Path) -> None:
     assert roles["observation_timestamp"] == "observation_timestamp"
     assert roles["target_pass_fail"] == "target"
     assert roles["feature_000"] == "process_feature"
+
+
+def test_extract_zip_members_rejects_duplicate_basenames(tmp_path: Path) -> None:
+    zip_path = tmp_path / "ambiguous.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("first/secom.data", "1 2 3\n")
+        archive.writestr("second/secom.data", "4 5 6\n")
+
+    with pytest.raises(ValueError, match="duplicate.*basename"):
+        extract_zip_members(zip_path, tmp_path / "out", ["secom.data"])

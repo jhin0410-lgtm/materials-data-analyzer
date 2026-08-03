@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -28,6 +27,8 @@ from .forecast_table import build_forecast_table
 from .forecast_validation import evaluate_grouped_forecast
 from .raw_signal_admission import audit_raw_signal_admission
 from .signals import extract_signal_features
+from platform_core.output_safety import transactional_output_directory
+from platform_core.runtime_provenance import runtime_environment
 
 
 def _write_closeout_markdown(path: Path, closeout: Mapping[str, Any]) -> None:
@@ -205,7 +206,7 @@ def _write_diagnostic_tables(
     )
 
 
-def run_battery_intelligence(
+def _run_battery_intelligence_in_directory(
     *,
     cycle_summary_path: str | Path,
     output_dir: str | Path,
@@ -236,12 +237,6 @@ def run_battery_intelligence(
         )
     if output.exists() and not output.is_dir():
         raise FileExistsError(f"output path is not a directory: {output}")
-    if output.exists() and any(output.iterdir()):
-        if not overwrite:
-            raise FileExistsError(
-                f"output directory is non-empty: {output}; choose another path or pass overwrite=True"
-            )
-        shutil.rmtree(output)
     output.mkdir(parents=True, exist_ok=True)
     tables = output / "tables"
     figures = output / "figures"
@@ -459,10 +454,45 @@ def run_battery_intelligence(
             relative: file_sha256(output / relative) for relative in artifact_paths
         },
         "runtime_execution": "supported",
+        "terminal_status": "completed",
+        "runtime_environment": runtime_environment(),
         "scientific_validation": closeout["evidence_level"],
         "limitations": closeout["limitations"],
     }
     (output / "run_manifest.json").write_text(
         canonical_json(manifest), encoding="utf-8"
     )
+    return manifest
+
+
+def run_battery_intelligence(
+    *,
+    cycle_summary_path: str | Path,
+    output_dir: str | Path,
+    raw_signal_path: str | Path | None = None,
+    raw_signal_provenance_path: str | Path | None = None,
+    config: BatteryIntelligenceConfig | None = None,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Run Battery Intelligence through a protected transactional output path."""
+    protected: list[Path] = [Path(cycle_summary_path)]
+    if raw_signal_path is not None:
+        protected.append(Path(raw_signal_path))
+    if raw_signal_provenance_path is not None:
+        protected.append(Path(raw_signal_provenance_path))
+    final_output = Path(output_dir)
+    with transactional_output_directory(
+        final_output,
+        overwrite=overwrite,
+        protected_paths=protected,
+        recognized_markers=("run_manifest.json",),
+    ) as staging_output:
+        manifest = _run_battery_intelligence_in_directory(
+            cycle_summary_path=cycle_summary_path,
+            output_dir=staging_output,
+            raw_signal_path=raw_signal_path,
+            raw_signal_provenance_path=raw_signal_provenance_path,
+            config=config,
+            overwrite=False,
+        )
     return manifest

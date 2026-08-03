@@ -149,7 +149,8 @@ def _quantity(quantity_id: str, payload: Mapping[str, Any]) -> ScientificQuantit
 
 
 def _quantity_summary(quantity: ScientificQuantity) -> dict[str, Any]:
-    assert quantity.value is not None
+    if quantity.value is None:
+        raise ValueError("diffusion benchmark quantity requires a scalar value")
     return {
         "quantity_id": quantity.quantity_id,
         "value": quantity.value.value,
@@ -283,7 +284,8 @@ def validate_diffusion_config(
         }
         dimension_errors = []
         for name, dimension in expected_dimensions.items():
-            assert quantity_map[name].value is not None
+            if quantity_map[name].value is None:
+                raise ValueError(f"diffusion benchmark quantity {name} requires a scalar value")
             if quantity_map[name].value.dimension != dimension:
                 dimension_errors.append(f"{name}:expected_{dimension}:got_{quantity_map[name].value.dimension}")
         backend = BuiltinUnitBackend()

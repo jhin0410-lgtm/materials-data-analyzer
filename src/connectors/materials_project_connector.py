@@ -11,10 +11,11 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
+from config import PROJECT_ROOT
+
 from connectors.base import BaseConnector, IngestionResult
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = PROJECT_ROOT / "data" / "raw" / "materials_project"
 PROCESSED_PATH = PROJECT_ROOT / "data" / "processed" / "materials_project_fe_si.csv"
 RAW_PATH = RAW_DIR / "mp_fe_si_raw.json"

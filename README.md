@@ -145,6 +145,8 @@ and ranking files are also retained for provenance.
 Simulation mode is a surrogate-model screening aid, not a physics simulator,
 process optimizer, machine-control system, or authority for final engineering
 decisions.
+ Candidate ranks are suppressed when no out-of-sample holdout is
+available; training-fit predictions remain explicitly exploratory and unvalidated.
 
 ## Battery Degradation Intelligence v1
 
@@ -187,6 +189,10 @@ license/terms, and coverage checks. NASA importer artifacts additionally require
 a verified receipt for the exact official archive URL. Unverified local or
 mirror signals remain diagnostic-only and cannot silently strengthen a
 scientific claim.
+
+Feature eligibility and missing-value handling are fitted within each training
+fold. The primary model-selection metric is battery-macro MAE so long trajectories
+do not dominate the decision; pooled-row and fold-balanced metrics remain reported.
 
 The forecast is **warm-start cross-battery**, not zero-shot lifetime or RUL
 prediction. Lifecycle and knee-phase strata are post-hoc diagnostics, not model
@@ -239,6 +245,31 @@ See:
 - [`docs/BATTERY_DEGRADATION_INTELLIGENCE.md`](docs/BATTERY_DEGRADATION_INTELLIGENCE.md)
 - [`docs/NASA_PCOE_BATTERY_IMPORT.md`](docs/NASA_PCOE_BATTERY_IMPORT.md)
 
+## Dataset Semantic Contract and Decision-grade Gate
+
+Generic tabular workflows accept an optional versioned JSON contract that declares
+column roles and physical units. Identifier, group, timestamp, method, unit, and
+provenance columns declared by the contract are protected from heuristic numeric
+coercion.
+
+```powershell
+mda `
+  --mode spc `
+  --input data/sample/factory_log.csv `
+  --target temperature_c `
+  --dataset-contract configs/examples/dataset_contract.example.json `
+  --decision-grade `
+  --lsl 690 `
+  --usl 710 `
+  --run-name contracted_spc
+```
+
+`--decision-grade` fails closed when the required identity, grouping, timestamp,
+exposure, or censoring roles for the selected workflow are absent. A valid
+contract establishes declared semantics and units only; it does not establish
+measurement calibration, sample comparability, causal validity, or model
+generalization.
+
 ## Run Provenance and Output Safety
 
 Every general `mda` run writes:
@@ -269,9 +300,16 @@ column name. The compatibility helper still supports historical suffix behavior
 for existing library callers.
 
 A non-empty run directory is never overwritten silently. Choose a new
-`--run-name`, or pass `--overwrite` to replace the entire existing run directory
-explicitly. Battery Intelligence applies the same full-directory replacement
-policy through its `--output` and `--overwrite` arguments.
+`--run-name`, or pass `--overwrite` for a recognized prior run. Replacement is
+transactional: the new result is written to a sibling staging directory and the
+prior valid run is retained until the staged run completes. Filesystem roots,
+project roots, input evidence, and foreign non-empty directories are protected
+from recursive deletion. Battery Intelligence and the NASA importer apply the
+same policy.
+
+Run manifests include terminal status, runtime and dependency versions, the Git
+commit when locally resolvable, and SHA-256 plus byte counts for generated
+artifacts. Exact source rows removed as fully empty are written separately.
 
 ## Recommended Representative Workflow
 

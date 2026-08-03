@@ -54,6 +54,16 @@ def resolve_run_name(input_path: Path, run_name: str | None) -> str:
     return safe_name
 
 
+def output_paths_for_root(root: Path) -> OutputPaths:
+    """Build standard output paths for an already selected run root."""
+    return OutputPaths(
+        root=root,
+        processed=root / "processed",
+        figures=root / "figures",
+        reports=root / "reports",
+    )
+
+
 def create_output_dirs(run_name: str, *, overwrite: bool = False) -> OutputPaths:
     """Create a run directory without silently mixing or replacing artifacts.
 
@@ -72,12 +82,7 @@ def create_output_dirs(run_name: str, *, overwrite: bool = False) -> OutputPaths
                 "entire existing run directory."
             )
 
-    output_paths = OutputPaths(
-        root=root,
-        processed=root / "processed",
-        figures=root / "figures",
-        reports=root / "reports",
-    )
+    output_paths = output_paths_for_root(root)
 
     for directory in [
         output_paths.root,

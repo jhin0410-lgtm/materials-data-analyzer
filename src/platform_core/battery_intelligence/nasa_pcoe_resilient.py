@@ -224,7 +224,8 @@ def _load_source_with_invalid_capacity_quarantine(
                 )
             )
             continue
-        assert capacity is not None
+        if capacity is None:
+            raise RuntimeError("validated discharge capacity unexpectedly missing")
 
         ambient = _base._optional_scalar(operation.get("ambient_temperature"))
         started_at = _base._parse_matlab_datetime(operation.get("time"))

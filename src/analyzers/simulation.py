@@ -893,7 +893,11 @@ def predict_virtual_experiments(
 
 
 def build_virtual_experiment_ranking(
-    predictions_df: pd.DataFrame, target_column: str, goal: str
+    predictions_df: pd.DataFrame,
+    target_column: str,
+    goal: str,
+    *,
+    ranking_allowed: bool = True,
 ) -> pd.DataFrame:
     """Rank candidate rows by predicted target value."""
     predicted_column = f"predicted_{target_column}"
@@ -904,7 +908,12 @@ def build_virtual_experiment_ranking(
         predicted_column,
         ascending=(goal == "minimize"),
     ).reset_index(drop=True)
-    ranking_df.insert(0, "screening_rank", np.arange(1, len(ranking_df) + 1))
+    if ranking_allowed:
+        ranking_df.insert(0, "screening_rank", np.arange(1, len(ranking_df) + 1))
+        ranking_df.insert(1, "ranking_status", "ranked")
+    else:
+        ranking_df.insert(0, "screening_rank", pd.NA)
+        ranking_df.insert(1, "ranking_status", "exploratory_unvalidated")
     return ranking_df
 
 
@@ -996,6 +1005,8 @@ def build_candidate_ranking_table(
     candidate_predictions_df: pd.DataFrame,
     feature_columns: list[str],
     goal: str,
+    *,
+    ranking_allowed: bool = True,
 ) -> pd.DataFrame:
     """Rank valid candidate predictions while keeping invalid rows visible."""
     candidate_ranking = candidate_predictions_df.copy()
@@ -1021,10 +1032,18 @@ def build_candidate_ranking_table(
     ordered_ranking.insert(5, "ranking_status", "invalid_candidate")
     ordered_ranking.insert(10, "ranking_note", "invalid_candidate")
 
-    rank_values = list(range(1, len(ranked_candidates) + 1))
-    ordered_ranking.loc[ranked_candidates.index, "rank"] = rank_values
-    ordered_ranking.loc[ranked_candidates.index, "ranking_status"] = "ranked"
-    ordered_ranking.loc[ranked_candidates.index, "ranking_note"] = "ranked"
+    if ranking_allowed:
+        rank_values = list(range(1, len(ranked_candidates) + 1))
+        ordered_ranking.loc[ranked_candidates.index, "rank"] = rank_values
+        ordered_ranking.loc[ranked_candidates.index, "ranking_status"] = "ranked"
+        ordered_ranking.loc[ranked_candidates.index, "ranking_note"] = "ranked"
+    else:
+        ordered_ranking.loc[ranked_candidates.index, "ranking_status"] = (
+            "exploratory_unvalidated"
+        )
+        ordered_ranking.loc[ranked_candidates.index, "ranking_note"] = (
+            "ranking_suppressed_no_out_of_sample_holdout"
+        )
 
     warning_ranked_mask = (
         ordered_ranking["ranking_status"].eq("ranked")
@@ -1362,6 +1381,7 @@ def run_virtual_experiment_screening(
     goal: str,
     output_paths: OutputPaths,
     model_type: str,
+    ranking_allowed: bool = True,
 ) -> tuple[dict[str, object], pd.DataFrame]:
     """Predict, rank, and save virtual experiment candidate outputs."""
     predicted_column = f"predicted_{target_column}"
@@ -1415,6 +1435,7 @@ def run_virtual_experiment_screening(
         candidate_predictions_df=candidate_predictions_df,
         feature_columns=feature_columns,
         goal=goal,
+        ranking_allowed=ranking_allowed,
     )
     candidate_ranking_path = save_dataframe(
         candidate_ranking_df,
@@ -1432,6 +1453,7 @@ def run_virtual_experiment_screening(
         predictions_df=predictions_df,
         target_column=target_column,
         goal=goal,
+        ranking_allowed=ranking_allowed,
     )
 
     virtual_predictions_path = save_dataframe(
@@ -1467,6 +1489,12 @@ def run_virtual_experiment_screening(
         "predicted_column": predicted_column,
         "goal": goal,
         "target_name": target_column,
+        "ranking_allowed": ranking_allowed,
+        "validation_decision": (
+            "out_of_sample_holdout_available"
+            if ranking_allowed
+            else "ranking_suppressed_no_out_of_sample_holdout"
+        ),
         "candidate_conditions_path": candidate_conditions_path,
         "design_path": design_path,
         "candidate_predictions_path": candidate_predictions_path,
@@ -1605,6 +1633,7 @@ def run_simulation_analysis(
         design_samples=design_samples,
         grid_levels=grid_levels,
     )
+    ranking_allowed = metric_dataset == "test"
     virtual_experiment_result, virtual_predictions_df = (
         run_virtual_experiment_screening(
             model=model,
@@ -1616,6 +1645,7 @@ def run_simulation_analysis(
             goal=goal,
             output_paths=output_paths,
             model_type=model_type,
+            ranking_allowed=ranking_allowed,
         )
     )
     sensitivity_summary_df = build_sensitivity_summary(
@@ -1656,6 +1686,23 @@ def run_simulation_analysis(
     )
     sensitivity_summary_path = save_dataframe(
         sensitivity_summary_df, output_paths.processed / "sensitivity_summary.csv"
+    )
+    validation_decision_path = save_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "ranking_allowed": ranking_allowed,
+                    "metric_dataset": metric_dataset,
+                    "validation_type": validation_type,
+                    "decision": (
+                        "out_of_sample_holdout_available"
+                        if ranking_allowed
+                        else "ranking_suppressed_no_out_of_sample_holdout"
+                    ),
+                }
+            ]
+        ),
+        output_paths.processed / "simulation_validation_decision.csv",
     )
 
     figure_results = create_simulation_figures(
@@ -1699,4 +1746,7 @@ def run_simulation_analysis(
         report_text, output_paths.reports / "simulation_report.md"
     )
 
-    return {"report": report_path}
+    return {
+        "report": report_path,
+        "simulation_validation_decision": validation_decision_path,
+    }

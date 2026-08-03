@@ -56,7 +56,11 @@ def normalize_failed_series(series: pd.Series) -> pd.Series:
         numeric_value = pd.to_numeric(value, errors="coerce")
         if pd.isna(numeric_value):
             return np.nan
-        return 1.0 if numeric_value != 0 else 0.0
+        if float(numeric_value) == 1.0:
+            return 1.0
+        if float(numeric_value) == 0.0:
+            return 0.0
+        return np.nan
 
     return series.apply(convert_one_value)
 
@@ -71,12 +75,21 @@ def calculate_reliability_summary(df: pd.DataFrame) -> pd.DataFrame:
         failed_count = int((valid_failed == 1).sum())
         passed_count = int((valid_failed == 0).sum())
         total_count = int(valid_failed.shape[0])
+        invalid_count = int(df["failed"].notna().sum() - total_count)
         failure_rate = failed_count / total_count if total_count else np.nan
 
         add_summary_row(rows, "failure", "all", "failed_0_count", passed_count)
         add_summary_row(rows, "failure", "all", "failed_1_count", failed_count)
         add_summary_row(rows, "failure", "all", "valid_failed_count", total_count)
+        add_summary_row(rows, "failure", "all", "invalid_failed_code_count", invalid_count)
         add_summary_row(rows, "failure", "all", "failure_rate", failure_rate)
+        add_summary_row(
+            rows,
+            "failure",
+            "all",
+            "interpretation_boundary",
+            "descriptive_only; exposure, censoring, and confidence intervals not modeled",
+        )
 
     has_thermal_cycles = (
         "thermal_cycle_count" in df.columns

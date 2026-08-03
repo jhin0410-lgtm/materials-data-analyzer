@@ -88,7 +88,25 @@ def extract_zip_members(
     member_set = set(member_names)
     extracted: list[Path] = []
     with zipfile.ZipFile(archive_path) as archive:
-        names = {Path(name).name: name for name in archive.namelist() if not name.endswith("/")}
+        basename_map: dict[str, list[str]] = {}
+        for name in archive.namelist():
+            if name.endswith("/"):
+                continue
+            basename_map.setdefault(Path(name).name, []).append(name)
+        duplicates = {
+            base: sorted(paths)
+            for base, paths in basename_map.items()
+            if len(paths) > 1 and base in member_set
+        }
+        if duplicates:
+            details = "; ".join(
+                f"{base}: {paths}" for base, paths in sorted(duplicates.items())
+            )
+            raise ValueError(
+                "Ambiguous duplicate zip member basenames; request exact unique archive "
+                f"members or rebuild the archive. {details}"
+            )
+        names = {base: paths[0] for base, paths in basename_map.items()}
         missing = sorted(member_set - set(names))
         if missing:
             raise FileNotFoundError(f"Missing zip members: {', '.join(missing)}")

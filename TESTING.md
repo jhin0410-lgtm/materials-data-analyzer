@@ -1,38 +1,40 @@
 # Testing
 
-Run the test suite from the project root:
+Run the complete repository test suite from the project root:
 
 ```bash
+python -m pip install -e ".[dev]"
 python -m pytest -q
 ```
 
-On Windows, if the default user temp directory causes `tmp_path` or permission errors, use the repository-local test runner:
+On Windows, the repository-local runner can isolate pytest temporary files:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
-powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1 tests/test_battery_archive_connector.py -q
 ```
 
-The runner creates a unique pytest temp directory under `outputs/pytest-temp`, sets `TEMP` and `TMP` only for that PowerShell process, forwards any extra arguments to `python -m pytest`, and removes its own temp directory after the run. `outputs/` is ignored by Git, so these temporary test artifacts are not committed.
+## Automated validation layers
 
-GitHub Actions also runs `pytest -q` on push and pull request events using the workflow in `.github/workflows/ci.yml`.
+The standard CI workflow validates Python 3.11 on Ubuntu and Windows, builds a wheel and source distribution, installs the wheel without dependency resolution, and exercises the installed public CLIs.
 
-The tests use small in-memory pandas DataFrames and demo/synthetic CSV files from `data/sample/`. They do not use real experimental, factory, customer, or production data.
+The quality workflow adds:
 
-## What The Tests Cover
+- a coverage gate with a retained XML report;
+- full-suite compatibility runs on Python 3.12 and 3.13;
+- a clean source-distribution self-test using only files packaged in the sdist;
+- Ruff static checks;
+- focused mypy validation for stable safety and semantic-contract modules;
+- dependency vulnerability auditing;
+- a retained exact environment freeze.
 
-- CSV loading and input validation behavior
-- column cleanup and duplicate-column detection
-- missing-value summaries, numeric summaries, correlations, and group summaries
-- process scoring, multi-objective scoring, SPC calculations, and simulation helper behavior
-- a lightweight CLI regression check using the included demo dataset
+The supported runtime range is Python 3.11 through 3.13. A future Python version is not supported merely because installation happens to succeed.
 
-## What The Tests Do Not Cover
+## Scientific interpretation
 
-- validation of real engineering conclusions
-- production-scale datasets
-- private or proprietary data handling
-- full visual inspection of every generated figure
-- package installation as an installed Python module
+Passing tests establishes software behavior only. It does not establish that samples are comparable, units and measurement methods are correct, an SPC process is stable, a model generalizes, a mechanism is causal, or an engineering decision is authorized.
 
-Some tests and demo commands create files under `outputs/`. The `outputs/` directory is ignored by Git, so local run artifacts and test artifacts should not be committed.
+Synthetic and compact fixtures test software contracts. They are not substitutes for independent real-data scientific validation.
+
+## Generated artifacts
+
+Tests and smoke commands may write under `outputs/`. That directory is ignored by Git. User-facing runs now stage outputs in a sibling temporary directory and promote them only after successful completion. Existing recognized runs are preserved until replacement succeeds, and foreign non-empty directories are not recursively deleted.

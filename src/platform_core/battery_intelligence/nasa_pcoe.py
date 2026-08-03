@@ -23,6 +23,8 @@ import pandas as pd
 from scipy.io import loadmat
 
 from .common import canonical_json, file_sha256
+from platform_core.output_safety import transactional_output_directory
+from platform_core.runtime_provenance import runtime_environment
 
 
 NASA_PCOE_SOURCE_NAME = "NASA PCoE Li-ion Battery Aging Datasets"
@@ -45,6 +47,8 @@ IMPORT_SCHEMA_VERSION = "1.0"
 MAX_ARCHIVE_DEPTH = 4
 MAX_ARCHIVE_MEMBERS = 20_000
 MAX_MEMBER_BYTES = 2_000_000_000
+MAX_TOTAL_EXTRACTED_BYTES = 8_000_000_000
+MAX_COMPRESSION_RATIO = 500.0
 
 
 @dataclass(frozen=True)
@@ -83,6 +87,25 @@ def _safe_archive_path(name: str) -> PurePosixPath:
     return path
 
 
+
+def _copy_archive_member_limited(
+    source: Any, target: Any, *, state: dict[str, int], member_name: str
+) -> int:
+    written = 0
+    while True:
+        chunk = source.read(1024 * 1024)
+        if not chunk:
+            break
+        written += len(chunk)
+        state["extracted_bytes"] += len(chunk)
+        if state["extracted_bytes"] > MAX_TOTAL_EXTRACTED_BYTES:
+            raise ValueError(
+                "archive cumulative extracted bytes exceed "
+                f"{MAX_TOTAL_EXTRACTED_BYTES}: {member_name}"
+            )
+        target.write(chunk)
+    return written
+
 def _extract_zip_recursive(
     archive_path: Path,
     destination: Path,
@@ -110,12 +133,24 @@ def _extract_zip_recursive(
                 raise ValueError(
                     f"archive member exceeds {MAX_MEMBER_BYTES} bytes: {info.filename}"
                 )
+            compression_ratio = info.file_size / max(info.compress_size, 1)
+            if info.file_size >= 1_000_000 and compression_ratio > MAX_COMPRESSION_RATIO:
+                raise ValueError(
+                    "archive member compression ratio exceeds "
+                    f"{MAX_COMPRESSION_RATIO}: {info.filename}"
+                )
             if member.suffix.lower() not in {".mat", ".zip"}:
                 continue
             state["files"] += 1
             local = destination / f"{state['files']:06d}_{member.name}"
             with archive.open(info) as source, local.open("wb") as target:
-                shutil.copyfileobj(source, target)
+                written = _copy_archive_member_limited(
+                    source, target, state=state, member_name=info.filename
+                )
+            if written != info.file_size:
+                raise ValueError(
+                    f"archive member size mismatch after extraction: {info.filename}"
+                )
             location = f"{source_prefix}!{member.as_posix()}"
             if member.suffix.lower() == ".mat":
                 sources.append(_MatSource(local, location))
@@ -161,17 +196,28 @@ def _discover_mat_sources(
             "input_sha256": file_sha256(input_path),
         }
     elif input_path.is_file() and input_path.suffix.lower() == ".zip":
+        extraction_state = {"members": 0, "files": 0, "extracted_bytes": 0}
         sources = _extract_zip_recursive(
             input_path,
             temporary_directory,
             source_prefix=input_path.name,
             depth=0,
-            state={"members": 0, "files": 0},
+            state=extraction_state,
         )
         metadata = {
             "input_kind": "zip_archive",
             "input_path": str(input_path),
             "input_sha256": file_sha256(input_path),
+            "archive_member_count": extraction_state["members"],
+            "archive_extracted_file_count": extraction_state["files"],
+            "archive_extracted_bytes": extraction_state["extracted_bytes"],
+            "archive_resource_limits": {
+                "max_depth": MAX_ARCHIVE_DEPTH,
+                "max_members": MAX_ARCHIVE_MEMBERS,
+                "max_member_bytes": MAX_MEMBER_BYTES,
+                "max_total_extracted_bytes": MAX_TOTAL_EXTRACTED_BYTES,
+                "max_compression_ratio": MAX_COMPRESSION_RATIO,
+            },
         }
     else:
         raise ValueError(
@@ -607,7 +653,7 @@ def _deduplicate_source(
     return True
 
 
-def import_nasa_pcoe_battery(
+def _import_nasa_pcoe_battery_in_directory(
     *,
     input_path: str | Path,
     output_dir: str | Path,
@@ -621,7 +667,7 @@ def import_nasa_pcoe_battery(
     output = Path(output_dir)
     if not source_input.exists():
         raise FileNotFoundError(f"NASA PCoE input not found: {source_input}")
-    _prepare_output(output, overwrite=overwrite)
+    output.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="mda_nasa_pcoe_") as temporary:
         sources, input_metadata = _discover_mat_sources(
@@ -864,15 +910,52 @@ def import_nasa_pcoe_battery(
             (inventory["skip_reason"] == "duplicate_identical_source_copy").sum()
         ),
         "warning_count": int(len(warning_table)),
-        "outputs": {name: str(path) for name, path in paths.items()},
+        "outputs": {name: path.name for name, path in paths.items()},
+        "output_byte_count": {
+            name: path.stat().st_size
+            for name, path in paths.items()
+            if name != "manifest" and path.is_file()
+        },
         "output_sha256": {
             name: file_sha256(path)
             for name, path in paths.items()
             if name != "manifest"
         },
+        "terminal_status": "completed",
+        "runtime_environment": runtime_environment(),
         "scientific_boundary": (
             "Successful import validates software conversion and provenance fields. It does not establish source comparability, degradation mechanism, predictive value, external generalization, or engineering readiness."
         ),
     }
     paths["manifest"].write_text(canonical_json(manifest), encoding="utf-8")
+    return manifest
+
+
+def import_nasa_pcoe_battery(
+    *,
+    input_path: str | Path,
+    output_dir: str | Path,
+    retrieval_receipt_path: str | Path | None = None,
+    retrieved_at: str | None = None,
+    source_identifier: str = NASA_PCOE_SOURCE_IDENTIFIER,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Import NASA PCoE data using a protected transactional output directory."""
+    protected: list[Path] = [Path(input_path)]
+    if retrieval_receipt_path is not None:
+        protected.append(Path(retrieval_receipt_path))
+    with transactional_output_directory(
+        output_dir,
+        overwrite=overwrite,
+        protected_paths=protected,
+        recognized_markers=("nasa_pcoe_import_manifest.json",),
+    ) as staging_output:
+        manifest = _import_nasa_pcoe_battery_in_directory(
+            input_path=input_path,
+            output_dir=staging_output,
+            retrieval_receipt_path=retrieval_receipt_path,
+            retrieved_at=retrieved_at,
+            source_identifier=source_identifier,
+            overwrite=False,
+        )
     return manifest

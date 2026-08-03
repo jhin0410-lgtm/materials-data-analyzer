@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$AnalysisOutput = "",
-    [string]$Destination = ""
+    [string]$Destination = "",
+    [string]$SourceLabel = "nasa_pcoe_signal_enriched_battery_intelligence"
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,6 +40,13 @@ elseif (-not [System.IO.Path]::IsPathRooted($Destination)) {
 }
 else {
     $Destination = [System.IO.Path]::GetFullPath($Destination)
+}
+
+if ([string]::IsNullOrWhiteSpace($SourceLabel)) {
+    throw "Audit bundle SourceLabel must not be blank"
+}
+if ($SourceLabel.Contains("`r") -or $SourceLabel.Contains("`n")) {
+    throw "Audit bundle SourceLabel must be a single line"
 }
 
 $sourcePrefix = $AnalysisOutput.TrimEnd(
@@ -127,7 +135,8 @@ try {
     $readmePath = Join-Path $stagingRoot "_audit_bundle_readme.txt"
     @(
         "NASA PCoE full-audit bundle",
-        "source_analysis_output=$AnalysisOutput",
+        "source_analysis_label=$SourceLabel",
+        "source_path_redacted=true",
         "created_at_utc=$([DateTime]::UtcNow.ToString('o'))",
         "source_file_count=$($files.Count)",
         "inventory_file=_audit_bundle_inventory.csv",

@@ -12,10 +12,11 @@ from typing import Any, Iterable
 
 import numpy as np
 import pandas as pd
+
+from config import PROJECT_ROOT
 from pymatgen.core import Composition, Element
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TARGET_COLUMN = "energy_above_hull"
 IDENTIFIER_COLUMN = "material_id"
 COMPOSITION_SOURCE_PRIORITY = ["composition_reduced", "composition", "formula_pretty"]

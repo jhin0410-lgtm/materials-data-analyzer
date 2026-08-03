@@ -108,3 +108,33 @@ def test_clean_data_preserves_duplicate_rows() -> None:
 
     assert len(result) == 3
     assert int(result.duplicated().sum()) == 1
+
+
+def test_preprocess_data_preserves_identifier_like_strings_and_leading_zeroes() -> None:
+    df = pd.DataFrame(
+        {
+            "Sample ID": ["001", "002", "A010"],
+            "Measured Value": ["1.0", "2.0", "3.0"],
+        }
+    )
+
+    result = preprocess_data(df)
+
+    assert result.dataframe["sample_id"].astype(str).tolist() == ["001", "002", "A010"]
+    assert result.dataframe["sample_id"].notna().all()
+    operation = next(
+        row for row in result.audit["column_operations"] if row["column"] == "sample_id"
+    )
+    assert operation["numeric_conversion_applied"] is False
+    assert operation["numeric_conversion_skipped_reason"] == "protected_identifier_or_provenance_semantics"
+
+
+def test_preprocess_data_records_exact_excluded_empty_source_rows() -> None:
+    df = pd.DataFrame({"sample_id": ["S1", None, "S3"], "value": [1.0, None, 3.0]})
+
+    result = preprocess_data(df)
+
+    assert result.audit["dropped_all_empty_row_count"] == 1
+    assert result.audit["excluded_rows"] == [
+        {"source_row_number": 3, "reason": "all_values_missing"}
+    ]

@@ -218,7 +218,8 @@ def check_finite(constraint: ScientificConstraint, values: dict[str, Any], units
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     if _all_finite(found):
         return (_finding(constraint, status="consistent", severity="info", message="All supplied values are finite.", remediation_code="none"),)
     return (
@@ -237,7 +238,8 @@ def check_non_negative(constraint: ScientificConstraint, values: dict[str, Any],
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     tolerance = float(constraint.tolerance_policy.get("lower_tolerance", 0.0))
     if min(found) >= -abs(tolerance):
         status = "conditionally_consistent" if min(found) < 0 else "consistent"
@@ -258,7 +260,8 @@ def check_positive(constraint: ScientificConstraint, values: dict[str, Any], uni
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     if min(found) > 0:
         return (_finding(constraint, status="consistent", severity="info", message="Values are strictly positive.", remediation_code="none"),)
     return (
@@ -277,7 +280,8 @@ def check_closed_interval(constraint: ScientificConstraint, values: dict[str, An
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     lower = constraint.tolerance_policy.get("min")
     upper = constraint.tolerance_policy.get("max")
     tolerance = float(constraint.tolerance_policy.get("tolerance", 0.0))
@@ -301,7 +305,8 @@ def check_sum_to_target(constraint: ScientificConstraint, values: dict[str, Any]
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     target = float(constraint.tolerance_policy.get("target", 1.0))
     tolerance = float(constraint.tolerance_policy.get("tolerance", 1e-6))
     total = sum(found)
@@ -340,7 +345,8 @@ def check_monotonic_non_decreasing(constraint: ScientificConstraint, values: dic
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     if all(left <= right for left, right in zip(found, found[1:])):
         return (_finding(constraint, status="consistent", severity="info", message="Values are monotonic non-decreasing.", remediation_code="none"),)
     return (_finding(constraint, status="inconsistent", severity=constraint.severity_on_violation, message="Values are not monotonic non-decreasing.", remediation_code="inspect_temporal_order"),)
@@ -351,7 +357,8 @@ def check_monotonic_non_increasing(constraint: ScientificConstraint, values: dic
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     if all(left >= right for left, right in zip(found, found[1:])):
         return (_finding(constraint, status="consistent", severity="info", message="Values are monotonic non-increasing.", remediation_code="none"),)
     return (_finding(constraint, status="inconsistent", severity=constraint.severity_on_violation, message="Values are not monotonic non-increasing.", remediation_code="inspect_temporal_order"),)
@@ -366,7 +373,8 @@ def check_fraction_bounds(constraint: ScientificConstraint, values: dict[str, An
     _, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert found is not None
+    if found is None:
+        raise RuntimeError("validated constraint values unexpectedly missing")
     lower = float(constraint.tolerance_policy.get("min", 0.0))
     upper = float(constraint.tolerance_policy.get("max", 1.0))
     tolerance = float(constraint.tolerance_policy.get("tolerance", 1e-9))
@@ -380,7 +388,8 @@ def check_arrhenius_temperature_domain(constraint: ScientificConstraint, values:
     variable, found, missing = _required_value(constraint, values)
     if missing:
         return (missing,)
-    assert variable is not None and found is not None
+    if variable is None or found is None:
+        raise RuntimeError("validated unit constraint values unexpectedly missing")
     supplied_unit = _unit_for(variable, values, units)
     if supplied_unit is None:
         return (

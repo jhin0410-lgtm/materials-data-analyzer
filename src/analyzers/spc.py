@@ -142,13 +142,63 @@ def build_spc_summary_table(
     return pd.DataFrame(rows)
 
 
+
+def assess_capability_readiness(
+    spc_df: pd.DataFrame,
+    *,
+    lsl: float | None,
+    usl: float | None,
+    minimum_observations: int = 20,
+) -> dict[str, object]:
+    """Assess whether Cp/Cpk should be reported for the observed sequence."""
+    reasons: list[str] = []
+    if lsl is None or usl is None:
+        reasons.append("specification_limits_not_provided")
+    elif usl <= lsl:
+        reasons.append("invalid_specification_limits")
+    if len(spc_df) < minimum_observations:
+        reasons.append("insufficient_observations")
+    violation_count = int(spc_df.get("any_spc_violation", pd.Series(dtype=bool)).sum())
+    if violation_count:
+        reasons.append("process_not_in_statistical_control")
+    if "timestamp" in spc_df.columns and spc_df["timestamp"].isna().any():
+        reasons.append("invalid_or_missing_timestamp_order")
+    return {
+        "ready": not reasons,
+        "status": "ready" if not reasons else "not_ready",
+        "reason_codes": reasons,
+        "minimum_observations": minimum_observations,
+        "observed_count": int(len(spc_df)),
+        "control_violation_count": violation_count,
+        "measurement_system_reviewed": False,
+        "distribution_assumption_reviewed": False,
+        "note": (
+            "Cp/Cpk is a diagnostic only. Measurement-system adequacy, distribution, "
+            "subgrouping, and specification provenance still require domain review."
+        ),
+    }
+
 def calculate_process_capability(
     lsl: float | None,
     usl: float | None,
     mean_value: float,
     sigma_estimate: float,
+    readiness: dict[str, object] | None = None,
 ) -> pd.DataFrame:
     """Calculate Cp and Cpk when specification limits are provided."""
+    if readiness is not None and not bool(readiness.get("ready")):
+        return pd.DataFrame(
+            [
+                {"metric": "capability_status", "value": "not_ready"},
+                {
+                    "metric": "capability_reason_codes",
+                    "value": ";".join(str(x) for x in readiness.get("reason_codes", [])),
+                },
+                {"metric": "cp", "value": np.nan},
+                {"metric": "cpk", "value": np.nan},
+            ]
+        )
+
     if lsl is None or usl is None:
         return pd.DataFrame(
             [{"metric": "message", "value": "spec limits not provided"}]
@@ -207,11 +257,15 @@ def run_spc_analysis(
         row_count=len(spc_df),
         summary=summary,
     )
+    capability_readiness = assess_capability_readiness(
+        spc_df, lsl=lsl, usl=usl
+    )
     capability_df = calculate_process_capability(
         lsl=lsl,
         usl=usl,
         mean_value=summary["center_line"],
         sigma_estimate=summary["sigma_estimate"],
+        readiness=capability_readiness,
     )
 
     cleaned_data_path = save_cleaned_data(spc_df, output_paths)
@@ -223,6 +277,17 @@ def run_spc_analysis(
     )
     capability_path = save_dataframe(
         capability_df, output_paths.processed / "process_capability.csv"
+    )
+    readiness_path = save_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    **{k: v for k, v in capability_readiness.items() if k != "reason_codes"},
+                    "reason_codes": ";".join(capability_readiness["reason_codes"]),
+                }
+            ]
+        ),
+        output_paths.processed / "capability_readiness.csv",
     )
 
     figure_results = create_spc_figures(
@@ -252,4 +317,8 @@ def run_spc_analysis(
         report_text, output_paths.reports / "spc_report.md"
     )
 
-    return {"cleaned_data": cleaned_data_path, "report": report_path}
+    return {
+        "cleaned_data": cleaned_data_path,
+        "report": report_path,
+        "capability_readiness": readiness_path,
+    }

@@ -376,3 +376,39 @@ def test_nasa_importer_preserves_nonempty_output_by_default(
             output_dir=output,
             retrieved_at="2026-08-01T00:00:00Z",
         )
+
+
+def test_nasa_importer_enforces_cumulative_extraction_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from platform_core.battery_intelligence import nasa_pcoe
+
+    archive = tmp_path / "large.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as handle:
+        handle.writestr("B0005.mat", b"x" * 128)
+    monkeypatch.setattr(nasa_pcoe, "MAX_TOTAL_EXTRACTED_BYTES", 64)
+
+    with pytest.raises(ValueError, match="cumulative extracted bytes"):
+        import_nasa_pcoe_battery(
+            input_path=archive,
+            output_dir=tmp_path / "imported",
+            retrieved_at="2026-08-01T00:00:00Z",
+        )
+
+
+def test_nasa_importer_rejects_extreme_archive_compression_ratio(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from platform_core.battery_intelligence import nasa_pcoe
+
+    archive = tmp_path / "compressed.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as handle:
+        handle.writestr("B0005.mat", b"0" * 1_100_000)
+    monkeypatch.setattr(nasa_pcoe, "MAX_COMPRESSION_RATIO", 2.0)
+
+    with pytest.raises(ValueError, match="compression ratio"):
+        import_nasa_pcoe_battery(
+            input_path=archive,
+            output_dir=tmp_path / "imported",
+            retrieved_at="2026-08-01T00:00:00Z",
+        )

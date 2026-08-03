@@ -79,7 +79,8 @@ def from_record(payload: Mapping[str, Any]) -> ScientificEntity:
     if not validation["valid"]:
         raise ValueError("; ".join(validation["errors"]))
     record = payload["record"]
-    assert isinstance(record, Mapping)
+    if not isinstance(record, Mapping):
+        raise ValueError("validated scientific entity record must be a mapping")
     return ScientificEntity(
         entity_id=str(record["entity_id"]),
         entity_type=str(record["entity_type"]),

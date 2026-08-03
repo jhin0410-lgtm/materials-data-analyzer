@@ -10,6 +10,7 @@ from typing import Callable
 
 try:
     import pandas as pd
+    import io_utils
 
     from analyzers.constrained_simulation import run_constraint_aware_simulation_analysis
     from analyzers.eda import run_eda_analysis
@@ -17,16 +18,24 @@ try:
     from analyzers.reliability import run_reliability_analysis
     from analyzers.smart_factory import run_smart_factory_analysis
     from analyzers.spc import run_spc_analysis
-    from config import ANALYSIS_MODES, DEFAULT_INPUT, OutputPaths
+    from config import ANALYSIS_MODES, DEFAULT_INPUT, PROJECT_ROOT, OutputPaths
+    from dataset_contract import (
+        audit_dataset_contract,
+        load_dataset_contract,
+        protected_columns as contract_protected_columns,
+    )
     from io_utils import (
-        create_output_dirs,
         display_path,
         load_data,
+        output_paths_for_root,
         resolve_project_path,
         resolve_run_name,
+        save_dataframe,
         save_json,
         save_preprocessing_audit,
     )
+    from platform_core.output_safety import transactional_output_directory
+    from platform_core.runtime_provenance import artifact_inventory, runtime_environment
     from platform_core.version import PLATFORM_VERSION
     from preprocessing import preprocess_data
 except ModuleNotFoundError as exc:
@@ -153,6 +162,14 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--target-weights",
+        nargs="*",
+        type=float,
+        default=None,
+        required=False,
+        help="Optional non-negative weights matching --targets.",
+    )
+    parser.add_argument(
         "--lsl",
         type=float,
         default=None,
@@ -165,6 +182,23 @@ def parse_args() -> argparse.Namespace:
         default=None,
         required=False,
         help="Optional upper specification limit for SPC capability analysis.",
+    )
+    parser.add_argument(
+        "--dataset-contract",
+        default=None,
+        required=False,
+        help=(
+            "Optional versioned JSON contract declaring column roles, units, "
+            "identity, grouping, method, and provenance semantics."
+        ),
+    )
+    parser.add_argument(
+        "--decision-grade",
+        action="store_true",
+        help=(
+            "Require a valid dataset contract and mode-specific semantic roles. "
+            "This does not itself establish scientific validity."
+        ),
     )
     parser.add_argument(
         "--mode",
@@ -228,6 +262,7 @@ def _run_analysis(
             goal=args.goal,
             targets=args.targets,
             goals=args.goals,
+            target_weights=getattr(args, "target_weights", None),
         )
 
     if args.mode == "spc":
@@ -253,7 +288,7 @@ def _run_analysis(
             design_samples=args.design_samples,
             grid_levels=args.grid_levels,
             group_column=args.group_column,
-            constraint_config=args.constraint_config,
+            constraint_config=getattr(args, "constraint_config", None),
         )
 
     analysis_runner = get_analysis_runner()[args.mode]
@@ -275,6 +310,7 @@ def _build_run_manifest(
     preprocessing_audit_path: Path,
     preprocessing_warning_count: int,
     output_files: dict[str, Path],
+    artifact_metadata: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     options = {
         key: value
@@ -301,6 +337,9 @@ def _build_run_manifest(
         },
         "options": options,
         "overwrite_requested": bool(args.overwrite),
+        "terminal_status": "completed",
+        "runtime_environment": runtime_environment(project_root=PROJECT_ROOT),
+        "artifacts": artifact_metadata,
         "outputs": {
             name: display_path(path)
             for name, path in sorted(output_files.items())
@@ -308,45 +347,114 @@ def _build_run_manifest(
     }
 
 
+def _relocate_output_files(
+    files: dict[str, Path], *, source_root: Path, target_root: Path
+) -> dict[str, Path]:
+    relocated: dict[str, Path] = {}
+    for name, path in files.items():
+        try:
+            relative = path.relative_to(source_root)
+        except ValueError:
+            relocated[name] = path
+        else:
+            relocated[name] = target_root / relative
+    return relocated
+
+
 def run_selected_analysis(args: argparse.Namespace) -> dict[str, Path]:
-    """Load data, record preprocessing, and execute the selected analysis mode."""
+    """Load data, record preprocessing, and execute one atomic analysis run."""
     input_path = resolve_project_path(args.input)
     run_name = resolve_run_name(input_path, args.run_name)
 
     raw_df = load_data(input_path)
+    dataset_contract_arg = getattr(args, "dataset_contract", None)
+    contract_path = (
+        resolve_project_path(dataset_contract_arg)
+        if dataset_contract_arg
+        else None
+    )
+    contract = load_dataset_contract(contract_path) if contract_path else None
     preprocessing_result = preprocess_data(
         raw_df,
         fail_on_column_collision=True,
+        protected_columns=contract_protected_columns(contract),
     )
     cleaned_df = preprocessing_result.dataframe
-
-    output_paths = create_output_dirs(run_name, overwrite=args.overwrite)
-    preprocessing_audit_path = save_preprocessing_audit(
-        preprocessing_result.audit,
-        output_paths,
+    requested_targets = list(args.targets or [])
+    if args.target:
+        requested_targets.append(args.target)
+    elif args.mode == "process" and not args.targets:
+        requested_targets.append("yield_percent")
+    contract_audit = audit_dataset_contract(
+        contract,
+        cleaned_df,
+        mode=args.mode,
+        target_columns=requested_targets,
+        decision_grade=bool(getattr(args, "decision_grade", False)),
     )
+    final_root = io_utils.OUTPUT_DIR / run_name
 
-    output_files = _run_analysis(
-        args,
-        cleaned_df=cleaned_df,
-        input_path=input_path,
-        output_paths=output_paths,
-    )
-    output_files["preprocessing_audit"] = preprocessing_audit_path
+    with transactional_output_directory(
+        final_root,
+        overwrite=args.overwrite,
+        protected_paths=tuple(
+            path for path in (input_path, contract_path) if path is not None
+        ),
+        recognized_markers=("run_manifest.json",),
+    ) as staging_root:
+        output_paths = output_paths_for_root(staging_root)
+        for directory in (
+            output_paths.root,
+            output_paths.processed,
+            output_paths.figures,
+            output_paths.reports,
+        ):
+            directory.mkdir(parents=True, exist_ok=True)
 
-    manifest = _build_run_manifest(
-        args,
-        input_path=input_path,
-        run_name=run_name,
-        raw_df=raw_df,
-        cleaned_df=cleaned_df,
-        preprocessing_audit_path=preprocessing_audit_path,
-        preprocessing_warning_count=len(preprocessing_result.warnings),
-        output_files=output_files,
-    )
-    manifest_path = save_json(manifest, output_paths.root / "run_manifest.json")
-    output_files["run_manifest"] = manifest_path
-    return output_files
+        preprocessing_audit_path = save_preprocessing_audit(
+            preprocessing_result.audit,
+            output_paths,
+        )
+        exclusions = pd.DataFrame(
+            preprocessing_result.audit.get("excluded_rows", []),
+            columns=["source_row_number", "reason"],
+        )
+        exclusions_path = save_dataframe(
+            exclusions, output_paths.processed / "preprocessing_exclusions.csv"
+        )
+        contract_audit_path = save_json(
+            contract_audit, output_paths.processed / "dataset_contract_audit.json"
+        )
+
+        output_files = _run_analysis(
+            args,
+            cleaned_df=cleaned_df,
+            input_path=input_path,
+            output_paths=output_paths,
+        )
+        output_files["preprocessing_audit"] = preprocessing_audit_path
+        output_files["preprocessing_exclusions"] = exclusions_path
+        output_files["dataset_contract_audit"] = contract_audit_path
+
+        final_output_files = _relocate_output_files(
+            output_files, source_root=staging_root, target_root=final_root
+        )
+        artifact_metadata = artifact_inventory(output_files, root=staging_root)
+        manifest = _build_run_manifest(
+            args,
+            input_path=input_path,
+            run_name=run_name,
+            raw_df=raw_df,
+            cleaned_df=cleaned_df,
+            preprocessing_audit_path=final_root / "processed" / "preprocessing_audit.json",
+            preprocessing_warning_count=len(preprocessing_result.warnings),
+            output_files=final_output_files,
+            artifact_metadata=artifact_metadata,
+        )
+        save_json(manifest, staging_root / "run_manifest.json")
+
+    final_output_files["run_manifest"] = final_root / "run_manifest.json"
+    return final_output_files
 
 
 def main() -> None:

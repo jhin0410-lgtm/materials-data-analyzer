@@ -32,6 +32,10 @@ def _eda_args(input_path: Path, run_name: str, overwrite: bool = False) -> argpa
         mode="eda",
         run_name=run_name,
         overwrite=overwrite,
+        dataset_contract=None,
+        decision_grade=False,
+        target_weights=None,
+        constraint_config=None,
     )
 
 
@@ -93,6 +97,14 @@ def test_analysis_run_writes_audit_and_manifest(
     audit_path = manifest["preprocessing"]["audit_path"].replace("\\", "/")
     assert audit_path.endswith("processed/preprocessing_audit.json")
     assert manifest["overwrite_requested"] is False
+    assert manifest["terminal_status"] == "completed"
+    assert manifest["runtime_environment"]["python_version"]
+    assert "executable_name" in manifest["runtime_environment"]
+    assert "executable" not in manifest["runtime_environment"]
+    assert manifest["artifacts"]["preprocessing_audit"]["byte_count"] > 0
+    assert len(manifest["artifacts"]["preprocessing_audit"]["sha256"]) == 64
+    assert output_files["preprocessing_exclusions"].is_file()
+    assert output_files["dataset_contract_audit"].is_file()
 
 
 def test_analysis_run_rejects_ambiguous_headers_before_output_creation(
