@@ -1,0 +1,127 @@
+name: Quality and Release Evidence
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install development environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+      - name: Run coverage gate
+        run: |
+          mkdir -p outputs/quality
+          python -m pytest -q \
+            --cov=analyzers \
+            --cov=connectors \
+            --cov=materials_data_analyzer \
+            --cov=platform_core \
+            --cov-report=term-missing \
+            --cov-report=xml:outputs/quality/coverage.xml \
+            --cov-fail-under=60
+      - name: Upload coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-evidence
+          path: outputs/quality/coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+
+  python-compatibility:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install and test supported Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+          python -m pytest -q
+
+  source-distribution-self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Build source distribution
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "build>=1.2,<2"
+          python -m build --sdist
+      - name: Test only from extracted source distribution
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pathlib
+          import tarfile
+
+          archive = next(pathlib.Path("dist").glob("*.tar.gz"))
+          destination = pathlib.Path("outputs/sdist-self-test")
+          destination.mkdir(parents=True, exist_ok=True)
+          with tarfile.open(archive, "r:gz") as handle:
+              handle.extractall(destination, filter="data")
+          root = next(path for path in destination.iterdir() if path.is_dir())
+          (destination / "root.txt").write_text(str(root), encoding="utf-8")
+          PY
+          SDIST_ROOT="$(cat outputs/sdist-self-test/root.txt)"
+          cd "$SDIST_ROOT"
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+          python -m pytest -q
+
+  static-and-dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install quality tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+      - name: Ruff
+        run: python -m ruff check src tests
+      - name: Focused type contract
+        run: >-
+          python -m mypy --ignore-missing-imports
+          src/platform_core/output_safety.py
+          src/platform_core/runtime_provenance.py
+          src/dataset_contract.py
+      - name: Dependency vulnerability audit
+        run: python -m pip_audit -r requirements.txt --strict
+      - name: Record exact environment
+        run: |
+          mkdir -p outputs/quality
+          python -m pip freeze --all > outputs/quality/environment-freeze.txt
+      - name: Upload environment evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-environment-freeze
+          path: outputs/quality/environment-freeze.txt
+          if-no-files-found: warn
+          retention-days: 14
