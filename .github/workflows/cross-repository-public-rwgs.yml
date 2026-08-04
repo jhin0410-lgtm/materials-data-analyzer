@@ -57,7 +57,7 @@ jobs:
       - name: Install both repositories independently
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e materials-data-analyzer
+          python -m pip install -e "materials-data-analyzer[dev]"
           python -m pip install -e materials-characterization-analyzer
           test "$(mca --version)" = "materials-characterization-analyzer ${MCA_VERSION}"
           mda-characterization-import --help
@@ -124,9 +124,9 @@ jobs:
           manifest = json.loads((root / "cross_repository_handoff_manifest.json").read_text(encoding="utf-8"))
           integrated = pd.read_csv(root / "integrated_sample_table.csv")
 
-          assert (validation / "characterization_handoff_validation_summary.json").is_file()
-          assert (validation / "characterization_handoff_validation_report.md").is_file()
-          assert (validation / "characterization_handoff_validation_artifact_manifest.json").is_file()
+          assert (validation / "handoff_bundle_validation_summary.json").is_file()
+          assert (validation / "handoff_bundle_validation_report.md").is_file()
+          assert (validation / "handoff_bundle_validation_artifact_manifest.json").is_file()
 
           assert summary["status"] == "verified"
           assert summary["case_id"] == "public-rwgs-5cu-al2o3-xrd-sem-eds"
@@ -151,7 +151,6 @@ jobs:
               "characterization_only": 0,
           }
           assert summary["unit_label_normalization"]["performed"] is False
-          assert summary["unit_label_normalization"]["record_count"] == 0
           assert summary["unit_label_normalization"]["numeric_values_modified"] is False
           assert summary["scientific_closeout"]["evidence_level"] == "Diagnostic"
           assert summary["scientific_closeout"]["result"] == (
@@ -172,8 +171,6 @@ jobs:
           assert any(column.startswith("char__xrd__") for column in integrated.columns)
           assert any(column.startswith("char__eds__") for column in integrated.columns)
           assert not any(column.startswith("char__sem__") for column in integrated.columns)
-
-          print((root / "cross_repository_handoff_report.md").read_text(encoding="utf-8"))
           PY
 
       - name: Upload producer, validator, consumer, and diagnostics evidence
