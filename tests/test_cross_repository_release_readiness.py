@@ -81,7 +81,7 @@ def _data_repo(
     )
 
 
-def _characterization_repo(root: Path, *, version: str = "0.8.6") -> None:
+def _characterization_repo(root: Path, *, version: str = "0.11.0") -> None:
     for relative in (
         "README.md",
         "LICENSE",
@@ -99,9 +99,9 @@ def _characterization_repo(root: Path, *, version: str = "0.8.6") -> None:
         "type: software\n"
         "title: Materials Characterization Analyzer\n"
         f"version: {version}\n"
-        "date-released: 2026-07-27\n",
+        "date-released: 2026-08-04\n",
     )
-    _write(root, "CHANGELOG.md", f"# Changelog\n\n## [Unreleased]\n\nNone.\n\n## [{version}] - 2026-07-27\n")
+    _write(root, "CHANGELOG.md", f"# Changelog\n\n## [Unreleased]\n\nNone.\n\n## [{version}] - 2026-08-04\n")
     _write(
         root,
         ".github/workflows/ci.yml",
@@ -121,7 +121,7 @@ def test_audit_marks_promoted_v2_7_release_ready_for_external_action(tmp_path: P
     _data_repo(data)
     _characterization_repo(char)
 
-    summary = module.build_summary(data, char, "7242594")
+    summary = module.build_summary(data, char, "230c45d")
     data_result = summary["repositories"]["materials_data_analyzer"]
     char_result = summary["repositories"]["materials_characterization_analyzer"]
 
@@ -135,7 +135,7 @@ def test_audit_marks_promoted_v2_7_release_ready_for_external_action(tmp_path: P
     assert data_result["current_main_tagging_allowed"] is True
     assert data_result["blockers"] == []
     assert char_result["status"] == "ready_for_external_tag_or_release_verification"
-    assert set(char_result["version_sources"].values()) == {"0.8.6"}
+    assert set(char_result["version_sources"].values()) == {"0.11.0"}
     assert summary["cross_repository"]["status"] == "ready_for_external_release_action"
     assert summary["tags_created"] is False
     assert summary["packages_published"] is False
@@ -148,7 +148,7 @@ def test_audit_separates_v2_7_release_from_later_main_work(tmp_path: Path) -> No
     _data_repo(data, unreleased_line="- Added v2.7.1 post-release work.")
     _characterization_repo(char)
 
-    summary = module.build_summary(data, char, "7242594")
+    summary = module.build_summary(data, char, "230c45d")
     data_result = summary["repositories"]["materials_data_analyzer"]
 
     assert data_result["status"] == "stable_release_metadata_valid_main_ahead"
@@ -171,7 +171,7 @@ def test_characterization_version_mismatch_blocks(tmp_path: Path) -> None:
     module = _module()
     char = tmp_path / "char"
     _characterization_repo(char)
-    _write(char, "src/mca/__init__.py", '__version__ = "0.8.5"\n')
+    _write(char, "src/mca/__init__.py", '__version__ = "0.10.0"\n')
     result = module.audit_characterization_repository(char)
     assert result["status"] == "blocked_package_release_metadata_inconsistent"
     assert any("inconsistent" in item for item in result["blockers"])
@@ -185,7 +185,7 @@ def test_run_audit_writes_checksummed_outputs_and_preserves_existing_files(tmp_p
     _data_repo(data)
     _characterization_repo(char)
 
-    outputs = module.run_audit(data, char, output, "7242594")
+    outputs = module.run_audit(data, char, output, "230c45d")
     summary = json.loads(outputs["summary"].read_text(encoding="utf-8"))
     manifest = json.loads(outputs["manifest"].read_text(encoding="utf-8"))
     assert summary["network_access_performed"] is False
@@ -196,5 +196,5 @@ def test_run_audit_writes_checksummed_outputs_and_preserves_existing_files(tmp_p
     sentinel = output / "keep.txt"
     sentinel.write_text("keep", encoding="utf-8")
     with pytest.raises(FileExistsError, match="existing files were preserved"):
-        module.run_audit(data, char, output, "7242594")
+        module.run_audit(data, char, output, "230c45d")
     assert sentinel.read_text(encoding="utf-8") == "keep"
