@@ -6,9 +6,14 @@ on:
     paths:
       - "src/loaders/characterization_bundle.py"
       - "src/loaders/characterization_features.py"
+      - "src/materials_data_analyzer/characterization_import_cli.py"
       - "scripts/consume_characterization_handoff_bundle.py"
+      - "pyproject.toml"
       - "tests/test_characterization_bundle.py"
+      - "tests/test_characterization_import_cli.py"
+      - "tests/test_current_characterization_interop.py"
       - "docs/CROSS_REPOSITORY_CHARACTERIZATION_HANDOFF.md"
+      - "docs/CHARACTERIZATION_IMPORT_CLI.md"
       - ".github/workflows/cross-repository-public-rwgs.yml"
 
 permissions:
@@ -18,10 +23,14 @@ concurrency:
   group: cross-repository-rwgs-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  MCA_COMMIT: 230c45d30aee833145d9ff7dc9085aa893d0f7dd
+  MCA_VERSION: 0.11.0
+
 jobs:
   validate-real-public-rwgs-handoff:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out materials-data-analyzer
         uses: actions/checkout@v7
@@ -32,8 +41,13 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: jhin0410-lgtm/materials-characterization-analyzer
-          ref: 613783d803792fc283acee006a2fc5ebf6b20aee
+          ref: ${{ env.MCA_COMMIT }}
           path: materials-characterization-analyzer
+
+      - name: Verify exact producer commit
+        working-directory: materials-characterization-analyzer
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${MCA_COMMIT}"
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -43,8 +57,10 @@ jobs:
       - name: Install both repositories independently
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r materials-data-analyzer/requirements.txt
+          python -m pip install -e materials-data-analyzer
           python -m pip install -e materials-characterization-analyzer
+          test "$(mca --version)" = "materials-characterization-analyzer ${MCA_VERSION}"
+          mda-characterization-import --help
 
       - name: Discover and download public RWGS sources
         run: |
@@ -65,12 +81,18 @@ jobs:
             --config materials-characterization-analyzer/case_studies/public_rwgs_xrd_sem_eds/case_config.json \
             --result materials-characterization-analyzer/outputs/public-rwgs-case/result
 
-      - name: Consume bundle in materials-data-analyzer
+      - name: Independently validate producer bundle
+        run: |
+          mca validate-handoff \
+            --bundle materials-characterization-analyzer/outputs/public-rwgs-case/result/handoff_bundle \
+            --output materials-characterization-analyzer/outputs/public-rwgs-case/handoff-validation
+
+      - name: Consume bundle through installed command
         shell: bash
         run: |
           mkdir -p materials-data-analyzer/outputs/cross-repository-rwgs-diagnostics
           set +e
-          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+          mda-characterization-import \
             --bundle-manifest materials-characterization-analyzer/outputs/public-rwgs-case/result/handoff_bundle/characterization_handoff_bundle.json \
             --output materials-data-analyzer/outputs/cross-repository-public-rwgs \
             > materials-data-analyzer/outputs/cross-repository-rwgs-diagnostics/consumer.log 2>&1
@@ -81,7 +103,11 @@ jobs:
 
       - name: Run focused consumer tests
         working-directory: materials-data-analyzer
-        run: python -m pytest -q tests/test_characterization_bundle.py
+        run: |
+          python -m pytest -q \
+            tests/test_characterization_bundle.py \
+            tests/test_characterization_import_cli.py \
+            tests/test_current_characterization_interop.py
 
       - name: Verify real-data RWGS closeout evidence
         run: |
@@ -91,15 +117,21 @@ jobs:
 
           import pandas as pd
 
+          producer = Path("materials-characterization-analyzer/outputs/public-rwgs-case")
+          validation = producer / "handoff-validation"
           root = Path("materials-data-analyzer/outputs/cross-repository-public-rwgs")
           summary = json.loads((root / "cross_repository_handoff_summary.json").read_text(encoding="utf-8"))
           manifest = json.loads((root / "cross_repository_handoff_manifest.json").read_text(encoding="utf-8"))
           integrated = pd.read_csv(root / "integrated_sample_table.csv")
 
+          assert (validation / "characterization_handoff_validation_summary.json").is_file()
+          assert (validation / "characterization_handoff_validation_report.md").is_file()
+          assert (validation / "characterization_handoff_validation_artifact_manifest.json").is_file()
+
           assert summary["status"] == "verified"
           assert summary["case_id"] == "public-rwgs-5cu-al2o3-xrd-sem-eds"
           assert summary["producer"]["repository"] == "jhin0410-lgtm/materials-characterization-analyzer"
-          assert summary["producer"]["software_versions"] == ["0.8.5"]
+          assert summary["producer"]["software_versions"] == ["0.11.0"]
           assert summary["feature_summary"] == {
               "row_count": 31,
               "sample_count": 1,
@@ -144,7 +176,7 @@ jobs:
           print((root / "cross_repository_handoff_report.md").read_text(encoding="utf-8"))
           PY
 
-      - name: Upload producer, consumer, and diagnostics evidence
+      - name: Upload producer, validator, consumer, and diagnostics evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:

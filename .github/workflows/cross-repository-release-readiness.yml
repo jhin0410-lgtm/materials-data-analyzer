@@ -11,13 +11,18 @@ on:
       - "docs/PUBLIC_RELEASE_STATUS.md"
       - "docs/releases/**"
       - "src/platform_core/version.py"
+      - "src/materials_data_analyzer/characterization_import_cli.py"
       - "scripts/audit_cross_repository_release_readiness.py"
       - "tests/test_cross_repository_release_readiness.py"
+      - "tests/test_current_characterization_interop.py"
       - "tests/test_public_release_metadata.py"
       - "docs/CROSS_REPOSITORY_RELEASE_READINESS.md"
+      - "docs/CHARACTERIZATION_IMPORT_CLI.md"
       - ".github/workflows/ci.yml"
       - ".github/workflows/cross-repository-release-readiness.yml"
+      - ".github/workflows/cross-repository-public-rwgs.yml"
       - ".github/workflows/cross-repository-nist-ambench-2018-02.yml"
+      - "pyproject.toml"
 
 permissions:
   contents: read
@@ -25,6 +30,10 @@ permissions:
 concurrency:
   group: cross-repo-release-readiness-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  MCA_COMMIT: 230c45d30aee833145d9ff7dc9085aa893d0f7dd
+  MCA_VERSION: 0.11.0
 
 jobs:
   audit-release-readiness:
@@ -39,8 +48,13 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: jhin0410-lgtm/materials-characterization-analyzer
-          ref: 7242594f775b8dbe651a6131bb1b39b5f60c62cd
+          ref: ${{ env.MCA_COMMIT }}
           path: companion/materials-characterization-analyzer
+
+      - name: Verify exact characterization commit
+        working-directory: companion/materials-characterization-analyzer
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${MCA_COMMIT}"
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -55,20 +69,22 @@ jobs:
           python scripts/audit_cross_repository_release_readiness.py \
             --data-repo-root . \
             --characterization-repo-root companion/materials-characterization-analyzer \
-            --characterization-commit 7242594f775b8dbe651a6131bb1b39b5f60c62cd \
+            --characterization-commit "${MCA_COMMIT}" \
             --output outputs/cross_repository_release_readiness
 
       - name: Run focused tests
         run: |
           python -m pytest -q \
             tests/test_cross_repository_release_readiness.py \
+            tests/test_current_characterization_interop.py \
             tests/test_public_release_metadata.py
 
-      - name: Verify v2.7.0 readiness decisions and checksums
+      - name: Verify coordinated readiness decisions and checksums
         run: |
           python - <<'PY'
           import hashlib
           import json
+          import os
           from pathlib import Path
 
           root = Path("outputs/cross_repository_release_readiness")
@@ -102,7 +118,10 @@ jobs:
           assert characterization["status"] == (
               "ready_for_external_tag_or_release_verification"
           )
-          assert set(characterization["version_sources"].values()) == {"0.8.6"}
+          assert set(characterization["version_sources"].values()) == {
+              os.environ["MCA_VERSION"]
+          }
+          assert characterization["commit"] == os.environ["MCA_COMMIT"]
 
           assert summary["cross_repository"]["status"] == (
               "ready_for_external_release_action"
@@ -128,7 +147,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: cross-repository-release-readiness-v2-7-0
+          name: cross-repository-release-readiness-v2-7-0-mca-0-11-0
           path: outputs/cross_repository_release_readiness
           if-no-files-found: error
           retention-days: 14
