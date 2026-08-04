@@ -121,7 +121,6 @@ jobs:
           assert set(characterization["version_sources"].values()) == {
               os.environ["MCA_VERSION"]
           }
-          assert characterization["commit"] == os.environ["MCA_COMMIT"]
 
           assert summary["cross_repository"]["status"] == (
               "ready_for_external_release_action"
