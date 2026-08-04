@@ -43,7 +43,9 @@ def test_rwgs_runs_producer_validation_and_installed_consumer() -> None:
     assert "mda-characterization-import" in text
     assert "python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py" not in text
     assert 'summary["producer"]["software_versions"] == ["0.11.0"]' in text
-    assert "characterization_handoff_validation_summary.json" in text
+    assert "handoff_bundle_validation_summary.json" in text
+    assert "handoff_bundle_validation_report.md" in text
+    assert "handoff_bundle_validation_artifact_manifest.json" in text
     assert "sem_quantitative_segmentation_status" in text
     assert "blocked_method_mismatch" in text
     assert "eds_unexpected_elements" in text
