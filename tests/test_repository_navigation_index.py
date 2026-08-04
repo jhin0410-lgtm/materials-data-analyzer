@@ -67,19 +67,27 @@ def test_navigation_documents_separate_current_and_historical_surfaces() -> None
         encoding="utf-8"
     )
     normalized_navigation = _normalized_text(navigation)
+    normalized_script_index = _normalized_text(script_index)
+    normalized_artifact_index = _normalized_text(artifact_index)
 
-    assert "mda-battery-intelligence" in navigation
-    assert "python -m src.cli" in navigation
-    assert "compatibility-sensitive" in navigation
+    assert "mda-battery-intelligence" in normalized_navigation
+    assert "python -m src.cli" in normalized_navigation
+    assert "compatibility-sensitive" in normalized_navigation
     assert (
         "Historical plans are not current implementation specifications"
         in normalized_navigation
     )
 
-    assert "close_nasa_pcoe_audit.ps1" in script_index
-    assert "Release and Historical Workflows" in script_index
-    assert "Do not run every script as a generic pipeline" in script_index
+    assert "close_nasa_pcoe_audit.ps1" in normalized_script_index
+    assert "Release and Historical Workflows" in normalized_script_index
+    assert (
+        "Do not run every script as a generic pipeline"
+        in normalized_script_index
+    )
 
-    assert "Negative results are durable evidence" in artifact_index
-    assert "retain_pending_reference_audit" in artifact_index
-    assert "data/processed/nasa_pcoe_battery_import/" in artifact_index
+    assert "Negative results are durable evidence" in normalized_artifact_index
+    assert "retain_pending_reference_audit" in normalized_artifact_index
+    assert (
+        "data/processed/nasa_pcoe_battery_import/"
+        in normalized_artifact_index
+    )
