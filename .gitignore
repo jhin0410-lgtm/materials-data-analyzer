@@ -8,6 +8,7 @@ dist/
 
 # Virtual environments and package-manager state
 .venv/
+.venv*/
 venv/
 env/
 .python-version
@@ -78,6 +79,11 @@ data/raw/**
 
 # Generated analyzer outputs
 outputs/**
+
+# Official NASA PCoE local import output.
+# This directory contains large regenerated row-level artifacts and provenance
+# inputs used by the local audit workflow; compact summaries remain tracked.
+data/processed/nasa_pcoe_battery_import/
 
 # Large row-level or locally regenerated case-study artifacts
 # Compact, source-documented summaries may remain tracked.
