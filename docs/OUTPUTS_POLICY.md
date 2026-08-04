@@ -2,6 +2,9 @@
 
 `outputs/` is the analyzer-generated run artifact folder.
 
+For local disk cleanup, cache removal, NASA evidence preservation, and prohibited
+broad cleanup commands, also see [Local Workspace Hygiene](WORKSPACE_HYGIENE.md).
+
 The stable user command is:
 
 ```powershell
@@ -95,6 +98,38 @@ The preferred policy is:
   default;
 - when a tracked processed artifact is refreshed, record the generating command,
   source identity, and basic row/count validation.
+
+## Local Retention Classes
+
+Ignored output is not automatically disposable. Classify each output before
+removing it.
+
+### Canonical evidence
+
+A completed, checksum-recorded artifact required for a scientific or software
+closeout. Preserve it with its SHA-256 and producing commit, and keep at least one
+backup outside the checkout.
+
+The final NASA PCoE post-remediation closed audit ZIP is canonical evidence. The
+source archive, retrieval receipt, import output, detailed analysis directory,
+and closed ZIP serve different provenance roles and must not be treated as
+interchangeable copies.
+
+### Reproducible working output
+
+A detailed local run that can be regenerated from documented source bytes, an
+exact commit, configuration, and command. It may be removed after verifying its
+compact closeout and regeneration path.
+
+### Temporary output
+
+A smoke run, staging directory, cache, failed partial package, or one-time
+repository inventory. It may be removed after confirming no current report or
+audit references it.
+
+Use explicit path deletion. Do not use `git clean -fdx` as a workspace-cleanup
+shortcut because it removes ignored raw data, local imports, outputs, and virtual
+environments.
 
 ## Representative Local Runs
 
