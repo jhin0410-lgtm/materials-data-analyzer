@@ -69,7 +69,11 @@ def write_source_cohort_validation(staging: Path) -> dict[str, Any]:
         staging / "tables" / "validated_cycle_summary.csv",
         staging / "reports" / "validation_summary.json",
     ]
-    missing = [path.relative_to(staging).as_posix() for path in required if not path.is_file()]
+    missing = [
+        path.relative_to(staging).as_posix()
+        for path in required
+        if not path.is_file()
+    ]
     if missing:
         return {"status": "not_available", "missing_artifacts": missing}
     config = _load_config(staging)
@@ -96,8 +100,12 @@ def write_source_cohort_validation(staging: Path) -> dict[str, Any]:
         .sort_values(["source_cohort_id", config.group_column], kind="mergesort")
     )
     assignments.to_csv(tables / "source_cohort_assignments.csv", index=False)
-    predictions.to_csv(tables / "validation_predictions_source_cohort.csv", index=False)
-    by_battery.to_csv(tables / "validation_by_battery_source_cohort.csv", index=False)
+    predictions.to_csv(
+        tables / "validation_predictions_source_cohort.csv", index=False
+    )
+    by_battery.to_csv(
+        tables / "validation_by_battery_source_cohort.csv", index=False
+    )
     pd.DataFrame(validation["source_cohort_metrics"]).to_csv(
         tables / "validation_by_source_cohort.csv", index=False
     )
@@ -115,12 +123,20 @@ def _coverage_row(group: pd.DataFrame) -> pd.Series:
             "prediction_count": int(len(group)),
             "interval_prediction_count": int(available.sum()),
             "observed_coverage": (
-                float(group.loc[available, "interval_contains_actual"].astype(bool).mean())
+                float(
+                    group.loc[available, "interval_contains_actual"]
+                    .astype(bool)
+                    .mean()
+                )
                 if available.any()
                 else math.nan
             ),
-            "mean_interval_width": float(width[available].mean()) if available.any() else math.nan,
-            "ridge_mae": float(np.mean(np.abs(group["actual"] - group["ridge_prediction"]))),
+            "mean_interval_width": (
+                float(width[available].mean()) if available.any() else math.nan
+            ),
+            "ridge_mae": float(
+                np.mean(np.abs(group["actual"] - group["ridge_prediction"]))
+            ),
         }
     )
 
@@ -155,17 +171,22 @@ def write_coverage_tables(staging: Path) -> dict[str, Any]:
     battery = pd.DataFrame(outputs["battery_id"])
     summary = {
         "target_coverage": float(
-            _json(staging / "config_snapshot.json")["config"]["conformal_coverage"]
+            _json(staging / "config_snapshot.json")["config"][
+                "conformal_coverage"
+            ]
         ),
         "pooled_coverage": float(
-            predictions.loc[available, "interval_contains_actual"].astype(bool).mean()
+            predictions.loc[available, "interval_contains_actual"]
+            .astype(bool)
+            .mean()
         ),
         "battery_macro_coverage": float(battery["observed_coverage"].mean()),
         "worst_battery": min(
             outputs["battery_id"], key=lambda row: row["observed_coverage"]
         ),
         "scientific_boundary": (
-            "Pooled interval coverage is insufficient to establish stable calibration across batteries or source cohorts."
+            "Pooled interval coverage is insufficient to establish stable "
+            "calibration across batteries or source cohorts."
         ),
     }
     (staging / "reports" / "conformal_coverage_diagnostics.json").write_text(
@@ -181,12 +202,22 @@ def write_target_reference_sensitivity(staging: Path) -> dict[str, Any]:
     table = pd.read_csv(path)
     required = {"battery_id", "cycle_index", "discharge_capacity_ah"}
     if not required.issubset(table.columns):
-        return {"status": "not_available", "missing_columns": sorted(required - set(table.columns))}
-    ordered = table.sort_values(["battery_id", "cycle_index"], kind="mergesort").copy()
-    first = ordered.groupby("battery_id", sort=True)["discharge_capacity_ah"].transform("first")
-    ordered["retention_first_valid_discharge_percent"] = 100.0 * ordered["discharge_capacity_ah"] / first
+        return {
+            "status": "not_available",
+            "missing_columns": sorted(required - set(table.columns)),
+        }
+    ordered = table.sort_values(
+        ["battery_id", "cycle_index"], kind="mergesort"
+    ).copy()
+    first = ordered.groupby("battery_id", sort=True)[
+        "discharge_capacity_ah"
+    ].transform("first")
+    ordered["retention_first_valid_discharge_percent"] = (
+        100.0 * ordered["discharge_capacity_ah"] / first
+    )
     rated = ordered.get(
-        "capacity_retention_percent", 100.0 * ordered["discharge_capacity_ah"] / 2.0
+        "capacity_retention_percent",
+        100.0 * ordered["discharge_capacity_ah"] / 2.0,
     )
     ordered["retention_rated_2ah_percent"] = rated
     ordered["retention_definition_delta_percent"] = (
@@ -204,10 +235,15 @@ def write_target_reference_sensitivity(staging: Path) -> dict[str, Any]:
         staging / "tables" / "target_reference_sensitivity.csv", index=False
     )
     (
-        ordered.groupby("battery_id", sort=True)["retention_definition_delta_percent"]
+        ordered.groupby("battery_id", sort=True)[
+            "retention_definition_delta_percent"
+        ]
         .agg(["count", "mean", "median", "min", "max"])
         .reset_index()
-        .to_csv(staging / "tables" / "target_reference_sensitivity_by_battery.csv", index=False)
+        .to_csv(
+            staging / "tables" / "target_reference_sensitivity_by_battery.csv",
+            index=False,
+        )
     )
     summary = {
         "status": "diagnostic",
@@ -223,13 +259,51 @@ def write_target_reference_sensitivity(staging: Path) -> dict[str, Any]:
         ),
         "authoritative_protocol_reference_status": "not_available",
         "scientific_boundary": (
-            "This sensitivity compares normalization definitions only and does not identify an authoritative physical reference for each cohort."
+            "This sensitivity compares normalization definitions only and does "
+            "not identify an authoritative physical reference for each cohort."
         ),
     }
     (staging / "reports" / "target_reference_sensitivity.json").write_text(
         canonical_json(summary), encoding="utf-8"
     )
     return summary
+
+
+def _strict_charge_availability(
+    table: pd.DataFrame, evidence_columns: list[str]
+) -> tuple[pd.Series, bool]:
+    """Return explicit or conservative charge-signal availability by row."""
+    if "charge_signal_available" in table.columns:
+        values = table["charge_signal_available"]
+        if pd.api.types.is_bool_dtype(values.dtype):
+            return values.fillna(False).astype(bool), True
+        normalized = values.astype("string").str.strip().str.lower()
+        allowed = {"true": True, "false": False}
+        invalid = normalized.notna() & ~normalized.isin(allowed)
+        if invalid.any():
+            tokens = sorted(set(normalized.loc[invalid].astype(str)))
+            raise ValueError(
+                "invalid charge_signal_available values: " + ", ".join(tokens)
+            )
+        return normalized.map(allowed).fillna(False).astype(bool), True
+
+    if "charge_feature_status" in table.columns:
+        status = table["charge_feature_status"].astype("string").str.strip()
+        allowed = {"observed", "not_observed_in_raw_signal"}
+        invalid = status.notna() & ~status.isin(allowed)
+        if invalid.any():
+            tokens = sorted(set(status.loc[invalid].astype(str)))
+            raise ValueError(
+                "invalid charge_feature_status values: " + ", ".join(tokens)
+            )
+        return status.eq("observed").fillna(False), True
+
+    if not evidence_columns:
+        return pd.Series(False, index=table.index, dtype=bool), False
+
+    numeric = table[evidence_columns].apply(pd.to_numeric, errors="coerce")
+    observed = numeric.abs().gt(0).any(axis=1)
+    return observed.astype(bool), False
 
 
 def repair_staged_charge_semantics(staging: Path) -> dict[str, Any]:
@@ -252,12 +326,15 @@ def repair_staged_charge_semantics(staging: Path) -> dict[str, Any]:
         if column in table.columns
     ]
     evidence = [
-        column for column in ("charge_throughput_ah", "charge_energy_wh") if column in table.columns
+        column
+        for column in ("charge_throughput_ah", "charge_energy_wh")
+        if column in table.columns
     ]
-    observed = table[evidence].notna().any(axis=1) if evidence else pd.Series(False, index=table.index)
+    observed, explicit_semantics = _strict_charge_availability(table, evidence)
     changed = 0
     for column in columns:
-        mask = ~observed & table[column].eq(0)
+        numeric = pd.to_numeric(table[column], errors="coerce")
+        mask = ~observed & numeric.eq(0)
         changed += int(mask.sum())
         table.loc[mask, column] = np.nan
     table["charge_signal_available"] = observed.astype(bool)
@@ -265,15 +342,37 @@ def repair_staged_charge_semantics(staging: Path) -> dict[str, Any]:
         observed, "observed", "not_observed_in_raw_signal"
     )
     table.to_csv(path, index=False)
+
+    staged_correction_applied = changed > 0
+    already_remediated = explicit_semantics and not staged_correction_applied
+    if staged_correction_applied:
+        note = (
+            "The staged copy required a charge-semantics correction. Existing "
+            "model outputs were not recomputed after that post-hoc change; rerun "
+            "the pipeline before using the package as recomputed evidence."
+        )
+    elif already_remediated:
+        note = (
+            "No staged correction was required. The copied analysis artifacts "
+            "already used explicit missing-value charge semantics, so the model "
+            "outputs remain consistent with the staged signal feature table."
+        )
+    else:
+        note = (
+            "No staged cell changed, but the source table lacked an explicit "
+            "charge-availability contract. Model recomputation status remains "
+            "unverified."
+        )
+
     summary = {
         "status": "completed",
         "changed_cell_count": changed,
         "affected_row_count": int((~observed).sum()),
         "policy": "unobserved charge-derived values are missing, never physical zero",
-        "model_results_recomputed": False,
-        "note": (
-            "The staged copy was corrected for review. Rerun the pipeline with remediated code to recompute model outputs."
-        ),
+        "explicit_charge_semantics_present": explicit_semantics,
+        "staged_correction_applied": staged_correction_applied,
+        "model_results_recomputed": already_remediated,
+        "note": note,
     }
     (staging / "reports" / "charge_feature_semantics_remediation.json").write_text(
         canonical_json(summary), encoding="utf-8"
