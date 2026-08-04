@@ -19,6 +19,10 @@ def _catalog_rows() -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def _normalized_text(text: str) -> str:
+    return " ".join(text.split())
+
+
 def test_every_tracked_processed_file_matches_one_family_prefix() -> None:
     rows = _catalog_rows()
     assert rows
@@ -62,11 +66,15 @@ def test_navigation_documents_separate_current_and_historical_surfaces() -> None
     artifact_index = (PROCESSED_ROOT / "ARTIFACT_INDEX.md").read_text(
         encoding="utf-8"
     )
+    normalized_navigation = _normalized_text(navigation)
 
     assert "mda-battery-intelligence" in navigation
     assert "python -m src.cli" in navigation
     assert "compatibility-sensitive" in navigation
-    assert "Historical plans are not current implementation specifications" in navigation
+    assert (
+        "Historical plans are not current implementation specifications"
+        in normalized_navigation
+    )
 
     assert "close_nasa_pcoe_audit.ps1" in script_index
     assert "Release and Historical Workflows" in script_index
