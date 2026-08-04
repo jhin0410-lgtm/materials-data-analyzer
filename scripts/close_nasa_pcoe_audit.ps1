@@ -42,6 +42,9 @@ foreach ($requiredScript in @($reviewWorkflowScript, $packageScript)) {
         throw "Required NASA closeout script not found: $requiredScript"
     }
 }
+if ([string]::IsNullOrWhiteSpace($DispositionInput)) {
+    throw "Completed NASA disposition input must not be blank"
+}
 
 $ImportOutput = Resolve-RepositoryPath `
     -Value $ImportOutput `
@@ -52,9 +55,14 @@ $AnalysisOutput = Resolve-RepositoryPath `
 $RawDirectory = Resolve-RepositoryPath `
     -Value $RawDirectory `
     -DefaultRelativePath "data/raw/battery/nasa_pcoe"
-$DispositionInput = Resolve-RepositoryPath `
-    -Value $DispositionInput `
-    -DefaultRelativePath ""
+if ([System.IO.Path]::IsPathRooted($DispositionInput)) {
+    $DispositionInput = [System.IO.Path]::GetFullPath($DispositionInput)
+}
+else {
+    $DispositionInput = [System.IO.Path]::GetFullPath(
+        (Join-Path (Get-Location).Path $DispositionInput)
+    )
+}
 $Destination = Resolve-RepositoryPath `
     -Value $Destination `
     -DefaultRelativePath "outputs/nasa_pcoe_full_audit_bundle_post_remediation_closed.zip"
