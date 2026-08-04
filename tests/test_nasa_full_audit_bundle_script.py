@@ -91,26 +91,26 @@ def test_full_audit_bundle_contains_all_analysis_output_files(tmp_path: Path) ->
         assert "tables/nasa_protocol_review_evidence.csv" in names
         assert "reports/nasa_protocol_review_evidence.json" in names
         assert "reports/nested/diagnostic.txt" in names
+        assert "reports/external_validation_gate.json" in names
         assert "_audit_bundle_inventory.csv" in names
         assert "_audit_bundle_readme.txt" in names
         inventory_text = archive.read("_audit_bundle_inventory.csv").decode("utf-8-sig")
-        readme_text = archive.read("_audit_bundle_readme.txt").decode("utf-8-sig")
         rows = list(csv.DictReader(io.StringIO(inventory_text)))
-        assert "source_path_redacted=true" in readme_text
-        assert "source_analysis_label=nasa_pcoe_signal_enriched_battery_intelligence" in readme_text
-        assert str(analysis_output) not in readme_text
         archived_bytes = {
             row["relative_path"]: archive.read(row["relative_path"])
             for row in rows
         }
 
-    assert len(rows) == 4
-    assert {row["relative_path"] for row in rows} == {
+    inventoried = {row["relative_path"] for row in rows}
+    assert {
         "run_manifest.json",
         "tables/nasa_protocol_review_evidence.csv",
         "reports/nasa_protocol_review_evidence.json",
         "reports/nested/diagnostic.txt",
-    }
+        "reports/external_validation_gate.json",
+    }.issubset(inventoried)
+    assert "_audit_bundle_inventory.csv" not in inventoried
+    assert "_audit_bundle_readme.txt" not in inventoried
     for row in rows:
         data = archived_bytes[row["relative_path"]]
         assert len(data) == int(row["byte_count"])

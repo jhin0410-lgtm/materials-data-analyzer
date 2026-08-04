@@ -174,6 +174,10 @@ def extract_signal_features(
         discharge_duration = 0.0
         cc_duration = 0.0
         cv_duration = 0.0
+        charge_signal_available = False
+        discharge_signal_available = False
+        charge_cc_signal_available = False
+        charge_cv_signal_available = False
 
         for (_, step_type), step in cycle.groupby(
             ["step_id", "step_type"], sort=True
@@ -186,48 +190,91 @@ def extract_signal_features(
             throughput_ah = _integrate_abs(currents, times, 3600.0)
             energy_wh = _integrate_abs(currents * voltage, times, 3600.0)
             if step_type in {"charge", "charge_cc", "charge_cv"}:
+                charge_signal_available = True
                 charge_duration += duration
                 if math.isfinite(throughput_ah):
                     charge_ah += throughput_ah
                 if math.isfinite(energy_wh):
                     charge_wh += energy_wh
             if step_type == "discharge":
+                discharge_signal_available = True
                 discharge_duration += duration
                 if math.isfinite(throughput_ah):
                     discharge_ah += throughput_ah
                 if math.isfinite(energy_wh):
                     discharge_wh += energy_wh
             if step_type == "charge_cc":
+                charge_cc_signal_available = True
                 cc_duration += duration
             if step_type == "charge_cv":
+                charge_cv_signal_available = True
                 cv_duration += duration
 
         row.update(
             {
                 "signal_duration_s": total_duration,
-                "charge_duration_s": charge_duration,
-                "discharge_duration_s": discharge_duration,
-                "charge_cc_duration_s": cc_duration,
-                "charge_cv_duration_s": cv_duration,
-                "charge_throughput_ah": charge_ah if charge_duration > 0 else math.nan,
-                "discharge_throughput_ah": (
-                    discharge_ah if discharge_duration > 0 else math.nan
+                "charge_signal_available": charge_signal_available,
+                "discharge_signal_available": discharge_signal_available,
+                "charge_cc_signal_available": charge_cc_signal_available,
+                "charge_cv_signal_available": charge_cv_signal_available,
+                "charge_feature_status": (
+                    "observed" if charge_signal_available else "not_observed_in_raw_signal"
                 ),
-                "charge_energy_wh": charge_wh if charge_duration > 0 else math.nan,
+                "charge_duration_s": (
+                    charge_duration if charge_signal_available else math.nan
+                ),
+                "discharge_duration_s": (
+                    discharge_duration if discharge_signal_available else math.nan
+                ),
+                "charge_cc_duration_s": (
+                    cc_duration if charge_cc_signal_available else math.nan
+                ),
+                "charge_cv_duration_s": (
+                    cv_duration if charge_cv_signal_available else math.nan
+                ),
+                "charge_throughput_ah": (
+                    charge_ah if charge_signal_available else math.nan
+                ),
+                "discharge_throughput_ah": (
+                    discharge_ah if discharge_signal_available else math.nan
+                ),
+                "charge_energy_wh": (
+                    charge_wh if charge_signal_available else math.nan
+                ),
                 "discharge_energy_wh": (
-                    discharge_wh if discharge_duration > 0 else math.nan
+                    discharge_wh if discharge_signal_available else math.nan
                 ),
                 "coulombic_efficiency": (
-                    discharge_ah / charge_ah if charge_ah > 0 else math.nan
+                    discharge_ah / charge_ah
+                    if charge_signal_available and charge_ah > 0
+                    else math.nan
                 ),
                 "energy_efficiency": (
-                    discharge_wh / charge_wh if charge_wh > 0 else math.nan
+                    discharge_wh / charge_wh
+                    if charge_signal_available and charge_wh > 0
+                    else math.nan
                 ),
                 "cv_fraction_of_charge_time": (
-                    cv_duration / charge_duration if charge_duration > 0 else math.nan
+                    cv_duration / charge_duration
+                    if charge_cv_signal_available and charge_duration > 0
+                    else math.nan
                 ),
             }
         )
+
+        if not charge_signal_available:
+            _quality_flag(
+                feature_flags,
+                severity="info",
+                code="charge_signal_not_observed",
+                message=(
+                    "Charge-derived durations, throughput, energy, efficiency, and "
+                    "CC/CV features are unavailable and were retained as missing values, "
+                    "not encoded as physical zeros."
+                ),
+                battery_id=battery_id,
+                cycle_index=cycle_index,
+            )
 
         if "temperature_c" in cycle.columns:
             temperature = cycle["temperature_c"].to_numpy(dtype=float)

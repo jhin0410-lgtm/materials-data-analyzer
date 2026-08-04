@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from pathlib import PurePosixPath
 from typing import Any
 
 import numpy as np
@@ -11,6 +12,31 @@ from .common import BatteryIntelligenceConfig
 from .degradation import _rolling_slope
 
 
+def source_cohort_id_from_location(value: Any) -> str | None:
+    """Return a stable archive-level cohort identifier from source lineage.
+
+    NASA PCoE source locations use ``!`` between nested ZIP members. The
+    innermost ZIP archive is the experimental source cohort; the MAT filename is
+    intentionally excluded. Directory/MAT inputs fall back to their first
+    lineage component and remain diagnostic rather than being silently merged.
+    """
+    if value is None or pd.isna(value):
+        return None
+    text = str(value).strip().replace("\\", "/")
+    if not text:
+        return None
+    components = [part.strip() for part in text.split("!") if part.strip()]
+    archive_components = [
+        PurePosixPath(part).name for part in components if part.lower().endswith(".zip")
+    ]
+    if archive_components:
+        return archive_components[-1]
+    if len(components) >= 2:
+        return PurePosixPath(components[-2]).name
+    path = PurePosixPath(components[0])
+    return path.parent.name or path.name
+
+
 def build_forecast_table(
     cycle_summary: pd.DataFrame,
     config: BatteryIntelligenceConfig,
@@ -18,6 +44,10 @@ def build_forecast_table(
 ) -> tuple[pd.DataFrame, list[str], dict[str, Any]]:
     config.validate()
     base = cycle_summary.copy()
+    if "source_cohort_id" not in base.columns and "source_mat_file" in base.columns:
+        base["source_cohort_id"] = base["source_mat_file"].map(
+            source_cohort_id_from_location
+        )
     if signal_features is not None and not signal_features.empty:
         base = base.merge(
             signal_features,
@@ -50,6 +80,7 @@ def build_forecast_table(
         "rated_capacity_ah",
         "reference_capacity_method",
         "retention_quality_flag",
+        "source_cohort_id",
     }
 
     numeric_candidates = [
@@ -89,6 +120,9 @@ def build_forecast_table(
                 "current_target": origin_target,
                 "future_target": float(future[config.target_column]),
             }
+            cohort_id = row.get("source_cohort_id")
+            if cohort_id is not None and not pd.isna(cohort_id):
+                record["source_cohort_id"] = str(cohort_id)
             history = target_values[: position + 1]
             for lag in config.lags:
                 record[f"target_lag_{lag}"] = float(target_values[position - lag])
@@ -109,6 +143,7 @@ def build_forecast_table(
                 if column
                 not in {
                     config.group_column,
+                    "source_cohort_id",
                     "origin_cycle",
                     "target_cycle",
                     "current_target",
@@ -133,6 +168,11 @@ def build_forecast_table(
     ]
     if not ordered_features:
         raise ValueError("no finite numeric forecast features were available")
+    cohort_count = (
+        int(table["source_cohort_id"].nunique())
+        if "source_cohort_id" in table.columns
+        else 0
+    )
     metadata = {
         "forecast_row_count": int(len(table)),
         "battery_count": int(table[config.group_column].nunique()),
@@ -141,6 +181,15 @@ def build_forecast_table(
         "dropped_sparse_feature_columns": [],
         "sparse_feature_columns_retained_for_fold_local_handling": sparse_feature_columns,
         "feature_missingness_policy": "train_fold_eligibility_and_median_imputation",
+        "source_cohort_column": (
+            "source_cohort_id" if "source_cohort_id" in table.columns else None
+        ),
+        "source_cohort_count": cohort_count,
+        "source_cohort_derivation": (
+            "innermost nested ZIP archive from source_mat_file lineage"
+            if cohort_count
+            else None
+        ),
         "exclusion_counts": exclusion_counts,
         "exact_horizon_only": True,
         "origin_target_field": "origin_target_value",
