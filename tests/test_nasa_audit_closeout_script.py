@@ -21,7 +21,9 @@ def _powershell() -> str:
     return executable
 
 
-def _write_fake_checkout(tmp_path: Path, *, matching_binding: bool = True) -> dict[str, Path]:
+def _write_fake_checkout(
+    tmp_path: Path, *, matching_binding: bool = True
+) -> dict[str, Path]:
     root = tmp_path / "repo"
     scripts = root / "scripts"
     analysis = root / "outputs" / "analysis"
@@ -48,32 +50,40 @@ def _write_fake_checkout(tmp_path: Path, *, matching_binding: bool = True) -> di
         writer.writeheader()
         writer.writerow({"source_evidence_sha256": bound_hash})
 
-    (scripts / "run_nasa_pcoe_review_workflow.ps1").write_text(
-        """[CmdletBinding()]\n"
-        "param([string]$PythonExecutable,[string]$ImportOutput,[string]$AnalysisOutput)\n"
+    review_script = (
+        "[CmdletBinding()]\n"
+        "param([string]$PythonExecutable,[string]$ImportOutput,"
+        "[string]$AnalysisOutput)\n"
         "$root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))\n"
-        "Add-Content -LiteralPath (Join-Path $root 'order.log') -Value 'review'\n"
-        """,
-        encoding="utf-8",
+        "Add-Content -LiteralPath (Join-Path $root 'order.log') "
+        "-Value 'review'\n"
     )
-    (scripts / "package_nasa_pcoe_full_audit.ps1").write_text(
-        """[CmdletBinding()]\n"
-        "param([string]$PythonExecutable,[string]$AnalysisOutput,[string]$ImportOutput,"
-        "[string]$RawDirectory,[string]$DispositionInput,[string]$Destination)\n"
+    (scripts / "run_nasa_pcoe_review_workflow.ps1").write_text(
+        review_script, encoding="utf-8"
+    )
+
+    package_script = (
+        "[CmdletBinding()]\n"
+        "param([string]$PythonExecutable,[string]$AnalysisOutput,"
+        "[string]$ImportOutput,[string]$RawDirectory,"
+        "[string]$DispositionInput,[string]$Destination)\n"
         "$root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))\n"
-        "Add-Content -LiteralPath (Join-Path $root 'order.log') -Value 'package'\n"
+        "Add-Content -LiteralPath (Join-Path $root 'order.log') "
+        "-Value 'package'\n"
         "$parent = Split-Path -Parent $Destination\n"
         "New-Item -ItemType Directory -Force -Path $parent | Out-Null\n"
-        "Set-Content -LiteralPath $Destination -Value 'closed bundle' -Encoding UTF8\n"
-        """,
-        encoding="utf-8",
+        "Set-Content -LiteralPath $Destination -Value 'closed bundle' "
+        "-Encoding UTF8\n"
+    )
+    (scripts / "package_nasa_pcoe_full_audit.ps1").write_text(
+        package_script, encoding="utf-8"
     )
 
     package = root / "src" / "materials_data_analyzer"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
-    (package / "nasa_review_disposition_cli.py").write_text(
-        """from __future__ import annotations\n"
+    fake_cli = (
+        "from __future__ import annotations\n"
         "import argparse, json\n"
         "from pathlib import Path\n"
         "parser = argparse.ArgumentParser()\n"
@@ -84,16 +94,19 @@ def _write_fake_checkout(tmp_path: Path, *, matching_binding: bool = True) -> di
         "root = Path(args.analysis_output)\n"
         "(root / 'tables').mkdir(parents=True, exist_ok=True)\n"
         "(root / 'reports').mkdir(parents=True, exist_ok=True)\n"
-        "(root / 'tables' / 'nasa_protocol_review_disposition_final.csv').write_text("
-        "'battery_id\\nB0001\\n', encoding='utf-8')\n"
-        "summary = {'disposition_status': 'complete', 'reviewed_battery_count': 34, "
-        "'pending_battery_count': 0, 'predictive_evidence_level': 'Unsupported'}\n"
-        "(root / 'reports' / 'nasa_protocol_review_disposition.json').write_text("
-        "json.dumps({'summary': summary}), encoding='utf-8')\n"
-        "Path(__file__).resolve().parents[2].joinpath('order.log').open("
-        "'a', encoding='utf-8').write('finalize\\n')\n"
-        """,
-        encoding="utf-8",
+        "(root / 'tables' / 'nasa_protocol_review_disposition_final.csv')"
+        ".write_text('battery_id\\nB0001\\n', encoding='utf-8')\n"
+        "summary = {'disposition_status': 'complete', "
+        "'reviewed_battery_count': 34, 'pending_battery_count': 0, "
+        "'predictive_evidence_level': 'Unsupported'}\n"
+        "(root / 'reports' / 'nasa_protocol_review_disposition.json')"
+        ".write_text(json.dumps({'summary': summary}), encoding='utf-8')\n"
+        "order = Path(__file__).resolve().parents[2] / 'order.log'\n"
+        "with order.open('a', encoding='utf-8') as handle:\n"
+        "    handle.write('finalize\\n')\n"
+    )
+    (package / "nasa_review_disposition_cli.py").write_text(
+        fake_cli, encoding="utf-8"
     )
     return {
         "root": root,
@@ -159,11 +172,8 @@ def test_closeout_orders_review_finalize_and_package(tmp_path: Path) -> None:
 
     assert completed.returncode == 0, completed.stderr or completed.stdout
     assert paths["destination"].is_file()
-    assert (paths["root"] / "order.log").read_text(encoding="utf-8").splitlines() == [
-        "review",
-        "finalize",
-        "package",
-    ]
+    order = (paths["root"] / "order.log").read_text(encoding="utf-8").splitlines()
+    assert order == ["review", "finalize", "package"]
     assert "reviewed_battery_count: 34" in completed.stdout
     assert "pending_battery_count: 0" in completed.stdout
     assert "predictive_evidence_level: Unsupported" in completed.stdout
@@ -179,7 +189,6 @@ def test_closeout_rejects_stale_disposition_binding(tmp_path: Path) -> None:
     assert "Disposition evidence binding does not match" in (
         completed.stderr + completed.stdout
     )
-    assert (paths["root"] / "order.log").read_text(encoding="utf-8").splitlines() == [
-        "review"
-    ]
+    order = (paths["root"] / "order.log").read_text(encoding="utf-8").splitlines()
+    assert order == ["review"]
     assert not paths["destination"].exists()
