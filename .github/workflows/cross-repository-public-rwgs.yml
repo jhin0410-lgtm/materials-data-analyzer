@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MCA_COMMIT: 1c4e9e534929f6c2609c1d9ea349e2bfb20c4230
+  MCA_COMMIT: fb85c4eb3d57a209c70f0db1de40421158af2270
   MCA_VERSION: 0.11.0
 
 jobs:
