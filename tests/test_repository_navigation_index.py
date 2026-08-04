@@ -81,7 +81,7 @@ def test_navigation_documents_separate_current_and_historical_surfaces() -> None
     assert "close_nasa_pcoe_audit.ps1" in normalized_script_index
     assert "Release and Historical Workflows" in normalized_script_index
     assert (
-        "Do not run every script as a generic pipeline"
+        "Do not run broad groups of scripts automatically"
         in normalized_script_index
     )
 
