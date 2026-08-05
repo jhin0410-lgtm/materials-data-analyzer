@@ -52,6 +52,7 @@
       "preconditions": [
         "completed_verified_battery_audit_in_research_ledger",
         "alternative_target_definitions_predeclared",
+        "alternative_references_use_early_window_only",
         "source_values_preserved",
         "reference_metadata_available",
         "identical_evaluated_rows_across_complete_targets"
@@ -59,6 +60,7 @@
       "prohibited_effects": [
         "post_hoc_target_selection",
         "first_observed_capacity_reference_without_justification",
+        "future_target_reference_leakage",
         "target_clipping",
         "target_repair",
         "model_refit",
@@ -80,7 +82,7 @@
           "required": true
         }
       ],
-      "scientific_purpose": "Test whether the existing Ridge-versus-persistence conclusion depends on three reference-capacity definitions fixed before execution, while preserving absolute predictions and every evaluated row.",
+      "scientific_purpose": "Test whether the existing Ridge-versus-persistence conclusion depends on three reference-capacity definitions fixed before execution, using only declared metadata or the earliest five recorded cycle rows while preserving absolute predictions and every evaluated row.",
       "target_blockers": [
         "target_reference_ambiguity",
         "cross_battery_normalization_sensitivity",
@@ -89,6 +91,7 @@
       "verifier_checks": [
         "prior_audit_report_checksum_and_ledger_binding_verified",
         "three_reference_definitions_exactly_match_frozen_contract",
+        "alternative_references_use_no_future_target_observations",
         "source_analysis_inputs_unchanged",
         "actual_target_reconstructed_from_declared_reference",
         "absolute_predictions_preserved_across_references",
