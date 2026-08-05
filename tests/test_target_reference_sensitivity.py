@@ -66,6 +66,10 @@ def test_conclusion_is_stable_when_persistence_is_better_for_every_battery() -> 
     assert summary["prediction_count"] == len(predictions)
     assert summary["source_rows_removed"] is False
     assert summary["model_refit_performed"] is False
+    assert (
+        summary["future_target_observations_used_to_define_alternative_references"]
+        is False
+    )
     assert set(result["model_metrics_by_reference"]["prediction_count"]) == {
         len(predictions)
     }
@@ -92,7 +96,7 @@ def test_conclusion_sensitivity_detects_reference_weighting_sign_flip() -> None:
     }
     assert preferred["declared_reference"] == "persistence"
     assert preferred["early_window_median_capacity"] == "ridge"
-    assert preferred["maximum_observed_capacity"] == "ridge"
+    assert preferred["early_window_maximum_capacity"] == "ridge"
     assert summary["primary_reference_id"] == "declared_reference"
 
 
