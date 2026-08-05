@@ -19,6 +19,7 @@ from materials_data_analyzer.research_loop import (
     initialize_research_loop,
     load_action_registry,
     load_research_state,
+    plan_nasa_next_action,
     verify_nasa_audit_action_report,
     verify_research_loop,
 )
@@ -56,8 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="mda-research-loop",
         description=(
             "Create and verify append-only research state, bounded action registries, "
-            "and typed deterministic actions for autonomous materials research. No "
-            "planner or unrestricted code generation is enabled."
+            "typed deterministic actions, and a deterministic next-action baseline. "
+            "No unrestricted code generation is enabled."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -154,6 +155,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Re-verify a completed or failed typed NASA audit action report.",
     )
     verify_audit.add_argument("--report", required=True, type=Path)
+
+    plan_next = subparsers.add_parser(
+        "plan-nasa-next-action",
+        help=(
+            "Apply the deterministic NASA baseline policy to verified research state. "
+            "The command recommends but never executes an action."
+        ),
+    )
+    _add_run_argument(plan_next)
+    _add_registry_arguments(plan_next)
     return parser
 
 
@@ -221,6 +232,12 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         return execute_nasa_audit_action(args.request)
     if args.command == "verify-nasa-audit":
         return verify_nasa_audit_action_report(args.report)
+    if args.command == "plan-nasa-next-action":
+        return plan_nasa_next_action(
+            args.run,
+            args.registry,
+            args.repository_root,
+        )
     raise AssertionError(f"unhandled command: {args.command}")
 
 
