@@ -227,7 +227,10 @@ def plan_nasa_next_action(
         }
 
     selected = candidates[0]
-    if selected["cost_units"] > state["budget"]["cost_units_remaining"]:
+    if (
+        state["budget"]["actions_remaining"] <= 0
+        or selected["cost_units"] > state["budget"]["cost_units_remaining"]
+    ):
         status = "blocked_by_budget"
     elif selected["availability"] != "available":
         status = "blocked_unimplemented_action"
