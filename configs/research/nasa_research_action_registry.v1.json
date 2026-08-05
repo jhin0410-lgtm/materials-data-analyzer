@@ -1,0 +1,735 @@
+{
+  "actions": [
+    {
+      "action_type": "audit_existing_battery_run",
+      "allowed_outcomes": [
+        "target_or_reference_flags_detected",
+        "pooled_error_instability_detected",
+        "no_audit_flag_with_complete_dimensions",
+        "partial_dimensions_inconclusive"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "installed_command",
+        "name": "mda-battery-result-audit",
+        "path": null,
+        "platform": "cross_platform"
+      },
+      "category": "diagnostic_audit",
+      "cost_units": 2,
+      "expected_outputs": [
+        {
+          "description": "Battery-level target and reference integrity table.",
+          "kind": "csv",
+          "path": "tables/target_integrity_by_battery.csv",
+          "required": true
+        },
+        {
+          "description": "Battery-level error concentration table.",
+          "kind": "csv",
+          "path": "tables/error_concentration_by_battery.csv",
+          "required": true
+        },
+        {
+          "description": "Machine-readable comparability audit summary.",
+          "kind": "json",
+          "path": "reports/target_comparability_audit.json",
+          "required": true
+        },
+        {
+          "description": "Battery influence and source-protocol review summary.",
+          "kind": "json",
+          "path": "reports/battery_influence_triage.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "existing_battery_intelligence_run_complete",
+        "validation_predictions_present",
+        "validated_cycle_summary_present",
+        "config_snapshot_present"
+      ],
+      "prohibited_effects": [
+        "battery_exclusion",
+        "target_clipping",
+        "target_renormalization",
+        "cycle_interpolation",
+        "protocol_identity_inference",
+        "replacement_validation_score"
+      ],
+      "required_inputs": [
+        {
+          "description": "Existing completed Battery Intelligence output directory.",
+          "kind": "directory",
+          "name": "run_output",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Diagnose target/reference integrity, cycle gaps, battery-level error concentration, and leave-one-battery-out sensitivity without changing the fitted result.",
+      "target_blockers": [
+        "target_reference_ambiguity",
+        "pooled_error_concentration",
+        "battery_level_influence",
+        "source_protocol_review_priority"
+      ],
+      "verifier_checks": [
+        "required_input_markers_exist",
+        "audit_outputs_exist",
+        "audit_outputs_are_recomputable_from_run_tables",
+        "run_manifest_checksums_are_updated",
+        "no_source_rows_or_batteries_are_removed"
+      ],
+      "version": "1.0"
+    },
+    {
+      "action_type": "close_reviewed_nasa_audit",
+      "allowed_outcomes": [
+        "closed_audit_bundle_created",
+        "stale_disposition_rejected",
+        "pending_review_rejected",
+        "evidence_binding_rejected"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "source_script",
+        "name": null,
+        "path": "scripts/close_nasa_pcoe_audit.ps1",
+        "platform": "windows_powershell"
+      },
+      "category": "scientific_closeout",
+      "cost_units": 3,
+      "expected_outputs": [
+        {
+          "description": "Self-contained closed NASA audit bundle.",
+          "kind": "zip",
+          "path": "outputs/nasa_pcoe_full_audit_bundle_post_remediation_closed.zip",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "official_import_output_exists",
+        "completed_analysis_output_exists",
+        "completed_disposition_matches_current_evidence",
+        "all_batteries_reviewed",
+        "pending_battery_count_zero"
+      ],
+      "prohibited_effects": [
+        "model_refit",
+        "feature_recalculation",
+        "target_repair",
+        "battery_exclusion",
+        "external_validation_claim",
+        "engineering_readiness_claim"
+      ],
+      "required_inputs": [
+        {
+          "description": "Completed disposition bound to the current evidence hash.",
+          "kind": "csv",
+          "name": "disposition_input",
+          "required": true
+        },
+        {
+          "description": "Python executable used by the established closeout workflow.",
+          "kind": "executable_path",
+          "name": "python_executable",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Finalize an already reviewed NASA audit into a checksum-bound self-contained package without changing the scientific result.",
+      "target_blockers": [
+        "audit_reproducibility",
+        "review_completion",
+        "evidence_disposition_binding"
+      ],
+      "verifier_checks": [
+        "all_34_batteries_reviewed",
+        "pending_battery_count_zero",
+        "disposition_hash_matches_current_evidence",
+        "closed_bundle_hash_is_reported",
+        "predictive_evidence_level_preserved"
+      ],
+      "version": "1.0"
+    },
+    {
+      "action_type": "external_data_requirement_generation",
+      "allowed_outcomes": [
+        "minimum_external_cohort_contract_generated",
+        "current_blocker_not_resolvable_by_more_data",
+        "requirement_generation_inconclusive"
+      ],
+      "availability": "planned",
+      "binding": null,
+      "category": "next_evidence_planning",
+      "cost_units": 2,
+      "expected_outputs": [
+        {
+          "description": "Versioned machine-readable minimum external-data requirement.",
+          "kind": "json",
+          "path": "reports/external_data_requirement.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "current_primary_blocker_identified",
+        "existing_data_inventory_verified",
+        "current_hypotheses_ranked"
+      ],
+      "prohibited_effects": [
+        "candidate_dataset_promotion_without_review",
+        "missing_metadata_inference",
+        "external_validation_claim",
+        "unbounded_data_collection"
+      ],
+      "required_inputs": [
+        {
+          "description": "Verified research state containing unresolved blockers.",
+          "kind": "research_state",
+          "name": "research_state",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Translate unresolved hypotheses and blockers into the smallest explicit independent-data contract that could change the conclusion.",
+      "target_blockers": [
+        "external_cohort_missing",
+        "raw_signal_channel_missing",
+        "protocol_metadata_missing",
+        "target_semantics_missing"
+      ],
+      "verifier_checks": [
+        "requirements_trace_to_recorded_blockers",
+        "required_fields_are_observable",
+        "dataset_role_is_external_or_calibration",
+        "no_unbounded_more_data_recommendation"
+      ],
+      "version": "0.1-planned"
+    },
+    {
+      "action_type": "feature_family_ablation",
+      "allowed_outcomes": [
+        "feature_family_adds_incremental_value",
+        "feature_family_does_not_add_incremental_value",
+        "feature_family_unavailable",
+        "ablation_inconclusive"
+      ],
+      "availability": "planned",
+      "binding": null,
+      "category": "hypothesis_discrimination",
+      "cost_units": 6,
+      "expected_outputs": [
+        {
+          "description": "Fold-consistent performance by predeclared feature family.",
+          "kind": "csv",
+          "path": "tables/feature_family_ablation.csv",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "feature_families_predeclared",
+        "fold_local_preprocessing_preserved",
+        "identical_grouped_splits_across_ablations"
+      ],
+      "prohibited_effects": [
+        "post_hoc_favorable_feature_selection",
+        "global_preprocessing_before_split",
+        "missing_feature_imputation_from_test_groups",
+        "locked_test_reuse"
+      ],
+      "required_inputs": [
+        {
+          "description": "Admitted forecast table and feature-family declarations.",
+          "kind": "dataset_and_contract",
+          "name": "feature_family_contract",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Determine whether predeclared signal or domain feature families add out-of-group value beyond target history and strong origin-only baselines.",
+      "target_blockers": [
+        "signal_feature_value_unknown",
+        "feature_family_redundancy",
+        "feature_missingness_dependence"
+      ],
+      "verifier_checks": [
+        "same_group_splits_used",
+        "preprocessing_fit_within_training_fold",
+        "all_predeclared_feature_families_reported",
+        "negative_ablation_results_preserved"
+      ],
+      "version": "0.1-planned"
+    },
+    {
+      "action_type": "hierarchical_state_space_baseline",
+      "allowed_outcomes": [
+        "state_space_improves_primary_metric",
+        "state_space_improves_calibration_only",
+        "state_space_does_not_beat_simple_baseline",
+        "state_definition_not_identifiable"
+      ],
+      "availability": "planned",
+      "binding": null,
+      "category": "model_candidate",
+      "cost_units": 10,
+      "expected_outputs": [
+        {
+          "description": "Battery-disjoint state-space predictions and model comparison.",
+          "kind": "directory",
+          "path": "state_space_baseline",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "latent_state_definition_documented",
+        "observation_equation_documented",
+        "strong_simple_baseline_frozen",
+        "battery_disjoint_validation_available"
+      ],
+      "prohibited_effects": [
+        "mechanism_claim_from_latent_state",
+        "test_group_parameter_fitting",
+        "baseline_redefinition_after_results",
+        "hidden_target_smoothing"
+      ],
+      "required_inputs": [
+        {
+          "description": "Validated trajectory table with explicit time or cycle semantics.",
+          "kind": "table",
+          "name": "trajectory_table",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Test whether a constrained hierarchical latent-state representation provides incremental predictive or calibration value before neural continuous-time methods are eligible.",
+      "target_blockers": [
+        "trajectory_dynamics_misspecification",
+        "between_battery_heterogeneity",
+        "continuous_state_value_unknown"
+      ],
+      "verifier_checks": [
+        "battery_disjoint_validation_preserved",
+        "simple_baseline_unchanged",
+        "parameter_identifiability_reported",
+        "latent_state_not_named_as_mechanism_without_evidence"
+      ],
+      "version": "0.1-planned"
+    },
+    {
+      "action_type": "import_official_nasa_archive",
+      "allowed_outcomes": [
+        "receipt_backed_import_complete",
+        "unverified_local_import_complete_for_diagnostic_use",
+        "archive_or_receipt_rejected",
+        "source_member_quarantined"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "installed_command",
+        "name": "mda-nasa-battery-import",
+        "path": null,
+        "platform": "cross_platform"
+      },
+      "category": "data_intake",
+      "cost_units": 5,
+      "expected_outputs": [
+        {
+          "description": "Canonical discharge-cycle summary using documented rated capacity.",
+          "kind": "csv",
+          "path": "nasa_pcoe_cycle_summary.csv",
+          "required": true
+        },
+        {
+          "description": "Canonical timestamped raw-signal table.",
+          "kind": "csv",
+          "path": "nasa_pcoe_raw_signal.csv",
+          "required": true
+        },
+        {
+          "description": "Checksum- and metadata-bound raw-signal provenance.",
+          "kind": "json",
+          "path": "nasa_pcoe_raw_signal_provenance.json",
+          "required": true
+        },
+        {
+          "description": "Battery-level observed protocol summary.",
+          "kind": "csv",
+          "path": "nasa_pcoe_protocol_summary.csv",
+          "required": true
+        },
+        {
+          "description": "Complete NASA import manifest.",
+          "kind": "json",
+          "path": "nasa_pcoe_import_manifest.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "local_archive_or_mat_source_exists",
+        "retrieval_receipt_supplied_when_claiming_official_retrieval",
+        "output_directory_is_new_or_explicitly_overwritable"
+      ],
+      "prohibited_effects": [
+        "network_access",
+        "signal_interpolation",
+        "signal_smoothing",
+        "timezone_inference",
+        "charge_discharge_pairing_inference",
+        "first_observed_capacity_as_reference"
+      ],
+      "required_inputs": [
+        {
+          "description": "Local NASA PCoE MAT file, directory, or ZIP archive.",
+          "kind": "path",
+          "name": "input",
+          "required": true
+        },
+        {
+          "description": "Checksum-backed retrieval receipt for official-archive claims.",
+          "kind": "json",
+          "name": "retrieval_receipt",
+          "required": false
+        }
+      ],
+      "scientific_purpose": "Convert an official or explicitly unverified local NASA source into canonical immutable analysis inputs without inventing measurement semantics.",
+      "target_blockers": [
+        "canonical_raw_signal_unavailable",
+        "source_inventory_unavailable",
+        "target_reference_ambiguity",
+        "protocol_summary_unavailable"
+      ],
+      "verifier_checks": [
+        "input_archive_hash_recorded",
+        "retrieval_receipt_hash_verified_when_supplied",
+        "all_output_hashes_recorded",
+        "source_capacity_values_preserved",
+        "rated_capacity_reference_explicit",
+        "quarantined_members_reported"
+      ],
+      "version": "1.0"
+    },
+    {
+      "action_type": "protocol_stratification",
+      "allowed_outcomes": [
+        "protocol_conditioning_reduces_error",
+        "protocol_conditioning_does_not_reduce_error",
+        "protocol_groups_not_identifiable",
+        "strata_too_small_for_validation"
+      ],
+      "availability": "planned",
+      "binding": null,
+      "category": "hypothesis_discrimination",
+      "cost_units": 5,
+      "expected_outputs": [
+        {
+          "description": "Predeclared protocol strata and within-stratum validation results.",
+          "kind": "directory",
+          "path": "protocol_stratification",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "protocol_variables_observed_not_inferred",
+        "stratification_rules_frozen_before_metrics",
+        "minimum_group_count_per_stratum_declared"
+      ],
+      "prohibited_effects": [
+        "post_hoc_favorable_stratum_selection",
+        "protocol_identity_inference_from_target",
+        "battery_duplication_across_validation_groups",
+        "small_stratum_generalization_claim"
+      ],
+      "required_inputs": [
+        {
+          "description": "Validated cycle summary and explicit observed protocol table.",
+          "kind": "dataset_pair",
+          "name": "protocol_evidence",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Test whether observed protocol heterogeneity explains concentrated cross-battery error without treating protocol strata as interchangeable domains.",
+      "target_blockers": [
+        "protocol_heterogeneity",
+        "source_cohort_confounding",
+        "pooled_model_misspecification"
+      ],
+      "verifier_checks": [
+        "stratification_uses_observed_fields_only",
+        "battery_disjoint_validation_preserved",
+        "all_strata_and_sample_counts_reported",
+        "pooled_and_stratified_results_both_preserved"
+      ],
+      "version": "0.1-planned"
+    },
+    {
+      "action_type": "run_fixed_battery_intelligence",
+      "allowed_outcomes": [
+        "learned_model_supported_for_declared_internal_scope",
+        "learned_model_diagnostic_only",
+        "learned_model_unsupported",
+        "raw_signal_rejected_for_predictive_comparison",
+        "run_blocked_by_input_contract"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "installed_command",
+        "name": "mda-battery-intelligence",
+        "path": null,
+        "platform": "cross_platform"
+      },
+      "category": "baseline_and_model_evaluation",
+      "cost_units": 10,
+      "expected_outputs": [
+        {
+          "description": "Complete run manifest with artifact checksums and scientific closeout.",
+          "kind": "json",
+          "path": "run_manifest.json",
+          "required": true
+        },
+        {
+          "description": "Frozen runtime and model configuration.",
+          "kind": "json",
+          "path": "config_snapshot.json",
+          "required": true
+        },
+        {
+          "description": "Exact-horizon predictions from battery-disjoint validation.",
+          "kind": "csv",
+          "path": "tables/validation_predictions.csv",
+          "required": true
+        },
+        {
+          "description": "Per-battery validation metrics.",
+          "kind": "csv",
+          "path": "tables/validation_by_battery.csv",
+          "required": true
+        },
+        {
+          "description": "Machine-readable grouped validation summary.",
+          "kind": "json",
+          "path": "reports/validation_summary.json",
+          "required": true
+        },
+        {
+          "description": "Bounded scientific claim decision.",
+          "kind": "json",
+          "path": "reports/scientific_closeout.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "cycle_summary_contract_valid",
+        "group_and_cycle_identity_explicit",
+        "raw_signal_provenance_required_for_predictive_signal_use",
+        "output_directory_is_new_or_explicitly_overwritable"
+      ],
+      "prohibited_effects": [
+        "random_row_split",
+        "test_fold_preprocessing_fit",
+        "silent_battery_exclusion",
+        "target_repair",
+        "raw_signal_use_without_admission",
+        "rul_claim",
+        "external_generalization_claim"
+      ],
+      "required_inputs": [
+        {
+          "description": "Validated battery cycle-summary table.",
+          "kind": "csv",
+          "name": "cycle_summary",
+          "required": true
+        },
+        {
+          "description": "Optional canonical raw-signal table.",
+          "kind": "csv",
+          "name": "raw_signal",
+          "required": false
+        },
+        {
+          "description": "Required provenance sidecar when raw signal is proposed for predictive comparison.",
+          "kind": "json",
+          "name": "raw_signal_provenance",
+          "required": false
+        }
+      ],
+      "scientific_purpose": "Reproduce the fixed exact-horizon Ridge hypothesis, strong origin-only baselines, uncertainty, OOD diagnostics, and bounded closeout under battery-disjoint validation.",
+      "target_blockers": [
+        "baseline_not_reproduced",
+        "predictive_incremental_value_unknown",
+        "raw_signal_incremental_value_unknown",
+        "uncertainty_calibration_unknown",
+        "ood_risk_unknown"
+      ],
+      "verifier_checks": [
+        "battery_disjoint_split_confirmed",
+        "strongest_predeclared_baseline_reported",
+        "primary_and_secondary_metrics_recomputable",
+        "raw_signal_admission_matches_provenance",
+        "artifact_checksums_match_manifest",
+        "scientific_closeout_matches_metrics"
+      ],
+      "version": "1.0"
+    },
+    {
+      "action_type": "selective_prediction_abstention",
+      "allowed_outcomes": [
+        "abstention_reduces_retained_risk",
+        "abstention_does_not_improve_risk_coverage",
+        "threshold_not_calibratable",
+        "worst_group_remains_unacceptable"
+      ],
+      "availability": "planned",
+      "binding": null,
+      "category": "uncertainty_and_applicability",
+      "cost_units": 5,
+      "expected_outputs": [
+        {
+          "description": "Risk-coverage curves and predeclared abstention threshold evaluation.",
+          "kind": "directory",
+          "path": "selective_prediction",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "out_of_group_predictions_available",
+        "uncertainty_or_applicability_score_available",
+        "threshold_calibration_partition_separate_from_locked_test"
+      ],
+      "prohibited_effects": [
+        "threshold_tuning_on_locked_test",
+        "coverage_claim_without_worst_group_audit",
+        "silent_prediction_removal",
+        "decision_grade_claim_from_average_risk_only"
+      ],
+      "required_inputs": [
+        {
+          "description": "Out-of-group predictions, uncertainty scores, and group identities.",
+          "kind": "prediction_evidence",
+          "name": "prediction_evidence",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Determine whether explicit abstention can reduce retained prediction risk without hiding failed batteries or tuning thresholds on locked evaluation data.",
+      "target_blockers": [
+        "false_confidence",
+        "worst_group_calibration_failure",
+        "ood_prediction_risk",
+        "deployment_scope_undefined"
+      ],
+      "verifier_checks": [
+        "all_predictions_retained_in_audit",
+        "calibration_and_test_roles_separate",
+        "risk_coverage_curve_recomputable",
+        "worst_battery_and_cohort_results_reported"
+      ],
+      "version": "0.1-planned"
+    },
+    {
+      "action_type": "source_cohort_leave_one_out",
+      "allowed_outcomes": [
+        "source_transfer_supported_for_declared_cohorts",
+        "source_transfer_diagnostic_only",
+        "source_transfer_unsupported",
+        "source_labels_insufficient"
+      ],
+      "availability": "planned",
+      "binding": null,
+      "category": "externality_stress_test",
+      "cost_units": 8,
+      "expected_outputs": [
+        {
+          "description": "Leave-one-source-cohort-out predictions and cohort metrics.",
+          "kind": "directory",
+          "path": "source_cohort_leave_one_out",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "source_cohort_identity_explicit",
+        "at_least_two_source_cohorts",
+        "target_semantics_compatible_or_stratified",
+        "all_preprocessing_fit_on_source_training_cohorts"
+      ],
+      "prohibited_effects": [
+        "cohort_identity_inference",
+        "target_cohort_preprocessing_fit",
+        "external_validation_claim_from_internal_sources",
+        "favorable_cohort_omission"
+      ],
+      "required_inputs": [
+        {
+          "description": "Cycle summary with explicit source-cohort identity and compatible target contract.",
+          "kind": "dataset_and_contract",
+          "name": "source_cohort_dataset",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Measure transport across declared source cohorts without treating an internal held-out source as independent external validation.",
+      "target_blockers": [
+        "source_cohort_shift",
+        "protocol_transferability",
+        "representation_transport_unknown"
+      ],
+      "verifier_checks": [
+        "every_declared_source_held_out_once",
+        "preprocessing_fit_on_training_sources_only",
+        "cohort_macro_and_worst_cohort_metrics_reported",
+        "internal_source_holdout_not_labeled_external_validation"
+      ],
+      "version": "0.1-planned"
+    },
+    {
+      "action_type": "target_reference_sensitivity",
+      "allowed_outcomes": [
+        "conclusion_stable_across_defensible_targets",
+        "conclusion_sensitive_to_target_reference",
+        "alternative_target_not_scientifically_defensible",
+        "required_reference_metadata_missing"
+      ],
+      "availability": "planned",
+      "binding": null,
+      "category": "target_semantics_audit",
+      "cost_units": 4,
+      "expected_outputs": [
+        {
+          "description": "Predeclared target-reference comparison with unchanged validation policy.",
+          "kind": "directory",
+          "path": "target_reference_sensitivity",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "alternative_target_definitions_predeclared",
+        "source_values_preserved",
+        "reference_metadata_available",
+        "identical_validation_policy_across_targets"
+      ],
+      "prohibited_effects": [
+        "post_hoc_target_selection",
+        "first_observed_capacity_reference_without_justification",
+        "target_clipping",
+        "target_repair",
+        "locked_test_reuse"
+      ],
+      "required_inputs": [
+        {
+          "description": "Source discharge capacity, rated/reference metadata, and target definitions.",
+          "kind": "dataset_and_contract",
+          "name": "target_reference_contract",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Test whether the model conclusion depends on a scientifically defensible target-reference choice without selecting the most favorable target after seeing results.",
+      "target_blockers": [
+        "target_reference_ambiguity",
+        "cross_cohort_target_incompatibility",
+        "conclusion_target_sensitivity"
+      ],
+      "verifier_checks": [
+        "all_predeclared_targets_reported",
+        "source_capacity_values_unchanged",
+        "validation_splits_identical",
+        "primary_conclusion_stability_reported"
+      ],
+      "version": "0.1-planned"
+    }
+  ],
+  "domain": "nasa_pcoe_battery_exact_horizon",
+  "registry_id": "nasa-research-actions-v1",
+  "schema_version": "1.0"
+}
