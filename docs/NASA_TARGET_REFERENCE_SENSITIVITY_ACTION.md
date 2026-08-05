@@ -21,25 +21,28 @@ The action always reports exactly these definitions:
 1. `declared_reference`: the median positive finite
    `reference_capacity_ah` already declared for each battery. This remains the
    primary target definition and must be constant within tolerance.
-2. `early_window_median_capacity`: the median positive finite observed
-   `discharge_capacity_ah` among the earliest five recorded cycle rows,
-   requiring at least three observations per battery.
-3. `early_window_maximum_capacity`: the maximum positive finite observed
-   `discharge_capacity_ah` within the same earliest five recorded cycle rows,
-   requiring at least three observations per battery.
+2. `preforecast_window_median_capacity`: the median positive finite observed
+   `discharge_capacity_ah` among at most the earliest five cycle rows available
+   no later than that battery's earliest forecast origin, requiring at least
+   three observations.
+3. `preforecast_window_maximum_capacity`: the maximum positive finite observed
+   `discharge_capacity_ah` within the same bounded pre-forecast window,
+   requiring at least three observations.
 
-The early-window restriction prevents later held-out target observations from
-being used to define an alternative reference. The action reconstructs each
-model's absolute predicted capacity from the primary declared reference, then
-expresses the unchanged absolute prediction and unchanged observed capacity
-under each alternative. No target is clipped, repaired, smoothed, or selected
-after inspecting metrics.
+The per-battery origin boundary prevents any observation occurring after the
+first prediction decision from defining an alternative reference. The action
+reconstructs each model's absolute predicted capacity from the primary declared
+reference, then expresses the unchanged absolute prediction and unchanged
+observed capacity under each alternative. No target is clipped, repaired,
+smoothed, or selected after inspecting metrics.
 
 ## Preconditions
 
 - the research ledger is active;
 - a completed `audit_existing_battery_run` action is checksum-bound in the
   same ledger and independently verifies;
+- each validation prediction contains explicit `origin_cycle` and
+  `target_cycle`, with the target later than the origin;
 - the analysis run contains validated cycles, validation predictions, config,
   comparability audit, scientific closeout, and run manifest;
 - the request is bound to the executable action registry SHA-256;
@@ -98,7 +101,8 @@ and confirms its research-ledger artifact binding.
 - `conclusion_sensitive_to_target_reference`: the ordering changes for at
   least one predeclared reference. No alternative is promoted as primary.
 - `required_reference_metadata_missing`: at least one reference cannot retain
-  the complete evaluated battery and row set.
+  the complete evaluated battery and row set, including cases with fewer than
+  three valid observations available by the earliest forecast origin.
 - `alternative_target_not_scientifically_defensible`: reserved for a frozen
   reference whose scientific eligibility is rejected before metric promotion.
 
@@ -110,6 +114,6 @@ cycle gaps, identify protocol cohorts, improve the predictive model, establish
 external validation, or change the existing NASA evidence level. A stable
 negative ordering means the current Ridge failure is not explained solely by
 these predeclared reference choices; it does not prove that every possible
-target definition would yield the same result. The early-window alternatives
+target definition would yield the same result. The pre-forecast alternatives
 are sensitivity diagnostics and are not automatically eligible as deployment
 targets.
