@@ -216,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
         ResearchLoopError,
         TypeError,
         KeyError,
-        tomllib.TOMLDecodeError if False else ValueError,
+        ValueError,
     ) as exc:
         print(f"Research loop command failed: {exc}", file=sys.stderr)
         return 1
