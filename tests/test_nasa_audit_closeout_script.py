@@ -22,15 +22,29 @@ def _powershell() -> str:
 
 
 def _write_fake_checkout(
-    tmp_path: Path, *, matching_binding: bool = True
+    tmp_path: Path,
+    *,
+    matching_binding: bool = True,
+    use_default_paths: bool = False,
 ) -> dict[str, Path]:
     root = tmp_path / "repo"
     scripts = root / "scripts"
-    analysis = root / "outputs" / "analysis"
-    import_output = root / "data" / "processed" / "import"
+    analysis_name = (
+        "nasa_pcoe_signal_enriched_battery_intelligence"
+        if use_default_paths
+        else "analysis"
+    )
+    import_name = "nasa_pcoe_battery_import" if use_default_paths else "import"
+    destination_name = (
+        "nasa_pcoe_full_audit_bundle_post_remediation_closed.zip"
+        if use_default_paths
+        else "closed.zip"
+    )
+    analysis = root / "outputs" / analysis_name
+    import_output = root / "data" / "processed" / import_name
     raw_directory = root / "data" / "raw" / "battery" / "nasa_pcoe"
     disposition = root / "completed_disposition.csv"
-    destination = root / "outputs" / "closed.zip"
+    destination = root / "outputs" / destination_name
     for path in (
         scripts,
         analysis / "tables",
@@ -119,27 +133,35 @@ def _write_fake_checkout(
     }
 
 
-def _run_closeout(paths: dict[str, Path]) -> subprocess.CompletedProcess[str]:
+def _run_closeout(
+    paths: dict[str, Path], *, use_default_paths: bool = False
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        _powershell(),
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        str(paths["script"]),
+        "-PythonExecutable",
+        sys.executable,
+        "-DispositionInput",
+        str(paths["disposition"]),
+    ]
+    if not use_default_paths:
+        command.extend(
+            [
+                "-ImportOutput",
+                str(paths["import"]),
+                "-AnalysisOutput",
+                str(paths["analysis"]),
+                "-RawDirectory",
+                str(paths["raw"]),
+                "-Destination",
+                str(paths["destination"]),
+            ]
+        )
     return subprocess.run(
-        [
-            _powershell(),
-            "-NoProfile",
-            "-NonInteractive",
-            "-File",
-            str(paths["script"]),
-            "-PythonExecutable",
-            sys.executable,
-            "-ImportOutput",
-            str(paths["import"]),
-            "-AnalysisOutput",
-            str(paths["analysis"]),
-            "-DispositionInput",
-            str(paths["disposition"]),
-            "-RawDirectory",
-            str(paths["raw"]),
-            "-Destination",
-            str(paths["destination"]),
-        ],
+        command,
         cwd=paths["root"],
         capture_output=True,
         text=True,
@@ -178,6 +200,21 @@ def test_closeout_orders_review_finalize_and_package(tmp_path: Path) -> None:
     assert "pending_battery_count: 0" in completed.stdout
     assert "predictive_evidence_level: Unsupported" in completed.stdout
     assert "closed_audit_bundle_sha256:" in completed.stdout
+
+
+def test_closeout_uses_repository_defaults_when_optional_paths_are_omitted(
+    tmp_path: Path,
+) -> None:
+    paths = _write_fake_checkout(tmp_path, use_default_paths=True)
+
+    completed = _run_closeout(paths, use_default_paths=True)
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert paths["destination"].is_file()
+    order = (paths["root"] / "order.log").read_text(encoding="utf-8").splitlines()
+    assert order == ["review", "finalize", "package"]
+    assert str(paths["analysis"]) in completed.stdout
+    assert str(paths["destination"]) in completed.stdout
 
 
 def test_closeout_rejects_stale_disposition_binding(tmp_path: Path) -> None:
