@@ -1,0 +1,106 @@
+{
+  "actions": [
+    {
+      "action_type": "target_reference_sensitivity",
+      "allowed_outcomes": [
+        "conclusion_stable_across_defensible_targets",
+        "conclusion_sensitive_to_target_reference",
+        "alternative_target_not_scientifically_defensible",
+        "required_reference_metadata_missing"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "installed_command",
+        "name": "mda-research-loop",
+        "path": null,
+        "platform": "cross_platform"
+      },
+      "category": "target_semantics_audit",
+      "cost_units": 4,
+      "expected_outputs": [
+        {
+          "description": "Immutable predeclared reference definitions used by the action.",
+          "kind": "json",
+          "path": "target_reference_sensitivity/reference_definitions.json",
+          "required": true
+        },
+        {
+          "description": "Battery-level values and completeness for every predeclared reference.",
+          "kind": "csv",
+          "path": "target_reference_sensitivity/target_reference_by_battery.csv",
+          "required": true
+        },
+        {
+          "description": "Row-weighted, battery-macro, and worst-battery model metrics by reference.",
+          "kind": "csv",
+          "path": "target_reference_sensitivity/model_metrics_by_reference.csv",
+          "required": true
+        },
+        {
+          "description": "Battery-level model errors for every complete predeclared reference.",
+          "kind": "csv",
+          "path": "target_reference_sensitivity/battery_metrics_by_reference.csv",
+          "required": true
+        },
+        {
+          "description": "Machine-readable conclusion-stability report and scientific boundary.",
+          "kind": "json",
+          "path": "target_reference_sensitivity/target_reference_sensitivity.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "completed_verified_battery_audit_in_research_ledger",
+        "alternative_target_definitions_predeclared",
+        "source_values_preserved",
+        "reference_metadata_available",
+        "identical_evaluated_rows_across_complete_targets"
+      ],
+      "prohibited_effects": [
+        "post_hoc_target_selection",
+        "first_observed_capacity_reference_without_justification",
+        "target_clipping",
+        "target_repair",
+        "model_refit",
+        "row_or_battery_exclusion",
+        "primary_reference_replacement",
+        "locked_test_reuse"
+      ],
+      "required_inputs": [
+        {
+          "description": "Existing Battery analysis run with validated cycles, exact-horizon predictions, config, audit, closeout, and manifest.",
+          "kind": "directory",
+          "name": "analysis_run",
+          "required": true
+        },
+        {
+          "description": "Active immutable research run containing a verified completed Battery audit action.",
+          "kind": "research_state",
+          "name": "research_run",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Test whether the existing Ridge-versus-persistence conclusion depends on three reference-capacity definitions fixed before execution, while preserving absolute predictions and every evaluated row.",
+      "target_blockers": [
+        "target_reference_ambiguity",
+        "cross_battery_normalization_sensitivity",
+        "conclusion_target_sensitivity"
+      ],
+      "verifier_checks": [
+        "prior_audit_report_checksum_and_ledger_binding_verified",
+        "three_reference_definitions_exactly_match_frozen_contract",
+        "source_analysis_inputs_unchanged",
+        "actual_target_reconstructed_from_declared_reference",
+        "absolute_predictions_preserved_across_references",
+        "all_prediction_rows_and_batteries_preserved_for_complete_references",
+        "all_model_metrics_recomputed_from_source_tables",
+        "primary_reference_unchanged",
+        "no_favorable_reference_promoted"
+      ],
+      "version": "1.0"
+    }
+  ],
+  "domain": "nasa_pcoe_battery_exact_horizon",
+  "registry_id": "nasa-target-reference-actions-v1",
+  "schema_version": "1.0"
+}
