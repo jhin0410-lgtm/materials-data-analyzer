@@ -62,6 +62,7 @@ mda-battery-intelligence = "materials_data_analyzer.battery_cli:main"
 mda-battery-result-audit = "materials_data_analyzer.battery_audit_cli:main"
 mda-nasa-battery-import = "materials_data_analyzer.nasa_battery_cli:main"
 mda-characterization-import = "materials_data_analyzer.characterization_import_cli:main"
+mda-research-loop = "materials_data_analyzer.research_loop_cli:main"
 
 [project.urls]
 Repository = "https://github.com/jhin0410-lgtm/materials-data-analyzer"
