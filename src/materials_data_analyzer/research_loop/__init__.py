@@ -1,10 +1,18 @@
-"""Deterministic research-state kernel for bounded autonomous research loops.
+"""Deterministic contracts for bounded autonomous materials research loops.
 
-The package deliberately contains no planner, language model, model fitting, or
-scientific conclusion logic yet. It provides the immutable state and evidence
-contracts on which those later components can safely depend.
+The package deliberately contains no language model, unconstrained code
+generation, model fitting, or automatic scientific conclusion logic yet. It
+provides immutable state and a strict action registry on which later planner,
+executor, and verifier components can safely depend.
 """
 
+from .action_registry import (
+    ACTION_REGISTRY_SCHEMA_VERSION,
+    action_summaries,
+    describe_action,
+    load_action_registry,
+    validate_action_registry,
+)
 from .kernel import (
     LEDGER_FILENAME,
     STATE_FILENAME,
@@ -19,14 +27,19 @@ from .kernel import (
 )
 
 __all__ = [
+    "ACTION_REGISTRY_SCHEMA_VERSION",
     "LEDGER_FILENAME",
     "STATE_FILENAME",
     "ResearchLoopError",
+    "action_summaries",
     "append_action",
     "append_evidence",
     "append_hypothesis",
     "append_stop",
+    "describe_action",
     "initialize_research_loop",
+    "load_action_registry",
     "load_research_state",
+    "validate_action_registry",
     "verify_research_loop",
 ]
