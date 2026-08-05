@@ -52,7 +52,8 @@
       "preconditions": [
         "completed_verified_battery_audit_in_research_ledger",
         "alternative_target_definitions_predeclared",
-        "alternative_references_use_early_window_only",
+        "origin_and_target_cycles_explicit",
+        "alternative_references_bounded_by_earliest_forecast_origin",
         "source_values_preserved",
         "reference_metadata_available",
         "identical_evaluated_rows_across_complete_targets"
@@ -70,7 +71,7 @@
       ],
       "required_inputs": [
         {
-          "description": "Existing Battery analysis run with validated cycles, exact-horizon predictions, config, audit, closeout, and manifest.",
+          "description": "Existing Battery analysis run with validated cycles, exact-horizon predictions containing origin and target cycles, config, audit, closeout, and manifest.",
           "kind": "directory",
           "name": "analysis_run",
           "required": true
@@ -82,7 +83,7 @@
           "required": true
         }
       ],
-      "scientific_purpose": "Test whether the existing Ridge-versus-persistence conclusion depends on three reference-capacity definitions fixed before execution, using only declared metadata or the earliest five recorded cycle rows while preserving absolute predictions and every evaluated row.",
+      "scientific_purpose": "Test whether the existing Ridge-versus-persistence conclusion depends on three reference-capacity definitions fixed before execution, using only declared metadata or at most the earliest five cycle rows available by each battery's earliest forecast origin while preserving absolute predictions and every evaluated row.",
       "target_blockers": [
         "target_reference_ambiguity",
         "cross_battery_normalization_sensitivity",
@@ -91,7 +92,7 @@
       "verifier_checks": [
         "prior_audit_report_checksum_and_ledger_binding_verified",
         "three_reference_definitions_exactly_match_frozen_contract",
-        "alternative_references_use_no_future_target_observations",
+        "alternative_references_use_no_observation_after_earliest_forecast_origin",
         "source_analysis_inputs_unchanged",
         "actual_target_reconstructed_from_declared_reference",
         "absolute_predictions_preserved_across_references",
