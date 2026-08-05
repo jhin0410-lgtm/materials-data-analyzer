@@ -22,16 +22,18 @@ The action always reports exactly these definitions:
    `reference_capacity_ah` already declared for each battery. This remains the
    primary target definition and must be constant within tolerance.
 2. `early_window_median_capacity`: the median positive finite observed
-   `discharge_capacity_ah` among the first five cycle indices, requiring at
-   least three observations per battery.
-3. `maximum_observed_capacity`: the maximum positive finite observed
-   `discharge_capacity_ah` per battery. This is an upper-envelope stress test,
-   not a preferred physical reference.
+   `discharge_capacity_ah` among the earliest five recorded cycle rows,
+   requiring at least three observations per battery.
+3. `early_window_maximum_capacity`: the maximum positive finite observed
+   `discharge_capacity_ah` within the same earliest five recorded cycle rows,
+   requiring at least three observations per battery.
 
-The action reconstructs each model's absolute predicted capacity from the
-primary declared reference, then expresses the unchanged absolute prediction
-and unchanged observed capacity under each alternative reference. No target is
-clipped, repaired, smoothed, or selected after inspecting metrics.
+The early-window restriction prevents later held-out target observations from
+being used to define an alternative reference. The action reconstructs each
+model's absolute predicted capacity from the primary declared reference, then
+expresses the unchanged absolute prediction and unchanged observed capacity
+under each alternative. No target is clipped, repaired, smoothed, or selected
+after inspecting metrics.
 
 ## Preconditions
 
@@ -107,5 +109,7 @@ physically correct capacity reference, infer degradation mechanism, correct
 cycle gaps, identify protocol cohorts, improve the predictive model, establish
 external validation, or change the existing NASA evidence level. A stable
 negative ordering means the current Ridge failure is not explained solely by
-these predeclared normalization choices; it does not prove that every possible
-target definition would yield the same result.
+these predeclared reference choices; it does not prove that every possible
+target definition would yield the same result. The early-window alternatives
+are sensitivity diagnostics and are not automatically eligible as deployment
+targets.
