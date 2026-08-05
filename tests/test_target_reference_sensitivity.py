@@ -20,7 +20,7 @@ def _frames(
     declared_reference = 2.0
     for battery_id, capacity in capacities.items():
         actual_percent = 100.0 * capacity / declared_reference
-        for cycle in (1, 2, 3):
+        for cycle in range(1, 7):
             cycle_rows.append(
                 {
                     "battery_id": battery_id,
@@ -30,10 +30,12 @@ def _frames(
                     "capacity_retention_percent": actual_percent,
                 }
             )
+        for origin_cycle, target_cycle in ((3, 4), (4, 5), (5, 6)):
             prediction_rows.append(
                 {
                     "battery_id": battery_id,
-                    "target_cycle": cycle,
+                    "origin_cycle": origin_cycle,
+                    "target_cycle": target_cycle,
                     "actual": actual_percent,
                     "persistence_prediction": actual_percent
                     + 100.0 * persistence_errors_ah[battery_id] / declared_reference,
@@ -66,6 +68,7 @@ def test_conclusion_is_stable_when_persistence_is_better_for_every_battery() -> 
     assert summary["prediction_count"] == len(predictions)
     assert summary["source_rows_removed"] is False
     assert summary["model_refit_performed"] is False
+    assert summary["alternative_references_bounded_by_earliest_forecast_origin"]
     assert (
         summary["future_target_observations_used_to_define_alternative_references"]
         is False
@@ -95,21 +98,23 @@ def test_conclusion_sensitivity_detects_reference_weighting_sign_flip() -> None:
         for item in summary["ridge_vs_persistence"]
     }
     assert preferred["declared_reference"] == "persistence"
-    assert preferred["early_window_median_capacity"] == "ridge"
-    assert preferred["early_window_maximum_capacity"] == "ridge"
+    assert preferred["preforecast_window_median_capacity"] == "ridge"
+    assert preferred["preforecast_window_maximum_capacity"] == "ridge"
     assert summary["primary_reference_id"] == "declared_reference"
 
 
-def test_missing_early_window_reference_is_explicitly_inconclusive() -> None:
+def test_missing_preforecast_reference_is_explicitly_inconclusive() -> None:
     cycles, predictions = _frames(
         capacities={"A": 2.0, "B": 2.0},
         persistence_errors_ah={"A": 0.1, "B": 0.1},
         ridge_errors_ah={"A": 0.2, "B": 0.2},
     )
-    cycles = cycles[~((cycles["battery_id"] == "B") & (cycles["cycle_index"] > 2))]
-    predictions = predictions[~(
-        (predictions["battery_id"] == "B") & (predictions["target_cycle"] > 2)
-    )]
+    cycles = cycles[
+        ~(
+            (cycles["battery_id"] == "B")
+            & (cycles["cycle_index"] == 3)
+        )
+    ]
 
     result = build_target_reference_sensitivity(
         cycle_summary=cycles,
@@ -121,11 +126,12 @@ def test_missing_early_window_reference_is_explicitly_inconclusive() -> None:
     schemes = {
         item["reference_id"]: item for item in result["summary"]["schemes"]
     }
-    assert schemes["early_window_median_capacity"]["complete"] is False
-    assert schemes["early_window_median_capacity"]["incomplete_battery_count"] == 1
+    scheme = schemes["preforecast_window_median_capacity"]
+    assert scheme["complete"] is False
+    assert scheme["incomplete_battery_count"] == 1
     assert (
-        "fewer_than_three_valid_early_window_observations"
-        in schemes["early_window_median_capacity"]["incomplete_reasons"]
+        "fewer_than_three_valid_preforecast_window_observations"
+        in scheme["incomplete_reasons"]
     )
 
 
@@ -157,6 +163,22 @@ def test_duplicate_prediction_target_is_rejected() -> None:
     predictions = pd.concat([predictions, predictions.iloc[[0]]], ignore_index=True)
 
     with pytest.raises(TargetReferenceSensitivityError, match="duplicate"):
+        build_target_reference_sensitivity(
+            cycle_summary=cycles,
+            predictions=predictions,
+            config={"group_column": "battery_id", "cycle_column": "cycle_index"},
+        )
+
+
+def test_target_cycle_must_follow_origin_cycle() -> None:
+    cycles, predictions = _frames(
+        capacities={"A": 2.0},
+        persistence_errors_ah={"A": 0.1},
+        ridge_errors_ah={"A": 0.2},
+    )
+    predictions.loc[0, "target_cycle"] = predictions.loc[0, "origin_cycle"]
+
+    with pytest.raises(TargetReferenceSensitivityError, match="later than its origin"):
         build_target_reference_sensitivity(
             cycle_summary=cycles,
             predictions=predictions,
