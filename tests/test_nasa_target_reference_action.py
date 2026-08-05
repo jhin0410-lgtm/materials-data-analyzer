@@ -76,8 +76,8 @@ def _analysis_run(path: Path) -> Path:
                     "ambient_temperature_c": 25.0 + battery,
                 }
             )
-        for origin in (1, 2, 3):
-            target_cycle = origin + 2
+        for origin in (3, 4, 5):
+            target_cycle = origin + 1
             actual = 100.0 - float(target_cycle)
             forecasts.append(
                 {
@@ -221,6 +221,9 @@ def test_target_reference_action_executes_verifies_and_preserves_inputs(
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert all(report["verification"].values())
     assert report["summary"]["primary_reference_id"] == "declared_reference"
+    assert report["summary"][
+        "alternative_references_bounded_by_earliest_forecast_origin"
+    ]
     assert len(report["summary"]["ridge_vs_persistence"]) == 3
     assert {
         item["preferred_model"]
