@@ -19,24 +19,27 @@ REFERENCE_DEFINITIONS: tuple[dict[str, Any], ...] = (
         "role": "primary",
     },
     {
-        "reference_id": "early_window_median_capacity",
+        "reference_id": "preforecast_window_median_capacity",
         "description": (
-            "Median positive finite discharge_capacity_ah from the earliest five "
-            "recorded cycle rows, requiring at least three observations."
+            "Median positive finite discharge_capacity_ah from at most the earliest "
+            "five cycle rows available no later than that battery's earliest forecast "
+            "origin, requiring at least three observations."
         ),
         "role": "predeclared_sensitivity",
     },
     {
-        "reference_id": "early_window_maximum_capacity",
+        "reference_id": "preforecast_window_maximum_capacity",
         "description": (
-            "Maximum positive finite discharge_capacity_ah within the same earliest "
-            "five recorded cycle rows, requiring at least three observations."
+            "Maximum positive finite discharge_capacity_ah within the same bounded "
+            "pre-forecast window, requiring at least three observations."
         ),
         "role": "predeclared_sensitivity",
     },
 )
 _REQUIRED_CYCLE_COLUMNS = {"reference_capacity_ah", "discharge_capacity_ah"}
 _REQUIRED_PREDICTION_COLUMNS = {
+    "origin_cycle",
+    "target_cycle",
     "actual",
     "persistence_prediction",
     "ridge_prediction",
@@ -87,10 +90,23 @@ def _declared_reference(values: pd.Series) -> tuple[float | None, str]:
 
 def _reference_rows(
     cycle_summary: pd.DataFrame,
+    predictions: pd.DataFrame,
     *,
     group_column: str,
     cycle_column: str,
 ) -> pd.DataFrame:
+    origin_table = predictions[[group_column, "origin_cycle"]].copy()
+    origin_table["origin_cycle"] = pd.to_numeric(
+        origin_table["origin_cycle"], errors="coerce"
+    )
+    if not np.isfinite(origin_table["origin_cycle"]).all():
+        raise TargetReferenceSensitivityError(
+            "validation predictions contain non-finite origin cycles"
+        )
+    earliest_origins = origin_table.groupby(
+        group_column, sort=True, dropna=False
+    )["origin_cycle"].min()
+
     rows: list[dict[str, Any]] = []
     ordered = cycle_summary.sort_values(
         [group_column, cycle_column], kind="mergesort"
@@ -99,20 +115,38 @@ def _reference_rows(
         declared, declared_status = _declared_reference(
             battery["reference_capacity_ah"]
         )
-        early = battery.head(5)
-        early_valid = _finite_positive(early["discharge_capacity_ah"])
-        if len(early_valid) >= 3:
-            early_median: float | None = float(early_valid.median())
-            early_maximum: float | None = float(early_valid.max())
-            early_status = "complete"
+        if battery_id not in earliest_origins.index:
+            continue
+        earliest_origin = float(earliest_origins.loc[battery_id])
+        cycle_values = pd.to_numeric(battery[cycle_column], errors="coerce")
+        if not np.isfinite(cycle_values).all():
+            raise TargetReferenceSensitivityError(
+                f"cycle column contains non-finite values for battery {battery_id!r}"
+            )
+        preforecast = battery.loc[cycle_values <= earliest_origin].head(5)
+        preforecast_valid = _finite_positive(
+            preforecast["discharge_capacity_ah"]
+        )
+        if len(preforecast_valid) >= 3:
+            preforecast_median: float | None = float(preforecast_valid.median())
+            preforecast_maximum: float | None = float(preforecast_valid.max())
+            preforecast_status = "complete"
         else:
-            early_median = None
-            early_maximum = None
-            early_status = "fewer_than_three_valid_early_window_observations"
+            preforecast_median = None
+            preforecast_maximum = None
+            preforecast_status = (
+                "fewer_than_three_valid_preforecast_window_observations"
+            )
         values = {
             "declared_reference": (declared, declared_status),
-            "early_window_median_capacity": (early_median, early_status),
-            "early_window_maximum_capacity": (early_maximum, early_status),
+            "preforecast_window_median_capacity": (
+                preforecast_median,
+                preforecast_status,
+            ),
+            "preforecast_window_maximum_capacity": (
+                preforecast_maximum,
+                preforecast_status,
+            ),
         }
         for definition in REFERENCE_DEFINITIONS:
             reference_id = str(definition["reference_id"])
@@ -125,8 +159,11 @@ def _reference_rows(
                     "reference_capacity_ah": value,
                     "reference_status": status,
                     "source_cycle_count": int(len(battery)),
-                    "early_window_row_count": int(len(early)),
-                    "early_window_valid_count": int(len(early_valid)),
+                    "earliest_forecast_origin_cycle": earliest_origin,
+                    "preforecast_window_row_count": int(len(preforecast)),
+                    "preforecast_window_valid_count": int(
+                        len(preforecast_valid)
+                    ),
                 }
             )
     return pd.DataFrame(rows)
@@ -176,7 +213,9 @@ def _metric_rows(
                     "reference_id": reference_id,
                     "model": model,
                     "prediction_count": int(len(reference_frame)),
-                    "evaluated_battery_count": int(by_battery[group_column].nunique()),
+                    "evaluated_battery_count": int(
+                        by_battery[group_column].nunique()
+                    ),
                     "row_weighted_mae": float(errors.mean()),
                     "battery_macro_mae": float(by_battery["battery_mae"].mean()),
                     "worst_battery_mae": float(by_battery["battery_mae"].max()),
@@ -275,6 +314,7 @@ def _summary(
         "conclusion": conclusion,
         "primary_reference_id": "declared_reference",
         "reference_definitions_predeclared": True,
+        "alternative_references_bounded_by_earliest_forecast_origin": True,
         "future_target_observations_used_to_define_alternative_references": False,
         "model_refit_performed": False,
         "source_rows_removed": False,
@@ -289,8 +329,9 @@ def _summary(
             "This is a normalization robustness test of existing predictions. It "
             "does not repair targets, infer a physically superior reference, select "
             "the best-looking target, refit a model, establish mechanism, or change "
-            "the primary declared reference. Alternative references use only the "
-            "earliest five recorded cycle rows and are not deployment targets."
+            "the primary declared reference. Alternative references use at most the "
+            "earliest five recorded cycle rows available by each battery's earliest "
+            "forecast origin and are not deployment targets."
         ),
     }
 
@@ -312,15 +353,25 @@ def build_target_reference_sensitivity(
     )
     _require_columns(
         predictions,
-        {group_column, target_cycle_column, *_REQUIRED_PREDICTION_COLUMNS},
+        {group_column, *_REQUIRED_PREDICTION_COLUMNS},
         label="validation predictions",
     )
     model_columns = _model_columns(predictions)
-    numeric_columns = ["actual", *model_columns]
+    numeric_columns = [
+        "origin_cycle",
+        "target_cycle",
+        "actual",
+        *model_columns,
+    ]
     numeric = predictions[numeric_columns].apply(pd.to_numeric, errors="coerce")
     if not np.isfinite(numeric.to_numpy(dtype=float)).all():
         raise TargetReferenceSensitivityError(
-            "validation predictions contain non-finite actual or model values"
+            "validation predictions contain non-finite origin, target, actual, or "
+            "model values"
+        )
+    if not (numeric["target_cycle"] > numeric["origin_cycle"]).all():
+        raise TargetReferenceSensitivityError(
+            "each validation target cycle must be later than its origin cycle"
         )
     if predictions[[group_column, target_cycle_column]].duplicated().any():
         raise TargetReferenceSensitivityError(
@@ -333,6 +384,7 @@ def build_target_reference_sensitivity(
 
     references = _reference_rows(
         cycle_summary,
+        predictions,
         group_column=group_column,
         cycle_column=cycle_column,
     )
