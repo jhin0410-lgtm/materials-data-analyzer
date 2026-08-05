@@ -1,4 +1,4 @@
-"""Installed command for the deterministic autonomous-research state kernel."""
+"""Installed command for deterministic autonomous-research contracts."""
 
 from __future__ import annotations
 
@@ -9,11 +9,14 @@ from pathlib import Path
 
 from materials_data_analyzer.research_loop import (
     ResearchLoopError,
+    action_summaries,
     append_action,
     append_evidence,
     append_hypothesis,
     append_stop,
+    describe_action,
     initialize_research_loop,
+    load_action_registry,
     load_research_state,
     verify_research_loop,
 )
@@ -28,13 +31,31 @@ def _add_run_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_registry_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--registry",
+        required=True,
+        type=Path,
+        help="Versioned action-registry JSON file.",
+    )
+    parser.add_argument(
+        "--repository-root",
+        required=True,
+        type=Path,
+        help=(
+            "Repository checkout root used to verify installed-command declarations "
+            "and source-script paths."
+        ),
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mda-research-loop",
         description=(
-            "Create and verify append-only research state for bounded autonomous "
-            "materials research. This command records objectives, hypotheses, evidence, "
-            "actions, budgets, and stop decisions; it does not yet plan or execute models."
+            "Create and verify append-only research state and strict deterministic "
+            "action registries for bounded autonomous materials research. This command "
+            "does not yet choose or execute scientific actions automatically."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -97,10 +118,36 @@ def build_parser() -> argparse.ArgumentParser:
         "verify", help="Verify objective binding, hash chaining, and state reconstruction."
     )
     _add_run_argument(verify_parser)
+
+    validate_actions = subparsers.add_parser(
+        "validate-actions",
+        help="Validate an action registry and all currently available bindings.",
+    )
+    _add_registry_arguments(validate_actions)
+
+    list_actions = subparsers.add_parser(
+        "list-actions",
+        help="List available and planned actions from a validated registry.",
+    )
+    _add_registry_arguments(list_actions)
+
+    describe = subparsers.add_parser(
+        "describe-action",
+        help="Show the complete bounded contract for one registered action.",
+    )
+    _add_registry_arguments(describe)
+    describe.add_argument("--action-type", required=True)
     return parser
 
 
-def _run_command(args: argparse.Namespace) -> dict[str, object]:
+def _load_registry_from_args(args: argparse.Namespace) -> dict[str, object]:
+    return load_action_registry(
+        args.registry,
+        repository_root=args.repository_root,
+    )
+
+
+def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str, object]]:
     if args.command == "init":
         return initialize_research_loop(args.objective, args.output)
     if args.command == "add-hypothesis":
@@ -138,6 +185,21 @@ def _run_command(args: argparse.Namespace) -> dict[str, object]:
         return load_research_state(args.run)
     if args.command == "verify":
         return verify_research_loop(args.run)
+    if args.command == "validate-actions":
+        registry = _load_registry_from_args(args)
+        return {
+            "valid": True,
+            "registry_id": registry["registry_id"],
+            "domain": registry["domain"],
+            "registry_path": registry["registry_path"],
+            "registry_sha256": registry["registry_sha256"],
+            "available_action_count": registry["available_action_count"],
+            "planned_action_count": registry["planned_action_count"],
+        }
+    if args.command == "list-actions":
+        return action_summaries(_load_registry_from_args(args))
+    if args.command == "describe-action":
+        return describe_action(_load_registry_from_args(args), args.action_type)
     raise AssertionError(f"unhandled command: {args.command}")
 
 
@@ -154,6 +216,7 @@ def main(argv: list[str] | None = None) -> int:
         ResearchLoopError,
         TypeError,
         KeyError,
+        tomllib.TOMLDecodeError if False else ValueError,
     ) as exc:
         print(f"Research loop command failed: {exc}", file=sys.stderr)
         return 1
