@@ -198,15 +198,28 @@ def test_registry_rejects_duplicate_action_or_io_names() -> None:
 
 def test_available_actions_preserve_negative_results_and_claim_boundaries() -> None:
     registry = load_action_registry(REGISTRY, repository_root=ROOT)
+    by_id = {action["action_type"]: action for action in registry["actions"]}
 
-    for action in registry["actions"]:
-        if action["availability"] != "available":
-            continue
-        assert action["verifier_checks"]
-        combined = set(action["prohibited_effects"])
-        assert not ({"target_repair", "battery_exclusion"} - combined) or action[
-            "action_type"
-        ] == "audit_existing_battery_run"
-    fixed = describe_action(registry, "run_fixed_battery_intelligence")
+    for action_id in AVAILABLE_ACTIONS:
+        assert by_id[action_id]["verifier_checks"]
+
+    fixed = by_id["run_fixed_battery_intelligence"]
     assert "learned_model_unsupported" in fixed["allowed_outcomes"]
-    assert "external_generalization_claim" in fixed["prohibited_effects"]
+    assert {"target_repair", "silent_battery_exclusion", "external_generalization_claim"}.issubset(
+        fixed["prohibited_effects"]
+    )
+
+    audit = by_id["audit_existing_battery_run"]
+    assert {"battery_exclusion", "target_renormalization", "replacement_validation_score"}.issubset(
+        audit["prohibited_effects"]
+    )
+
+    closeout = by_id["close_reviewed_nasa_audit"]
+    assert {"model_refit", "target_repair", "external_validation_claim"}.issubset(
+        closeout["prohibited_effects"]
+    )
+
+    importer = by_id["import_official_nasa_archive"]
+    assert {"signal_interpolation", "signal_smoothing", "timezone_inference"}.issubset(
+        importer["prohibited_effects"]
+    )
