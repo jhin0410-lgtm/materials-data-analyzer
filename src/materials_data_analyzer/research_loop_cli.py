@@ -15,9 +15,11 @@ from materials_data_analyzer.research_loop import (
     append_hypothesis,
     append_stop,
     describe_action,
+    execute_nasa_audit_action,
     initialize_research_loop,
     load_action_registry,
     load_research_state,
+    verify_nasa_audit_action_report,
     verify_research_loop,
 )
 
@@ -53,9 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mda-research-loop",
         description=(
-            "Create and verify append-only research state and strict deterministic "
-            "action registries for bounded autonomous materials research. This command "
-            "does not yet choose or execute scientific actions automatically."
+            "Create and verify append-only research state, bounded action registries, "
+            "and typed deterministic actions for autonomous materials research. No "
+            "planner or unrestricted code generation is enabled."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -137,6 +139,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_registry_arguments(describe)
     describe.add_argument("--action-type", required=True)
+
+    execute_audit = subparsers.add_parser(
+        "execute-nasa-audit",
+        help=(
+            "Execute the typed existing-Battery-run audit request, independently "
+            "verify outputs, and append the result to the research ledger."
+        ),
+    )
+    execute_audit.add_argument("--request", required=True, type=Path)
+
+    verify_audit = subparsers.add_parser(
+        "verify-nasa-audit",
+        help="Re-verify a completed or failed typed NASA audit action report.",
+    )
+    verify_audit.add_argument("--report", required=True, type=Path)
     return parser
 
 
@@ -200,6 +217,10 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         return action_summaries(_load_registry_from_args(args))
     if args.command == "describe-action":
         return describe_action(_load_registry_from_args(args), args.action_type)
+    if args.command == "execute-nasa-audit":
+        return execute_nasa_audit_action(args.request)
+    if args.command == "verify-nasa-audit":
+        return verify_nasa_audit_action_report(args.report)
     raise AssertionError(f"unhandled command: {args.command}")
 
 
@@ -221,6 +242,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Research loop command failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
+    if isinstance(result, dict) and result.get("execution_status") == "failed":
+        return 2
     return 0
 
 
