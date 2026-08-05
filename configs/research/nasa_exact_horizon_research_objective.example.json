@@ -1,0 +1,38 @@
+{
+  "budget": {
+    "maximum_actions": 12,
+    "maximum_cost_units": 100
+  },
+  "constraints": [
+    "battery_disjoint_validation",
+    "source_cohort_disjoint_validation",
+    "no_random_row_split",
+    "no_target_repair",
+    "no_locked_test_reuse",
+    "preserve_negative_results"
+  ],
+  "metadata": {
+    "current_evidence_level": "Unsupported",
+    "intended_first_benchmark": "retrospective_closed_loop",
+    "scientific_scope": "warm-start cross-battery exact-horizon capacity prediction"
+  },
+  "metrics": {
+    "primary": "battery_macro_mae",
+    "secondary": [
+      "source_cohort_macro_mae",
+      "worst_battery_mae",
+      "battery_macro_conformal_coverage",
+      "risk_coverage_auc"
+    ]
+  },
+  "question": "Within a bounded action budget, can the research loop identify a scientifically defensible path beyond the strongest origin-only baseline for exact-horizon battery capacity prediction, or determine the minimum external evidence required?",
+  "research_id": "nasa-exact-horizon-autonomous-loop-v1",
+  "schema_version": "1.0",
+  "stop_rules": [
+    "hypothesis_resolved",
+    "no_positive_value_action",
+    "external_evidence_required",
+    "budget_exhausted",
+    "scientific_contract_violation"
+  ]
+}
