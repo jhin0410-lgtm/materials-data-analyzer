@@ -15,6 +15,7 @@ Set-StrictMode -Version Latest
 function Resolve-RepositoryPath {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$Value,
         [Parameter(Mandatory = $true)]
         [string]$DefaultRelativePath
