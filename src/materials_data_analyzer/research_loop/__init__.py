@@ -2,8 +2,8 @@
 
 The package deliberately contains no language model, unconstrained code
 generation, model fitting, or automatic scientific conclusion logic yet. It
-provides immutable state, a strict action registry, and typed deterministic
-action execution on which later planner components can safely depend.
+provides immutable state, a strict action registry, typed deterministic action
+execution, and a deterministic next-action baseline for later planner comparison.
 """
 
 from .action_registry import (
@@ -25,6 +25,10 @@ from .kernel import (
     load_research_state,
     verify_research_loop,
 )
+from .nasa_action_policy import (
+    NasaActionPolicyError,
+    plan_nasa_next_action,
+)
 from .nasa_audit_executor import (
     ACTION_REPORT_FILENAME,
     NasaAuditActionError,
@@ -37,6 +41,7 @@ __all__ = [
     "ACTION_REPORT_FILENAME",
     "LEDGER_FILENAME",
     "STATE_FILENAME",
+    "NasaActionPolicyError",
     "NasaAuditActionError",
     "ResearchLoopError",
     "action_summaries",
@@ -49,6 +54,7 @@ __all__ = [
     "initialize_research_loop",
     "load_action_registry",
     "load_research_state",
+    "plan_nasa_next_action",
     "validate_action_registry",
     "verify_nasa_audit_action_report",
     "verify_research_loop",
