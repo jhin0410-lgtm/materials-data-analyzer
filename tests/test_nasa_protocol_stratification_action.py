@@ -158,7 +158,9 @@ def _existing_runs(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     )
     (analysis / "run_manifest.json").write_text("{}\n", encoding="utf-8")
 
-    audit_report = tmp_path / "audit_action_result.json"
+    audit_directory = tmp_path / "audit"
+    audit_directory.mkdir()
+    audit_report = audit_directory / "action_result.json"
     audit_report.write_text(
         json.dumps(
             {
