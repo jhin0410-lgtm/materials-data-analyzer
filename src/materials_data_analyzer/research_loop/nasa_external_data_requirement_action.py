@@ -233,8 +233,9 @@ def _protocol_metadata_requirement(
                 "Recover authoritative battery-level ambient-temperature metadata "
                 "before evaluating exact-temperature differences in model error."
             ),
-            "required_cohort_role": (
-                "authoritative_metadata_recovery_or_independent_external"
+            "required_evidence_route": "authoritative_metadata_recovery",
+            "fallback_cohort_role": (
+                "independent_external_or_predeclared_calibration"
             ),
             "required_metadata": [
                 {
@@ -427,15 +428,16 @@ def _target_requirement(
         return None
     requirement = {
         "schema_version": "1.0",
-        "outcome": "minimum_external_cohort_contract_generated",
+        "outcome": "current_blocker_not_resolvable_by_more_data",
         "status": "Diagnostic",
         "current_evidence_level": "Unsupported",
         "blocker": "required_reference_metadata_missing",
         "decision_use": (
-            "Establish a defensible battery-level capacity reference before exact-"
+            "Recover a defensible battery-level capacity reference before exact-"
             "horizon target normalization and model comparison."
         ),
-        "required_cohort_role": "independent_external_or_predeclared_calibration",
+        "required_evidence_route": "authoritative_metadata_recovery",
+        "fallback_cohort_role": "independent_external_or_predeclared_calibration",
         "required_metadata": [
             {
                 "field": "reference_capacity_ah",
@@ -448,6 +450,12 @@ def _target_requirement(
                 ],
             }
         ],
+        "fallback_contract": {
+            "when_authoritative_metadata_cannot_be_recovered": (
+                "Acquire an independent external or predeclared calibration cohort "
+                "with explicit, source-bound reference capacity metadata."
+            )
+        },
         "prohibited_substitutions": [
             "post_forecast_target_values",
             "filename_inference",
@@ -455,8 +463,9 @@ def _target_requirement(
             "relabeling_existing_evaluation_batteries_as_external",
         ],
         "scientific_boundary": (
-            "Supplying metadata permits a predeclared sensitivity analysis only. "
-            "It does not establish predictive validity or upgrade evidence."
+            "Additional rows do not repair missing reference metadata on the current "
+            "batteries. Recovery or an independent fallback cohort permits only a "
+            "predeclared sensitivity analysis and does not upgrade predictive evidence."
         ),
     }
     return requirement, [target_report_path]
@@ -593,7 +602,7 @@ def execute_nasa_external_data_requirement_action(
             "verification": {
                 "requirement_names_blocker_and_decision_use": True,
                 "required_metadata_and_units_are_explicit": True,
-                "cohort_role_is_external_or_calibration": True,
+                "evidence_route_is_metadata_recovery_or_external_calibration": True,
                 "no_existing_dataset_is_rebranded_as_external": True,
                 "data_download_not_performed": True,
                 "evidence_level_unchanged": True,
@@ -607,7 +616,7 @@ def execute_nasa_external_data_requirement_action(
         action_type=ACTION_TYPE,
         status="completed",
         summary=(
-            "Minimum external-data requirement contract generated; the current "
+            "Minimum evidence requirement contract generated; the current "
             "evidence remains Unsupported."
         ),
         cost_units=contract["cost_units"],
@@ -617,8 +626,8 @@ def execute_nasa_external_data_requirement_action(
         research_run,
         reason_code=STOP_REASON,
         summary=(
-            "The bounded loop requires independently sourced evidence satisfying "
-            "the generated contract before further analysis."
+            "The bounded loop requires authoritative recovered metadata or "
+            "independently sourced evidence satisfying the generated contract."
         ),
     )
     return {
