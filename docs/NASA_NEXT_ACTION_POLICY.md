@@ -104,6 +104,22 @@ This transition table prevents a completed robustness check from being discarded
 as a ledger bookkeeping event. It also prevents a favorable alternative target
 from being promoted automatically.
 
+## Verified protocol transitions
+
+A completed `protocol_stratification` action is also independently recomputed.
+Its result controls whether the policy continues transport diagnostics or records a
+specific data limitation:
+
+| Verified protocol outcome | Policy transition |
+|---|---|
+| `protocol_effect_supported` | Continue to the next untried audit-justified action; the result remains diagnostic and observational. |
+| `protocol_effect_not_supported` | Continue to the next untried audit-justified action without claiming absence of all protocol effects. |
+| `protocol_metadata_insufficient` | Prioritize `external_data_requirement_generation` with score 135. |
+| `protocol_groups_too_small` | Prioritize `external_data_requirement_generation` with score 135 rather than testing a favorable subset. |
+
+The exact method and scientific boundary are documented in
+`NASA_PROTOCOL_STRATIFICATION_ACTION.md`.
+
 ## Execution contract in the decision
 
 Every candidate includes:
@@ -117,10 +133,16 @@ Callers must use those exact execution-registry fields when constructing the typ
 action request. They must not assume that the broad planning registry is also the
 current execution contract.
 
-`target_reference_sensitivity` is currently routed to
-`configs/research/nasa_target_reference_action_registry.v1.json`. Its verified
-version `1.0` executor is therefore reported as `available` and may be selected as
-`ready_to_execute` when budget permits. Other actions retain their planning status.
+The policy currently routes:
+
+- `target_reference_sensitivity` to
+  `configs/research/nasa_target_reference_action_registry.v1.json`;
+- `protocol_stratification` to
+  `configs/research/nasa_protocol_stratification_action_registry.v1.json`.
+
+Both version `1.0` executors are reported as `available` when their verified
+preconditions and budgets permit execution. Other actions retain their planning
+status.
 
 ## Availability and budget behavior
 
@@ -141,9 +163,9 @@ software availability drive research reasoning.
 
 A failed audit produces `manual_review_required`. Any failed post-audit action also
 produces `manual_review_required`; it is not silently removed from the candidate
-set while the policy continues to a lower-ranked experiment. For the implemented
-target-reference action, the failure report is independently verified before its
-error is exposed in the decision.
+set while the policy continues to a lower-ranked experiment. Failure reports for
+the implemented target-reference and protocol actions are independently verified
+before their errors are exposed in the decision.
 
 Automatic repetition and continuation remain disabled until the failure or input
 condition is reviewed. A stopped research run produces `research_stopped` with no
@@ -176,10 +198,10 @@ research policy.
 
 ## Current boundary
 
-The policy presently reasons from the existing Battery run audit and the verified
-result of the implemented target-reference action. It does not inspect raw
-literature, generate new hypotheses, calculate Bayesian expected information gain,
-train an action-value model, or execute protocol stratification, source-cohort
+The policy presently reasons from the existing Battery audit and verified results
+of the implemented target-reference and exact-temperature protocol actions. It
+does not inspect raw literature, generate new hypotheses, calculate Bayesian
+expected information gain, train an action-value model, or execute source-cohort
 evaluation, feature ablation, state-space, abstention, or data-requirement actions.
 
 Those remaining actions stay `planned` until each has a typed adapter, verifier,
