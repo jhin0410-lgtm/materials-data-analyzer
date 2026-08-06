@@ -20,12 +20,21 @@ def test_characterization_import_cli_forwards_explicit_inputs(
     process.write_text("sample_id\nsample-a\n", encoding="utf-8")
     captured: dict[str, object] = {}
 
-    def fake_consume(bundle_manifest, output_dir, *, process_table_path=None):
+    def fake_consume(
+        bundle_manifest,
+        output_dir,
+        *,
+        process_table_path=None,
+        requested_use="descriptive",
+        split_group_field=None,
+    ):
         captured.update(
             {
                 "bundle_manifest": bundle_manifest,
                 "output_dir": output_dir,
                 "process_table_path": process_table_path,
+                "requested_use": requested_use,
+                "split_group_field": split_group_field,
             }
         )
         return {
@@ -33,7 +42,11 @@ def test_characterization_import_cli_forwards_explicit_inputs(
             "cross_repository_report": Path(output_dir) / "cross_repository_handoff_report.md",
         }
 
-    monkeypatch.setattr(cli, "consume_characterization_bundle", fake_consume)
+    monkeypatch.setattr(
+        cli,
+        "consume_characterization_bundle_for_use",
+        fake_consume,
+    )
     result = cli.main(
         [
             "--bundle-manifest",
@@ -42,6 +55,10 @@ def test_characterization_import_cli_forwards_explicit_inputs(
             str(process),
             "--output",
             str(output),
+            "--requested-use",
+            "association",
+            "--split-group-field",
+            "parent_specimen_id",
         ]
     )
 
@@ -50,6 +67,8 @@ def test_characterization_import_cli_forwards_explicit_inputs(
         "bundle_manifest": bundle,
         "output_dir": output,
         "process_table_path": process,
+        "requested_use": "association",
+        "split_group_field": "parent_specimen_id",
     }
     stdout = capsys.readouterr().out
     assert "Cross-repository characterization handoff completed." in stdout
@@ -61,7 +80,11 @@ def test_characterization_import_cli_fails_closed(tmp_path: Path, monkeypatch, c
     def fail(*args, **kwargs):
         raise ValueError("checksum mismatch")
 
-    monkeypatch.setattr(cli, "consume_characterization_bundle", fail)
+    monkeypatch.setattr(
+        cli,
+        "consume_characterization_bundle_for_use",
+        fail,
+    )
     result = cli.main(
         [
             "--bundle-manifest",
