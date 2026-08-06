@@ -111,8 +111,11 @@ def test_missing_protocol_metadata_requires_authoritative_recovery(
     requirement, inputs = result
     assert requirement["outcome"] == "current_blocker_not_resolvable_by_more_data"
     assert requirement["blocker"] == "protocol_metadata_insufficient"
-    assert requirement["required_cohort_role"] == (
-        "authoritative_metadata_recovery_or_independent_external"
+    assert requirement["required_evidence_route"] == (
+        "authoritative_metadata_recovery"
+    )
+    assert requirement["fallback_cohort_role"] == (
+        "independent_external_or_predeclared_calibration"
     )
     metadata = requirement["required_metadata"][0]
     assert metadata["field"] == "ambient_temperature_median_c"
@@ -146,13 +149,16 @@ def test_single_exact_group_requires_a_new_source_recorded_group(
     requirement, _ = result
     contract = requirement["minimum_group_contract"]
     assert requirement["outcome"] == "minimum_external_cohort_contract_generated"
+    assert requirement["required_cohort_role"] == (
+        "independent_external_or_predeclared_calibration"
+    )
     assert contract["current_exact_groups"] == 1
     assert contract["additional_distinct_exact_group_required"] is True
     assert contract["minimum_evaluated_batteries_per_exact_group"] == 5
     assert contract["new_temperature_value_must_not_be_guessed"] is True
 
 
-def test_target_requirement_names_reference_capacity_metadata(
+def test_target_requirement_requires_reference_metadata_recovery_first(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     report = tmp_path / "action_result.json"
@@ -168,6 +174,13 @@ def test_target_requirement_names_reference_capacity_metadata(
     assert result is not None
     requirement, _ = result
     metadata = requirement["required_metadata"][0]
+    assert requirement["outcome"] == "current_blocker_not_resolvable_by_more_data"
+    assert requirement["required_evidence_route"] == (
+        "authoritative_metadata_recovery"
+    )
+    assert requirement["fallback_cohort_role"] == (
+        "independent_external_or_predeclared_calibration"
+    )
     assert metadata["field"] == "reference_capacity_ah"
     assert metadata["unit"] == "ampere_hour"
     assert requirement["current_evidence_level"] == "Unsupported"
@@ -278,3 +291,7 @@ def test_external_action_registry_is_executable() -> None:
     assert contract["availability"] == "available"
     assert contract["cost_units"] == 2
     assert contract["binding"]["kind"] == "source_script"
+    assert (
+        "evidence_route_is_metadata_recovery_or_external_calibration"
+        in contract["verifier_checks"]
+    )
