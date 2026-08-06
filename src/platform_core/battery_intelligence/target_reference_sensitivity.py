@@ -7,6 +7,7 @@ views and checks whether the primary Ridge-versus-persistence conclusion changes
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,11 @@ def _finite_positive(series: pd.Series) -> pd.Series:
     return numeric.notna() & np.isfinite(numeric) & (numeric > 0)
 
 
+def _finite_nonnegative(series: pd.Series) -> pd.Series:
+    numeric = pd.to_numeric(series, errors="coerce")
+    return numeric.notna() & np.isfinite(numeric) & (numeric >= 0)
+
+
 def _mae(actual: pd.Series, prediction: pd.Series) -> float:
     return float(np.mean(np.abs(actual.to_numpy(float) - prediction.to_numpy(float))))
 
@@ -59,7 +65,6 @@ def _metric_rows(
     *,
     group_column: str,
     target_name: str,
-    actual_column: str,
     model_columns: list[str],
     pooled_comparability: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -126,6 +131,25 @@ def _comparison(summary: pd.DataFrame, target_name: str) -> dict[str, Any]:
     }
 
 
+def _missing_reference_result() -> dict[str, Any]:
+    return {
+        "summary": {
+            "schema_version": "1.0",
+            "outcome": "required_reference_metadata_missing",
+            "primary_target": _PRIMARY_TARGET,
+            "alternative_target": _ALTERNATIVE_TARGET,
+            "scientific_boundary": (
+                "No target was changed or repaired. Sensitivity cannot be evaluated "
+                "because one or more evaluated target rows lack finite positive "
+                "reference capacity or finite non-negative discharge capacity."
+            ),
+        },
+        "model_comparison": pd.DataFrame(),
+        "per_battery_comparison": pd.DataFrame(),
+        "bound_predictions": pd.DataFrame(),
+    }
+
+
 def build_target_reference_sensitivity(
     *,
     cycle_summary: pd.DataFrame,
@@ -169,29 +193,8 @@ def build_target_reference_sensitivity(
         raise ValueError(
             "cycle summary contains duplicate group/cycle rows required for target binding"
         )
-    if not _finite_positive(cycle["reference_capacity_ah"]).all():
-        return {
-            "summary": {
-                "schema_version": "1.0",
-                "outcome": "required_reference_metadata_missing",
-                "primary_target": _PRIMARY_TARGET,
-                "alternative_target": _ALTERNATIVE_TARGET,
-                "scientific_boundary": (
-                    "No target was changed or repaired. Sensitivity cannot be evaluated "
-                    "because one or more target rows lack a finite positive reference capacity."
-                ),
-            },
-            "model_comparison": pd.DataFrame(),
-            "per_battery_comparison": pd.DataFrame(),
-            "bound_predictions": pd.DataFrame(),
-        }
 
-    prediction_columns = [
-        group_column,
-        "target_cycle",
-        "actual",
-        *model_columns,
-    ]
+    prediction_columns = [group_column, "target_cycle", "actual", *model_columns]
     bound = predictions[prediction_columns].merge(
         cycle,
         how="left",
@@ -206,12 +209,19 @@ def build_target_reference_sensitivity(
             f"{missing_count} validation rows could not be bound to target-cycle evidence"
         )
     bound = bound.drop(columns=["_merge"])
+    if not _finite_positive(bound["reference_capacity_ah"]).all():
+        return _missing_reference_result()
+    if not _finite_nonnegative(bound["discharge_capacity_ah"]).all():
+        return _missing_reference_result()
 
     actual_difference = (
         pd.to_numeric(bound["actual"], errors="coerce")
         - pd.to_numeric(bound["capacity_retention_percent"], errors="coerce")
     ).abs()
-    if actual_difference.isna().any() or float(actual_difference.max()) > target_tolerance_percent:
+    if (
+        actual_difference.isna().any()
+        or float(actual_difference.max()) > target_tolerance_percent
+    ):
         raise ValueError(
             "validation actual values do not match the bound rated-capacity retention target"
         )
@@ -224,7 +234,10 @@ def build_target_reference_sensitivity(
         reconstructed_retention
         - pd.to_numeric(bound["capacity_retention_percent"], errors="coerce")
     ).abs()
-    if reconstruction_error.isna().any() or float(reconstruction_error.max()) > target_tolerance_percent:
+    if (
+        reconstruction_error.isna().any()
+        or float(reconstruction_error.max()) > target_tolerance_percent
+    ):
         raise ValueError(
             "source discharge capacity does not reproduce the recorded retention target"
         )
@@ -238,7 +251,9 @@ def build_target_reference_sensitivity(
         model = model_column[: -len("_prediction")]
         prediction = pd.to_numeric(bound[model_column], errors="coerce")
         if prediction.isna().any() or not np.isfinite(prediction).all():
-            raise ValueError(f"model prediction column contains non-finite values: {model_column}")
+            raise ValueError(
+                f"model prediction column contains non-finite values: {model_column}"
+            )
         bound[f"{_PRIMARY_TARGET}__{model}_prediction"] = prediction
         bound[f"{_ALTERNATIVE_TARGET}__{model}_prediction"] = (
             prediction * reference / 100.0
@@ -248,7 +263,6 @@ def build_target_reference_sensitivity(
         bound,
         group_column=group_column,
         target_name=_PRIMARY_TARGET,
-        actual_column="actual",
         model_columns=model_columns,
         pooled_comparability="declared_primary_cross_battery_metric",
     )
@@ -256,7 +270,6 @@ def build_target_reference_sensitivity(
         bound,
         group_column=group_column,
         target_name=_ALTERNATIVE_TARGET,
-        actual_column="discharge_capacity_ah",
         model_columns=model_columns,
         pooled_comparability="diagnostic_only_capacity_scale_dependent",
     )
@@ -339,8 +352,10 @@ def target_reference_markdown(summary: Mapping[str, Any]) -> str:
             [
                 "## Ridge versus Persistence",
                 "",
-                f"- Primary battery-macro Ridge minus persistence MAE: `{primary['ridge_minus_persistence_battery_macro_mae']}`",
-                f"- Alternative battery-macro Ridge minus persistence MAE: `{alternative['ridge_minus_persistence_battery_macro_mae']}`",
+                "- Primary battery-macro Ridge minus persistence MAE: "
+                f"`{primary['ridge_minus_persistence_battery_macro_mae']}`",
+                "- Alternative battery-macro Ridge minus persistence MAE: "
+                f"`{alternative['ridge_minus_persistence_battery_macro_mae']}`",
                 f"- Primary conclusion stable: `{summary['primary_conclusion_stable']}`",
                 "",
             ]
@@ -356,7 +371,9 @@ def target_reference_markdown(summary: Mapping[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def load_target_reference_inputs(output_dir: str | Path) -> tuple[pd.DataFrame, pd.DataFrame, str]:
+def load_target_reference_inputs(
+    output_dir: str | Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     """Load the fixed existing-run inputs required by the sensitivity analysis."""
     output = Path(output_dir)
     cycle_path = output / "tables/validated_cycle_summary.csv"
@@ -371,8 +388,6 @@ def load_target_reference_inputs(output_dir: str | Path) -> tuple[pd.DataFrame, 
         raise FileNotFoundError(
             "battery run is missing target-sensitivity inputs: " + ", ".join(missing)
         )
-    import json
-
     config = json.loads(config_path.read_text(encoding="utf-8"))
     group_column = str(config["config"]["group_column"])
     return pd.read_csv(cycle_path), pd.read_csv(prediction_path), group_column
