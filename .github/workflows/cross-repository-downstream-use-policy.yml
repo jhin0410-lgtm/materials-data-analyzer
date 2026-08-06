@@ -1,0 +1,211 @@
+name: Cross-repository downstream-use policy contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/materials_data_analyzer/characterization_use_contract.py"
+      - "src/materials_data_analyzer/characterization_use_workflow.py"
+      - "src/materials_data_analyzer/characterization_import_cli.py"
+      - "src/loaders/characterization_bundle.py"
+      - "scripts/consume_characterization_handoff_bundle.py"
+      - "tests/test_characterization_use_policy.py"
+      - "tests/test_characterization_use_workflow.py"
+      - ".github/workflows/cross-repository-downstream-use-policy.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-repository-downstream-use-policy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MCA_COMMIT: cdc89e4ed54be6ebe61ef869d0f5b912be0c84a4
+
+jobs:
+  validate-policy-aware-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+        with:
+          path: materials-data-analyzer
+
+      - name: Check out policy-aware materials-characterization-analyzer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: ${{ env.MCA_COMMIT }}
+          path: materials-characterization-analyzer
+
+      - name: Verify exact producer commit
+        shell: bash
+        run: |
+          actual="$(git -C materials-characterization-analyzer rev-parse HEAD)"
+          test "$actual" = "$MCA_COMMIT"
+          echo "verified MCA producer commit: $actual"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install both repositories independently
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r materials-data-analyzer/requirements.txt
+          python -m pip install -e materials-data-analyzer
+          python -m pip install -e materials-characterization-analyzer
+
+      - name: Export policy-aware NIST AM-Bench bundle
+        shell: bash
+        run: |
+          python materials-characterization-analyzer/scripts/export_nist_ambench_2018_02_optical_metrology_bundle.py \
+            --config materials-characterization-analyzer/case_studies/nist_ambench_2018_02/case_config.json \
+            --output materials-characterization-analyzer/outputs/policy-aware-nist-ambench
+
+      - name: Verify producer downstream-use policy
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest_path = Path(
+              "materials-characterization-analyzer/outputs/"
+              "policy-aware-nist-ambench/characterization_handoff_bundle.json"
+          )
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          policy = manifest["downstream_use_policy"]
+
+          assert manifest["scientific_closeout"]["evidence_level"] == "Diagnostic"
+          assert policy["schema_version"] == "1.0"
+          assert policy["maximum_allowed_use"] == "descriptive"
+          assert policy["evidence_level"] == "Diagnostic"
+          assert policy["feature_stage"] == "derived"
+          assert policy["review_status"] == "review_required"
+          assert policy["independence_group_field"] is None
+          assert policy["measurement_timing"] == "unknown"
+          assert policy["causal_design_validated"] is False
+          assert policy["operational_validation_validated"] is False
+          assert policy["limitations"]
+          print(json.dumps(policy, indent=2, sort_keys=True))
+          PY
+
+      - name: Consume bundle for descriptive use
+        shell: bash
+        run: |
+          mda-characterization-import \
+            --bundle-manifest materials-characterization-analyzer/outputs/policy-aware-nist-ambench/characterization_handoff_bundle.json \
+            --process-table materials-data-analyzer/data/case_studies/nist_ambench_2018_02/source_process_conditions.csv \
+            --output materials-data-analyzer/outputs/policy-aware-nist-consumer \
+            --requested-use descriptive
+
+      - name: Verify recorded eligibility and output hashes
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path(
+              "materials-data-analyzer/outputs/policy-aware-nist-consumer"
+          )
+          eligibility = json.loads(
+              (output / "characterization_use_eligibility.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          summary = json.loads(
+              (output / "cross_repository_handoff_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          manifest = json.loads(
+              (output / "cross_repository_handoff_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          assert eligibility["status"] == "characterization_downstream_use_allowed"
+          assert eligibility["allowed"] is True
+          assert eligibility["requested_use"] == "descriptive"
+          assert eligibility["maximum_allowed_use"] == "descriptive"
+          assert eligibility["policy_source"] == "manifest"
+          assert eligibility["evidence_level"] == "Diagnostic"
+          assert eligibility["measurement_timing"] == "unknown"
+          assert eligibility["reasons"] == []
+
+          expected = {
+              key: eligibility[key]
+              for key in (
+                  "requested_use",
+                  "allowed",
+                  "maximum_allowed_use",
+                  "policy_source",
+                  "evidence_level",
+                  "feature_stage",
+                  "review_status",
+                  "independence_group_field",
+                  "split_group_field",
+                  "measurement_timing",
+                  "reasons",
+                  "warnings",
+                  "limitations",
+              )
+          }
+          assert summary["downstream_use_eligibility"] == expected
+          assert manifest["downstream_use_eligibility"] == expected
+
+          for name, filename in manifest["outputs"].items():
+              path = output / filename
+              assert path.is_file()
+              assert manifest["output_sha256"][name] == hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
+          PY
+
+      - name: Verify predictive use fails closed before output creation
+        shell: bash
+        run: |
+          blocked_output="materials-data-analyzer/outputs/policy-aware-nist-predictive-blocked"
+          set +e
+          mda-characterization-import \
+            --bundle-manifest materials-characterization-analyzer/outputs/policy-aware-nist-ambench/characterization_handoff_bundle.json \
+            --process-table materials-data-analyzer/data/case_studies/nist_ambench_2018_02/source_process_conditions.csv \
+            --output "$blocked_output" \
+            --requested-use predictive \
+            --split-group-field sample_id \
+            > materials-data-analyzer/outputs/policy-aware-predictive-block.log 2>&1
+          code=$?
+          set -e
+          cat materials-data-analyzer/outputs/policy-aware-predictive-block.log
+          test "$code" -ne 0
+          test ! -e "$blocked_output"
+          grep -F "exceeds maximum_allowed_use 'descriptive'" \
+            materials-data-analyzer/outputs/policy-aware-predictive-block.log
+
+      - name: Run focused policy regressions
+        working-directory: materials-data-analyzer
+        run: |
+          python -m pytest -q \
+            tests/test_characterization_use_policy.py \
+            tests/test_characterization_use_workflow.py \
+            tests/test_characterization_import_cli.py
+
+      - name: Upload contract evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-repository-downstream-use-policy-evidence
+          path: |
+            materials-characterization-analyzer/outputs/policy-aware-nist-ambench
+            materials-data-analyzer/outputs/policy-aware-nist-consumer
+            materials-data-analyzer/outputs/policy-aware-predictive-block.log
+          if-no-files-found: warn
+          retention-days: 14
