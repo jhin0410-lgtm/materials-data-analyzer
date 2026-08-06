@@ -15,6 +15,11 @@ from .target_comparability import (
     audit_battery_intelligence_run,
     build_target_comparability_audit,
 )
+from .target_reference_sensitivity import (
+    build_target_reference_sensitivity,
+    load_target_reference_inputs,
+    target_reference_markdown,
+)
 from .influence_triage import (
     audit_battery_influence_run,
     build_battery_influence_triage,
@@ -37,6 +42,9 @@ __all__ = [
     "audit_raw_signal_admission",
     "build_target_comparability_audit",
     "audit_battery_intelligence_run",
+    "build_target_reference_sensitivity",
+    "load_target_reference_inputs",
+    "target_reference_markdown",
     "build_battery_influence_triage",
     "audit_battery_influence_run",
     "scientific_closeout",
