@@ -32,11 +32,17 @@ from .nasa_audit_executor import (
     execute_nasa_audit_action,
     verify_nasa_audit_action_report,
 )
+from .nasa_protocol_stratification_action import (
+    NasaProtocolStratificationActionError,
+    execute_nasa_protocol_stratification_action,
+    verify_nasa_protocol_stratification_report,
+)
 from .nasa_target_reference_action import (
     NasaTargetReferenceActionError,
     execute_nasa_target_reference_action,
     verify_nasa_target_reference_report,
 )
+from .protocol_stratification import build_protocol_stratification
 from .target_reference_sensitivity import (
     TargetReferenceSensitivityError,
     build_target_reference_sensitivity,
@@ -49,6 +55,7 @@ __all__ = [
     "STATE_FILENAME",
     "NasaActionPolicyError",
     "NasaAuditActionError",
+    "NasaProtocolStratificationActionError",
     "NasaTargetReferenceActionError",
     "ResearchLoopError",
     "TargetReferenceSensitivityError",
@@ -57,9 +64,11 @@ __all__ = [
     "append_evidence",
     "append_hypothesis",
     "append_stop",
+    "build_protocol_stratification",
     "build_target_reference_sensitivity",
     "describe_action",
     "execute_nasa_audit_action",
+    "execute_nasa_protocol_stratification_action",
     "execute_nasa_target_reference_action",
     "initialize_research_loop",
     "load_action_registry",
@@ -67,6 +76,7 @@ __all__ = [
     "plan_nasa_next_action",
     "validate_action_registry",
     "verify_nasa_audit_action_report",
+    "verify_nasa_protocol_stratification_report",
     "verify_nasa_target_reference_report",
     "verify_research_loop",
 ]
