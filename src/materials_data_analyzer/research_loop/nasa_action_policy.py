@@ -166,6 +166,8 @@ def _post_audit_candidates(
         score: int,
         trigger: str,
         rationale: str,
+        *,
+        use_execution_override: bool = True,
     ) -> None:
         candidate = _proposal(
             registry,
@@ -173,7 +175,9 @@ def _post_audit_candidates(
             score,
             trigger,
             rationale,
-            execution_registries=execution_registries,
+            execution_registries=(
+                execution_registries if use_execution_override else None
+            ),
         )
         previous = candidates.get(action_type)
         if previous is None or score > int(previous["score"]):
@@ -185,6 +189,7 @@ def _post_audit_candidates(
             130,
             "partial_dimensions_inconclusive",
             "Define the minimum missing evidence before another model experiment.",
+            use_execution_override=False,
         )
     if "target_or_reference_flags_detected" in outcomes:
         add(
