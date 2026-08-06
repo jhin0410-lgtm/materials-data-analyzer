@@ -43,8 +43,15 @@ group. It does not guess a new temperature value.
 ### Missing target-reference metadata
 
 When target-reference analysis returns
-`required_reference_metadata_missing`, the action specifies the minimum explicit
-`reference_capacity_ah` metadata and provenance contract.
+`required_reference_metadata_missing`, the primary evidence route is recovery
+of authoritative battery-level `reference_capacity_ah` metadata from the source
+record, declaration, or measurement documentation. Adding more rows does not
+repair an undefined reference on the current batteries. Post-forecast target
+values, filename inference, and silent target repair are prohibited.
+
+Only when authoritative reference metadata cannot be recovered does the
+contract fall back to a genuinely independent external or predeclared
+calibration cohort with explicit source-bound reference-capacity semantics.
 
 ## Scientific boundaries
 
@@ -56,10 +63,12 @@ exact-horizon and target/reference semantics, and battery-disjoint evaluation.
 Temperature values remain exact source-recorded values: rounding, binning,
 filename inference, and battery-name inference are prohibited.
 
-The action preserves the current `Unsupported` predictive evidence level. A
-future cohort satisfying the contract would only make the specified diagnostic
-eligible; it would not by itself establish statistical power, causality,
-transportability, external validation, or predictive validity.
+The action preserves the current `Unsupported` predictive evidence level.
+Authoritative metadata recovery permits only the specified predeclared
+diagnostic. A future cohort satisfying a fallback contract likewise makes only
+that diagnostic eligible; neither route by itself establishes statistical
+power, causality, transportability, external validation, or predictive
+validity.
 
 ## Request
 
