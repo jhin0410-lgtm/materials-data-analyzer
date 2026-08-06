@@ -13,14 +13,19 @@ from .nasa_audit_executor import (
     ACTION_TYPE as AUDIT_ACTION_TYPE,
     verify_nasa_audit_action_report,
 )
+from .nasa_protocol_stratification_action import (
+    ACTION_TYPE as PROTOCOL_ACTION_TYPE,
+    verify_nasa_protocol_stratification_report,
+)
 from .nasa_target_reference_action import (
     ACTION_TYPE as TARGET_REFERENCE_ACTION_TYPE,
     verify_nasa_target_reference_report,
 )
 
-POLICY_VERSION = "1.2"
+POLICY_VERSION = "1.3"
 _ACTION_EXECUTION_REGISTRY_FILENAMES = {
     TARGET_REFERENCE_ACTION_TYPE: "nasa_target_reference_action_registry.v1.json",
+    PROTOCOL_ACTION_TYPE: "nasa_protocol_stratification_action_registry.v1.json",
 }
 _TARGET_REFERENCE_OUTCOMES = {
     "conclusion_stable_across_defensible_targets",
@@ -31,6 +36,16 @@ _TARGET_REFERENCE_OUTCOMES = {
 _TARGET_REFERENCE_MANUAL_REVIEW_OUTCOMES = {
     "conclusion_sensitive_to_target_reference",
     "alternative_target_not_scientifically_defensible",
+}
+_PROTOCOL_OUTCOMES = {
+    "protocol_effect_supported",
+    "protocol_effect_not_supported",
+    "protocol_metadata_insufficient",
+    "protocol_groups_too_small",
+}
+_PROTOCOL_DATA_LIMIT_OUTCOMES = {
+    "protocol_metadata_insufficient",
+    "protocol_groups_too_small",
 }
 
 
@@ -176,7 +191,7 @@ def _post_audit_candidates(
         )
     if "pooled_error_instability_detected" in outcomes:
         add(
-            "protocol_stratification",
+            PROTOCOL_ACTION_TYPE,
             110,
             "pooled_error_instability_detected",
             "Test whether observed protocol heterogeneity explains concentrated error.",
@@ -309,9 +324,17 @@ def plan_nasa_next_action(
             "latest_failed_action_id": failed["action_id"],
             "latest_failed_action_type": failed["action_type"],
         }
+        verifier = None
+        label = failed["action_type"]
         if failed["action_type"] == TARGET_REFERENCE_ACTION_TYPE:
-            failed_report_path = _report_path(failed, label="target-reference")
-            verify_nasa_target_reference_report(failed_report_path)
+            verifier = verify_nasa_target_reference_report
+            label = "target-reference"
+        elif failed["action_type"] == PROTOCOL_ACTION_TYPE:
+            verifier = verify_nasa_protocol_stratification_report
+            label = "protocol-stratification"
+        if verifier is not None:
+            failed_report_path = _report_path(failed, label=label)
+            verifier(failed_report_path)
             failed_report = _load_report(failed_report_path)
             result.update(
                 {
@@ -327,7 +350,7 @@ def plan_nasa_next_action(
         for action in post_audit_actions
         if action["action_type"] == TARGET_REFERENCE_ACTION_TYPE
     ]
-    target_required_candidate: dict[str, Any] | None = None
+    required_candidate: dict[str, Any] | None = None
     if target_actions:
         latest_target = target_actions[-1]
         if latest_target["status"] != "completed":
@@ -360,7 +383,7 @@ def plan_nasa_next_action(
                 ),
             }
         if target_outcome == "required_reference_metadata_missing":
-            target_required_candidate = _proposal(
+            required_candidate = _proposal(
                 registry,
                 "external_data_requirement_generation",
                 140,
@@ -369,12 +392,52 @@ def plan_nasa_next_action(
                 execution_registries=execution_registries,
             )
 
+    protocol_context: dict[str, Any] = {}
+    protocol_actions = [
+        action
+        for action in post_audit_actions
+        if action["action_type"] == PROTOCOL_ACTION_TYPE
+    ]
+    if protocol_actions:
+        latest_protocol = protocol_actions[-1]
+        if latest_protocol["status"] != "completed":
+            raise NasaActionPolicyError(
+                "unexpected protocol-stratification ledger status: "
+                f"{latest_protocol['status']!r}"
+            )
+        protocol_report_path = _report_path(
+            latest_protocol, label="protocol-stratification"
+        )
+        verify_nasa_protocol_stratification_report(protocol_report_path)
+        protocol_report = _load_report(protocol_report_path)
+        protocol_outcome = protocol_report.get("outcome")
+        if protocol_outcome not in _PROTOCOL_OUTCOMES:
+            raise NasaActionPolicyError(
+                f"unknown protocol-stratification outcome: {protocol_outcome!r}"
+            )
+        protocol_context = {
+            "latest_protocol_stratification_report": str(protocol_report_path),
+            "latest_protocol_stratification_outcome": protocol_outcome,
+        }
+        if protocol_outcome in _PROTOCOL_DATA_LIMIT_OUTCOMES:
+            required_candidate = _proposal(
+                registry,
+                "external_data_requirement_generation",
+                135,
+                protocol_outcome,
+                (
+                    "Specify the protocol metadata or group support required before "
+                    "further condition-stratified analysis."
+                ),
+                execution_registries=execution_registries,
+            )
+
     tried = {item["action_type"] for item in state["actions"]}
-    if target_required_candidate is not None:
+    if required_candidate is not None:
         candidates = (
             []
-            if target_required_candidate["action_type"] in tried
-            else [target_required_candidate]
+            if required_candidate["action_type"] in tried
+            else [required_candidate]
         )
     else:
         candidates = [
@@ -390,6 +453,7 @@ def plan_nasa_next_action(
         return {
             **base,
             **target_context,
+            **protocol_context,
             "selection_status": "no_positive_value_action",
             "selected_action": None,
             "candidates": [],
@@ -401,6 +465,7 @@ def plan_nasa_next_action(
     return {
         **base,
         **target_context,
+        **protocol_context,
         "selection_status": _selection_status(state, selected),
         "selected_action": selected,
         "candidates": candidates,

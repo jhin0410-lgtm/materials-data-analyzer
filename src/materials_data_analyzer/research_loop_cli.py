@@ -16,12 +16,14 @@ from materials_data_analyzer.research_loop import (
     append_stop,
     describe_action,
     execute_nasa_audit_action,
+    execute_nasa_protocol_stratification_action,
     execute_nasa_target_reference_action,
     initialize_research_loop,
     load_action_registry,
     load_research_state,
     plan_nasa_next_action,
     verify_nasa_audit_action_report,
+    verify_nasa_protocol_stratification_report,
     verify_nasa_target_reference_report,
     verify_research_loop,
 )
@@ -173,6 +175,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_target.add_argument("--report", required=True, type=Path)
 
+    execute_protocol = subparsers.add_parser(
+        "execute-nasa-protocol-stratification",
+        help=(
+            "Execute exact-temperature battery-level protocol stratification without "
+            "binning, filtering, model refitting, or evidence promotion."
+        ),
+    )
+    execute_protocol.add_argument("--request", required=True, type=Path)
+
+    verify_protocol = subparsers.add_parser(
+        "verify-nasa-protocol-stratification",
+        help="Recompute and verify a protocol-stratification action report.",
+    )
+    verify_protocol.add_argument("--report", required=True, type=Path)
+
     plan_next = subparsers.add_parser(
         "plan-nasa-next-action",
         help=(
@@ -253,6 +270,10 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         return execute_nasa_target_reference_action(args.request)
     if args.command == "verify-nasa-target-reference":
         return verify_nasa_target_reference_report(args.report)
+    if args.command == "execute-nasa-protocol-stratification":
+        return execute_nasa_protocol_stratification_action(args.request)
+    if args.command == "verify-nasa-protocol-stratification":
+        return verify_nasa_protocol_stratification_report(args.report)
     if args.command == "plan-nasa-next-action":
         return plan_nasa_next_action(
             args.run,

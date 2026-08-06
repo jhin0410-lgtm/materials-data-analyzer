@@ -187,8 +187,9 @@ def test_policy_routes_target_action_to_verified_execution_registry(
         "source_cohort_leave_one_out",
     ]
     assert first["candidates"][0]["availability"] == "available"
+    assert first["candidates"][1]["availability"] == "available"
     assert all(
-        item["availability"] == "planned" for item in first["candidates"][1:]
+        item["availability"] == "planned" for item in first["candidates"][2:]
     )
 
 
@@ -215,9 +216,10 @@ def test_stable_target_result_continues_to_protocol_candidate(
 
     result = plan_nasa_next_action(run, REGISTRY, ROOT)
 
-    assert result["policy_version"] == "1.2"
-    assert result["selection_status"] == "blocked_unimplemented_action"
+    assert result["policy_version"] == "1.3"
+    assert result["selection_status"] == "ready_to_execute"
     assert result["selected_action"]["action_type"] == "protocol_stratification"
+    assert result["selected_action"]["cost_units"] == 5
     assert result["latest_target_reference_report"] == str(target_report)
     assert result["latest_target_reference_outcome"] == (
         "conclusion_stable_across_defensible_targets"
@@ -327,24 +329,40 @@ def test_other_failed_post_audit_action_requires_review(
         status="completed",
         outcomes=["pooled_error_instability_detected"],
     )
-    diagnostic = tmp_path / "protocol_failure.json"
-    diagnostic.write_text("{}\n", encoding="utf-8")
+    action_directory = tmp_path / "protocol-failure"
+    action_directory.mkdir()
+    diagnostic = action_directory / "action_result.json"
+    diagnostic.write_text(
+        json.dumps(
+            {
+                "execution_status": "failed",
+                "outcome": None,
+                "error": "Forced protocol failure.",
+            }
+        ),
+        encoding="utf-8",
+    )
     append_action(
         run,
         action_id="A2",
         action_type="protocol_stratification",
         status="failed",
         summary="Forced protocol failure.",
-        cost_units=3,
+        cost_units=5,
         artifact_paths=[diagnostic],
     )
     monkeypatch.setattr(policy, "verify_nasa_audit_action_report", _verified_stub)
+    monkeypatch.setattr(
+        policy, "verify_nasa_protocol_stratification_report", _verified_stub
+    )
 
     result = plan_nasa_next_action(run, REGISTRY, ROOT)
 
     assert result["selection_status"] == "manual_review_required"
     assert result["selected_action"] is None
     assert result["latest_failed_action_type"] == "protocol_stratification"
+    assert result["latest_failed_action_report"] == str(diagnostic)
+    assert result["latest_failed_action_error"] == "Forced protocol failure."
 
 
 def test_partial_dimensions_prioritize_exact_data_requirement(
