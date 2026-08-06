@@ -7,6 +7,19 @@ or upgrade the current scientific evidence.
 
 ## Current scientific use
 
+### Mandatory blocker priority
+
+When target-reference and protocol-support blockers coexist, target-reference
+metadata has the higher mandatory priority because protocol error comparisons
+cannot be interpreted defensibly before target/reference semantics are resolved.
+The planner and executor both apply the same order:
+
+1. unresolved target-reference metadata;
+2. unresolved protocol metadata or group support.
+
+The executor falls through to the protocol requirement only when the verified
+target-reference action does not require an evidence contract.
+
 ### Undersupported exact-temperature groups
 
 When protocol stratification returns `protocol_groups_too_small`, the action
