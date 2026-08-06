@@ -2,6 +2,19 @@ name: NASA external data requirement action
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "configs/research/nasa_external_data_requirement_action_registry.v1.json"
+      - "docs/NASA_EXTERNAL_DATA_REQUIREMENT_ACTION.md"
+      - "scripts/run_nasa_external_data_requirement_action.py"
+      - "src/materials_data_analyzer/research_loop/nasa_action_policy.py"
+      - "src/materials_data_analyzer/research_loop/nasa_external_data_requirement_action.py"
+      - "tests/test_nasa_external_data_requirement_action.py"
+      - "tests/test_nasa_external_data_requirement_priority.py"
+      - "tests/test_nasa_external_data_requirement_scientific_contract.py"
+      - "tests/test_nasa_next_action_policy.py"
+      - "tests/test_nasa_protocol_policy.py"
+      - ".github/workflows/nasa-external-data-requirement-action.yml"
   pull_request:
     paths:
       - "configs/research/nasa_external_data_requirement_action_registry.v1.json"
