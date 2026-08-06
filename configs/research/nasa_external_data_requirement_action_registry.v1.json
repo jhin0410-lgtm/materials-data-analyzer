@@ -53,6 +53,7 @@
       "scientific_purpose": "Convert a verified unresolved target-reference or protocol-support blocker into the smallest explicit evidence contract: authoritative metadata recovery when possible, otherwise an independent external or predeclared calibration cohort.",
       "target_blockers": [
         "missing_target_reference_metadata",
+        "missing_protocol_metadata",
         "missing_source_cohort_identity",
         "insufficient_protocol_group_support"
       ],
