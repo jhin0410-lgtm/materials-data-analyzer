@@ -89,7 +89,7 @@ def _protocol(
         action_type="protocol_stratification",
         status=status,
         summary="Protocol action recorded.",
-        cost_units=3,
+        cost_units=5,
         artifact_paths=[report],
     )
     return report
@@ -120,6 +120,7 @@ def test_policy_routes_protocol_to_specialized_execution_registry(
     assert selected["action_type"] == "protocol_stratification"
     assert selected["availability"] == "available"
     assert selected["action_version"] == "1.0"
+    assert selected["cost_units"] == 5
     assert selected["execution_registry_id"] == (
         "nasa-protocol-stratification-actions-v1"
     )
