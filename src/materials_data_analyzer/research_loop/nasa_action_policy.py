@@ -151,6 +151,16 @@ def _selection_status(state: dict[str, Any], selected: dict[str, Any]) -> str:
     return "ready_to_execute"
 
 
+def _prefer_required_candidate(
+    current: dict[str, Any] | None,
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    """Keep the highest-scoring mandatory evidence action deterministically."""
+    if current is None or int(candidate["score"]) > int(current["score"]):
+        return candidate
+    return current
+
+
 def _post_audit_candidates(
     registry: dict[str, Any],
     report: dict[str, Any],
@@ -392,13 +402,16 @@ def plan_nasa_next_action(
                 ),
             }
         if target_outcome == "required_reference_metadata_missing":
-            required_candidate = _proposal(
-                registry,
-                EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
-                140,
-                "required_reference_metadata_missing",
-                "Specify the missing reference metadata before further analysis.",
-                execution_registries=execution_registries,
+            required_candidate = _prefer_required_candidate(
+                required_candidate,
+                _proposal(
+                    registry,
+                    EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
+                    140,
+                    "required_reference_metadata_missing",
+                    "Specify the missing reference metadata before further analysis.",
+                    execution_registries=execution_registries,
+                ),
             )
 
     protocol_context: dict[str, Any] = {}
@@ -429,16 +442,19 @@ def plan_nasa_next_action(
             "latest_protocol_stratification_outcome": protocol_outcome,
         }
         if protocol_outcome in _PROTOCOL_DATA_LIMIT_OUTCOMES:
-            required_candidate = _proposal(
-                registry,
-                EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
-                135,
-                protocol_outcome,
-                (
-                    "Specify the protocol metadata or group support required before "
-                    "further condition-stratified analysis."
+            required_candidate = _prefer_required_candidate(
+                required_candidate,
+                _proposal(
+                    registry,
+                    EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
+                    135,
+                    protocol_outcome,
+                    (
+                        "Specify the protocol metadata or group support required before "
+                        "further condition-stratified analysis."
+                    ),
+                    execution_registries=execution_registries,
                 ),
-                execution_registries=execution_registries,
             )
 
     tried = {item["action_type"] for item in state["actions"]}
