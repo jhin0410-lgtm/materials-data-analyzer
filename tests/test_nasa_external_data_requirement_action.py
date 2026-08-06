@@ -8,7 +8,6 @@ import pytest
 from materials_data_analyzer.research_loop import (
     append_action,
     initialize_research_loop,
-    load_research_state,
     nasa_external_data_requirement_action as action,
 )
 from materials_data_analyzer.research_loop.action_registry import (
@@ -282,8 +281,6 @@ def test_external_requirement_executes_reverifies_and_stops_loop(
     ] == 6
     assert requirement["current_evidence_level"] == "Unsupported"
 
-    state = load_research_state(result["research_state"]["research_id"])
-    del state
     research_state = result["research_state"]
     assert research_state["status"] == "stopped"
     assert research_state["stop"]["reason_code"] == "external_evidence_required"
