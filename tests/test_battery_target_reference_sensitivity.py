@@ -38,7 +38,7 @@ def _frames(*, ridge_better_in_absolute: bool = False) -> tuple[pd.DataFrame, pd
                 ridge_error = 0.5
             if ridge_better_in_absolute and battery_id == "B2":
                 persistence_error = 0.1
-                ridge_error = 2.0
+                ridge_error = 4.0
             prediction_rows.append(
                 {
                     "battery_id": battery_id,
@@ -107,9 +107,10 @@ def test_capacity_scale_can_change_pooled_conclusion_and_is_reported() -> None:
     }
 
 
-def test_missing_or_invalid_reference_remains_explicitly_inconclusive() -> None:
+def test_missing_reference_on_evaluated_target_is_explicitly_inconclusive() -> None:
     cycles, predictions = _frames()
-    cycles.loc[0, "reference_capacity_ah"] = float("nan")
+    mask = (cycles["battery_id"] == "B1") & (cycles["cycle_index"] == 3)
+    cycles.loc[mask, "reference_capacity_ah"] = float("nan")
 
     result = build_target_reference_sensitivity(
         cycle_summary=cycles,
@@ -120,6 +121,22 @@ def test_missing_or_invalid_reference_remains_explicitly_inconclusive() -> None:
     assert result["summary"]["outcome"] == "required_reference_metadata_missing"
     assert result["model_comparison"].empty
     assert result["bound_predictions"].empty
+
+
+def test_missing_reference_on_unused_cycle_does_not_block_evaluation() -> None:
+    cycles, predictions = _frames()
+    mask = (cycles["battery_id"] == "B1") & (cycles["cycle_index"] == 1)
+    cycles.loc[mask, "reference_capacity_ah"] = float("nan")
+
+    result = build_target_reference_sensitivity(
+        cycle_summary=cycles,
+        predictions=predictions,
+        group_column="battery_id",
+    )
+
+    assert result["summary"]["outcome"] == (
+        "conclusion_stable_across_defensible_targets"
+    )
 
 
 def test_prediction_actual_must_match_bound_target() -> None:
@@ -158,7 +175,9 @@ def _write_run(path: Path) -> None:
     )
 
 
-def test_cli_writes_transactional_outputs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_writes_transactional_outputs(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     run = tmp_path / "run"
     output = tmp_path / "sensitivity"
     _write_run(run)
