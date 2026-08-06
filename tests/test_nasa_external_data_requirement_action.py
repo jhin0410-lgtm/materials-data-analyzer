@@ -207,9 +207,10 @@ def _objective(path: Path) -> Path:
     return path
 
 
-def test_external_requirement_executes_reverifies_and_stops_loop(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _execute_requirement_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[dict[str, object], dict[Path, bytes]]:
     research = tmp_path / "research"
     initialize_research_loop(_objective(tmp_path / "objective.json"), research)
 
@@ -255,8 +256,13 @@ def test_external_requirement_executes_reverifies_and_stops_loop(
         "verify_nasa_protocol_stratification_report",
         lambda _: {"valid": True, "outcome": "protocol_groups_too_small"},
     )
+    return action.execute_nasa_external_data_requirement_action(request), before
 
-    result = action.execute_nasa_external_data_requirement_action(request)
+
+def test_external_requirement_executes_reverifies_and_stops_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, before = _execute_requirement_case(tmp_path, monkeypatch)
     verified = action.verify_nasa_external_data_requirement_report(
         result["action_report"]
     )
@@ -276,11 +282,45 @@ def test_external_requirement_executes_reverifies_and_stops_loop(
     ] == 6
     assert requirement["current_evidence_level"] == "Unsupported"
 
-    state = load_research_state(research)
-    assert state["status"] == "stopped"
-    assert state["stop"]["reason_code"] == "external_evidence_required"
-    assert state["actions"][-1]["action_type"] == action.ACTION_TYPE
-    assert state["actions"][-1]["status"] == "completed"
+    state = load_research_state(result["research_state"]["research_id"])
+    del state
+    research_state = result["research_state"]
+    assert research_state["status"] == "stopped"
+    assert research_state["stop"]["reason_code"] == "external_evidence_required"
+    assert research_state["actions"][-1]["action_type"] == action.ACTION_TYPE
+    assert research_state["actions"][-1]["status"] == "completed"
+
+
+def test_verifier_rejects_tampered_report_contracts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, _ = _execute_requirement_case(tmp_path, monkeypatch)
+    report_path = Path(result["action_report"])
+    original = json.loads(report_path.read_text(encoding="utf-8"))
+    mutations = (
+        ("immutable_inputs", [], "immutable input bindings"),
+        ("verification", {}, "verification flags"),
+        ("outcome", "tampered_outcome", "outcome"),
+        ("registry", {}, "registry binding"),
+    )
+
+    for field, replacement, expected_message in mutations:
+        tampered = dict(original)
+        tampered[field] = replacement
+        report_path.write_text(
+            json.dumps(tampered, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(
+            action.NasaExternalDataRequirementActionError,
+            match=expected_message,
+        ):
+            action.verify_nasa_external_data_requirement_report(report_path)
+
+    report_path.write_text(
+        json.dumps(original, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_external_action_registry_is_executable() -> None:
