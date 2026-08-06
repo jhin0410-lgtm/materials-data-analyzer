@@ -136,9 +136,12 @@ def test_policy_routes_target_action_to_verified_execution_registry(
     assert selected["availability"] == "available"
     assert selected["action_version"] == "1.0"
     assert selected["execution_registry_id"] == "nasa-target-reference-actions-v1"
-    assert selected["execution_registry_path"].endswith(
-        "configs/research/nasa_target_reference_action_registry.v1.json"
+    execution_registry_path = Path(selected["execution_registry_path"])
+    assert execution_registry_path.name == (
+        "nasa_target_reference_action_registry.v1.json"
     )
+    assert execution_registry_path.parent.name == "research"
+    assert execution_registry_path.parent.parent.name == "configs"
     assert len(selected["execution_registry_sha256"]) == 64
     assert [item["action_type"] for item in first["candidates"]][:3] == [
         "target_reference_sensitivity",
