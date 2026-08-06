@@ -48,6 +48,7 @@ _VERIFICATION_FLAGS = {
     "requirement_names_blocker_and_decision_use": True,
     "required_metadata_and_units_are_explicit": True,
     "evidence_route_is_metadata_recovery_or_external_calibration": True,
+    "source_cohort_and_temperature_confounding_is_guarded": True,
     "no_existing_dataset_is_rebranded_as_external": True,
     "data_download_not_performed": True,
     "evidence_level_unchanged": True,
@@ -220,6 +221,19 @@ def _output_path(report: dict[str, Any], relative_path: str) -> Path:
     return matches[0].resolve(strict=True)
 
 
+def _source_cohort_design_contract(*, minimum: int) -> dict[str, Any]:
+    """Return the fixed guard against source-temperature confounding."""
+    return {
+        "existing_group_deficits_are_within_source_cohort_only": True,
+        "unrelated_source_cohort_counts_may_not_be_pooled": True,
+        "same_source_top_up_requires_authoritative_shared_cohort_identity": True,
+        "new_source_cohort_minimum_exact_groups": 2,
+        "new_source_cohort_minimum_evaluated_batteries_per_exact_group": minimum,
+        "temperature_and_source_cohort_must_not_be_perfectly_confounded": True,
+        "source_cohort_aware_analysis_must_be_predeclared": True,
+    }
+
+
 def _protocol_metadata_requirement(
     *,
     summary: dict[str, Any],
@@ -229,6 +243,7 @@ def _protocol_metadata_requirement(
     )
     distinct_groups = int(summary["exact_protocol_group_count"])
     minimum = int(summary["minimum_evaluated_batteries_per_group"])
+    source_design = _source_cohort_design_contract(minimum=minimum)
 
     if missing_evaluated > 0:
         return {
@@ -265,6 +280,7 @@ def _protocol_metadata_requirement(
                 "rounding_or_binning",
                 "imputation_without_authoritative_source_evidence",
                 "relabeling_existing_evaluation_batteries_as_external",
+                "pooling_unrelated_source_cohorts_by_temperature",
             ],
             "fallback_contract": {
                 "when_authoritative_metadata_cannot_be_recovered": (
@@ -273,11 +289,13 @@ def _protocol_metadata_requirement(
                 ),
                 "minimum_evaluated_batteries_per_exact_group": minimum,
                 "minimum_exact_groups": 2,
+                "source_cohort_design": source_design,
             },
             "scientific_boundary": (
                 "Additional rows do not repair missing metadata on the evaluated "
                 "batteries. Authoritative recovery or a genuinely independent cohort "
-                "is required; neither route establishes causality or predictive validity."
+                "is required; unrelated source cohorts may not be pooled by temperature, "
+                "and neither route establishes causality or predictive validity."
             ),
         }
 
@@ -314,9 +332,12 @@ def _protocol_metadata_requirement(
             "binning_prohibited": True,
             "filename_or_battery_id_inference_prohibited": True,
         },
+        "source_cohort_design": source_design,
         "scientific_boundary": (
-            "The added group only makes the predeclared diagnostic eligible. It does "
-            "not prove statistical power, causality, transportability, or predictive validity."
+            "The added group only makes the predeclared diagnostic eligible. A new "
+            "source must independently span at least two exact-temperature groups; "
+            "unrelated source counts cannot be pooled. This does not prove statistical "
+            "power, causality, transportability, or predictive validity."
         ),
     }
 
@@ -405,6 +426,7 @@ def _protocol_requirement(
             "minimum_total_additional_evaluated_batteries": total_deficit,
             "eligibility_threshold_is_not_power_analysis": True,
         },
+        "source_cohort_design": _source_cohort_design_contract(minimum=minimum),
         "comparability_contract": {
             "explicit_source_cohort_identifier_required": True,
             "battery_disjoint_evaluation_required": True,
@@ -420,9 +442,12 @@ def _protocol_requirement(
             "measurement_conditions_and_exclusions_required": True,
         },
         "scientific_boundary": (
-            "Meeting this contract only makes the predeclared diagnostic eligible. "
-            "It does not prove statistical power, causality, transportability, or "
-            "predictive validity and does not upgrade the current evidence level."
+            "The reported deficits describe support missing within the current source "
+            "cohort. Counts from unrelated sources may not be pooled to fill those "
+            "deficits; a new source must independently span at least two exact-"
+            "temperature groups. Meeting this contract only makes the predeclared "
+            "diagnostic eligible and does not prove statistical power, causality, "
+            "transportability, or predictive validity."
         ),
     }
     return requirement, [protocol_report_path, metrics_path]
@@ -508,6 +533,10 @@ def _preflight(request_path: Path) -> dict[str, Any]:
     state = load_research_state(research_run)
     if state["status"] != "active":
         raise NasaExternalDataRequirementActionError("research run is stopped")
+    if STOP_REASON not in state["stop_rules"]:
+        raise NasaExternalDataRequirementActionError(
+            f"research objective does not authorize stop rule: {STOP_REASON}"
+        )
     if any(
         action["action_id"] == request["action_id"]
         for action in state["actions"]

@@ -22,6 +22,15 @@ predeclared protocol action. It is not a power calculation and does not imply
 that five batteries per group are sufficient for a transferable or causal
 claim.
 
+The reported deficits are **within-source-cohort diagnostics**. Counts from an
+unrelated source cohort may not be added to a NASA temperature group merely
+because the temperature value matches. A same-source top-up requires
+authoritative evidence that the new batteries belong to the same source cohort.
+A genuinely new source cohort must independently span at least two exact,
+source-recorded temperature groups with the predeclared minimum support in each
+group. The acquisition design and analysis must prevent temperature from being
+perfectly confounded with source cohort.
+
 ### Missing or non-identifying protocol metadata
 
 `protocol_metadata_insufficient` is not treated as an ordinary sample-count
@@ -31,14 +40,17 @@ When evaluated batteries are missing `ambient_temperature_median_c`, the action
 returns `current_blocker_not_resolvable_by_more_data` and requires authoritative
 battery-level metadata recovery. Additional rows do not repair missing metadata
 on the already evaluated batteries. Filename inference, battery-ID inference,
-rounding, binning, and unsupported imputation are prohibited. When authoritative
-metadata cannot be recovered, the fallback is a genuinely independent external
-or predeclared calibration cohort with complete source-recorded temperature
-metadata.
+rounding, binning, unsupported imputation, and pooling unrelated source cohorts
+by temperature are prohibited. When authoritative metadata cannot be recovered,
+the fallback is a genuinely independent external or predeclared calibration
+cohort with complete source-recorded temperature metadata and a source-cohort
+crossing design.
 
 When all evaluated batteries have metadata but fewer than two exact temperature
 groups exist, the action requires at least one additional source-recorded exact
-group. It does not guess a new temperature value.
+group. It does not guess a new temperature value. A new source must still
+independently cover at least two exact temperature groups; a source available at
+only one temperature cannot distinguish temperature from source.
 
 ### Missing target-reference metadata
 
@@ -63,12 +75,22 @@ exact-horizon and target/reference semantics, and battery-disjoint evaluation.
 Temperature values remain exact source-recorded values: rounding, binning,
 filename inference, and battery-name inference are prohibited.
 
+Cross-source pooling cannot be used to satisfy a temperature-group sample
+threshold. Source-cohort effects must remain identifiable from temperature
+effects through a crossed or otherwise source-aware predeclared design. This
+rule prevents a source shift from being interpreted as a temperature effect.
+
 The action preserves the current `Unsupported` predictive evidence level.
 Authoritative metadata recovery permits only the specified predeclared
 diagnostic. A future cohort satisfying a fallback contract likewise makes only
 that diagnostic eligible; neither route by itself establishes statistical
 power, causality, transportability, external validation, or predictive
 validity.
+
+The research objective must explicitly include
+`external_evidence_required` in `stop_rules`. The executor checks this before
+creating outputs or recording the action, preventing a partially completed
+action followed by an unauthorized terminal transition.
 
 ## Request
 
