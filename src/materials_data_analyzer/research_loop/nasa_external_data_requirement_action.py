@@ -507,14 +507,14 @@ def _target_requirement(
 def _build_requirement(
     state: dict[str, Any],
 ) -> tuple[dict[str, Any], list[Path]]:
-    protocol_path = _action_report_path(state, "protocol_stratification")
-    if protocol_path is not None:
-        result = _protocol_requirement(protocol_path)
-        if result is not None:
-            return result
     target_path = _action_report_path(state, "target_reference_sensitivity")
     if target_path is not None:
         result = _target_requirement(target_path)
+        if result is not None:
+            return result
+    protocol_path = _action_report_path(state, "protocol_stratification")
+    if protocol_path is not None:
+        result = _protocol_requirement(protocol_path)
         if result is not None:
             return result
     raise NasaExternalDataRequirementActionError(
