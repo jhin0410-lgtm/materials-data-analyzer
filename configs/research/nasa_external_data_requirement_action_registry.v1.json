@@ -18,7 +18,7 @@
       "cost_units": 2,
       "expected_outputs": [
         {
-          "description": "Machine-readable minimum external or calibration cohort contract, including blocker, decision use, metadata, units, cohort role, comparability, and provenance requirements.",
+          "description": "Machine-readable minimum evidence contract, including blocker, decision use, authoritative metadata-recovery route or fallback external/calibration cohort role, units, comparability, and provenance requirements.",
           "kind": "json",
           "path": "reports/external_data_requirement.json",
           "required": true
@@ -50,7 +50,7 @@
           "required": true
         }
       ],
-      "scientific_purpose": "Convert a verified unresolved target-reference or protocol-support blocker into the minimum explicit external or predeclared calibration cohort contract required before further analysis.",
+      "scientific_purpose": "Convert a verified unresolved target-reference or protocol-support blocker into the smallest explicit evidence contract: authoritative metadata recovery when possible, otherwise an independent external or predeclared calibration cohort.",
       "target_blockers": [
         "missing_target_reference_metadata",
         "missing_source_cohort_identity",
@@ -59,7 +59,7 @@
       "verifier_checks": [
         "requirement_names_blocker_and_decision_use",
         "required_metadata_and_units_are_explicit",
-        "cohort_role_is_external_or_calibration",
+        "evidence_route_is_metadata_recovery_or_external_calibration",
         "no_existing_dataset_is_rebranded_as_external"
       ],
       "version": "1.0"
