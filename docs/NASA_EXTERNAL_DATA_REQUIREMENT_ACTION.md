@@ -1,11 +1,13 @@
 # NASA External Data Requirement Action
 
 `external_data_requirement_generation` converts a verified unresolved NASA
-battery-analysis blocker into a checksum-bound minimum data contract. It does
-not download data, train a model, relabel an existing cohort as external, or
-upgrade the current scientific evidence.
+battery-analysis blocker into a checksum-bound minimum evidence contract. It
+does not download data, train a model, relabel an existing cohort as external,
+or upgrade the current scientific evidence.
 
 ## Current scientific use
+
+### Undersupported exact-temperature groups
 
 When protocol stratification returns `protocol_groups_too_small`, the action
 reads the verified exact-temperature group metrics and reports, for every
@@ -20,14 +22,34 @@ predeclared protocol action. It is not a power calculation and does not imply
 that five batteries per group are sufficient for a transferable or causal
 claim.
 
+### Missing or non-identifying protocol metadata
+
+`protocol_metadata_insufficient` is not treated as an ordinary sample-count
+deficit.
+
+When evaluated batteries are missing `ambient_temperature_median_c`, the action
+returns `current_blocker_not_resolvable_by_more_data` and requires authoritative
+battery-level metadata recovery. Additional rows do not repair missing metadata
+on the already evaluated batteries. Filename inference, battery-ID inference,
+rounding, binning, and unsupported imputation are prohibited. When authoritative
+metadata cannot be recovered, the fallback is a genuinely independent external
+or predeclared calibration cohort with complete source-recorded temperature
+metadata.
+
+When all evaluated batteries have metadata but fewer than two exact temperature
+groups exist, the action requires at least one additional source-recorded exact
+group. It does not guess a new temperature value.
+
+### Missing target-reference metadata
+
 When target-reference analysis returns
-`required_reference_metadata_missing`, the action instead specifies the
-minimum explicit `reference_capacity_ah` metadata and provenance contract.
+`required_reference_metadata_missing`, the action specifies the minimum explicit
+`reference_capacity_ah` metadata and provenance contract.
 
 ## Scientific boundaries
 
-The generated cohort must be independent external evidence or a cohort whose
-calibration role was declared before evaluation. Existing NASA evaluation
+A generated cohort contract requires independent external evidence or a cohort
+whose calibration role was declared before evaluation. Existing NASA evaluation
 batteries may not be relabelled as external. Required metadata include explicit
 units, source identity, acquisition provenance, sample identity, compatible
 exact-horizon and target/reference semantics, and battery-disjoint evaluation.
@@ -37,7 +59,7 @@ filename inference, and battery-name inference are prohibited.
 The action preserves the current `Unsupported` predictive evidence level. A
 future cohort satisfying the contract would only make the specified diagnostic
 eligible; it would not by itself establish statistical power, causality,
-transportability, or predictive validity.
+transportability, external validation, or predictive validity.
 
 ## Request
 
