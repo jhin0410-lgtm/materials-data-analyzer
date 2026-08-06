@@ -44,6 +44,14 @@ _PROTOCOL_LIMIT_OUTCOMES = {
     "protocol_groups_too_small",
     "protocol_metadata_insufficient",
 }
+_VERIFICATION_FLAGS = {
+    "requirement_names_blocker_and_decision_use": True,
+    "required_metadata_and_units_are_explicit": True,
+    "evidence_route_is_metadata_recovery_or_external_calibration": True,
+    "no_existing_dataset_is_rebranded_as_external": True,
+    "data_download_not_performed": True,
+    "evidence_level_unchanged": True,
+}
 
 
 class NasaExternalDataRequirementActionError(ResearchLoopError):
@@ -599,14 +607,7 @@ def execute_nasa_external_data_requirement_action(
                 "path": str(requirement_path),
             },
             "stop_reason": STOP_REASON,
-            "verification": {
-                "requirement_names_blocker_and_decision_use": True,
-                "required_metadata_and_units_are_explicit": True,
-                "evidence_route_is_metadata_recovery_or_external_calibration": True,
-                "no_existing_dataset_is_rebranded_as_external": True,
-                "data_download_not_performed": True,
-                "evidence_level_unchanged": True,
-            },
+            "verification": dict(_VERIFICATION_FLAGS),
         }
         _write_json(staging / ACTION_REPORT_FILENAME, report)
 
@@ -643,7 +644,7 @@ def execute_nasa_external_data_requirement_action(
 def verify_nasa_external_data_requirement_report(
     report_file: str | Path,
 ) -> dict[str, Any]:
-    """Recompute the requirement and verify output, ledger, and terminal state."""
+    """Recompute and verify request, registry, inputs, outputs, and ledger binding."""
     report_path = Path(report_file).expanduser().resolve(strict=True)
     report = _load_json(report_path)
     if not isinstance(report, dict):
@@ -662,34 +663,107 @@ def verify_nasa_external_data_requirement_report(
         raise NasaExternalDataRequirementActionError(
             "action report has the wrong action_type"
         )
+    if report.get("stop_reason") != STOP_REASON:
+        raise NasaExternalDataRequirementActionError(
+            "action report has the wrong terminal reason"
+        )
+    if report.get("verification") != _VERIFICATION_FLAGS:
+        raise NasaExternalDataRequirementActionError(
+            "action report verification flags do not match the fixed contract"
+        )
+
     request_record = report.get("request")
-    if not isinstance(request_record, dict) or _file_record(
-        Path(request_record["path"])
-    ) != request_record:
+    if not isinstance(request_record, dict):
+        raise NasaExternalDataRequirementActionError(
+            "action report is missing the request binding"
+        )
+    request_path = Path(request_record.get("path", ""))
+    if _file_record(request_path) != request_record:
         raise NasaExternalDataRequirementActionError(
             "action request no longer matches the report"
         )
-    for record in report.get("immutable_inputs", []):
-        if not isinstance(record, dict) or _file_record(
-            Path(record["path"])
-        ) != record:
-            raise NasaExternalDataRequirementActionError(
-                "immutable input no longer matches the report"
-            )
+    request = _validate_request(request_path)
+    if request["action_id"] != report.get("action_id"):
+        raise NasaExternalDataRequirementActionError(
+            "action report action_id does not match the request"
+        )
+    expected_report_path = (
+        request["research_run"]
+        / "actions"
+        / request["action_id"]
+        / ACTION_REPORT_FILENAME
+    ).resolve(strict=True)
+    if report_path != expected_report_path:
+        raise NasaExternalDataRequirementActionError(
+            "action report path does not match the request and research run"
+        )
+    if report.get("research_run") != str(request["research_run"]):
+        raise NasaExternalDataRequirementActionError(
+            "action report research_run does not match the request"
+        )
 
-    research_run = Path(report["research_run"])
-    state = load_research_state(research_run)
-    requirement, _ = _build_requirement(state)
+    registry = load_action_registry(
+        request["registry"], repository_root=request["repository_root"]
+    )
+    if registry["registry_sha256"] != request["expected_registry_sha256"]:
+        raise NasaExternalDataRequirementActionError(
+            "action registry no longer matches the request"
+        )
+    contract = describe_action(registry, ACTION_TYPE)
+    expected_registry = {
+        "registry_id": registry["registry_id"],
+        "registry_path": registry["registry_path"],
+        "registry_sha256": registry["registry_sha256"],
+    }
+    if report.get("registry") != expected_registry:
+        raise NasaExternalDataRequirementActionError(
+            "action report registry binding is invalid"
+        )
+    if report.get("action_version") != contract["version"]:
+        raise NasaExternalDataRequirementActionError(
+            "action report version does not match the registry"
+        )
+    if report.get("cost_units") != contract["cost_units"]:
+        raise NasaExternalDataRequirementActionError(
+            "action report cost does not match the registry"
+        )
+
+    state = load_research_state(request["research_run"])
+    requirement, source_paths = _build_requirement(state)
+    expected_inputs = [_file_record(path) for path in source_paths]
+    if report.get("immutable_inputs") != expected_inputs:
+        raise NasaExternalDataRequirementActionError(
+            "immutable input bindings do not match the verified prerequisite evidence"
+        )
     if report.get("requirement") != requirement:
         raise NasaExternalDataRequirementActionError(
             "reported external-data requirement is not reproducible"
         )
+    if report.get("outcome") != requirement["outcome"]:
+        raise NasaExternalDataRequirementActionError(
+            "action report outcome does not match the recomputed requirement"
+        )
+
     output_record = report.get("output")
     if not isinstance(output_record, dict):
         raise NasaExternalDataRequirementActionError(
             "action report is missing output binding"
         )
-    output_path = Path(output_record["path"])
+    if output_record.get("relative_path") != OUTPUT_RELATIVE_PATH:
+        raise NasaExternalDataRequirementActionError(
+            "action report output relative path is invalid"
+        )
+    output_path = Path(output_record.get("path", "")).resolve(strict=True)
+    expected_output_path = (
+        request["research_run"]
+        / "actions"
+        / request["action_id"]
+        / OUTPUT_RELATIVE_PATH
+    ).resolve(strict=True)
+    if output_path != expected_output_path:
+        raise NasaExternalDataRequirementActionError(
+            "action output path does not match the request and research run"
+        )
     recorded_file = {
         key: output_record[key] for key in ("path", "bytes", "sha256")
     }
@@ -703,13 +777,27 @@ def verify_nasa_external_data_requirement_report(
         )
 
     matching = [
-        action
-        for action in state["actions"]
-        if action["action_id"] == report["action_id"]
+        recorded
+        for recorded in state["actions"]
+        if recorded["action_id"] == report["action_id"]
     ]
-    if len(matching) != 1 or matching[0]["status"] != "completed":
+    if len(matching) != 1:
         raise NasaExternalDataRequirementActionError(
-            "research ledger does not contain the completed action"
+            "research ledger must contain exactly one matching action"
+        )
+    ledger_action = matching[0]
+    if (
+        ledger_action["action_type"] != ACTION_TYPE
+        or ledger_action["status"] != "completed"
+        or ledger_action["cost_units"] != contract["cost_units"]
+    ):
+        raise NasaExternalDataRequirementActionError(
+            "research ledger action does not match the verified action contract"
+        )
+    expected_artifacts = [_file_record(report_path), _file_record(output_path)]
+    if ledger_action.get("artifacts") != expected_artifacts:
+        raise NasaExternalDataRequirementActionError(
+            "research ledger artifacts do not match the action report and output"
         )
     if state["status"] != "stopped":
         raise NasaExternalDataRequirementActionError(
