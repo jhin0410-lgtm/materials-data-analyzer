@@ -1,0 +1,104 @@
+{
+  "actions": [
+    {
+      "action_type": "protocol_stratification",
+      "allowed_outcomes": [
+        "protocol_effect_supported",
+        "protocol_effect_not_supported",
+        "protocol_metadata_insufficient",
+        "protocol_groups_too_small"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "installed_command",
+        "name": "mda-research-loop",
+        "path": null,
+        "platform": "cross_platform"
+      },
+      "category": "experiment",
+      "cost_units": 3,
+      "expected_outputs": [
+        {
+          "description": "Every protocol battery with explicit temperature metadata, evaluation coverage, and battery-level model errors.",
+          "kind": "csv",
+          "path": "protocol_stratification/battery_protocol_errors.csv",
+          "required": true
+        },
+        {
+          "description": "Exact-temperature group sizes and battery-macro model metrics without filtering sparse groups.",
+          "kind": "csv",
+          "path": "protocol_stratification/protocol_group_metrics.csv",
+          "required": true
+        },
+        {
+          "description": "Machine-readable primary test, outcome, thresholds, and scientific boundary.",
+          "kind": "json",
+          "path": "protocol_stratification/protocol_stratification.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "completed_verified_battery_audit_in_research_ledger",
+        "stable_verified_target_reference_result_when_target_flags_exist",
+        "official_nasa_protocol_summary_available",
+        "exact_horizon_validation_predictions_available",
+        "battery_identity_matches_protocol_summary",
+        "explicit_ambient_temperature_metadata_used_without_binning"
+      ],
+      "prohibited_effects": [
+        "protocol_inference_from_filename",
+        "protocol_inference_from_battery_name",
+        "temperature_rounding_or_binning",
+        "sparse_group_exclusion",
+        "row_or_battery_exclusion",
+        "model_refit",
+        "target_redefinition",
+        "subgroup_metric_replacing_pooled_validation",
+        "causal_claim_from_observational_metadata",
+        "scientific_evidence_level_promotion"
+      ],
+      "required_inputs": [
+        {
+          "description": "Official NASA import output containing nasa_pcoe_protocol_summary.csv.",
+          "kind": "directory",
+          "name": "import_run",
+          "required": true
+        },
+        {
+          "description": "Existing Battery analysis run containing exact-horizon validation predictions and scientific closeout.",
+          "kind": "directory",
+          "name": "analysis_run",
+          "required": true
+        },
+        {
+          "description": "Active immutable research run containing the verified prerequisite action reports.",
+          "kind": "research_state",
+          "name": "research_run",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Test one predeclared diagnostic: whether battery-level Ridge-minus-persistence MAE differs across exact source-derived ambient-temperature groups, using a Kruskal-Wallis test only when every observed group has at least five evaluated batteries.",
+      "target_blockers": [
+        "pooled_error_instability",
+        "protocol_heterogeneity",
+        "condition_dependent_model_failure"
+      ],
+      "verifier_checks": [
+        "prior_audit_report_checksum_and_ledger_binding_verified",
+        "stable_target_reference_result_verified_when_required",
+        "explicit_temperature_metadata_only",
+        "no_temperature_rounding_or_binning",
+        "all_protocol_batteries_preserved",
+        "all_exact_horizon_predictions_used_at_battery_level",
+        "minimum_group_size_enforced_without_exclusion",
+        "kruskal_wallis_and_epsilon_squared_recomputed",
+        "source_inputs_unchanged",
+        "scientific_evidence_level_unchanged"
+      ],
+      "version": "1.0"
+    }
+  ],
+  "domain": "nasa_pcoe_battery_exact_horizon",
+  "registry_id": "nasa-protocol-stratification-actions-v1",
+  "schema_version": "1.0"
+}
