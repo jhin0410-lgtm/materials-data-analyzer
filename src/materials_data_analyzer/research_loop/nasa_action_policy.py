@@ -22,10 +22,14 @@ from .nasa_target_reference_action import (
     verify_nasa_target_reference_report,
 )
 
-POLICY_VERSION = "1.3"
+POLICY_VERSION = "1.4"
+EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE = "external_data_requirement_generation"
 _ACTION_EXECUTION_REGISTRY_FILENAMES = {
     TARGET_REFERENCE_ACTION_TYPE: "nasa_target_reference_action_registry.v1.json",
     PROTOCOL_ACTION_TYPE: "nasa_protocol_stratification_action_registry.v1.json",
+    EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE: (
+        "nasa_external_data_requirement_action_registry.v1.json"
+    ),
 }
 _TARGET_REFERENCE_OUTCOMES = {
     "conclusion_stable_across_defensible_targets",
@@ -177,7 +181,7 @@ def _post_audit_candidates(
 
     if "partial_dimensions_inconclusive" in outcomes:
         add(
-            "external_data_requirement_generation",
+            EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
             130,
             "partial_dimensions_inconclusive",
             "Define the minimum missing evidence before another model experiment.",
@@ -385,7 +389,7 @@ def plan_nasa_next_action(
         if target_outcome == "required_reference_metadata_missing":
             required_candidate = _proposal(
                 registry,
-                "external_data_requirement_generation",
+                EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
                 140,
                 "required_reference_metadata_missing",
                 "Specify the missing reference metadata before further analysis.",
@@ -422,7 +426,7 @@ def plan_nasa_next_action(
         if protocol_outcome in _PROTOCOL_DATA_LIMIT_OUTCOMES:
             required_candidate = _proposal(
                 registry,
-                "external_data_requirement_generation",
+                EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
                 135,
                 protocol_outcome,
                 (
