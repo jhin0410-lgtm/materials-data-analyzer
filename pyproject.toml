@@ -60,6 +60,7 @@ all = [
 mda = "materials_data_analyzer.cli:main"
 mda-battery-intelligence = "materials_data_analyzer.battery_cli:main"
 mda-battery-result-audit = "materials_data_analyzer.battery_audit_cli:main"
+mda-battery-target-sensitivity = "materials_data_analyzer.battery_target_sensitivity_cli:main"
 mda-nasa-battery-import = "materials_data_analyzer.nasa_battery_cli:main"
 mda-characterization-import = "materials_data_analyzer.characterization_import_cli:main"
 mda-research-loop = "materials_data_analyzer.research_loop_cli:main"
