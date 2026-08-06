@@ -15,8 +15,8 @@
         "path": null,
         "platform": "cross_platform"
       },
-      "category": "experiment",
-      "cost_units": 3,
+      "category": "hypothesis_discrimination",
+      "cost_units": 5,
       "expected_outputs": [
         {
           "description": "Every protocol battery with explicit temperature metadata, evaluation coverage, and battery-level model errors.",
