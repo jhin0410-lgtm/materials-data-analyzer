@@ -19,7 +19,6 @@ from .kernel import (
     append_stop,
     load_research_state,
 )
-from .nasa_audit_executor import verify_nasa_audit_action_report
 from .nasa_protocol_stratification_action import (
     verify_nasa_protocol_stratification_report,
 )
@@ -213,6 +212,106 @@ def _output_path(report: dict[str, Any], relative_path: str) -> Path:
     return matches[0].resolve(strict=True)
 
 
+def _protocol_metadata_requirement(
+    *,
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    missing_evaluated = int(
+        summary["missing_evaluated_protocol_metadata_battery_count"]
+    )
+    distinct_groups = int(summary["exact_protocol_group_count"])
+    minimum = int(summary["minimum_evaluated_batteries_per_group"])
+
+    if missing_evaluated > 0:
+        return {
+            "schema_version": "1.0",
+            "outcome": "current_blocker_not_resolvable_by_more_data",
+            "status": "Diagnostic",
+            "current_evidence_level": "Unsupported",
+            "blocker": "protocol_metadata_insufficient",
+            "decision_use": (
+                "Recover authoritative battery-level ambient-temperature metadata "
+                "before evaluating exact-temperature differences in model error."
+            ),
+            "required_cohort_role": (
+                "authoritative_metadata_recovery_or_independent_external"
+            ),
+            "required_metadata": [
+                {
+                    "field": "ambient_temperature_median_c",
+                    "unit": "degree_Celsius",
+                    "missing_evaluated_battery_count": missing_evaluated,
+                    "requirements": [
+                        "battery_level_source_recorded_value",
+                        "finite_numeric_value",
+                        "measurement_condition_provenance",
+                        "source_file_and_record_identifier",
+                    ],
+                }
+            ],
+            "current_exact_protocol_group_count": distinct_groups,
+            "prohibited_substitutions": [
+                "filename_inference",
+                "battery_id_inference",
+                "rounding_or_binning",
+                "imputation_without_authoritative_source_evidence",
+                "relabeling_existing_evaluation_batteries_as_external",
+            ],
+            "fallback_contract": {
+                "when_authoritative_metadata_cannot_be_recovered": (
+                    "Acquire an independent external or predeclared calibration cohort "
+                    "with complete source-recorded battery-level temperature metadata."
+                ),
+                "minimum_evaluated_batteries_per_exact_group": minimum,
+                "minimum_exact_groups": 2,
+            },
+            "scientific_boundary": (
+                "Additional rows do not repair missing metadata on the evaluated "
+                "batteries. Authoritative recovery or a genuinely independent cohort "
+                "is required; neither route establishes causality or predictive validity."
+            ),
+        }
+
+    if distinct_groups >= 2:
+        raise NasaExternalDataRequirementActionError(
+            "protocol metadata outcome is inconsistent with complete metadata and two groups"
+        )
+    return {
+        "schema_version": "1.0",
+        "outcome": "minimum_external_cohort_contract_generated",
+        "status": "Diagnostic",
+        "current_evidence_level": "Unsupported",
+        "blocker": "protocol_metadata_insufficient",
+        "decision_use": (
+            "Introduce at least one additional source-recorded exact-temperature group "
+            "before evaluating protocol-associated differences in model error."
+        ),
+        "required_cohort_role": "independent_external_or_predeclared_calibration",
+        "protocol_field": "ambient_temperature_median_c",
+        "protocol_unit": "degree_Celsius",
+        "minimum_group_contract": {
+            "minimum_exact_groups": 2,
+            "current_exact_groups": distinct_groups,
+            "additional_distinct_exact_group_required": True,
+            "minimum_evaluated_batteries_per_exact_group": minimum,
+            "new_temperature_value_must_not_be_guessed": True,
+            "eligibility_threshold_is_not_power_analysis": True,
+        },
+        "protocol_metadata_contract": {
+            "battery_level": True,
+            "finite_numeric_value_required": True,
+            "source_recorded_value_required": True,
+            "rounding_prohibited": True,
+            "binning_prohibited": True,
+            "filename_or_battery_id_inference_prohibited": True,
+        },
+        "scientific_boundary": (
+            "The added group only makes the predeclared diagnostic eligible. It does "
+            "not prove statistical power, causality, transportability, or predictive validity."
+        ),
+    }
+
+
 def _protocol_requirement(
     protocol_report_path: Path,
 ) -> tuple[dict[str, Any], list[Path]] | None:
@@ -234,6 +333,10 @@ def _protocol_requirement(
         report,
         "protocol_stratification/protocol_group_metrics.csv",
     )
+    if outcome == "protocol_metadata_insufficient":
+        requirement = _protocol_metadata_requirement(summary=summary)
+        return requirement, [protocol_report_path, metrics_path]
+
     with metrics_path.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
 
@@ -260,7 +363,7 @@ def _protocol_requirement(
         int(item["minimum_additional_evaluated_batteries"])
         for item in group_requirements
     )
-    if outcome == "protocol_groups_too_small" and total_deficit <= 0:
+    if total_deficit <= 0:
         raise NasaExternalDataRequirementActionError(
             "protocol outcome reports sparse groups but no group deficit exists"
         )
