@@ -7,6 +7,11 @@ import sys
 from pathlib import Path
 
 from loaders.characterization_bundle import consume_characterization_bundle
+from materials_data_analyzer.characterization_use_policy import (
+    USE_LEVELS,
+    require_characterization_use,
+    write_characterization_use_eligibility,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -39,16 +44,41 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Empty or not-yet-created consumer output directory.",
     )
+    parser.add_argument(
+        "--requested-use",
+        choices=USE_LEVELS,
+        default="descriptive",
+        help=(
+            "Strongest intended downstream use. Legacy bundles without an explicit "
+            "policy are accepted only for descriptive use."
+        ),
+    )
+    parser.add_argument(
+        "--split-group-field",
+        help=(
+            "Independent grouping field used for model splitting. Required for "
+            "predictive, causal, or engineering use and must match the producer policy."
+        ),
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        eligibility = require_characterization_use(
+            args.bundle_manifest,
+            requested_use=args.requested_use,
+            split_group_field=args.split_group_field,
+        )
         outputs = consume_characterization_bundle(
             args.bundle_manifest,
             args.output,
             process_table_path=args.process_table,
+        )
+        outputs["use_eligibility"] = write_characterization_use_eligibility(
+            args.output,
+            eligibility,
         )
     except (
         FileNotFoundError,
