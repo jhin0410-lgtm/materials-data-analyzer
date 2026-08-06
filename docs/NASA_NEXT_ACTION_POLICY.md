@@ -25,12 +25,22 @@ ledger, analysis run, registry, or action budget.
 The policy requires:
 
 - a verified active or stopped research-loop directory;
-- the exact versioned NASA action registry;
+- the exact versioned NASA planning registry;
 - a source checkout root used to verify available bindings;
 - when an audit ledger event exists, exactly one checksum-bound
   `action_result.json` artifact that passes the independent audit-report verifier.
 
-The policy does not accept free-text tool names or generated command strings.
+The policy may resolve an action-specific execution registry located beside the
+planning registry. An override is accepted only when:
+
+- the planning contract still marks the action `planned`;
+- the action-specific contract marks the same action `available`;
+- category, cost units, and allowed outcomes exactly match the planning contract;
+- the execution binding passes the normal registry verifier against the checkout.
+
+This keeps scientific ranking in the broad planning registry while allowing a
+completed typed executor to provide a stricter action-specific contract. The
+policy does not accept free-text tool names or generated command strings.
 
 ## Initial selection
 
@@ -75,14 +85,31 @@ The ordering encodes the current scientific priority:
 
 This ordering is a predeclared baseline policy, not a discovered scientific law.
 
+## Execution contract in the decision
+
+Every candidate includes:
+
+- `execution_registry_id`;
+- `execution_registry_sha256`;
+- `execution_registry_path`;
+- the resolved `action_version`, `availability`, and `cost_units`.
+
+Callers must use those exact execution-registry fields when constructing the typed
+action request. They must not assume that the broad planning registry is also the
+current execution contract.
+
+`target_reference_sensitivity` is currently routed to
+`configs/research/nasa_target_reference_action_registry.v1.json`. Its verified
+version `1.0` executor is therefore reported as `available` and may be selected as
+`ready_to_execute` when budget permits. Other actions retain their planning status.
+
 ## Availability and budget behavior
 
 The selected action is classified as:
 
-- `ready_to_execute` only when the registry marks it `available` and both action
-  count and cost budgets permit it;
-- `blocked_unimplemented_action` when the highest-ranked action is still
-  `planned`;
+- `ready_to_execute` only when the resolved execution contract marks it
+  `available` and both action count and cost budgets permit it;
+- `blocked_unimplemented_action` when the highest-ranked action remains `planned`;
 - `blocked_by_budget` when either budget is exhausted;
 - `no_positive_value_action` when no untried registered candidate follows from
   the verified outcomes.
@@ -126,14 +153,14 @@ research policy.
 
 ## Current boundary
 
-The policy presently reasons only after the existing Battery run audit. It does
-not inspect raw literature, generate new hypotheses, calculate Bayesian expected
-information gain, train an action-value model, or execute target sensitivity,
+The policy presently reasons from the existing Battery run audit and resolves the
+implemented target-reference action through its independently verified execution
+registry. It does not inspect raw literature, generate new hypotheses, calculate
+Bayesian expected information gain, train an action-value model, or execute
 protocol stratification, source-cohort evaluation, feature ablation, state-space,
 abstention, or data-requirement actions.
 
-Those actions remain `planned` until each has a typed adapter, verifier, tests, and
-scientific eligibility contract.
-
-The closed NASA Ridge result remains `Unsupported`. A recommendation for a future
-action does not change that evidence level.
+Those remaining actions stay `planned` until each has a typed adapter, verifier,
+tests, and scientific eligibility contract. Completing an executor does not by
+itself change the closed NASA Ridge result, which remains `Unsupported` unless new
+validated evidence changes the scientific closeout.
