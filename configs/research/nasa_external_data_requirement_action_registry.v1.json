@@ -14,7 +14,7 @@
         "path": "scripts/run_nasa_external_data_requirement_action.py",
         "platform": "cross_platform"
       },
-      "category": "data_requirement",
+      "category": "next_evidence_planning",
       "cost_units": 2,
       "expected_outputs": [
         {
