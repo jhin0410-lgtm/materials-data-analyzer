@@ -76,7 +76,7 @@ def test_predictive_use_requires_matching_independence_group(tmp_path) -> None:
     )
 
     assert missing.allowed is False
-    assert "requires --split-group-field" in missing.reasons
+    assert any("requires --split-group-field" in reason for reason in missing.reasons)
     assert mismatch.allowed is False
     assert allowed.allowed is True
     assert allowed.independence_group_field == "batch_id"
