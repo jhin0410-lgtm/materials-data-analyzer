@@ -85,8 +85,46 @@ def _audit_action(
     return report
 
 
+def _target_action(
+    run: Path,
+    tmp_path: Path,
+    *,
+    status: str,
+    outcome: str | None = None,
+    error: str | None = None,
+) -> Path:
+    action_directory = tmp_path / "target-action"
+    action_directory.mkdir()
+    report = action_directory / "action_result.json"
+    report.write_text(
+        json.dumps(
+            {
+                "execution_status": status,
+                "outcome": outcome,
+                "error": error,
+            }
+        ),
+        encoding="utf-8",
+    )
+    append_action(
+        run,
+        action_id="A2",
+        action_type="target_reference_sensitivity",
+        status=status,
+        summary="Recorded target-reference action.",
+        cost_units=4,
+        artifact_paths=[report],
+    )
+    return report
+
+
 def _verified_stub(_: Path) -> dict[str, object]:
     return {"valid": True}
+
+
+def _stub_verifiers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(policy, "verify_nasa_audit_action_report", _verified_stub)
+    monkeypatch.setattr(policy, "verify_nasa_target_reference_report", _verified_stub)
 
 
 def test_policy_selects_available_audit_before_any_audit_action(tmp_path: Path) -> None:
@@ -152,6 +190,161 @@ def test_policy_routes_target_action_to_verified_execution_registry(
     assert all(
         item["availability"] == "planned" for item in first["candidates"][1:]
     )
+
+
+def test_stable_target_result_continues_to_protocol_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _run(tmp_path)
+    _audit_action(
+        run,
+        tmp_path,
+        status="completed",
+        outcomes=[
+            "target_or_reference_flags_detected",
+            "pooled_error_instability_detected",
+        ],
+    )
+    target_report = _target_action(
+        run,
+        tmp_path,
+        status="completed",
+        outcome="conclusion_stable_across_defensible_targets",
+    )
+    _stub_verifiers(monkeypatch)
+
+    result = plan_nasa_next_action(run, REGISTRY, ROOT)
+
+    assert result["policy_version"] == "1.2"
+    assert result["selection_status"] == "blocked_unimplemented_action"
+    assert result["selected_action"]["action_type"] == "protocol_stratification"
+    assert result["latest_target_reference_report"] == str(target_report)
+    assert result["latest_target_reference_outcome"] == (
+        "conclusion_stable_across_defensible_targets"
+    )
+    assert all(
+        item["action_type"] != "target_reference_sensitivity"
+        for item in result["candidates"]
+    )
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        "conclusion_sensitive_to_target_reference",
+        "alternative_target_not_scientifically_defensible",
+    ],
+)
+def test_unresolved_target_result_requires_manual_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: str,
+) -> None:
+    run = _run(tmp_path)
+    _audit_action(
+        run,
+        tmp_path,
+        status="completed",
+        outcomes=["target_or_reference_flags_detected"],
+    )
+    _target_action(run, tmp_path, status="completed", outcome=outcome)
+    _stub_verifiers(monkeypatch)
+
+    result = plan_nasa_next_action(run, REGISTRY, ROOT)
+
+    assert result["selection_status"] == "manual_review_required"
+    assert result["selected_action"] is None
+    assert result["latest_target_reference_outcome"] == outcome
+
+
+def test_missing_target_reference_metadata_prioritizes_data_requirement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _run(tmp_path)
+    _audit_action(
+        run,
+        tmp_path,
+        status="completed",
+        outcomes=["target_or_reference_flags_detected"],
+    )
+    _target_action(
+        run,
+        tmp_path,
+        status="completed",
+        outcome="required_reference_metadata_missing",
+    )
+    _stub_verifiers(monkeypatch)
+
+    result = plan_nasa_next_action(run, REGISTRY, ROOT)
+
+    assert result["selection_status"] == "blocked_unimplemented_action"
+    assert result["selected_action"]["action_type"] == (
+        "external_data_requirement_generation"
+    )
+    assert result["selected_action"]["score"] == 140
+    assert result["selected_action"]["trigger"] == (
+        "required_reference_metadata_missing"
+    )
+
+
+def test_failed_target_action_requires_review_and_is_not_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _run(tmp_path)
+    _audit_action(
+        run,
+        tmp_path,
+        status="completed",
+        outcomes=[
+            "target_or_reference_flags_detected",
+            "pooled_error_instability_detected",
+        ],
+    )
+    target_report = _target_action(
+        run,
+        tmp_path,
+        status="failed",
+        error="forced target failure",
+    )
+    _stub_verifiers(monkeypatch)
+
+    result = plan_nasa_next_action(run, REGISTRY, ROOT)
+
+    assert result["selection_status"] == "manual_review_required"
+    assert result["selected_action"] is None
+    assert result["latest_failed_action_type"] == "target_reference_sensitivity"
+    assert result["latest_failed_action_report"] == str(target_report)
+    assert result["latest_failed_action_error"] == "forced target failure"
+
+
+def test_other_failed_post_audit_action_requires_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _run(tmp_path)
+    _audit_action(
+        run,
+        tmp_path,
+        status="completed",
+        outcomes=["pooled_error_instability_detected"],
+    )
+    diagnostic = tmp_path / "protocol_failure.json"
+    diagnostic.write_text("{}\n", encoding="utf-8")
+    append_action(
+        run,
+        action_id="A2",
+        action_type="protocol_stratification",
+        status="failed",
+        summary="Forced protocol failure.",
+        cost_units=3,
+        artifact_paths=[diagnostic],
+    )
+    monkeypatch.setattr(policy, "verify_nasa_audit_action_report", _verified_stub)
+
+    result = plan_nasa_next_action(run, REGISTRY, ROOT)
+
+    assert result["selection_status"] == "manual_review_required"
+    assert result["selected_action"] is None
+    assert result["latest_failed_action_type"] == "protocol_stratification"
 
 
 def test_partial_dimensions_prioritize_exact_data_requirement(
