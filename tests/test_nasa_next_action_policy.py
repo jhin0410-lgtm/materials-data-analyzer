@@ -96,6 +96,7 @@ def test_policy_selects_available_audit_before_any_audit_action(tmp_path: Path) 
     assert result["selected_action"]["action_type"] == "audit_existing_battery_run"
     assert result["selected_action"]["availability"] == "available"
     assert result["selected_action"]["cost_units"] == 2
+    assert result["selected_action"]["execution_registry_path"] == str(REGISTRY)
 
 
 def test_policy_respects_budget_before_initial_audit(tmp_path: Path) -> None:
@@ -109,7 +110,7 @@ def test_policy_respects_budget_before_initial_audit(tmp_path: Path) -> None:
     assert result["selected_action"]["action_type"] == "audit_existing_battery_run"
 
 
-def test_policy_maps_verified_audit_outcomes_to_ranked_planned_actions(
+def test_policy_routes_target_action_to_verified_execution_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _run(tmp_path)
@@ -128,15 +129,26 @@ def test_policy_maps_verified_audit_outcomes_to_ranked_planned_actions(
     second = plan_nasa_next_action(run, REGISTRY, ROOT)
 
     assert first == second
-    assert first["selection_status"] == "blocked_unimplemented_action"
-    assert first["selected_action"]["action_type"] == "target_reference_sensitivity"
-    assert first["selected_action"]["score"] == 120
+    assert first["selection_status"] == "ready_to_execute"
+    selected = first["selected_action"]
+    assert selected["action_type"] == "target_reference_sensitivity"
+    assert selected["score"] == 120
+    assert selected["availability"] == "available"
+    assert selected["action_version"] == "1.0"
+    assert selected["execution_registry_id"] == "nasa-target-reference-actions-v1"
+    assert selected["execution_registry_path"].endswith(
+        "configs/research/nasa_target_reference_action_registry.v1.json"
+    )
+    assert len(selected["execution_registry_sha256"]) == 64
     assert [item["action_type"] for item in first["candidates"]][:3] == [
         "target_reference_sensitivity",
         "protocol_stratification",
         "source_cohort_leave_one_out",
     ]
-    assert all(item["availability"] == "planned" for item in first["candidates"])
+    assert first["candidates"][0]["availability"] == "available"
+    assert all(
+        item["availability"] == "planned" for item in first["candidates"][1:]
+    )
 
 
 def test_partial_dimensions_prioritize_exact_data_requirement(
