@@ -13,10 +13,24 @@ from .nasa_audit_executor import (
     ACTION_TYPE as AUDIT_ACTION_TYPE,
     verify_nasa_audit_action_report,
 )
+from .nasa_target_reference_action import (
+    ACTION_TYPE as TARGET_REFERENCE_ACTION_TYPE,
+    verify_nasa_target_reference_report,
+)
 
-POLICY_VERSION = "1.1"
+POLICY_VERSION = "1.2"
 _ACTION_EXECUTION_REGISTRY_FILENAMES = {
-    "target_reference_sensitivity": "nasa_target_reference_action_registry.v1.json",
+    TARGET_REFERENCE_ACTION_TYPE: "nasa_target_reference_action_registry.v1.json",
+}
+_TARGET_REFERENCE_OUTCOMES = {
+    "conclusion_stable_across_defensible_targets",
+    "conclusion_sensitive_to_target_reference",
+    "alternative_target_not_scientifically_defensible",
+    "required_reference_metadata_missing",
+}
+_TARGET_REFERENCE_MANUAL_REVIEW_OUTCOMES = {
+    "conclusion_sensitive_to_target_reference",
+    "alternative_target_not_scientifically_defensible",
 }
 
 
@@ -34,7 +48,7 @@ def _load_report(path: Path) -> dict[str, Any]:
     return value
 
 
-def _report_path(action: dict[str, Any]) -> Path:
+def _report_path(action: dict[str, Any], *, label: str) -> Path:
     matches = [
         Path(item["path"])
         for item in action.get("artifacts", [])
@@ -42,7 +56,7 @@ def _report_path(action: dict[str, Any]) -> Path:
     ]
     if len(matches) != 1:
         raise NasaActionPolicyError(
-            "audit ledger action must bind exactly one action_result.json"
+            f"{label} ledger action must bind exactly one action_result.json"
         )
     return matches[0]
 
@@ -107,6 +121,17 @@ def _proposal(
     }
 
 
+def _selection_status(state: dict[str, Any], selected: dict[str, Any]) -> str:
+    if (
+        state["budget"]["actions_remaining"] <= 0
+        or selected["cost_units"] > state["budget"]["cost_units_remaining"]
+    ):
+        return "blocked_by_budget"
+    if selected["availability"] != "available":
+        return "blocked_unimplemented_action"
+    return "ready_to_execute"
+
+
 def _post_audit_candidates(
     registry: dict[str, Any],
     report: dict[str, Any],
@@ -144,7 +169,7 @@ def _post_audit_candidates(
         )
     if "target_or_reference_flags_detected" in outcomes:
         add(
-            "target_reference_sensitivity",
+            TARGET_REFERENCE_ACTION_TYPE,
             120,
             "target_or_reference_flags_detected",
             "Resolve defensible target-reference sensitivity before model expansion.",
@@ -224,10 +249,12 @@ def plan_nasa_next_action(
             "reason": "The research run is terminal.",
         }
 
-    audits = [
-        item for item in state["actions"] if item["action_type"] == AUDIT_ACTION_TYPE
+    audit_indexes = [
+        index
+        for index, item in enumerate(state["actions"])
+        if item["action_type"] == AUDIT_ACTION_TYPE
     ]
-    if not audits:
+    if not audit_indexes:
         selected = _proposal(
             registry,
             AUDIT_ACTION_TYPE,
@@ -236,76 +263,149 @@ def plan_nasa_next_action(
             "Audit target/reference integrity and concentrated battery-level error.",
             execution_registries=execution_registries,
         )
-        enough_budget = (
-            state["budget"]["actions_remaining"] > 0
-            and selected["cost_units"] <= state["budget"]["cost_units_remaining"]
-        )
         return {
             **base,
-            "selection_status": (
-                "ready_to_execute" if enough_budget else "blocked_by_budget"
-            ),
+            "selection_status": _selection_status(state, selected),
             "selected_action": selected,
             "candidates": [selected],
             "reason": selected["rationale"],
         }
 
-    latest = audits[-1]
-    report_path = _report_path(latest)
-    verify_nasa_audit_action_report(report_path)
-    report = _load_report(report_path)
-    if latest["status"] == "failed":
+    latest_audit_index = audit_indexes[-1]
+    latest_audit = state["actions"][latest_audit_index]
+    audit_report_path = _report_path(latest_audit, label="audit")
+    verify_nasa_audit_action_report(audit_report_path)
+    audit_report = _load_report(audit_report_path)
+    if latest_audit["status"] == "failed":
         return {
             **base,
             "selection_status": "manual_review_required",
             "selected_action": None,
             "candidates": [],
             "reason": "The latest audit failed; automatic repetition is disabled.",
-            "latest_audit_report": str(report_path),
-            "latest_audit_error": report.get("error"),
+            "latest_audit_report": str(audit_report_path),
+            "latest_audit_error": audit_report.get("error"),
         }
-    if latest["status"] != "completed":
+    if latest_audit["status"] != "completed":
         raise NasaActionPolicyError(
-            f"unexpected audit ledger status: {latest['status']!r}"
+            f"unexpected audit ledger status: {latest_audit['status']!r}"
         )
 
-    tried = {item["action_type"] for item in state["actions"]}
-    candidates = [
-        item
-        for item in _post_audit_candidates(
-            registry,
-            report,
-            execution_registries=execution_registries,
-        )
-        if item["action_type"] not in tried
+    post_audit_actions = state["actions"][latest_audit_index + 1 :]
+    failed_actions = [
+        action for action in post_audit_actions if action["status"] == "failed"
     ]
+    if failed_actions:
+        failed = failed_actions[-1]
+        result: dict[str, Any] = {
+            **base,
+            "selection_status": "manual_review_required",
+            "selected_action": None,
+            "candidates": [],
+            "reason": (
+                "A post-audit action failed; automatic continuation and repetition "
+                "are disabled."
+            ),
+            "latest_failed_action_id": failed["action_id"],
+            "latest_failed_action_type": failed["action_type"],
+        }
+        if failed["action_type"] == TARGET_REFERENCE_ACTION_TYPE:
+            failed_report_path = _report_path(failed, label="target-reference")
+            verify_nasa_target_reference_report(failed_report_path)
+            failed_report = _load_report(failed_report_path)
+            result.update(
+                {
+                    "latest_failed_action_report": str(failed_report_path),
+                    "latest_failed_action_error": failed_report.get("error"),
+                }
+            )
+        return result
+
+    target_context: dict[str, Any] = {}
+    target_actions = [
+        action
+        for action in post_audit_actions
+        if action["action_type"] == TARGET_REFERENCE_ACTION_TYPE
+    ]
+    target_required_candidate: dict[str, Any] | None = None
+    if target_actions:
+        latest_target = target_actions[-1]
+        if latest_target["status"] != "completed":
+            raise NasaActionPolicyError(
+                "unexpected target-reference ledger status: "
+                f"{latest_target['status']!r}"
+            )
+        target_report_path = _report_path(latest_target, label="target-reference")
+        verify_nasa_target_reference_report(target_report_path)
+        target_report = _load_report(target_report_path)
+        target_outcome = target_report.get("outcome")
+        if target_outcome not in _TARGET_REFERENCE_OUTCOMES:
+            raise NasaActionPolicyError(
+                f"unknown target-reference outcome: {target_outcome!r}"
+            )
+        target_context = {
+            "latest_target_reference_report": str(target_report_path),
+            "latest_target_reference_outcome": target_outcome,
+        }
+        if target_outcome in _TARGET_REFERENCE_MANUAL_REVIEW_OUTCOMES:
+            return {
+                **base,
+                **target_context,
+                "selection_status": "manual_review_required",
+                "selected_action": None,
+                "candidates": [],
+                "reason": (
+                    "Target/reference semantics remain unresolved; automatic model "
+                    "or protocol expansion is disabled."
+                ),
+            }
+        if target_outcome == "required_reference_metadata_missing":
+            target_required_candidate = _proposal(
+                registry,
+                "external_data_requirement_generation",
+                140,
+                "required_reference_metadata_missing",
+                "Specify the missing reference metadata before further analysis.",
+                execution_registries=execution_registries,
+            )
+
+    tried = {item["action_type"] for item in state["actions"]}
+    if target_required_candidate is not None:
+        candidates = (
+            []
+            if target_required_candidate["action_type"] in tried
+            else [target_required_candidate]
+        )
+    else:
+        candidates = [
+            item
+            for item in _post_audit_candidates(
+                registry,
+                audit_report,
+                execution_registries=execution_registries,
+            )
+            if item["action_type"] not in tried
+        ]
     if not candidates:
         return {
             **base,
+            **target_context,
             "selection_status": "no_positive_value_action",
             "selected_action": None,
             "candidates": [],
-            "reason": "No untried registered action is justified by the audit outcomes.",
-            "latest_audit_report": str(report_path),
+            "reason": "No untried registered action is justified by verified outcomes.",
+            "latest_audit_report": str(audit_report_path),
         }
 
     selected = candidates[0]
-    if (
-        state["budget"]["actions_remaining"] <= 0
-        or selected["cost_units"] > state["budget"]["cost_units_remaining"]
-    ):
-        status = "blocked_by_budget"
-    elif selected["availability"] != "available":
-        status = "blocked_unimplemented_action"
-    else:
-        status = "ready_to_execute"
     return {
         **base,
-        "selection_status": status,
+        **target_context,
+        "selection_status": _selection_status(state, selected),
         "selected_action": selected,
         "candidates": candidates,
         "reason": selected["rationale"],
-        "latest_audit_report": str(report_path),
-        "latest_audit_outcomes": list(report.get("outcomes", [])),
-        "latest_evidence_level": report.get("evidence_level_after"),
+        "latest_audit_report": str(audit_report_path),
+        "latest_audit_outcomes": list(audit_report.get("outcomes", [])),
+        "latest_evidence_level": audit_report.get("evidence_level_after"),
     }

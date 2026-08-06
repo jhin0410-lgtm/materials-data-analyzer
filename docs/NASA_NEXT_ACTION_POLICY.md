@@ -1,8 +1,8 @@
 # Deterministic NASA Next-Action Policy
 
 This policy is the first action-selection baseline for the autonomous research
-loop. It converts verified research state and a verified Battery audit report into
-a ranked next-action recommendation.
+loop. It converts verified research state and verified action reports into a
+ranked next-action recommendation.
 
 It does not execute the selected action and it is not an LLM planner. Its purpose
 is to create a transparent baseline that future statistical or language-model
@@ -27,8 +27,10 @@ The policy requires:
 - a verified active or stopped research-loop directory;
 - the exact versioned NASA planning registry;
 - a source checkout root used to verify available bindings;
-- when an audit ledger event exists, exactly one checksum-bound
-  `action_result.json` artifact that passes the independent audit-report verifier.
+- exactly one checksum-bound `action_result.json` for each audit or implemented
+  post-audit action that the policy consumes;
+- successful independent verification of those reports before their outcomes are
+  used for another decision.
 
 The policy may resolve an action-specific execution registry located beside the
 planning registry. An override is accepted only when:
@@ -85,6 +87,23 @@ The ordering encodes the current scientific priority:
 
 This ordering is a predeclared baseline policy, not a discovered scientific law.
 
+## Verified target-reference transitions
+
+A completed `target_reference_sensitivity` action is not treated merely as a tried
+action. Its checksum-bound report is independently recomputed and its declared
+outcome controls the next transition:
+
+| Verified target-reference outcome | Policy transition |
+|---|---|
+| `conclusion_stable_across_defensible_targets` | Continue to the next untried candidate justified by the original audit. |
+| `conclusion_sensitive_to_target_reference` | Return `manual_review_required`; do not expand the model or protocol automatically. |
+| `alternative_target_not_scientifically_defensible` | Return `manual_review_required`; target semantics remain unresolved. |
+| `required_reference_metadata_missing` | Prioritize `external_data_requirement_generation` with score 140. |
+
+This transition table prevents a completed robustness check from being discarded
+as a ledger bookkeeping event. It also prevents a favorable alternative target
+from being promoted automatically.
+
 ## Execution contract in the decision
 
 Every candidate includes:
@@ -120,11 +139,15 @@ software availability drive research reasoning.
 
 ## Failure and terminal behavior
 
-A failed audit produces `manual_review_required`. The policy does not recommend
-repeating the same audit automatically. The failure report and rollback evidence
-must be reviewed or the underlying inputs must change first.
+A failed audit produces `manual_review_required`. Any failed post-audit action also
+produces `manual_review_required`; it is not silently removed from the candidate
+set while the policy continues to a lower-ranked experiment. For the implemented
+target-reference action, the failure report is independently verified before its
+error is exposed in the decision.
 
-A stopped research run produces `research_stopped` with no candidate.
+Automatic repetition and continuation remain disabled until the failure or input
+condition is reviewed. A stopped research run produces `research_stopped` with no
+candidate.
 
 ## Why a deterministic baseline comes before an LLM planner
 
@@ -153,12 +176,11 @@ research policy.
 
 ## Current boundary
 
-The policy presently reasons from the existing Battery run audit and resolves the
-implemented target-reference action through its independently verified execution
-registry. It does not inspect raw literature, generate new hypotheses, calculate
-Bayesian expected information gain, train an action-value model, or execute
-protocol stratification, source-cohort evaluation, feature ablation, state-space,
-abstention, or data-requirement actions.
+The policy presently reasons from the existing Battery run audit and the verified
+result of the implemented target-reference action. It does not inspect raw
+literature, generate new hypotheses, calculate Bayesian expected information gain,
+train an action-value model, or execute protocol stratification, source-cohort
+evaluation, feature ablation, state-space, abstention, or data-requirement actions.
 
 Those remaining actions stay `planned` until each has a typed adapter, verifier,
 tests, and scientific eligibility contract. Completing an executor does not by
