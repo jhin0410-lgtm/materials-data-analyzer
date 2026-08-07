@@ -26,9 +26,7 @@
     "policy_execution_authorized": false,
     "model_fit_authorized": false,
     "policy_v2_freeze_authorized": false,
-    "independent_benchmark_execution_authorized": false,
-    "source_independence_claim_authorized": false,
-    "external_validation_claim_authorized": false
+    "independent_benchmark_execution_authorized": false
   },
   "decision_rules": {
     "reuse_canonical_v1_3_query_filters": true,
