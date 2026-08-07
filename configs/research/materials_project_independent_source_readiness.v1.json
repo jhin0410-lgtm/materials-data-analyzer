@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "readiness_id": "materials-project-v1-3-independent-source-readiness-v1",
+  "readiness_id": "materials-project-v1-3-same-source-new-cohort-readiness-v1",
   "acquisition_spec": "data/case_studies/materials_project/acquisition_spec_v1_3.json",
   "benchmark_config": "configs/research/materials_project_retrospective_benchmark.v1.json",
   "benchmark_directory": "outputs/materials_project_retrospective_benchmark_v1",
@@ -26,7 +26,9 @@
     "policy_execution_authorized": false,
     "model_fit_authorized": false,
     "policy_v2_freeze_authorized": false,
-    "independent_benchmark_execution_authorized": false
+    "independent_benchmark_execution_authorized": false,
+    "source_independence_claim_authorized": false,
+    "external_validation_claim_authorized": false
   },
   "decision_rules": {
     "reuse_canonical_v1_3_query_filters": true,
@@ -39,7 +41,9 @@
     "require_two_to_five_elements": true,
     "do_not_set_candidate_count_threshold_before_inventory": true,
     "do_not_use_target_values_for_readiness": true,
-    "do_not_select_or_rank_candidates": true
+    "do_not_select_or_rank_candidates": true,
+    "same_source_id_disjointness_must_not_be_called_source_independence": true,
+    "same_source_cohort_must_not_be_called_external_validation": true
   },
-  "next_stage": "If a genuinely new cohort exists, predeclare finalist policies, learner, partitioning, endpoints and adequacy criteria before retrieving independent target labels."
+  "next_stage": "If a genuinely new same-source ID-disjoint cohort exists, predeclare any within-Materials-Project confirmatory design before retrieving its target labels; a separate authoritative source is still required for source-disjoint external validation."
 }
