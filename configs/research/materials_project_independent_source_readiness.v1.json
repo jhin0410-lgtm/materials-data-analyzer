@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "readiness_id": "materials-project-v1-3-independent-source-readiness-v1",
+  "acquisition_spec": "data/case_studies/materials_project/acquisition_spec_v1_3.json",
+  "benchmark_config": "configs/research/materials_project_retrospective_benchmark.v1.json",
+  "benchmark_directory": "outputs/materials_project_retrospective_benchmark_v1",
+  "benchmark_membership_output_key": "partition_membership",
+  "identity_fields": [
+    "material_id",
+    "formula_pretty",
+    "chemsys",
+    "elements",
+    "nelements",
+    "deprecated"
+  ],
+  "independent_identifier_column": "material_id",
+  "independent_group_column": "chemsys",
+  "original_identifier_column": "material_id",
+  "original_group_column": "chemical_system_group",
+  "scientific_boundary": {
+    "benchmark_v1_locked_target_read_authorized": false,
+    "benchmark_v1_locked_file_read_authorized": false,
+    "benchmark_partition_membership_read_authorized": true,
+    "current_materials_project_identity_query_authorized": true,
+    "current_target_property_query_authorized": false,
+    "policy_execution_authorized": false,
+    "model_fit_authorized": false,
+    "policy_v2_freeze_authorized": false,
+    "independent_benchmark_execution_authorized": false
+  },
+  "decision_rules": {
+    "reuse_canonical_v1_3_query_filters": true,
+    "query_identity_fields_only": true,
+    "exclude_all_original_benchmark_material_ids": true,
+    "record_materials_project_database_version": true,
+    "require_database_version_stability_during_query": true,
+    "require_unique_nonblank_material_ids": true,
+    "require_fe_and_si_membership": true,
+    "require_two_to_five_elements": true,
+    "do_not_set_candidate_count_threshold_before_inventory": true,
+    "do_not_use_target_values_for_readiness": true,
+    "do_not_select_or_rank_candidates": true
+  },
+  "next_stage": "If a genuinely new cohort exists, predeclare finalist policies, learner, partitioning, endpoints and adequacy criteria before retrieving independent target labels."
+}
