@@ -16,6 +16,10 @@ from materials_data_analyzer.research_loop.materials_project_acquisition_closeou
     MaterialsProjectAcquisitionCloseoutError,
     audit_materials_project_acquisition_suite,
 )
+from materials_data_analyzer.research_loop.materials_project_acquisition_closeout_binding import (  # noqa: E402
+    MaterialsProjectCloseoutBindingError,
+    validate_strategy_comparison_binding,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -52,12 +56,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        binding = validate_strategy_comparison_binding(args.suite_root)
         result = audit_materials_project_acquisition_suite(
             suite_root=args.suite_root,
             benchmark_dir=args.benchmark,
             benchmark_config_path=args.benchmark_config,
             output_dir=args.output,
         )
+        result["comparison_binding"] = binding
     except (
         FileNotFoundError,
         NotADirectoryError,
@@ -65,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         OSError,
         ValueError,
         MaterialsProjectAcquisitionCloseoutError,
+        MaterialsProjectCloseoutBindingError,
     ) as exc:
         print(f"Materials Project acquisition closeout failed: {exc}", file=sys.stderr)
         return 1
