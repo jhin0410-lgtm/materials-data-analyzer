@@ -40,7 +40,7 @@ def _registry_payload() -> dict[str, Any]:
     return json.loads(REGISTRY.read_text(encoding="utf-8"))
 
 
-def test_registered_kit_candidate_is_blocked_until_semantics_are_verified(
+def test_registered_kit_candidate_is_scientifically_ineligible_for_nasa_contract(
     tmp_path: Path,
 ) -> None:
     requirement_path = _write_json(tmp_path / "requirement.json", _requirement())
@@ -54,17 +54,18 @@ def test_registered_kit_candidate_is_blocked_until_semantics_are_verified(
 
     candidate = report["candidates"][0]
     assert candidate["candidate_id"] == "kit-luh-blank-2024-result-v2"
-    assert candidate["disposition"] == "semantics_audit_required"
+    assert candidate["disposition"] == "scientifically_ineligible"
     assert candidate["eligible_for_predeclared_diagnostic"] is False
     assert candidate["eligible_for_external_validation_claim"] is False
     assert candidate["structural_blockers"] == []
     assert candidate["minimum_batteries_per_temperature_lower_bound"] == 36
     assert candidate["exact_temperatures_c"] == [0.0, 10.0, 25.0, 40.0]
     assert candidate["semantic_blockers"] == [
-        "protocol_temperature_semantics_unresolved",
-        "exact_horizon_semantics_unresolved",
-        "target_reference_semantics_unresolved",
+        "protocol_temperature_semantics_mismatch",
+        "exact_horizon_semantics_mismatch",
+        "target_reference_semantics_mismatch",
     ]
+    assert candidate["required_next_step"] is None
 
 
 def test_candidate_becomes_diagnostic_eligible_only_after_semantic_matches(
