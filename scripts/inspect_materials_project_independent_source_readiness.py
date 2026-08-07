@@ -1,4 +1,4 @@
-"""Inspect whether the current Materials Project exposes a new identity cohort."""
+"""Inspect whether Materials Project exposes a new ID-disjoint same-source cohort."""
 
 from __future__ import annotations
 
@@ -27,8 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Query only current Materials Project identity fields under the frozen v1.3 scope, "
             "exclude all 838 benchmark-v1 material IDs using partition membership, and report "
-            "whether a genuinely new identity cohort exists. No target values, policies or models "
-            "are used."
+            "whether a new ID-disjoint cohort exists within the same Materials Project source. "
+            "This does not establish source-independent external validation. No target values, "
+            "policies or models are used."
         )
     )
     parser.add_argument(
@@ -70,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         CredentialRequiredError,
         MaterialsProjectIndependentSourceReadinessError,
     ) as exc:
-        print(f"Materials Project independent source readiness failed: {exc}", file=sys.stderr)
+        print(f"Materials Project same-source cohort readiness failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2, sort_keys=True, ensure_ascii=False))
     return 0
