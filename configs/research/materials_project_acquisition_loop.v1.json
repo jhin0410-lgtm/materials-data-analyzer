@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "materials-project-v1-3-retrospective-closed-loop-v1",
+  "sequence_version": "1.0",
+  "selection_unit": "chemical_system_group",
+  "cost_definition": "one cost unit per acquired material row; a selected chemical-system group reveals all rows in that group",
+  "max_label_cost": 100,
+  "random_seed": 42,
+  "strategies": [
+    "fixed_catalog",
+    "random",
+    "diversity",
+    "uncertainty"
+  ],
+  "primary_evaluation_model": "ridge_raw",
+  "evaluation_models": [
+    "dummy_median",
+    "ridge_raw",
+    "ridge_log1p",
+    "histogram_gradient_boosting_raw",
+    "histogram_gradient_boosting_log1p"
+  ],
+  "acquisition_policy": {
+    "whole_group_only": true,
+    "target_visible_before_selection": false,
+    "locked_test_visible_before_sequence_completion": false,
+    "allow_budget_overshoot": false,
+    "stop_when_no_remaining_group_fits_budget": true
+  },
+  "strategy_contracts": {
+    "fixed_catalog": "Non-adaptive baseline: acquire remaining chemical-system groups in stable lexical order.",
+    "random": "Non-adaptive baseline: acquire groups in a deterministic seeded hash order.",
+    "diversity": "Target-blind human-designed baseline: repeatedly choose the group whose planner-visible descriptor centroid is farthest from currently labelled group centroids after seed-fitted scaling.",
+    "uncertainty": "Adaptive agent baseline: fit fixed Ridge and histogram-gradient-boosting models on currently labelled evidence and choose the group with highest mean absolute model disagreement; fall back to diversity when fitting is not viable."
+  },
+  "scientific_boundary": [
+    "Acquisition strategy may use only seed labels and planner-visible acquisition features before a group is selected.",
+    "Oracle acquisition labels may be read only after the selected group is fixed for that step.",
+    "Locked-test rows and targets may not be read by sequence execution.",
+    "The fixed primary evaluation model is predeclared and may not be changed after locked-test metrics are observed.",
+    "Improved locked-test metrics would support research-efficiency evidence only for this retrospective Materials Project benchmark, not experimental synthesizability, causality, or production screening."
+  ]
+}
