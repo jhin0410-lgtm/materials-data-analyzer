@@ -61,6 +61,7 @@ def test_registered_kit_candidate_is_blocked_until_semantics_are_verified(
     assert candidate["minimum_batteries_per_temperature_lower_bound"] == 36
     assert candidate["exact_temperatures_c"] == [0.0, 10.0, 25.0, 40.0]
     assert candidate["semantic_blockers"] == [
+        "protocol_temperature_semantics_unresolved",
         "exact_horizon_semantics_unresolved",
         "target_reference_semantics_unresolved",
     ]
@@ -72,6 +73,9 @@ def test_candidate_becomes_diagnostic_eligible_only_after_semantic_matches(
     requirement_path = _write_json(tmp_path / "requirement.json", _requirement())
     registry = copy.deepcopy(_registry_payload())
     candidate = registry["candidates"][0]
+    candidate["metadata_assertions"]["protocol_temperature_semantics"] = (
+        "confirmed_match"
+    )
     candidate["metadata_assertions"]["exact_horizon_semantics"] = "confirmed_match"
     candidate["metadata_assertions"]["target_reference_semantics"] = "confirmed_match"
     registry_path = _write_json(tmp_path / "registry.json", registry)
