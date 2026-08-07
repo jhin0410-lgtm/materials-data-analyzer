@@ -32,6 +32,7 @@
     "reuse_canonical_v1_3_query_filters": true,
     "query_identity_fields_only": true,
     "exclude_all_original_benchmark_material_ids": true,
+    "historical_canonical_acquisition_must_equal_benchmark_universe": true,
     "record_materials_project_database_version": true,
     "require_database_version_stability_during_query": true,
     "require_unique_nonblank_material_ids": true,
