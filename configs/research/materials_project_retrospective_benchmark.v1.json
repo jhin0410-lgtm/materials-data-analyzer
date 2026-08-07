@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "materials-project-v1-3-retrospective-closed-loop-v1",
+  "dataset_version": "v1.3",
+  "identifier_column": "material_id",
+  "target_column": "energy_above_hull",
+  "partition_group_column": "chemical_system_group",
+  "required_disjoint_group_columns": [
+    "chemical_system_group",
+    "reduced_formula_group"
+  ],
+  "partition_fractions": {
+    "seed_evidence": 0.2,
+    "acquisition_pool": 0.6,
+    "locked_test": 0.2
+  },
+  "partition_salt": "materials-project-v1-3-stage4-v1",
+  "expected_source": {
+    "row_count": 838,
+    "primary_feature_count": 60
+  },
+  "planner_visibility": {
+    "seed_target_visible": true,
+    "acquisition_target_visible": false,
+    "locked_test_visible": false,
+    "visible_columns": "identifier + required disjoint groups + primary_feature=true descriptor columns"
+  },
+  "scientific_boundary": [
+    "Partition assignment must not use energy_above_hull values.",
+    "Whole chemical-system groups must remain in exactly one partition.",
+    "Reduced-formula groups must not cross partitions.",
+    "Acquisition labels are oracle-only until a later costed acquisition action explicitly reveals them.",
+    "Locked-test rows and targets must never be exposed to a planner or used for action selection, tuning, stopping-rule design, or model selection.",
+    "This partition contract creates no new predictive, causal, synthesizability, or discovery claim."
+  ]
+}
