@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "configs/research/nasa_external_source_candidates.v1.json"
 
 
-def _requirement() -> dict[str, object]:
+def _requirement() -> dict[str, Any]:
     return {
         "schema_version": "1.0",
         "blocker": "protocol_groups_too_small",
@@ -35,7 +36,7 @@ def _write_json(path: Path, value: object) -> Path:
     return path
 
 
-def _registry_payload() -> dict[str, object]:
+def _registry_payload() -> dict[str, Any]:
     return json.loads(REGISTRY.read_text(encoding="utf-8"))
 
 
