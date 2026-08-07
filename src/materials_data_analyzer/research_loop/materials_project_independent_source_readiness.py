@@ -1,10 +1,14 @@
-"""Identity-only readiness audit for an independent Materials Project cohort.
+"""Identity-only readiness audit for a new same-source Materials Project cohort.
 
 The audit intentionally does not read benchmark-v1 locked-test content, query
 energy_above_hull, fit a model, execute an acquisition policy, or decide a new
-benchmark size.  It answers one narrower question: under the already-versioned
+benchmark size. It answers one narrower question: under the already-versioned
 v1.3 Materials Project query scope, does the current database expose material
 identities that were not part of the original 838-row retrospective benchmark?
+
+A new material ID is only ID-disjoint from the original benchmark. Because the
+records still come from Materials Project, this audit never treats that cohort
+as source-disjoint external validation evidence.
 """
 
 from __future__ import annotations
@@ -35,7 +39,7 @@ CANDIDATE_NAME = "independent_candidate_identity.csv"
 
 
 class MaterialsProjectIndependentSourceReadinessError(ValueError):
-    """Raised when the independent-source readiness contract is violated."""
+    """Raised when the same-source new-cohort readiness contract is violated."""
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -214,7 +218,7 @@ def _load_benchmark_membership(
             "benchmark membership checksum mismatch"
         )
 
-    # This is the only benchmark CSV read by this audit.  In particular, the
+    # This is the only benchmark CSV read by this audit. In particular, the
     # locked/locked_test.csv path is never resolved or opened.
     membership = pd.read_csv(membership_path)
     identifier = str(config["original_identifier_column"])
@@ -399,7 +403,7 @@ def run_materials_project_independent_source_readiness(
     validate_signature: bool = True,
     overwrite: bool = False,
 ) -> dict[str, Any]:
-    """Inventory current independent identities without querying target properties."""
+    """Inventory current ID-disjoint same-source identities without target properties."""
     config_resolved = Path(config_path).expanduser().resolve(strict=True)
     config = _validate_config(_load_json(config_resolved))
     acquisition_spec_path = _repo_path(config["acquisition_spec"], "acquisition_spec")
@@ -436,14 +440,30 @@ def run_materials_project_independent_source_readiness(
     independent_groups = set(independent["chemsys"].astype(str))
     exact_group_overlap = independent_groups.intersection(original_groups)
 
-    source_outcome = "new_identity_cohort_available" if len(independent) else "no_new_identity_cohort"
+    source_outcome = (
+        "new_same_source_identity_cohort_available"
+        if len(independent)
+        else "no_new_same_source_identity_cohort"
+    )
     result: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "readiness_id": config["readiness_id"],
-        "execution_status": "independent_source_identity_inventory_completed",
+        "execution_status": "same_source_identity_inventory_completed",
         "scientific_evidence_level": "DevelopmentDiagnostic",
         "source_outcome": source_outcome,
         "materials_project_database_version": database_version,
+        "cohort_independence": {
+            "same_source_system": True,
+            "source_system": "Materials Project",
+            "material_id_disjoint_from_original_benchmark": True,
+            "source_independence_established": False,
+            "external_validation_ready": False,
+            "basis": (
+                "All original benchmark material_id values are excluded from the current "
+                "Materials Project identity inventory; this establishes ID disjointness only, "
+                "not source/provenance independence."
+            ),
+        },
         "source_binding": {
             "acquisition_spec_sha256": _sha256_file(acquisition_spec_path),
             "benchmark_config_sha256": _sha256_file(benchmark_config_path),
@@ -486,6 +506,7 @@ def run_materials_project_independent_source_readiness(
             "new_material_ids_after_original_exclusion": int(len(new_ids)),
         },
         "independent_candidate_inventory": {
+            "meaning": "ID-disjoint same-source candidate cohort",
             "rows": int(len(independent)),
             "chemical_system_groups": int(len(independent_groups)),
             "groups_also_seen_in_original_benchmark": int(len(exact_group_overlap)),
