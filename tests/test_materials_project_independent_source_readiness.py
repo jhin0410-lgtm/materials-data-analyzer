@@ -78,7 +78,7 @@ def _write_benchmark(tmp_path: Path) -> Path:
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    # Deliberately do not create locked/locked_test.csv.  The readiness audit
+    # Deliberately do not create locked/locked_test.csv. The readiness audit
     # must succeed without opening or resolving the locked file.
     return benchmark
 
@@ -170,9 +170,13 @@ def test_readiness_uses_identity_only_and_excludes_original_ids(tmp_path: Path):
         validate_signature=False,
     )
 
-    assert result["execution_status"] == "independent_source_identity_inventory_completed"
-    assert result["source_outcome"] == "new_identity_cohort_available"
+    assert result["execution_status"] == "same_source_identity_inventory_completed"
+    assert result["source_outcome"] == "new_same_source_identity_cohort_available"
     assert result["materials_project_database_version"] == "2026_08_01"
+    assert result["cohort_independence"]["same_source_system"] is True
+    assert result["cohort_independence"]["material_id_disjoint_from_original_benchmark"] is True
+    assert result["cohort_independence"]["source_independence_established"] is False
+    assert result["cohort_independence"]["external_validation_ready"] is False
     assert result["original_benchmark"]["rows"] == 838
     assert result["original_benchmark"]["locked_test_file_read"] is False
     assert result["original_benchmark"]["locked_target_read"] is False
@@ -182,6 +186,9 @@ def test_readiness_uses_identity_only_and_excludes_original_ids(tmp_path: Path):
     assert result["overlap"]["original_ids_still_present"] == 2
     assert result["overlap"]["new_material_ids_after_original_exclusion"] == 2
     assert result["independent_candidate_inventory"]["rows"] == 2
+    assert result["independent_candidate_inventory"]["meaning"] == (
+        "ID-disjoint same-source candidate cohort"
+    )
     assert result["policy_v2_freeze_authorized"] is False
     assert result["independent_benchmark_execution_authorized"] is False
 
