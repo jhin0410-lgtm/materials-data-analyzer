@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "replay_id": "materials-project-v1-3-policy-development-replay-v1",
+  "source_benchmark_id": "materials-project-v1-3-retrospective-closed-loop-v1",
+  "development_source": {
+    "allowed_partitions": ["seed_evidence", "acquisition_pool"],
+    "expected_rows": 671,
+    "locked_test_read_authorized": false
+  },
+  "partition_group_column": "chemical_system_group",
+  "required_disjoint_group_columns": ["chemical_system_group", "reduced_formula_group"],
+  "partition_fractions": {
+    "development_seed": 0.2,
+    "development_pool": 0.6,
+    "development_validation": 0.2
+  },
+  "replay_salts": [
+    "materials-project-policy-dev-r1",
+    "materials-project-policy-dev-r2",
+    "materials-project-policy-dev-r3",
+    "materials-project-policy-dev-r4",
+    "materials-project-policy-dev-r5"
+  ],
+  "max_label_cost": 100,
+  "random_seeds": [3, 11, 29, 42, 97],
+  "fixed_strategy_seed": 42,
+  "strategies": ["fixed_catalog", "random", "diversity", "uncertainty"],
+  "evaluation_models": [
+    "dummy_median",
+    "ridge_raw",
+    "ridge_log1p",
+    "histogram_gradient_boosting_raw",
+    "histogram_gradient_boosting_log1p"
+  ],
+  "development_questions": [
+    "Does the benchmark-v1 uncertainty heuristic underperform simpler baselines across multiple non-locked development replays?",
+    "How wide is the random-acquisition performance distribution across deterministic random seeds?",
+    "Is strategy ranking stable across model families, or is acquisition quality strongly learner-dependent?",
+    "Does uncertainty systematically acquire target distributions different from simpler baselines after labels are revealed?"
+  ],
+  "scientific_boundary": [
+    "The benchmark-v1 locked-test file and targets must not be read by this replay.",
+    "Development replay results may diagnose and motivate policy-v2 design but are not independent policy evidence.",
+    "No policy-v2 rule is promoted or frozen by this replay alone.",
+    "Any future policy-v2 implementation must be frozen before evaluation on a new independent benchmark.",
+    "Negative development results must be preserved and must not trigger hidden benchmark-v1 retuning."
+  ]
+}
