@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "registry_id": "nasa-external-source-candidates-v1",
+  "scientific_scope": "Independent-source candidates for the exact-temperature diagnostic required after NASA-EXTERNAL-001. Registry inclusion is not scientific admissibility.",
+  "candidates": [
+    {
+      "candidate_id": "kit-luh-blank-2024-result-v2",
+      "title": "Comprehensive battery aging dataset: capacity and impedance fade measurements of a lithium-ion NMC/C-SiO cell - version 2 result data",
+      "source_cohort_id": "kit-luh-blank-lg-inr18650hg2-2024",
+      "dataset_url": "https://radar.kit.edu/radar/en/dataset/CoNQplSNoVeXExyV.Comprehensive%2Bbattery%2Baging%2Bdataset%253A%2Bcapacity%2Band%2Bimpedance%2Bfade%2Bmeasurements%2Bof%2Ba%2Blithium-ion%2BNMC%252FC-SiO%2Bcell%2B%255Bdataset%2B%25E2%2580%2593%2Bversion%2B2%253A%2Bresult%2Bdata%255D",
+      "publication_url": "https://www.nature.com/articles/s41597-024-03831-x",
+      "dataset_doi": "10.35097/1969",
+      "publication_doi": "10.1038/s41597-024-03831-x",
+      "license": "CC BY 4.0",
+      "archive_size_mb": 333.4,
+      "cell_family": {
+        "manufacturer_model": "LG INR18650HG2",
+        "chemistry": "NMC/C+SiO",
+        "format": "18650"
+      },
+      "total_cells": 228,
+      "cyclic_design": {
+        "temperatures_c": [0.0, 10.0, 25.0, 40.0],
+        "cyclic_operating_conditions": 48,
+        "replicates_per_operating_condition": 3,
+        "temperature_crossed_with_other_factors": true,
+        "minimum_batteries_per_temperature_lower_bound": 36
+      },
+      "metadata_assertions": {
+        "source_cohort_identity_confirmed": true,
+        "independent_from_nasa": true,
+        "stable_battery_identifier_available": true,
+        "source_recorded_temperature_available": true,
+        "result_data_contains_capacity_measurements": true,
+        "license_confirmed": true,
+        "protocol_temperature_semantics": "unresolved",
+        "exact_horizon_semantics": "unresolved",
+        "target_reference_semantics": "unresolved"
+      },
+      "known_data_quality_events": [
+        "Temperature-control deviation from 2022-11-27 22:40 UTC to 2022-11-29 16:50 UTC affected all four pools; measured temperatures must be retained and handled explicitly.",
+        "A 25 degree_Celsius pool Peltier circuit failed on 2023-04-23 around 11:47, lowering average cell temperature by about 2.5 degree_Celsius and increasing within-pool variation.",
+        "Cell surface temperature may deviate from pool setpoint during operation, especially for severely aged fast-charging cold cells."
+      ],
+      "source_notes": [
+        "The publication reports 228 cells across 76 operating conditions, including 48 cyclic-aging conditions and four operating temperatures.",
+        "Version-2 result data is the first candidate for schema and capacity-semantics inspection; measured-temperature semantics may still require selected raw-log metadata or files.",
+        "This source must remain an independent source cohort and may not be pooled with NASA batteries merely because temperatures are similar."
+      ]
+    }
+  ]
+}
