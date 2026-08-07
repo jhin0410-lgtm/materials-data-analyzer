@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "materials-project-v1-3-retrospective-closed-loop-v1",
+  "dataset_version": "v1.3",
+  "source": {
+    "filename": "materials_project_v1_3_analysis_ready.csv",
+    "row_count": 838,
+    "sha256": "d06c78f3580b6380d5a1307d76e35310dd51b85fdbaaa1e3d28a8b7b50112320"
+  },
+  "descriptor_inventory": {
+    "filename": "materials_project_v1_3_descriptor_inventory.csv",
+    "primary_feature_count": 60,
+    "sha256": "2f360f4f4d9f640c23a7afecb1edb422bf9601e4d4a438fcf79ed81dd7fc75b9"
+  },
+  "benchmark_config": {
+    "filename": "materials_project_retrospective_benchmark.v1.json",
+    "sha256": "4d7c1ab8eea5b3bec47558f423cab09f85e26eeadec9f9fdf953eb65b213ea7a"
+  },
+  "partitions": {
+    "seed_evidence": {
+      "rows": 168,
+      "partition_group_count": 35
+    },
+    "acquisition_pool": {
+      "rows": 503,
+      "partition_group_count": 97
+    },
+    "locked_test": {
+      "rows": 167,
+      "partition_group_count": 35
+    }
+  },
+  "output_sha256": {
+    "seed_evidence": "f60582463a9e78a5e0c55761a477e5fcc09c290529875423b79bb4b930960b1a",
+    "acquisition_catalog": "83a39fa27f38899ca962d8aac075b9da54966f71e3c741855372e79d0129f1fb",
+    "acquisition_labels": "3fbb087b2ef8b65bb113fac8601deabfeae7eec4e8cf4fba7498ca83c53d983e",
+    "partition_membership": "ddbac2fa399b0c58e4a29cc740b3864aedf1494fa1f351f5d1b7255fc17e6f45",
+    "locked_test": "14a71f114dc3d1573cc59d61d2d9a929b6422c640d72cfb7613df4cddc86065b"
+  },
+  "verified_execution": {
+    "python": "3.13.14",
+    "numpy": "2.5.1",
+    "pandas": "3.0.5",
+    "verification_result": "valid",
+    "target_blind_partition_recomputed": true,
+    "required_group_disjointness_verified": true,
+    "locked_test_not_planner_visible": true
+  },
+  "scientific_boundary": [
+    "This receipt pins one verified local benchmark instance and does not create predictive evidence.",
+    "The locked-test partition and output hashes must not change within benchmark version v1.",
+    "A different source hash, inventory hash, config hash, or partition output requires a new benchmark instance version before evaluation.",
+    "Planner development, model selection, stopping-rule design, and acquisition policy tuning must not use locked-test targets."
+  ]
+}
