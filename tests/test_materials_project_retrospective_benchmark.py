@@ -84,6 +84,7 @@ def _write_inputs(
     *,
     source: pd.DataFrame | None = None,
 ) -> tuple[Path, Path, Path]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     source_path = tmp_path / "source.csv"
     inventory_path = tmp_path / "inventory.csv"
     config_path = tmp_path / "config.json"
@@ -128,8 +129,14 @@ def test_build_and_verify_keep_oracle_and_locked_targets_out_of_planner(
         "acquisition_pool",
         "locked_test",
     }
-    assert membership.groupby("chemical_system_group")["benchmark_partition"].nunique().max() == 1
-    assert membership.groupby("reduced_formula_group")["benchmark_partition"].nunique().max() == 1
+    chemical_overlap = membership.groupby("chemical_system_group")[
+        "benchmark_partition"
+    ].nunique()
+    formula_overlap = membership.groupby("reduced_formula_group")[
+        "benchmark_partition"
+    ].nunique()
+    assert chemical_overlap.max() == 1
+    assert formula_overlap.max() == 1
 
 
 def test_partition_membership_is_target_blind(tmp_path: Path) -> None:
@@ -177,7 +184,9 @@ def test_duplicate_material_id_fails_closed(tmp_path: Path) -> None:
 def test_primary_target_feature_fails_closed(tmp_path: Path) -> None:
     source_path, inventory_path, config_path = _write_inputs(tmp_path)
     inventory = pd.read_csv(inventory_path)
-    inventory.loc[inventory["column_name"].eq("energy_above_hull"), "primary_feature"] = True
+    inventory.loc[
+        inventory["column_name"].eq("energy_above_hull"), "primary_feature"
+    ] = True
     inventory.to_csv(inventory_path, index=False)
     config = json.loads(config_path.read_text(encoding="utf-8"))
     config["expected_source"]["primary_feature_count"] = 3
@@ -202,7 +211,10 @@ def test_verifier_rejects_tampered_planner_catalog(tmp_path: Path) -> None:
         output_dir=output,
     )
     catalog = output / "planner" / "acquisition_catalog.csv"
-    catalog.write_text(catalog.read_text(encoding="utf-8") + "tampered\n", encoding="utf-8")
+    catalog.write_text(
+        catalog.read_text(encoding="utf-8") + "tampered\n",
+        encoding="utf-8",
+    )
 
     with pytest.raises(MaterialsProjectBenchmarkError, match="checksum mismatch"):
         verify_materials_project_retrospective_benchmark(
