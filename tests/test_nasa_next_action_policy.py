@@ -216,7 +216,7 @@ def test_stable_target_result_continues_to_protocol_candidate(
 
     result = plan_nasa_next_action(run, REGISTRY, ROOT)
 
-    assert result["policy_version"] == "1.3"
+    assert result["policy_version"] == "1.4"
     assert result["selection_status"] == "ready_to_execute"
     assert result["selected_action"]["action_type"] == "protocol_stratification"
     assert result["selected_action"]["cost_units"] == 5
@@ -279,13 +279,15 @@ def test_missing_target_reference_metadata_prioritizes_data_requirement(
 
     result = plan_nasa_next_action(run, REGISTRY, ROOT)
 
-    assert result["selection_status"] == "blocked_unimplemented_action"
-    assert result["selected_action"]["action_type"] == (
-        "external_data_requirement_generation"
-    )
-    assert result["selected_action"]["score"] == 140
-    assert result["selected_action"]["trigger"] == (
-        "required_reference_metadata_missing"
+    selected = result["selected_action"]
+    assert result["selection_status"] == "ready_to_execute"
+    assert selected["action_type"] == "external_data_requirement_generation"
+    assert selected["availability"] == "available"
+    assert selected["action_version"] == "1.0"
+    assert selected["score"] == 140
+    assert selected["trigger"] == "required_reference_metadata_missing"
+    assert selected["execution_registry_id"] == (
+        "nasa-external-data-requirement-actions-v1"
     )
 
 

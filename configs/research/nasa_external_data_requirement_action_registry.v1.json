@@ -1,0 +1,75 @@
+{
+  "actions": [
+    {
+      "action_type": "external_data_requirement_generation",
+      "allowed_outcomes": [
+        "minimum_external_cohort_contract_generated",
+        "current_blocker_not_resolvable_by_more_data",
+        "requirement_generation_inconclusive"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "source_script",
+        "name": null,
+        "path": "scripts/run_nasa_external_data_requirement_action.py",
+        "platform": "cross_platform"
+      },
+      "category": "next_evidence_planning",
+      "cost_units": 2,
+      "expected_outputs": [
+        {
+          "description": "Machine-readable minimum evidence contract, including blocker, decision use, authoritative metadata-recovery route or fallback external/calibration cohort role, units, source-cohort design, comparability, and provenance requirements.",
+          "kind": "json",
+          "path": "reports/external_data_requirement.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "active_checksum_verified_research_run",
+        "completed_verified_blocker_action",
+        "verified_protocol_group_or_reference_metadata_limitation",
+        "external_evidence_required_stop_rule_authorized",
+        "remaining_action_and_cost_budget"
+      ],
+      "prohibited_effects": [
+        "do_not_claim_external_validation",
+        "do_not_download_data",
+        "do_not_upgrade_evidence",
+        "do_not_guess_missing_metadata",
+        "do_not_pool_unrelated_source_cohorts_to_satisfy_temperature_group_counts"
+      ],
+      "required_inputs": [
+        {
+          "description": "Active immutable research state containing checksum-bound prerequisite action reports.",
+          "kind": "research_state",
+          "name": "research_state",
+          "required": true
+        },
+        {
+          "description": "Verified protocol-stratification or target-reference report establishing the unresolved blocker.",
+          "kind": "action_report",
+          "name": "unresolved_blocker_reports",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Convert a verified unresolved target-reference or protocol-support blocker into the smallest explicit evidence contract: authoritative metadata recovery when possible, otherwise an independent external or predeclared calibration cohort with source-cohort and temperature confounding guarded.",
+      "target_blockers": [
+        "missing_target_reference_metadata",
+        "missing_protocol_metadata",
+        "missing_source_cohort_identity",
+        "insufficient_protocol_group_support"
+      ],
+      "verifier_checks": [
+        "requirement_names_blocker_and_decision_use",
+        "required_metadata_and_units_are_explicit",
+        "evidence_route_is_metadata_recovery_or_external_calibration",
+        "source_cohort_and_temperature_confounding_is_guarded",
+        "no_existing_dataset_is_rebranded_as_external"
+      ],
+      "version": "1.0"
+    }
+  ],
+  "domain": "nasa_pcoe_battery_exact_horizon",
+  "registry_id": "nasa-external-data-requirement-actions-v1",
+  "schema_version": "1.0"
+}

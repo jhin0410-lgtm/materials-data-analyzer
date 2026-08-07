@@ -22,10 +22,14 @@ from .nasa_target_reference_action import (
     verify_nasa_target_reference_report,
 )
 
-POLICY_VERSION = "1.3"
+POLICY_VERSION = "1.4"
+EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE = "external_data_requirement_generation"
 _ACTION_EXECUTION_REGISTRY_FILENAMES = {
     TARGET_REFERENCE_ACTION_TYPE: "nasa_target_reference_action_registry.v1.json",
     PROTOCOL_ACTION_TYPE: "nasa_protocol_stratification_action_registry.v1.json",
+    EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE: (
+        "nasa_external_data_requirement_action_registry.v1.json"
+    ),
 }
 _TARGET_REFERENCE_OUTCOMES = {
     "conclusion_stable_across_defensible_targets",
@@ -147,6 +151,16 @@ def _selection_status(state: dict[str, Any], selected: dict[str, Any]) -> str:
     return "ready_to_execute"
 
 
+def _prefer_required_candidate(
+    current: dict[str, Any] | None,
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    """Keep the highest-scoring mandatory evidence action deterministically."""
+    if current is None or int(candidate["score"]) > int(current["score"]):
+        return candidate
+    return current
+
+
 def _post_audit_candidates(
     registry: dict[str, Any],
     report: dict[str, Any],
@@ -162,6 +176,8 @@ def _post_audit_candidates(
         score: int,
         trigger: str,
         rationale: str,
+        *,
+        use_execution_override: bool = True,
     ) -> None:
         candidate = _proposal(
             registry,
@@ -169,7 +185,9 @@ def _post_audit_candidates(
             score,
             trigger,
             rationale,
-            execution_registries=execution_registries,
+            execution_registries=(
+                execution_registries if use_execution_override else None
+            ),
         )
         previous = candidates.get(action_type)
         if previous is None or score > int(previous["score"]):
@@ -177,10 +195,11 @@ def _post_audit_candidates(
 
     if "partial_dimensions_inconclusive" in outcomes:
         add(
-            "external_data_requirement_generation",
+            EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
             130,
             "partial_dimensions_inconclusive",
             "Define the minimum missing evidence before another model experiment.",
+            use_execution_override=False,
         )
     if "target_or_reference_flags_detected" in outcomes:
         add(
@@ -383,13 +402,16 @@ def plan_nasa_next_action(
                 ),
             }
         if target_outcome == "required_reference_metadata_missing":
-            required_candidate = _proposal(
-                registry,
-                "external_data_requirement_generation",
-                140,
-                "required_reference_metadata_missing",
-                "Specify the missing reference metadata before further analysis.",
-                execution_registries=execution_registries,
+            required_candidate = _prefer_required_candidate(
+                required_candidate,
+                _proposal(
+                    registry,
+                    EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
+                    140,
+                    "required_reference_metadata_missing",
+                    "Specify the missing reference metadata before further analysis.",
+                    execution_registries=execution_registries,
+                ),
             )
 
     protocol_context: dict[str, Any] = {}
@@ -420,16 +442,19 @@ def plan_nasa_next_action(
             "latest_protocol_stratification_outcome": protocol_outcome,
         }
         if protocol_outcome in _PROTOCOL_DATA_LIMIT_OUTCOMES:
-            required_candidate = _proposal(
-                registry,
-                "external_data_requirement_generation",
-                135,
-                protocol_outcome,
-                (
-                    "Specify the protocol metadata or group support required before "
-                    "further condition-stratified analysis."
+            required_candidate = _prefer_required_candidate(
+                required_candidate,
+                _proposal(
+                    registry,
+                    EXTERNAL_DATA_REQUIREMENT_ACTION_TYPE,
+                    135,
+                    protocol_outcome,
+                    (
+                        "Specify the protocol metadata or group support required before "
+                        "further condition-stratified analysis."
+                    ),
+                    execution_registries=execution_registries,
                 ),
-                execution_registries=execution_registries,
             )
 
     tried = {item["action_type"] for item in state["actions"]}

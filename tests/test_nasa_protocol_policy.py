@@ -145,12 +145,19 @@ def test_protocol_data_limits_prioritize_external_requirement(
 
     result = plan_nasa_next_action(run, REGISTRY, ROOT)
 
-    assert result["policy_version"] == "1.3"
-    assert result["selection_status"] == "blocked_unimplemented_action"
-    assert result["selected_action"]["action_type"] == (
-        "external_data_requirement_generation"
+    selected = result["selected_action"]
+    assert result["policy_version"] == "1.4"
+    assert result["selection_status"] == "ready_to_execute"
+    assert selected["action_type"] == "external_data_requirement_generation"
+    assert selected["availability"] == "available"
+    assert selected["action_version"] == "1.0"
+    assert selected["score"] == 135
+    assert selected["execution_registry_id"] == (
+        "nasa-external-data-requirement-actions-v1"
     )
-    assert result["selected_action"]["score"] == 135
+    assert Path(selected["execution_registry_path"]).name == (
+        "nasa_external_data_requirement_action_registry.v1.json"
+    )
     assert result["latest_protocol_stratification_report"] == str(report)
     assert result["latest_protocol_stratification_outcome"] == outcome
 
