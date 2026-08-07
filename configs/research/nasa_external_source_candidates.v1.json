@@ -33,6 +33,7 @@
         "source_recorded_temperature_available": true,
         "result_data_contains_capacity_measurements": true,
         "license_confirmed": true,
+        "protocol_temperature_semantics": "unresolved",
         "exact_horizon_semantics": "unresolved",
         "target_reference_semantics": "unresolved"
       },
@@ -43,7 +44,7 @@
       ],
       "source_notes": [
         "The publication reports 228 cells across 76 operating conditions, including 48 cyclic-aging conditions and four operating temperatures.",
-        "The version-2 result archive is sufficient for the first metadata and target-semantics audit; the raw log archive is not required at this stage.",
+        "Version-2 result data is the first candidate for schema and capacity-semantics inspection; measured-temperature semantics may still require selected raw-log metadata or files.",
         "This source must remain an independent source cohort and may not be pooled with NASA batteries merely because temperatures are similar."
       ]
     }
