@@ -6,11 +6,11 @@ bounded NASA research loop with `external_evidence_required`.
 It does **not** resume the stopped loop, download a dataset, train a model, or
 upgrade predictive evidence. It screens authoritative external-source candidates
 against the generated evidence contract and fails closed when scientific
-semantics remain unresolved.
+semantics are unresolved or incompatible.
 
 ## Current first candidate
 
-The initial registry contains the KIT Luh/Blank 2024 result-data cohort:
+The registry contains the KIT Luh/Blank 2024 result-data cohort:
 
 - dataset DOI: `10.35097/1969`;
 - publication DOI: `10.1038/s41597-024-03831-x`;
@@ -21,38 +21,102 @@ The initial registry contains the KIT Luh/Blank 2024 result-data cohort:
 - license: CC BY 4.0.
 
 The publication describes a crossed cyclic design across temperature, voltage
-window, and charge/discharge-rate combinations. This makes the cohort a strong
-candidate for the **source-specific temperature diagnostic**, but not yet an
-admissible dataset for that diagnostic.
+window, and charge/discharge-rate combinations. The cohort is structurally
+strong and remains valuable as a separate battery-aging benchmark candidate.
+It is **not**, however, scientifically admissible as direct evidence for the
+current NASA exact-horizon external diagnostic.
 
-## Why the candidate is still blocked
+## Semantic closeout
 
-Three semantic checks remain deliberately unresolved in the registry:
+All three required semantic comparisons are now resolved as
+`confirmed_mismatch`.
 
-1. **protocol-temperature semantics** — the NASA diagnostic uses
-   `ambient_temperature_median_c`. KIT records aging-temperature settings and
-   run-level cell temperatures, but the exact mapping to the NASA protocol field
-   must be specified from authoritative source fields without rounding, binning,
-   or inference;
-2. **exact-horizon semantics** — KIT capacity results are collected through
-   check-ups and cycle/EFC counters. A horizon may not be invented merely to
-   resemble the NASA prediction horizon;
-3. **target/reference semantics** — KIT reports estimated remaining usable
-   discharge capacity measured during check-ups under its defined reference
-   procedure. This must be compared explicitly with the NASA target and reference
-   definitions before reuse.
+### 1. Protocol-temperature semantics: mismatch
 
-Until all three are `confirmed_match`, the audit returns
-`semantics_audit_required` and `eligible_for_predeclared_diagnostic=false`.
+The NASA importer reads `ambient_temperature` from each source discharge
+operation and the protocol summary derives `ambient_temperature_median_c` as the
+battery-level median of those discharge-operation values. It is therefore a
+protocol field associated with the NASA discharge measurements used to build the
+capacity trajectory.
 
-Even after all three match, the tool only permits the predeclared diagnostic. It
-always returns `eligible_for_external_validation_claim=false` and preserves the
-current predictive evidence level as `Unsupported`.
+The KIT publication distinguishes the cell's aging operating temperature
+(0-40 degree_Celsius) from the reference capacity measurement. Before a check-up,
+all cells are moved to room temperature, 25 degree_Celsius, and stabilized. The
+remaining capacity is then measured during the standardized check-up at that
+room temperature.
+
+Therefore neither substitution is valid for the NASA contract:
+
+- KIT aging temperature is an exposure/operating condition, not the ambient
+  condition of the comparable capacity measurement;
+- KIT check-up capacity temperature is 25 degree_Celsius for all cells and
+  cannot provide the required exact-temperature groups.
+
+No rounding, binning, inferred mapping, or use of pool setpoint as a replacement
+is permitted.
+
+### 2. Exact-horizon semantics: mismatch
+
+Battery Degradation Intelligence uses a fixed warm-start horizon. The target row
+must exist exactly at `origin_cycle + horizon`, where NASA `cycle_index` is the
+one-based ordinal of discharge operations. Missing target rows are excluded;
+they are not interpolated.
+
+KIT comparison capacity is measured in scheduled check-ups. The first follow-up
+check-up occurs one week after the initial check-up and subsequent check-ups are
+performed at three-week intervals. Capacity trajectories are also represented
+against check-up/cycle counters and equivalent full cycles. Those observations
+cannot be relabeled as the NASA discharge-operation horizon without changing the
+scientific question.
+
+### 3. Target/reference semantics: mismatch
+
+The current public NASA importer preserves each source discharge `Capacity` and
+derives `capacity_retention_percent` against the documented 2.0 Ah rated
+capacity. It explicitly does not use the first observed discharge as the 100%
+reference.
+
+KIT determines remaining usable capacity through a standardized full CC-CV
+charge-discharge check-up at 25 degree_Celsius and 1/3 C with its documented
+cut-off condition. That is a useful and arguably cleaner reference-performance
+measurement, but it is not the same target measurement protocol as the NASA
+trajectory used by the current exact-horizon analysis.
+
+## Current disposition
+
+The expected audit disposition for `kit-luh-blank-2024-result-v2` is now:
+
+```text
+scientifically_ineligible
+```
+
+with these blockers:
+
+```text
+protocol_temperature_semantics_mismatch
+exact_horizon_semantics_mismatch
+target_reference_semantics_mismatch
+```
+
+This means **ineligible for the current NASA diagnostic**, not low-quality data.
+The source remains an independent candidate for a separately predeclared
+battery-aging benchmark whose target, horizon, and protocol definitions are
+native to KIT.
+
+The tool continues to return:
+
+- `eligible_for_predeclared_diagnostic=false`;
+- `eligible_for_external_validation_claim=false`;
+- predictive evidence level `Unsupported`.
+
+No KIT download is required to establish this semantic disposition because the
+mismatches are already explicit in the authoritative publication and the NASA
+analysis contract.
 
 ## Known data-quality events
 
 The source publication documents temperature-control events that must not be
-silently removed or overwritten:
+silently removed or overwritten if KIT is used in a future standalone benchmark:
 
 - 2022-11-27 22:40 UTC to 2022-11-29 16:50 UTC: cooling/heating interruption
   caused the colder pools to operate around 9-13 degree_Celsius and the warm
@@ -63,9 +127,9 @@ silently removed or overwritten:
 - cell surface temperatures can differ materially from the pool setpoint during
   operation.
 
-Any later ingestion must preserve these conditions through measured values,
-quality flags, explicit exclusions, or a documented sensitivity analysis. The
-audit does not choose a preprocessing policy.
+Any future standalone KIT ingestion must preserve these conditions through
+measured values, quality flags, explicit exclusions, or a documented sensitivity
+analysis. This NASA audit does not choose that preprocessing policy.
 
 ## Run the source audit
 
@@ -85,23 +149,17 @@ Use the requirement generated by the completed external-data action:
 The current KIT registry entry is expected to produce:
 
 ```text
-semantics_audit_required
+scientifically_ineligible
 ```
 
-That result is intentional. It means the source has sufficient structural and
-provenance promise to justify a targeted schema/semantics audit, but is not yet
-approved for model ingestion or scientific comparison.
+## NASA closeout boundary
 
-## Next evidence step
+Do not resume the NASA bounded research loop, relax the fixed-horizon contract,
+pool KIT cells with NASA cells, redefine temperature groups, or change the target
+merely to make an external source fit.
 
-Inspect only the minimum authoritative KIT metadata/schema needed to resolve:
-
-- which field can defensibly represent the NASA protocol-temperature concept;
-- whether a fixed future horizon can be reproduced without interpolation,
-  target repair, or post-hoc selection;
-- whether the capacity target/reference definition matches the NASA analysis.
-
-Do not download the large raw log archive unless the result-data schema proves
-insufficient to resolve the measured-temperature contract. If measured
-temperature requires raw logs, record that requirement explicitly before any
-large download.
+NASA remains stopped at `external_evidence_required` until an independent source
+is found whose protocol-temperature, exact-horizon, and target/reference
+semantics actually match the predeclared contract. In parallel, KIT may be
+considered for a **separate** benchmark with its own predeclared scientific
+question.
