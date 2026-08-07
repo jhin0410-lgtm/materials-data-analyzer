@@ -28,6 +28,7 @@ DEFAULT_BENCHMARK_CONFIG = Path(
 DEFAULT_ACQUISITION_CONFIG = Path(
     "configs/research/materials_project_acquisition_loop.v1.json"
 )
+STRATEGIES = ("fixed_catalog", "random", "diversity", "uncertainty")
 
 
 def _common_contract_args(parser: argparse.ArgumentParser) -> None:
@@ -48,11 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = subparsers.add_parser("run", help="Run one planner-side acquisition sequence.")
     _common_contract_args(run)
-    run.add_argument(
-        "--strategy",
-        required=True,
-        choices=["fixed_catalog", "random", "diversity", "uncertainty"],
-    )
+    run.add_argument("--strategy", required=True, choices=list(STRATEGIES))
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--overwrite", action="store_true")
 
@@ -77,7 +74,76 @@ def build_parser() -> argparse.ArgumentParser:
         help="Evaluation directory; repeat once per strategy.",
     )
     compare.add_argument("--output", type=Path)
+
+    suite = subparsers.add_parser(
+        "suite",
+        help=(
+            "Run all four predeclared strategies, evaluate each only after its sequence "
+            "finishes, and write one comparison result."
+        ),
+    )
+    _common_contract_args(suite)
+    suite.add_argument(
+        "--output-root",
+        type=Path,
+        default=Path("outputs/materials_project_acquisition_suite_v1"),
+    )
+    suite.add_argument("--overwrite", action="store_true")
     return parser
+
+
+def _run_suite(args: argparse.Namespace) -> dict[str, object]:
+    output_root: Path = args.output_root
+    evaluation_dirs: list[Path] = []
+    strategy_results: list[dict[str, object]] = []
+    for strategy in STRATEGIES:
+        sequence_dir = output_root / "sequences" / strategy
+        evaluation_dir = output_root / "evaluations" / strategy
+        sequence_result = run_materials_project_acquisition_sequence(
+            benchmark_dir=args.benchmark,
+            instance_path=args.instance,
+            benchmark_config_path=args.benchmark_config,
+            acquisition_config_path=args.acquisition_config,
+            strategy=strategy,
+            output_dir=sequence_dir,
+            overwrite=args.overwrite,
+        )
+        evaluation_result = evaluate_materials_project_acquisition_sequence(
+            benchmark_dir=args.benchmark,
+            instance_path=args.instance,
+            benchmark_config_path=args.benchmark_config,
+            acquisition_config_path=args.acquisition_config,
+            sequence_dir=sequence_dir,
+            output_dir=evaluation_dir,
+            overwrite=args.overwrite,
+        )
+        evaluation_dirs.append(evaluation_dir)
+        strategy_results.append(
+            {
+                "strategy": strategy,
+                "sequence_status": sequence_result["execution_status"],
+                "evaluation_status": evaluation_result["evaluation_status"],
+                "cost_used": evaluation_result["cost_used"],
+                "primary_model_result": evaluation_result["primary_model_result"],
+            }
+        )
+
+    comparison_path = output_root / "strategy_comparison.json"
+    comparison = compare_materials_project_acquisition_evaluations(
+        evaluation_dirs=evaluation_dirs,
+        output_path=comparison_path,
+    )
+    return {
+        "suite_status": "completed",
+        "benchmark_id": comparison["benchmark_id"],
+        "strategies": strategy_results,
+        "comparison_output": str(comparison_path),
+        "comparison": comparison,
+        "scientific_boundary": (
+            "Locked results are produced only after each predeclared sequence completes. "
+            "Do not retune benchmark-v1 strategies from this comparison."
+        ),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -103,11 +169,13 @@ def main(argv: list[str] | None = None) -> int:
                 output_dir=args.output,
                 overwrite=args.overwrite,
             )
-        else:
+        elif args.command == "compare":
             result = compare_materials_project_acquisition_evaluations(
                 evaluation_dirs=args.evaluation,
                 output_path=args.output,
             )
+        else:
+            result = _run_suite(args)
     except (
         FileNotFoundError,
         FileExistsError,
