@@ -33,9 +33,9 @@
         "source_recorded_temperature_available": true,
         "result_data_contains_capacity_measurements": true,
         "license_confirmed": true,
-        "protocol_temperature_semantics": "unresolved",
-        "exact_horizon_semantics": "unresolved",
-        "target_reference_semantics": "unresolved"
+        "protocol_temperature_semantics": "confirmed_mismatch",
+        "exact_horizon_semantics": "confirmed_mismatch",
+        "target_reference_semantics": "confirmed_mismatch"
       },
       "known_data_quality_events": [
         "Temperature-control deviation from 2022-11-27 22:40 UTC to 2022-11-29 16:50 UTC affected all four pools; measured temperatures must be retained and handled explicitly.",
@@ -44,7 +44,11 @@
       ],
       "source_notes": [
         "The publication reports 228 cells across 76 operating conditions, including 48 cyclic-aging conditions and four operating temperatures.",
-        "Version-2 result data is the first candidate for schema and capacity-semantics inspection; measured-temperature semantics may still require selected raw-log metadata or files.",
+        "Protocol-temperature mismatch: the NASA diagnostic field ambient_temperature_median_c is the battery-level median of source-recorded ambient_temperature on NASA discharge operations, while KIT moves cells from their 0-40 degree_Celsius aging operating temperature to 25 degree_Celsius before the standardized capacity check. KIT aging temperature therefore cannot be substituted for the NASA capacity-measurement ambient field, and the KIT capacity-measurement temperature itself is fixed at 25 degree_Celsius.",
+        "Exact-horizon mismatch: NASA forecasting requires a target row exactly at discharge-operation ordinal origin_cycle + horizon with no interpolation; KIT comparison capacity is collected in scheduled check-ups (first follow-up after one week and subsequent check-ups at three-week intervals) and represented over check-up/EFC progression.",
+        "Target/reference mismatch: the current NASA public importer derives capacity_retention_percent from each source discharge Capacity divided by the documented 2.0 Ah rated capacity, whereas KIT remaining usable capacity is measured during a standardized 25 degree_Celsius, 1/3 C full CC-CV check-up procedure.",
+        "Authoritative KIT semantics are documented in Luh and Blank, Scientific Data 11, 1004 (2024), DOI 10.1038/s41597-024-03831-x. NASA target and protocol semantics are enforced by src/platform_core/battery_intelligence/nasa_pcoe.py, src/platform_core/battery_intelligence/nasa_pcoe_rated.py, and the fixed-horizon Battery Degradation Intelligence contract.",
+        "This source remains scientifically valuable as an independent battery-aging benchmark candidate, but it is not admissible as direct evidence for the current NASA exact-horizon external diagnostic.",
         "This source must remain an independent source cohort and may not be pooled with NASA batteries merely because temperatures are similar."
       ]
     }
