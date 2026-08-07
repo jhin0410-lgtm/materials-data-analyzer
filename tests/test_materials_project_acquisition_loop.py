@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -229,10 +230,7 @@ def test_sequence_does_not_validate_or_read_locked_bytes(tmp_path: Path) -> None
     assert manifest["execution_status"] == "completed"
     assert manifest["planner_boundary"]["locked_test_content_read"] is False
 
-    with pytest.raises(
-        MaterialsProjectAcquisitionError,
-        match="locked_test",
-    ):
+    with pytest.raises(MaterialsProjectAcquisitionError, match="locked_test"):
         evaluate_materials_project_acquisition_sequence(
             benchmark_dir=paths["benchmark"],
             instance_path=paths["instance"],
@@ -292,8 +290,6 @@ def test_nonadaptive_history_is_independent_of_oracle_target_values(tmp_path: Pa
     labels.to_csv(labels_path, index=False)
     benchmark_manifest_path = paths["benchmark"] / "benchmark_manifest.json"
     benchmark_manifest = json.loads(benchmark_manifest_path.read_text(encoding="utf-8"))
-    import hashlib
-
     digest = hashlib.sha256(labels_path.read_bytes()).hexdigest()
     benchmark_manifest["output_sha256"]["acquisition_labels"] = digest
     benchmark_manifest_path.write_text(
