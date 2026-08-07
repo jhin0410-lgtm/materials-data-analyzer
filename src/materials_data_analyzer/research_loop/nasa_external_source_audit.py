@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -62,7 +63,10 @@ def _require_positive_int(value: Any, field: str) -> int:
 def _require_number(value: Any, field: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise NasaExternalSourceAuditError(f"{field} must be numeric")
-    return float(value)
+    normalized = float(value)
+    if not math.isfinite(normalized):
+        raise NasaExternalSourceAuditError(f"{field} must be finite")
+    return normalized
 
 
 def _validate_requirement(value: Any) -> dict[str, Any]:
@@ -129,6 +133,15 @@ def _validate_registry(value: Any) -> dict[str, Any]:
     if len(identifiers) != len(set(identifiers)):
         raise NasaExternalSourceAuditError("candidate_id values must be unique")
     return registry
+
+
+def _semantic_value(metadata: dict[str, Any], field: str) -> str:
+    value = metadata.get(field)
+    if value not in _ALLOWED_SEMANTIC_STATUS:
+        raise NasaExternalSourceAuditError(
+            f"candidate {field} has unsupported value"
+        )
+    return str(value)
 
 
 def _audit_candidate(
@@ -201,35 +214,31 @@ def _audit_candidate(
             "candidate.cyclic_design.temperature_crossed_with_other_factors",
         ),
     }
-
     structural_blockers = [
         name for name, passed in structural_checks.items() if not passed
     ]
 
-    exact_horizon = metadata.get("exact_horizon_semantics")
-    target_reference = metadata.get("target_reference_semantics")
-    if exact_horizon not in _ALLOWED_SEMANTIC_STATUS:
-        raise NasaExternalSourceAuditError(
-            "candidate exact_horizon_semantics has unsupported value"
-        )
-    if target_reference not in _ALLOWED_SEMANTIC_STATUS:
-        raise NasaExternalSourceAuditError(
-            "candidate target_reference_semantics has unsupported value"
-        )
-
+    semantic_status = {
+        "protocol_temperature_semantics": _semantic_value(
+            metadata, "protocol_temperature_semantics"
+        ),
+        "exact_horizon_semantics": _semantic_value(
+            metadata, "exact_horizon_semantics"
+        ),
+        "target_reference_semantics": _semantic_value(
+            metadata, "target_reference_semantics"
+        ),
+    }
     semantic_blockers: list[str] = []
-    if exact_horizon == "unresolved":
-        semantic_blockers.append("exact_horizon_semantics_unresolved")
-    if target_reference == "unresolved":
-        semantic_blockers.append("target_reference_semantics_unresolved")
-    if exact_horizon == "confirmed_mismatch":
-        semantic_blockers.append("exact_horizon_semantics_mismatch")
-    if target_reference == "confirmed_mismatch":
-        semantic_blockers.append("target_reference_semantics_mismatch")
+    for field, status in semantic_status.items():
+        if status == "unresolved":
+            semantic_blockers.append(f"{field}_unresolved")
+        elif status == "confirmed_mismatch":
+            semantic_blockers.append(f"{field}_mismatch")
 
     if structural_blockers:
         disposition = "structurally_ineligible"
-    elif "confirmed_mismatch" in {exact_horizon, target_reference}:
+    elif "confirmed_mismatch" in set(semantic_status.values()):
         disposition = "scientifically_ineligible"
     elif semantic_blockers:
         disposition = "semantics_audit_required"
@@ -255,17 +264,15 @@ def _audit_candidate(
         "eligible_for_external_validation_claim": False,
         "structural_checks": structural_checks,
         "structural_blockers": structural_blockers,
-        "semantic_status": {
-            "exact_horizon_semantics": exact_horizon,
-            "target_reference_semantics": target_reference,
-        },
+        "semantic_status": semantic_status,
         "semantic_blockers": semantic_blockers,
         "exact_temperatures_c": normalized_temperatures,
         "minimum_batteries_per_temperature_lower_bound": lower_bound,
         "known_data_quality_events": known_events,
         "required_next_step": (
-            "Verify exact-horizon and target/reference semantics from the source "
-            "data dictionary and result-file schema before any model ingestion."
+            "Verify protocol-temperature, exact-horizon, and target/reference "
+            "semantics from authoritative source documentation and the result-file "
+            "schema before any model ingestion."
             if disposition == "semantics_audit_required"
             else None
         ),
@@ -295,8 +302,8 @@ def audit_external_source_candidates(
         "candidates": audits,
         "scientific_boundary": (
             "Candidate screening does not create external validation evidence. "
-            "A candidate is blocked until exact-horizon and target/reference "
-            "semantics match the predeclared NASA analysis contract. Unrelated "
-            "source cohorts are never pooled to fill NASA temperature deficits."
+            "A candidate is blocked until protocol-temperature, exact-horizon, and "
+            "target/reference semantics match the predeclared NASA analysis contract. "
+            "Unrelated source cohorts are never pooled to fill NASA temperature deficits."
         ),
     }
