@@ -119,6 +119,28 @@ def test_new_same_source_ids_block_source_disjoint_exhaustion_claim(tmp_path: Pa
         )
 
 
+def test_shrunken_current_inventory_is_not_misread_as_exhaustion(tmp_path: Path) -> None:
+    payload = _readiness()
+    current = payload["current_identity_query"]
+    overlap = payload["overlap"]
+    assert isinstance(current, dict)
+    assert isinstance(overlap, dict)
+    current["rows"] = 837
+    current["unique_material_ids"] = 837
+    overlap["original_ids_still_present"] = 837
+    overlap["original_ids_absent_from_current_query"] = 1
+
+    with pytest.raises(
+        MaterialsProjectExternalEvidenceRequirementError,
+        match="scope differs from the historical benchmark universe",
+    ):
+        build_materials_project_external_evidence_requirement(
+            readiness_path=_write_readiness(tmp_path, payload),
+            config_path=CONFIG_PATH,
+            output_dir=tmp_path / "requirement",
+        )
+
+
 def test_readiness_target_query_blocks_requirement_generation(tmp_path: Path) -> None:
     payload = _readiness()
     current = payload["current_identity_query"]
