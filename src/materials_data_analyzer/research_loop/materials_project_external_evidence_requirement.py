@@ -124,6 +124,14 @@ def _require_mapping(parent: Mapping[str, Any], field: str) -> Mapping[str, Any]
     return value
 
 
+def _positive_int(value: object, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise MaterialsProjectExternalEvidenceRequirementError(
+            f"readiness field must be a positive integer: {field}"
+        )
+    return value
+
+
 def _validate_readiness(readiness: dict[str, Any], config: Mapping[str, Any]) -> None:
     if readiness.get("schema_version") != SCHEMA_VERSION:
         raise MaterialsProjectExternalEvidenceRequirementError(
@@ -145,6 +153,11 @@ def _validate_readiness(readiness: dict[str, Any], config: Mapping[str, Any]) ->
         raise MaterialsProjectExternalEvidenceRequirementError(
             "source-disjoint requirement is only valid after no new same-source cohort is found"
         )
+    database_version = readiness.get("materials_project_database_version")
+    if not isinstance(database_version, str) or not database_version.strip():
+        raise MaterialsProjectExternalEvidenceRequirementError(
+            "Materials Project database version must be recorded"
+        )
 
     independence = _require_mapping(readiness, "cohort_independence")
     if independence.get("same_source_system") is not True:
@@ -164,7 +177,30 @@ def _validate_readiness(readiness: dict[str, Any], config: Mapping[str, Any]) ->
             "readiness result unexpectedly claims external-validation readiness"
         )
 
+    original = _require_mapping(readiness, "original_benchmark")
     current = _require_mapping(readiness, "current_identity_query")
+    original_rows = _positive_int(original.get("rows"), "original_benchmark.rows")
+    original_ids = _positive_int(
+        original.get("unique_material_ids"), "original_benchmark.unique_material_ids"
+    )
+    original_groups = _positive_int(
+        original.get("chemical_system_groups"), "original_benchmark.chemical_system_groups"
+    )
+    current_rows = _positive_int(current.get("rows"), "current_identity_query.rows")
+    current_ids = _positive_int(
+        current.get("unique_material_ids"), "current_identity_query.unique_material_ids"
+    )
+    current_groups = _positive_int(
+        current.get("chemical_system_groups"), "current_identity_query.chemical_system_groups"
+    )
+    if original_ids != original_rows or current_ids != current_rows:
+        raise MaterialsProjectExternalEvidenceRequirementError(
+            "readiness identity counts must be unique within both historical and current inventories"
+        )
+    if current_rows != original_rows or current_groups != original_groups:
+        raise MaterialsProjectExternalEvidenceRequirementError(
+            "current same-source inventory scope differs from the historical benchmark universe"
+        )
     if current.get("identity_fields_only") is not True:
         raise MaterialsProjectExternalEvidenceRequirementError(
             "readiness must remain an identity-only query"
@@ -176,14 +212,27 @@ def _validate_readiness(readiness: dict[str, Any], config: Mapping[str, Any]) ->
             )
 
     overlap = _require_mapping(readiness, "overlap")
-    candidates = _require_mapping(readiness, "independent_candidate_inventory")
+    if overlap.get("original_ids_still_present") != original_ids:
+        raise MaterialsProjectExternalEvidenceRequirementError(
+            "not all historical material IDs remain present in the current same-source inventory"
+        )
+    if overlap.get("original_ids_absent_from_current_query") != 0:
+        raise MaterialsProjectExternalEvidenceRequirementError(
+            "historical material IDs are absent from the current same-source inventory"
+        )
     if overlap.get("new_material_ids_after_original_exclusion") != 0:
         raise MaterialsProjectExternalEvidenceRequirementError(
             "new same-source material IDs exist; source-disjoint exhaustion is not established"
         )
+
+    candidates = _require_mapping(readiness, "independent_candidate_inventory")
     if candidates.get("rows") != 0 or candidates.get("target_values_used") is not False:
         raise MaterialsProjectExternalEvidenceRequirementError(
             "same-source candidate inventory must be empty and target-blind"
+        )
+    if candidates.get("chemical_system_groups") != 0:
+        raise MaterialsProjectExternalEvidenceRequirementError(
+            "empty same-source candidate inventory must contain zero chemical-system groups"
         )
     if readiness.get("policy_v2_freeze_authorized") is not False:
         raise MaterialsProjectExternalEvidenceRequirementError(
