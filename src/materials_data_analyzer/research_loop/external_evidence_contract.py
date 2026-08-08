@@ -246,15 +246,15 @@ def evaluate_external_source_candidate(
         next_action = (
             "Preserve the reuse restriction; do not acquire or fit this candidate for the requirement."
         )
+    elif mismatches:
+        disposition = "scientifically_ineligible"
+        next_action = "Preserve the mismatch; do not acquire or fit this candidate for the requirement."
     elif independence == "confirmed_not_independent" or prohibited_source:
         disposition = "diagnostic_only"
         next_action = (
             "Candidate may support diagnostics only; confirmed source dependence prevents it from "
             "satisfying source-disjoint external evidence."
         )
-    elif mismatches:
-        disposition = "scientifically_ineligible"
-        next_action = "Preserve the mismatch; do not acquire or fit this candidate for the requirement."
     elif license_status == "unresolved" or independence == "unresolved" or unresolved_metadata:
         disposition = "metadata_incomplete"
         next_action = "Resolve authoritative provenance, reuse, and metadata before data acquisition."
