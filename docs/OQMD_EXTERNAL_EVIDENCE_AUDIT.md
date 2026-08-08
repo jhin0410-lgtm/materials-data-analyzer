@@ -56,12 +56,17 @@ After generating the local Materials Project external-evidence requirement:
   --output .\outputs\materials_project_external_source_candidate_audit_v1
 ```
 
-Expected scientific result for the tracked v1 registry:
+The tracked registry now contains multiple high-priority candidates. The OQMD-specific expectations remain:
 
-- candidate count: 1;
-- eligible candidate count: 0;
 - OQMD disposition: `scientifically_ineligible`;
-- mismatches: `thermodynamic_reference_state`, `energy_correction_semantics`;
+- OQMD mismatches: `thermodynamic_reference_state`, `energy_correction_semantics`;
+- OQMD source-system independence: satisfied;
+- OQMD eligibility for this requirement: false.
+
+For the current whole-registry expected counts and search closeout, see `MATERIALS_PROJECT_EXTERNAL_SOURCE_SEARCH_CLOSEOUT.md`.
+
+The audit itself must continue to report:
+
 - network access: false;
 - target retrieval: false;
 - model fit: false;

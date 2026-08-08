@@ -241,21 +241,26 @@ def evaluate_external_source_candidate(
     if availability == "unavailable":
         disposition = "unavailable"
         next_action = "Record source unavailability and continue requirement-conditioned search."
-    elif license_status == "restricted" or mismatches:
+    elif license_status == "restricted":
+        disposition = "scientifically_ineligible"
+        next_action = (
+            "Preserve the reuse restriction; do not acquire or fit this candidate for the requirement."
+        )
+    elif mismatches:
         disposition = "scientifically_ineligible"
         next_action = "Preserve the mismatch; do not acquire or fit this candidate for the requirement."
+    elif independence == "confirmed_not_independent" or prohibited_source:
+        disposition = "diagnostic_only"
+        next_action = (
+            "Candidate may support diagnostics only; confirmed source dependence prevents it from "
+            "satisfying source-disjoint external evidence."
+        )
     elif license_status == "unresolved" or independence == "unresolved" or unresolved_metadata:
         disposition = "metadata_incomplete"
         next_action = "Resolve authoritative provenance, reuse, and metadata before data acquisition."
     elif unresolved_semantics:
         disposition = "semantics_audit_required"
         next_action = "Resolve target/method semantics before data acquisition or model fitting."
-    elif independence == "confirmed_not_independent" or prohibited_source:
-        disposition = "diagnostic_only"
-        next_action = (
-            "Candidate may support same-source diagnostics only; it cannot satisfy source-disjoint "
-            "external evidence."
-        )
     else:
         disposition = "eligible"
         next_action = (

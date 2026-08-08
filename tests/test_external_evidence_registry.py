@@ -58,7 +58,13 @@ def _write_requirement(tmp_path: Path) -> Path:
     return path
 
 
-def test_oqmd_is_rejected_for_direct_external_validation(tmp_path: Path) -> None:
+def _assessments_by_id(result: dict[str, object]) -> dict[str, dict[str, object]]:
+    assessments = result["assessments"]
+    assert isinstance(assessments, list)
+    return {str(item["candidate_id"]): item for item in assessments}
+
+
+def test_high_priority_candidates_fail_closed_before_target_acquisition(tmp_path: Path) -> None:
     result = audit_external_evidence_registry(
         requirement_path=_write_requirement(tmp_path),
         registry_path=REGISTRY_PATH,
@@ -66,30 +72,77 @@ def test_oqmd_is_rejected_for_direct_external_validation(tmp_path: Path) -> None
     )
 
     assert result["status"] == "external_source_candidate_screening_completed"
-    assert result["candidate_count"] == 1
+    assert result["candidate_count"] == 4
     assert result["eligible_candidate_count"] == 0
+    assert result["disposition_counts"] == {
+        "diagnostic_only": 1,
+        "scientifically_ineligible": 3,
+    }
     assert result["network_access_performed"] is False
     assert result["target_values_retrieved"] is False
     assert result["model_fit_performed"] is False
     assert result["external_validation_claim_authorized"] is False
 
-    assessment = result["assessments"][0]
-    assert assessment["candidate_id"] == "oqmd-v1-8-phase-stability"
-    assert assessment["disposition"] == "scientifically_ineligible"
-    assert assessment["eligible_for_requirement"] is False
-    assert assessment["source_independence_satisfied"] is True
-    assert set(assessment["mismatches"]) == {
+    assessments = _assessments_by_id(result)
+
+    oqmd = assessments["oqmd-v1-8-phase-stability"]
+    assert oqmd["disposition"] == "scientifically_ineligible"
+    assert oqmd["source_independence_satisfied"] is True
+    assert set(oqmd["mismatches"]) == {
         "energy_correction_semantics",
         "thermodynamic_reference_state",
     }
-    assert set(assessment["unresolved_metadata"]) == {"competing_phase_inventory"}
-    assert set(assessment["unresolved_semantics"]) == {
-        "composition_scope",
-        "hull_construction_semantics",
-        "structure_identity_mapping",
+
+    jarvis = assessments["nist-jarvis-dft-phase-stability"]
+    assert jarvis["disposition"] == "scientifically_ineligible"
+    assert jarvis["source_independence_satisfied"] is True
+    assert set(jarvis["mismatches"]) == {
+        "energy_correction_semantics",
+        "thermodynamic_reference_state",
     }
+
+    aflow = assessments["aflow-phase-stability"]
+    assert aflow["disposition"] == "scientifically_ineligible"
+    assert aflow["source_independence_satisfied"] is True
+    assert aflow["mismatches"] == ()
+
+    alexandria = assessments["alexandria-pbe-convex-hull"]
+    assert alexandria["disposition"] == "diagnostic_only"
+    assert alexandria["source_independence_satisfied"] is False
+    assert alexandria["unresolved_metadata"]
+    assert alexandria["unresolved_semantics"]
+
     assert (tmp_path / "audit/external_source_candidate_assessments.json").is_file()
     assert (tmp_path / "audit/external_source_candidate_assessments.csv").is_file()
+
+
+def test_confirmed_source_dependence_precedes_unresolved_secondary_checks(tmp_path: Path) -> None:
+    registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    alexandria = next(
+        item
+        for item in registry["candidates"]
+        if item["candidate_id"] == "alexandria-pbe-convex-hull"
+    )
+    assert any(value == "unresolved" for value in alexandria["metadata_checks"].values())
+    assert any(value == "unresolved" for value in alexandria["semantic_checks"].values())
+
+    only_alexandria = {
+        **registry,
+        "registry_id": "alexandria-independence-precedence-fixture",
+        "candidates": [alexandria],
+    }
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(only_alexandria, indent=2) + "\n", encoding="utf-8")
+
+    result = audit_external_evidence_registry(
+        requirement_path=_write_requirement(tmp_path),
+        registry_path=path,
+        output_dir=tmp_path / "audit",
+    )
+
+    assessment = result["assessments"][0]
+    assert assessment["disposition"] == "diagnostic_only"
+    assert assessment["eligible_for_requirement"] is False
 
 
 def test_registry_duplicate_candidate_id_fails_closed(tmp_path: Path) -> None:
