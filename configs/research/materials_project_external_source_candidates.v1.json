@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "registry_id": "materials-project-external-source-candidates-v1",
+  "scientific_scope": "Requirement-conditioned source screening for the frozen Materials Project Fe/Si phase-stability benchmark. Registry inclusion is not scientific admissibility and does not authorize target acquisition.",
+  "candidates": [
+    {
+      "schema_version": "1.0",
+      "candidate_id": "oqmd-v1-8-phase-stability",
+      "title": "Open Quantum Materials Database v1.8 phase-stability data",
+      "source_system": "OQMD",
+      "availability": "available",
+      "source_independence": "confirmed_independent",
+      "license_status": "confirmed_reusable",
+      "metadata_checks": {
+        "dataset_identity_and_version": "confirmed_match",
+        "structure_composition_identifiers": "confirmed_match",
+        "calculation_code_and_version": "confirmed_match",
+        "exchange_correlation_functional": "confirmed_match",
+        "pseudopotential_or_basis": "confirmed_match",
+        "energy_correction_scheme": "confirmed_match",
+        "elemental_reference_energies": "confirmed_match",
+        "competing_phase_inventory": "unresolved",
+        "hull_construction_method": "confirmed_match"
+      },
+      "semantic_checks": {
+        "target_definition": "confirmed_match",
+        "target_unit": "confirmed_match",
+        "thermodynamic_reference_state": "confirmed_mismatch",
+        "energy_correction_semantics": "confirmed_mismatch",
+        "hull_construction_semantics": "unresolved",
+        "composition_scope": "unresolved",
+        "structure_identity_mapping": "unresolved"
+      },
+      "notes": [
+        "OQMD v1.8 is a February 2026 database release maintained by the Wolverton Research Group at Northwestern University and is distinct from the Materials Project source system.",
+        "OQMD data are licensed CC BY 4.0 and its REST API exposes stable entry identifiers, structures/compositions, formation energy delta_e, and stability as distance from the convex hull in eV/atom.",
+        "OQMD documents VASP 5.3.2, PBE-GGA, and VASP PAW-PBE potentials for its standard DFT calculations.",
+        "OQMD phase-diagram formation energies use fitted elemental-phase reference energies combined with DFT elemental energies and corrections associated with DFT+U treatment; this is not the same thermodynamic reference/correction convention as the frozen Materials Project summary energy_above_hull target.",
+        "Materials Project currently documents mixed GGA/GGA+U/r2SCAN thermodynamic processing and its own energy-correction/mixing schemes. Therefore a shared field meaning of distance above a convex hull and a shared eV/atom unit are insufficient for direct target equivalence.",
+        "Because thermodynamic_reference_state and energy_correction_semantics are confirmed mismatches, OQMD must not be acquired or fitted as direct source-disjoint external-validation evidence for this requirement. A separate cross-database diagnostic study could be scoped later without relabeling it as validation.",
+        "Authoritative sources checked: https://www.oqmd.org/download/ ; https://www.oqmd.org/documentation/vasp ; https://www.oqmd.org/analysis/phase_diagram/ ; https://static.oqmd.org/static/docs/restful.html ; https://docs.materialsproject.org/methodology/materials-methodology/thermodynamic-stability/thermodynamic-stability ; https://docs.materialsproject.org/methodology/materials-methodology/thermodynamic-stability/thermodynamic-stability/gga-gga%2Bu-r2scan-mixing"
+      ]
+    }
+  ]
+}
