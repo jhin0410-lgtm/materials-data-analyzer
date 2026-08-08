@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "requirement_id": "materials-project-v1-3-source-disjoint-stability-evidence-v1",
+  "expected_readiness_id": "materials-project-v1-3-same-source-new-cohort-readiness-v1",
+  "expected_source_outcome": "no_new_same_source_identity_cohort",
+  "domain": "materials_phase_stability",
+  "objective": "Identify a source-disjoint authoritative dataset that can independently test the frozen Materials Project Fe/Si phase-stability problem without redefining the target after benchmark-v1 exposure.",
+  "scientific_evidence_level": "DevelopmentDiagnostic",
+  "prohibited_source_systems": [
+    "Materials Project",
+    "Materials Project-derived mirror"
+  ],
+  "required_metadata_checks": [
+    "dataset_identity_and_version",
+    "structure_composition_identifiers",
+    "calculation_code_and_version",
+    "exchange_correlation_functional",
+    "pseudopotential_or_basis",
+    "energy_correction_scheme",
+    "elemental_reference_energies",
+    "competing_phase_inventory",
+    "hull_construction_method"
+  ],
+  "required_semantic_checks": [
+    "target_definition",
+    "target_unit",
+    "thermodynamic_reference_state",
+    "energy_correction_semantics",
+    "hull_construction_semantics",
+    "composition_scope",
+    "structure_identity_mapping"
+  ],
+  "domain_requirements": {
+    "composition_scope": {
+      "required_elements": [
+        "Fe",
+        "Si"
+      ],
+      "num_elements": [
+        2,
+        5
+      ]
+    },
+    "target_contract": {
+      "name": "energy_above_hull",
+      "unit": "eV/atom",
+      "interpretation": "Energy per atom above a phase-stability convex hull under a documented and scientifically comparable thermodynamic reference convention."
+    },
+    "comparability_rule": "A field name or numerical unit match is insufficient. Calculation method, energy references, corrections, competing phases, hull construction, and structure/composition identity must be audited explicitly before values are treated as comparable.",
+    "identity_rule": "Candidate records must support stable structure/composition identifiers and an explicit overlap audit against the original 838 Materials Project material IDs or a scientifically justified cross-source identity mapping."
+  },
+  "scientific_boundary": [
+    "The benchmark-v1 locked test and already-exposed policy results may not be reused for source selection, policy tuning, or stopping-rule design.",
+    "The Materials Project query scope may not be widened post hoc merely to create a favorable confirmatory cohort.",
+    "A same-source or Materials Project-derived mirror may be diagnostic but cannot establish source-disjoint external validation.",
+    "Candidate screening must occur before candidate target values are used for model selection or policy evaluation.",
+    "Passing this requirement screen does not itself authorize download, model fitting, evidence upgrade, or an external-validation claim."
+  ]
+}
