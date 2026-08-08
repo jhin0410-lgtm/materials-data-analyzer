@@ -75,6 +75,27 @@ def test_same_source_candidate_is_diagnostic_only() -> None:
     assert result.source_independence_satisfied is False
 
 
+def test_confirmed_source_dependence_precedes_unresolved_secondary_checks() -> None:
+    candidate = _candidate()
+    candidate["source_independence"] = "confirmed_not_independent"
+    candidate["metadata_checks"] = {
+        "dataset_identity": "confirmed_match",
+        "method_metadata": "unresolved",
+    }
+    candidate["semantic_checks"] = {
+        "target_definition": "confirmed_match",
+        "target_unit": "unresolved",
+    }
+
+    result = evaluate_external_source_candidate(_requirement(), candidate)
+
+    assert result.disposition == "diagnostic_only"
+    assert result.eligible_for_requirement is False
+    assert result.source_independence_satisfied is False
+    assert result.unresolved_metadata == ("method_metadata",)
+    assert result.unresolved_semantics == ("target_unit",)
+
+
 def test_confirmed_semantic_mismatch_is_scientifically_ineligible() -> None:
     candidate = _candidate()
     candidate["semantic_checks"] = {
