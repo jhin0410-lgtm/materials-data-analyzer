@@ -3,7 +3,7 @@
 The package deliberately contains no language model, unconstrained code
 generation, model fitting, or automatic scientific conclusion logic yet. It
 provides immutable state, strict action registries, typed deterministic action
-execution, and a deterministic next-action baseline for planner comparison.
+execution, and deterministic planning/transition baselines.
 """
 
 from .action_registry import (
@@ -55,6 +55,15 @@ from .planning_state import (
     PlanningStateError,
     build_research_planning_state,
 )
+from .planning_transition import (
+    TRANSITION_POLICY_VERSION,
+    TRANSITION_SCHEMA_VERSION,
+    PlanningTransitionError,
+    build_current_research_transition,
+    build_reopen_evidence_review,
+    determine_research_transition,
+    prepare_reopen_evidence_review,
+)
 from .protocol_stratification import build_protocol_stratification
 from .target_reference_sensitivity import (
     TargetReferenceSensitivityError,
@@ -70,12 +79,15 @@ __all__ = [
     "PLANNING_STATE_SCHEMA_VERSION",
     "PLANNING_STATE_VERSION",
     "STATE_FILENAME",
+    "TRANSITION_POLICY_VERSION",
+    "TRANSITION_SCHEMA_VERSION",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
     "NasaTargetReferenceActionError",
     "PlanningAdapterError",
     "PlanningStateError",
+    "PlanningTransitionError",
     "ResearchLoopError",
     "TargetReferenceSensitivityError",
     "action_summaries",
@@ -84,10 +96,13 @@ __all__ = [
     "append_hypothesis",
     "append_stop",
     "available_planning_adapters",
+    "build_current_research_transition",
     "build_protocol_stratification",
+    "build_reopen_evidence_review",
     "build_research_planning_state",
     "build_target_reference_sensitivity",
     "describe_action",
+    "determine_research_transition",
     "execute_nasa_audit_action",
     "execute_nasa_protocol_stratification_action",
     "execute_nasa_target_reference_action",
@@ -96,6 +111,7 @@ __all__ = [
     "load_research_state",
     "plan_nasa_next_action",
     "plan_research_next_action",
+    "prepare_reopen_evidence_review",
     "validate_action_registry",
     "verify_nasa_audit_action_report",
     "verify_nasa_protocol_stratification_report",
