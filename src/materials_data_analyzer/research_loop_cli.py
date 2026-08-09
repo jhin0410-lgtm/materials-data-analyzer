@@ -29,6 +29,7 @@ from materials_data_analyzer.research_loop import (
     load_research_state,
     plan_nasa_next_action,
     plan_research_next_action,
+    run_research_cycle,
     verify_nasa_audit_action_report,
     verify_nasa_protocol_stratification_report,
     verify_nasa_target_reference_report,
@@ -283,6 +284,23 @@ def build_parser() -> argparse.ArgumentParser:
     bounded_execute.add_argument("--registry", required=True, type=Path)
     bounded_execute.add_argument("--request", required=True, type=Path)
 
+    cycle_parser = subparsers.add_parser(
+        "run-research-cycle",
+        help=(
+            "Run one bounded research cycle: plan, state, transition, authorization, optional "
+            "single explicit typed action, verification, and one replan. Never loops."
+        ),
+    )
+    _add_generic_planning_arguments(cycle_parser)
+    cycle_parser.add_argument(
+        "--request",
+        type=Path,
+        help=(
+            "Optional explicit typed action request. Without it an authorizable cycle stops at "
+            "explicit_request_required."
+        ),
+    )
+
     reopen_parser = subparsers.add_parser(
         "prepare-reopen-review",
         help=(
@@ -404,6 +422,14 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         )
     if args.command == "execute-authorized-action":
         return execute_authorized_action(
+            args.adapter,
+            repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
+            request_path=args.request,
+        )
+    if args.command == "run-research-cycle":
+        return run_research_cycle(
             args.adapter,
             repository_root=args.repository_root,
             research_run=args.run,
