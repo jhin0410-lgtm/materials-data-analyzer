@@ -40,7 +40,7 @@ def test_producer_state_records_real_handoff_without_inventing_exact_specimen_id
     )
     assert producer["source_audit_supported"] is True
     assert producer["xrd_handoff_merge_commit"] == (
-        "9be7c5ab1306639d90db15b61d2a7139073758ba"
+        "9be7c5ab439add42f0612b12477e819759ca2d55"
     )
     assert producer["characterization_handoff_contract_ready"] is True
     assert producer["characterization_bundle_ready"] is True

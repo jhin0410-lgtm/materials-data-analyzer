@@ -15,7 +15,7 @@ This is the first real end-to-end case connecting a
 - compositions: Ti/Zr/Hf/V/Nb/Ta variants at nominal `TM7Fe52Si41`
 
 The MCA checksum-bound XRD descriptive producer was merged at
-`9be7c5ab1306639d90db15b61d2a7139073758ba`. Its actual source replay produced
+`9be7c5ab439add42f0612b12477e819759ca2d55`. Its actual source replay produced
 6 samples, 6 measurements and 36 review-required XRD features while retaining a
 maximum downstream use of `descriptive`.
 
