@@ -33,6 +33,13 @@ def _state(
             "reason": "test reason",
             "reopen_conditions": reopen_conditions or [],
         },
+        "evidence_bindings": [
+            {
+                "role": "test-planning-evidence",
+                "path": "evidence.json",
+                "sha256": "a" * 64,
+            }
+        ],
     }
 
 
@@ -48,6 +55,18 @@ def test_ready_action_is_pending_authorization_not_executed() -> None:
     assert result["automatic_execution_authorized"] is False
     assert result["action_executed"] is False
     assert result["scientific_evidence_upgraded"] is False
+
+
+def test_transition_preserves_planning_evidence_bindings() -> None:
+    state = _state(
+        "continue",
+        selected_action={"action_type": "protocol_stratification"},
+    )
+
+    result = transition.determine_research_transition(state)
+
+    assert result["planning_evidence_bindings"] == state["evidence_bindings"]
+    assert result["planning_evidence_bindings"] is not state["evidence_bindings"]
 
 
 def test_external_evidence_requirement_has_separate_transition() -> None:
@@ -67,7 +86,23 @@ def test_active_state_without_bounded_action_fails_to_manual_review() -> None:
     result = transition.determine_research_transition(_state("continue"))
 
     assert result["transition_type"] == "manual_review_required"
-    assert "no bounded selected action" in result["reason"]
+    assert "no valid bounded selected action" in result["reason"]
+
+
+@pytest.mark.parametrize(
+    "selected_action",
+    [{}, {"action_type": ""}, {"action_type": None}],
+)
+def test_active_state_with_malformed_action_fails_to_manual_review(
+    selected_action: object,
+) -> None:
+    result = transition.determine_research_transition(
+        _state("continue", selected_action=selected_action)
+    )
+
+    assert result["transition_type"] == "manual_review_required"
+    assert result["selected_action"] is None
+    assert result["automatic_execution_authorized"] is False
 
 
 @pytest.mark.parametrize(
@@ -101,6 +136,7 @@ def test_current_materials_project_transition_is_stop_current_scope() -> None:
     )
 
     assert result["transition_type"] == "stop_current_scope"
+    assert result["planning_evidence_bindings"]
     assert result["automatic_reopen_authorized"] is False
     assert result["network_access_performed"] is False
 
@@ -112,6 +148,7 @@ def test_current_tm_fe_si_transition_is_stop_current_scope() -> None:
     )
 
     assert result["transition_type"] == "stop_current_scope"
+    assert result["planning_evidence_bindings"]
     assert result["automatic_execution_authorized"] is False
 
 
@@ -132,17 +169,32 @@ def test_reopen_evidence_is_checksum_bound_but_not_semantically_accepted(
         evidence_path=evidence,
     )
 
+    evidence_bytes = evidence.read_bytes()
     assert result["review_status"] == "manual_semantic_review_required"
     assert result["requested_transition"] == "reopen_current_scope"
     assert result["next_transition"] == "manual_review_required"
+    assert result["planning_evidence_bindings"] == state["evidence_bindings"]
     assert result["evidence_binding"]["sha256"] == hashlib.sha256(
-        evidence.read_bytes()
+        evidence_bytes
     ).hexdigest()
+    assert result["evidence_binding"]["size_bytes"] == len(evidence_bytes)
+    assert isinstance(result["evidence_binding"]["mtime_ns"], int)
     assert result["condition_satisfaction_established"] is False
     assert result["scientific_comparability_established"] is False
     assert result["automatic_reopen_authorized"] is False
     assert result["automatic_execution_authorized"] is False
     assert result["scientific_evidence_upgraded"] is False
+
+
+def test_transition_rejects_missing_planning_evidence_bindings() -> None:
+    state = _state(
+        "continue",
+        selected_action={"action_type": "protocol_stratification"},
+    )
+    state.pop("evidence_bindings")
+
+    with pytest.raises(transition.PlanningTransitionError, match="evidence_bindings"):
+        transition.determine_research_transition(state)
 
 
 def test_reopen_review_rejects_nonterminal_state(tmp_path: Path) -> None:
