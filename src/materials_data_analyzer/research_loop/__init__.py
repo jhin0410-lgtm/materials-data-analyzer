@@ -1,9 +1,9 @@
 """Deterministic contracts for bounded autonomous materials research loops.
 
 The package deliberately contains no language model, unconstrained code
-generation, model fitting, or automatic scientific conclusion logic yet. It
-provides immutable state, strict action registries, typed deterministic action
-execution, and deterministic planning/transition/authorization baselines.
+generation, model fitting, or automatic scientific conclusion logic. It provides
+immutable state, strict action registries, typed deterministic action execution,
+and deterministic planning, transition, authorization, and execution gates.
 """
 
 from .action_authorization import (
@@ -19,6 +19,12 @@ from .action_registry import (
     describe_action,
     load_action_registry,
     validate_action_registry,
+)
+from .authorized_execution import (
+    EXECUTION_POLICY_VERSION,
+    EXECUTION_SCHEMA_VERSION,
+    AuthorizedExecutionError,
+    execute_authorized_action,
 )
 from .kernel import (
     LEDGER_FILENAME,
@@ -82,6 +88,8 @@ __all__ = [
     "ACTION_REPORT_FILENAME",
     "AUTHORIZATION_POLICY_VERSION",
     "AUTHORIZATION_SCHEMA_VERSION",
+    "EXECUTION_POLICY_VERSION",
+    "EXECUTION_SCHEMA_VERSION",
     "LEDGER_FILENAME",
     "PLANNING_ADAPTER_VERSION",
     "PLANNING_DECISION_SCHEMA_VERSION",
@@ -91,6 +99,7 @@ __all__ = [
     "TRANSITION_POLICY_VERSION",
     "TRANSITION_SCHEMA_VERSION",
     "ActionAuthorizationError",
+    "AuthorizedExecutionError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
@@ -115,6 +124,7 @@ __all__ = [
     "build_target_reference_sensitivity",
     "describe_action",
     "determine_research_transition",
+    "execute_authorized_action",
     "execute_nasa_audit_action",
     "execute_nasa_protocol_stratification_action",
     "execute_nasa_target_reference_action",
