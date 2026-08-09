@@ -49,6 +49,12 @@ from .planning_adapter import (
     available_planning_adapters,
     plan_research_next_action,
 )
+from .planning_state import (
+    PLANNING_STATE_SCHEMA_VERSION,
+    PLANNING_STATE_VERSION,
+    PlanningStateError,
+    build_research_planning_state,
+)
 from .protocol_stratification import build_protocol_stratification
 from .target_reference_sensitivity import (
     TargetReferenceSensitivityError,
@@ -61,12 +67,15 @@ __all__ = [
     "LEDGER_FILENAME",
     "PLANNING_ADAPTER_VERSION",
     "PLANNING_DECISION_SCHEMA_VERSION",
+    "PLANNING_STATE_SCHEMA_VERSION",
+    "PLANNING_STATE_VERSION",
     "STATE_FILENAME",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
     "NasaTargetReferenceActionError",
     "PlanningAdapterError",
+    "PlanningStateError",
     "ResearchLoopError",
     "TargetReferenceSensitivityError",
     "action_summaries",
@@ -76,6 +85,7 @@ __all__ = [
     "append_stop",
     "available_planning_adapters",
     "build_protocol_stratification",
+    "build_research_planning_state",
     "build_target_reference_sensitivity",
     "describe_action",
     "execute_nasa_audit_action",
