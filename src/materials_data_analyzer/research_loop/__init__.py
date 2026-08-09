@@ -3,9 +3,16 @@
 The package deliberately contains no language model, unconstrained code
 generation, model fitting, or automatic scientific conclusion logic yet. It
 provides immutable state, strict action registries, typed deterministic action
-execution, and deterministic planning/transition baselines.
+execution, and deterministic planning/transition/authorization baselines.
 """
 
+from .action_authorization import (
+    AUTHORIZATION_POLICY_VERSION,
+    AUTHORIZATION_SCHEMA_VERSION,
+    ActionAuthorizationError,
+    assess_action_authorization,
+    assess_current_action_authorization,
+)
 from .action_registry import (
     ACTION_REGISTRY_SCHEMA_VERSION,
     action_summaries,
@@ -73,6 +80,8 @@ from .target_reference_sensitivity import (
 __all__ = [
     "ACTION_REGISTRY_SCHEMA_VERSION",
     "ACTION_REPORT_FILENAME",
+    "AUTHORIZATION_POLICY_VERSION",
+    "AUTHORIZATION_SCHEMA_VERSION",
     "LEDGER_FILENAME",
     "PLANNING_ADAPTER_VERSION",
     "PLANNING_DECISION_SCHEMA_VERSION",
@@ -81,6 +90,7 @@ __all__ = [
     "STATE_FILENAME",
     "TRANSITION_POLICY_VERSION",
     "TRANSITION_SCHEMA_VERSION",
+    "ActionAuthorizationError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
@@ -95,6 +105,8 @@ __all__ = [
     "append_evidence",
     "append_hypothesis",
     "append_stop",
+    "assess_action_authorization",
+    "assess_current_action_authorization",
     "available_planning_adapters",
     "build_current_research_transition",
     "build_protocol_stratification",

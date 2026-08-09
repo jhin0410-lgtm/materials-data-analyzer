@@ -16,7 +16,7 @@ from .kernel import ResearchLoopError, load_research_state
 from .planning_adapter import plan_research_next_action
 
 PLANNING_STATE_SCHEMA_VERSION = "1.0"
-PLANNING_STATE_VERSION = "1.0"
+PLANNING_STATE_VERSION = "1.1"
 
 _NASA_ADAPTER = "nasa-battery"
 _MATERIALS_PROJECT_ADAPTER = "materials-project-external-source"
@@ -77,6 +77,10 @@ def _nonempty_text(value: object, field: str) -> str:
     return value.strip()
 
 
+def _optional_text(value: object) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
 def _string_list(value: object, field: str, *, allow_empty: bool = True) -> list[str]:
     if not isinstance(value, list):
         raise PlanningStateError(f"{field} must be a list")
@@ -106,11 +110,17 @@ def _normalize_action(candidate: Mapping[str, Any]) -> dict[str, Any]:
         priority_score = None
     return {
         "action_type": action_type,
+        "action_version": _optional_text(candidate.get("action_version")),
         "availability": availability,
         "cost_units": cost_units,
         "priority_score": priority_score,
         "trigger": trigger if isinstance(trigger, str) and trigger else None,
         "rationale": rationale if isinstance(rationale, str) and rationale else None,
+        "execution_registry_id": _optional_text(candidate.get("execution_registry_id")),
+        "execution_registry_sha256": _optional_text(
+            candidate.get("execution_registry_sha256")
+        ),
+        "execution_registry_path": _optional_text(candidate.get("execution_registry_path")),
         "expected_information_gain": {
             "status": "not_quantified",
             "value": None,

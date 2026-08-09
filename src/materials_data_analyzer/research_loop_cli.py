@@ -14,6 +14,7 @@ from materials_data_analyzer.research_loop import (
     append_evidence,
     append_hypothesis,
     append_stop,
+    assess_current_action_authorization,
     available_planning_adapters,
     build_current_research_transition,
     build_reopen_evidence_review,
@@ -257,6 +258,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_generic_planning_arguments(transition_parser)
 
+    authorization_parser = subparsers.add_parser(
+        "assess-action-authorization",
+        help=(
+            "Revalidate the selected typed action, execution registry, verifier contract, and "
+            "budget. A successful result still requires a separate explicit execution request."
+        ),
+    )
+    _add_generic_planning_arguments(authorization_parser)
+
     reopen_parser = subparsers.add_parser(
         "prepare-reopen-review",
         help=(
@@ -364,6 +374,13 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         )
     if args.command == "decide-transition":
         return build_current_research_transition(
+            args.adapter,
+            repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
+        )
+    if args.command == "assess-action-authorization":
+        return assess_current_action_authorization(
             args.adapter,
             repository_root=args.repository_root,
             research_run=args.run,
