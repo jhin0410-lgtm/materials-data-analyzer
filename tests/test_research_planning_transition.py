@@ -186,12 +186,25 @@ def test_reopen_evidence_is_checksum_bound_but_not_semantically_accepted(
     assert result["scientific_evidence_upgraded"] is False
 
 
-def test_transition_rejects_missing_planning_evidence_bindings() -> None:
+def test_transition_allows_absent_legacy_planning_evidence_bindings() -> None:
     state = _state(
         "continue",
         selected_action={"action_type": "protocol_stratification"},
     )
     state.pop("evidence_bindings")
+
+    result = transition.determine_research_transition(state)
+
+    assert result["planning_evidence_bindings"] == []
+    assert result["transition_type"] == "action_pending_authorization"
+
+
+def test_transition_rejects_malformed_planning_evidence_bindings() -> None:
+    state = _state(
+        "continue",
+        selected_action={"action_type": "protocol_stratification"},
+    )
+    state["evidence_bindings"] = "not-a-list"
 
     with pytest.raises(transition.PlanningTransitionError, match="evidence_bindings"):
         transition.determine_research_transition(state)
