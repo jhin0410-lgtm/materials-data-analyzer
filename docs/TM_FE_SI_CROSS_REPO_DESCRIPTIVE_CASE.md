@@ -1,6 +1,6 @@
 # TM-Fe-Si cross-repository descriptive case
 
-Status: `implementation_ready_for_real_source_replay`
+Status: `real_source_replay_complete`
 
 This is the first real end-to-end case connecting a
 `materials-characterization-analyzer` producer bundle to a
@@ -14,9 +14,10 @@ This is the first real end-to-end case connecting a
 - license: `CC BY 4.0`
 - compositions: Ti/Zr/Hf/V/Nb/Ta variants at nominal `TM7Fe52Si41`
 
-The MCA producer is the checksum-bound XRD descriptive case merged in
-`materials-characterization-analyzer` at commit
-`9be7c5ab1306639d90db15b61d2a7139073758ba`.
+The MCA checksum-bound XRD descriptive producer was merged at
+`9be7c5ab1306639d90db15b61d2a7139073758ba`. Its actual source replay produced
+6 samples, 6 measurements and 36 review-required XRD features while retaining a
+maximum downstream use of `descriptive`.
 
 ## Consumer-owned magnetic quantity
 
@@ -40,19 +41,45 @@ extraction or Curie-temperature extraction occurs.
 
 ## Join contract
 
-The MCA bundle is first consumed through the existing
-`mda-characterization-import` implementation without an external process table.
-The case consumer then validates all three fields before one-to-one joining the
-magnetic observations:
+The MCA bundle is first consumed through the existing MDA characterization
+workflow without an external process table. The case consumer then validates all
+three fields before one-to-one joining the magnetic observations:
 
 1. `sample_id`
 2. `nominal_composition`
 3. `preparation_family_id`
 
+The frozen preparation family is
+`tm-fe-si-arc-melt-remelt-1050c-1d-air-cool`.
+
 Row-order, spreadsheet-row, filename-position and inferred exact-aliquot joins
 are prohibited. The stable identity means nominal composition plus preparation
 family. The publication does not establish that the powdered XRD portion and
 bulk magnetic specimen were the same physical aliquot.
+
+## Actual replay
+
+The PR implementation was installed from its CI-built wheel and replayed against
+the checksum-bound MCA XRD bundle plus all six real M-H workbooks.
+
+Observed result:
+
+- status: `verified_descriptive_cross_repo_case`
+- samples: `6`
+- characterization evidence: `Diagnostic`
+- requested use: `descriptive`
+- maximum allowed use: `descriptive`
+- cross-modal table SHA-256:
+  `4efa75f7ddf76339d63085a281e5b420617d17efddbd9e3b0b9bb53af53c3570`
+- magnetic consumer table SHA-256:
+  `4c5d28ff0f943c883e6b906d686a382d163a79cb672c679c6a9fbb2e4a15987c`
+
+A negative-control run requested `predictive` use. It exited with code `1`
+because the producer maximum is `descriptive`; neither the requested output nor
+the transactional staging directory remained afterward.
+
+The compact replay evidence is frozen at
+`configs/research/tm_fe_si_cross_repo_real_replay.v1.json`.
 
 ## Run
 
@@ -69,15 +96,15 @@ $python = (Resolve-Path ".\.venv313\Scripts\python.exe").Path
   --output ".\outputs\tm_fe_si_cross_repo_descriptive"
 ```
 
-The output is transactional and is never written over an existing directory.
-It contains the normal MDA characterization-import evidence, the six-row
-magnetic consumer table, the joined descriptive table, source manifest, summary
-and report. Raw workbooks are not copied into outputs or committed.
+The output is transactional and never overwrites an existing directory. It
+contains the normal MDA characterization-import evidence, six-row magnetic
+consumer table, joined descriptive table, source manifest, summary and report.
+Raw workbooks are not copied into outputs or committed.
 
 ## Scientific closeout
 
-**Diagnostic.** This case demonstrates a real, provenance-preserving software
-and identity handoff and supports per-composition descriptive inspection.
+**Diagnostic.** The real workflow supports per-composition descriptive
+inspection and demonstrates provenance-preserving software/identity handoff.
 
 It does **not** establish:
 
@@ -91,8 +118,8 @@ It does **not** establish:
 - causality;
 - engineering-release readiness.
 
-There are only six nominal compositions. The workflow therefore intentionally
-does not compute correlation significance, fit predictive models, or promote a
-mechanistic claim. A scientifically stronger claim would require independent
-sample identity and measurement metadata plus a validation design appropriate
-to the specific hypothesis.
+There are only six nominal compositions. The workflow intentionally does not
+compute correlation significance, fit predictive models, or promote a
+mechanistic claim. A stronger scientific claim requires a new validation design
+with exact sample lineage, hypothesis-relevant metadata/truth, and enough
+independent samples for the stated inference.
