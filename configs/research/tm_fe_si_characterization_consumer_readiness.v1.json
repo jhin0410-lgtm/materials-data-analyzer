@@ -57,13 +57,18 @@
   },
   "magnetic_consumer_data": {
     "owner": "materials-data-analyzer",
+    "dc_magnetization_descriptive_use": "Diagnostic",
+    "m_h_descriptive_use": "Diagnostic",
     "selected_measurement": "300K_MH_plus30kOe_loop_endpoints",
     "quantity_name": "mh_300k_plus30koe_endpoint_mean_emu_g",
     "quantity_is_saturation_magnetization": false,
-    "m_h_descriptive_use": "Diagnostic",
+    "consumer_table_ready": true,
     "consumer_table_implementation_ready": true,
     "consumer_table_real_source_replay_ready": true,
     "real_source_replay_snapshot": "configs/research/tm_fe_si_cross_repo_real_replay.v1.json",
+    "join_authorized_before_stable_producer_identity_exists": false,
+    "high_temperature_instrument_split_must_be_preserved": true,
+    "dmdt_derivation_provenance_resolved": false,
     "interpolation_authorized": false,
     "smoothing_authorized": false,
     "outlier_removal_authorized": false,
@@ -74,6 +79,7 @@
     "stable_producer_identity_required": true,
     "sample_id_required": true,
     "nominal_composition_required": true,
+    "preparation_batch_family_required": true,
     "preparation_family_required": true,
     "real_replay_identity_fields_verified": [
       "sample_id",
@@ -106,6 +112,7 @@
   },
   "next_requirements": [
     "Treat this end-to-end case as complete for descriptive software/provenance validation; do not add more TM-Fe-Si algorithms merely to expand scope.",
+    "Keep the separate dc-magnetization instrument-split and dM/dT provenance limitations unresolved unless a future scientific question specifically requires those data.",
     "A stronger scientific claim requires a new dataset or study design with exact sample lineage, relevant characterization truth/metadata, and enough independent samples for the stated hypothesis.",
     "Keep predictive, causal, and engineering readiness false until such evidence exists."
   ]
