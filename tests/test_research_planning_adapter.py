@@ -35,11 +35,26 @@ def _prepare_tm_repo(tmp_path: Path) -> Path:
     )
 
 
+def _prepare_nist_repo(tmp_path: Path) -> Path:
+    readiness = _copy_tracked(
+        tmp_path,
+        "configs/research/nist_ambench_2018_02_planning_readiness.v1.json",
+    )
+    for relative in (
+        "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv",
+        "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv",
+        "data/case_studies/nist_ambench_2018_02/README.md",
+    ):
+        _copy_tracked(tmp_path, relative)
+    return readiness
+
+
 def test_available_planning_adapters_are_stable() -> None:
     assert planning.available_planning_adapters() == (
         "nasa-battery",
         "materials-project-external-source",
         "tm-fe-si-descriptive",
+        "nist-ambench-process-characterization",
     )
 
 
@@ -61,6 +76,44 @@ def test_tm_fe_si_correctly_stops_at_descriptive_closeout(tmp_path: Path) -> Non
     assert decision["action_executed"] is False
     assert decision["model_fit_performed"] is False
     assert readiness.read_bytes() == before
+
+
+def test_nist_ambench_correctly_stops_before_predictive_promotion(
+    tmp_path: Path,
+) -> None:
+    readiness = _prepare_nist_repo(tmp_path)
+    before = readiness.read_bytes()
+
+    decision = planning.plan_research_next_action(
+        "nist-ambench-process-characterization",
+        repository_root=tmp_path,
+    )
+
+    assert decision["selection_status"] == "no_positive_value_action"
+    assert decision["selected_action"] is None
+    assert decision["candidates"] == []
+    assert decision["evidence_level"] == "Diagnostic"
+    assert decision["maximum_allowed_use"] == "descriptive"
+    assert decision["network_access_performed"] is False
+    assert decision["action_executed"] is False
+    assert decision["model_fit_performed"] is False
+    assert len(decision["evidence_bindings"]) == 4
+    assert readiness.read_bytes() == before
+
+
+def test_nist_ambench_fails_closed_if_predictive_use_is_promoted(
+    tmp_path: Path,
+) -> None:
+    readiness_path = _prepare_nist_repo(tmp_path)
+    payload = json.loads(readiness_path.read_text(encoding="utf-8"))
+    payload["current_scope"]["predictive_use_authorized"] = True
+    readiness_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(planning.PlanningAdapterError, match="stronger-use boundary"):
+        planning.plan_research_next_action(
+            "nist-ambench-process-characterization",
+            repository_root=tmp_path,
+        )
 
 
 def test_materials_project_correctly_preserves_closed_source_search(tmp_path: Path) -> None:
