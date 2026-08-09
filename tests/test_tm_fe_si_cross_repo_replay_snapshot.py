@@ -15,6 +15,14 @@ SNAPSHOT = (
 def test_tm_fe_si_real_replay_stays_descriptive_and_fail_closed() -> None:
     payload = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
 
+    producer = payload["mca_producer"]
+    assert producer["merge_commit"] == (
+        "9be7c5ab439add42f0612b12477e819759ca2d55"
+    )
+    assert producer["bundle_manifest_sha256"] == (
+        "c4305411f6a0232f1a567637672ad9527a9b098a881716ffc3eeecea4c0b8cfb"
+    )
+
     replay = payload["descriptive_replay"]
     assert replay["status"] == "verified_descriptive_cross_repo_case"
     assert replay["sample_count"] == 6
