@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 import materials_data_analyzer.research_loop_cli as cli
 
 
@@ -103,3 +105,141 @@ def test_research_loop_cli_fails_closed(tmp_path: Path, capsys) -> None:
 
     assert cli.main(["verify", "--run", str(missing)]) == 1
     assert "Research loop command failed" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "execute-nasa-audit",
+        "execute-nasa-target-reference",
+        "execute-nasa-protocol-stratification",
+    ],
+)
+def test_legacy_execute_commands_route_through_authorized_wrapper(
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = tmp_path / "run"
+    registry = tmp_path / "planning-registry.json"
+    request = tmp_path / "request.json"
+    captured: dict[str, object] = {}
+
+    def fake_execute(
+        adapter_id: str,
+        *,
+        repository_root: Path,
+        research_run: Path,
+        action_registry_path: Path,
+        request_path: Path,
+    ) -> dict[str, object]:
+        captured.update(
+            {
+                "adapter_id": adapter_id,
+                "repository_root": repository_root,
+                "research_run": research_run,
+                "action_registry_path": action_registry_path,
+                "request_path": request_path,
+            }
+        )
+        return {"execution_status": "completed"}
+
+    monkeypatch.setattr(cli, "execute_authorized_action", fake_execute)
+    args = cli.build_parser().parse_args(
+        [
+            command,
+            "--repository-root",
+            str(tmp_path),
+            "--run",
+            str(run),
+            "--registry",
+            str(registry),
+            "--request",
+            str(request),
+        ]
+    )
+
+    result = cli._run_command(args)
+
+    assert result["execution_status"] == "completed"
+    assert captured == {
+        "adapter_id": "nasa-battery",
+        "repository_root": tmp_path,
+        "research_run": run,
+        "action_registry_path": registry,
+        "request_path": request,
+    }
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "execute-nasa-audit",
+        "execute-nasa-target-reference",
+        "execute-nasa-protocol-stratification",
+    ],
+)
+def test_legacy_execute_commands_require_authorization_context(
+    command: str,
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.build_parser().parse_args(
+            [command, "--request", str(tmp_path / "request.json")]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_cycle_nested_failed_execution_returns_nonzero_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_run_command",
+        lambda args: {
+            "cycle_status": "one_action_executed",
+            "execution": {"execution_status": "failed"},
+        },
+    )
+
+    exit_code = cli.main(["verify", "--run", str(tmp_path / "unused")])
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["execution"]["execution_status"] == "failed"
+
+
+def test_cycle_nested_completed_execution_returns_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_run_command",
+        lambda args: {
+            "cycle_status": "one_action_executed",
+            "execution": {"execution_status": "completed"},
+        },
+    )
+
+    assert cli.main(["verify", "--run", str(tmp_path / "unused")]) == 0
+    capsys.readouterr()
+
+
+def test_top_level_failed_execution_still_returns_nonzero_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "_run_command",
+        lambda args: {"execution_status": "failed"},
+    )
+
+    assert cli.main(["verify", "--run", str(tmp_path / "unused")]) == 2
+    capsys.readouterr()
