@@ -15,6 +15,8 @@ from materials_data_analyzer.research_loop import (
     append_hypothesis,
     append_stop,
     available_planning_adapters,
+    build_current_research_transition,
+    build_reopen_evidence_review,
     build_research_planning_state,
     describe_action,
     execute_nasa_audit_action,
@@ -245,6 +247,26 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_generic_planning_arguments(show_planning_state)
+
+    transition_parser = subparsers.add_parser(
+        "decide-transition",
+        help=(
+            "Classify the current state as action/evidence pending authorization, manual review, "
+            "blocked, or stopped. This command never executes or reopens research."
+        ),
+    )
+    _add_generic_planning_arguments(transition_parser)
+
+    reopen_parser = subparsers.add_parser(
+        "prepare-reopen-review",
+        help=(
+            "Checksum-bind a new evidence file to one frozen reopen condition and route it to "
+            "manual semantic review without asserting that the condition is satisfied."
+        ),
+    )
+    _add_generic_planning_arguments(reopen_parser)
+    reopen_parser.add_argument("--condition-index", required=True, type=int)
+    reopen_parser.add_argument("--evidence", required=True, type=Path)
     return parser
 
 
@@ -337,6 +359,22 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         return build_research_planning_state(
             args.adapter,
             repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
+        )
+    if args.command == "decide-transition":
+        return build_current_research_transition(
+            args.adapter,
+            repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
+        )
+    if args.command == "prepare-reopen-review":
+        return build_reopen_evidence_review(
+            args.adapter,
+            repository_root=args.repository_root,
+            condition_index=args.condition_index,
+            evidence_path=args.evidence,
             research_run=args.run,
             action_registry_path=args.registry,
         )
