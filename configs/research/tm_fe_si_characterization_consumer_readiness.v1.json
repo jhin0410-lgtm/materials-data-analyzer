@@ -21,10 +21,23 @@
     "source_audit_merge_commit": "439aac38bec9cc6ce549550fc2a4b049fd1fb61c",
     "source_audit_path": "case_studies/tm_fe_si_public_excel_source_audit/source_audit_snapshot.json",
     "source_audit_supported": true,
-    "characterization_handoff_contract_ready": false,
-    "characterization_bundle_ready": false,
-    "required_future_identity_level": "nominal_composition_and_preparation_batch_family",
-    "exact_cross_modality_specimen_identity_supported": false
+    "xrd_handoff_merge_commit": "9be7c5ab1306639d90db15b61d2a7139073758ba",
+    "xrd_handoff_replay_snapshot_path": "case_studies/tm_fe_si_xrd_descriptive_handoff/source_replay_snapshot.json",
+    "characterization_handoff_contract_ready": true,
+    "characterization_bundle_ready": true,
+    "stable_identity_level": "nominal_composition_and_preparation_family",
+    "preparation_family_id": "tm-fe-si-arc-melt-remelt-1050c-1d-air-cool",
+    "exact_cross_modality_specimen_identity_supported": false,
+    "real_source_replay": {
+      "sample_count": 6,
+      "measurement_count": 6,
+      "feature_count": 36,
+      "feature_table_sha256": "65ed347524a953473f76d3a7b3cfbfa2b85a34243ee32090c703f7520c80753e",
+      "sample_context_sha256": "fee764f8469d74a2990bb63f06c855907535d60d7f9be1d236ca46e9f48e6d3c",
+      "bundle_manifest_sha256": "c4305411f6a0232f1a567637672ad9527a9b098a881716ffc3eeecea4c0b8cfb",
+      "evidence_level": "Diagnostic",
+      "maximum_allowed_use": "descriptive"
+    }
   },
   "consumer_intent": {
     "requested_use": "descriptive",
@@ -46,15 +59,33 @@
     "owner": "materials-data-analyzer",
     "dc_magnetization_descriptive_use": "Diagnostic",
     "m_h_descriptive_use": "Diagnostic",
-    "consumer_table_ready": false,
+    "selected_measurement": "300K_MH_plus30kOe_loop_endpoints",
+    "quantity_name": "mh_300k_plus30koe_endpoint_mean_emu_g",
+    "quantity_is_saturation_magnetization": false,
+    "consumer_table_ready": true,
+    "consumer_table_implementation_ready": true,
+    "consumer_table_real_source_replay_ready": true,
+    "real_source_replay_snapshot": "configs/research/tm_fe_si_cross_repo_real_replay.v1.json",
     "join_authorized_before_stable_producer_identity_exists": false,
     "high_temperature_instrument_split_must_be_preserved": true,
-    "dmdt_derivation_provenance_resolved": false
+    "dmdt_derivation_provenance_resolved": false,
+    "interpolation_authorized": false,
+    "smoothing_authorized": false,
+    "outlier_removal_authorized": false,
+    "coercivity_inference_authorized": false,
+    "curie_temperature_inference_authorized": false
   },
   "join_policy": {
     "stable_producer_identity_required": true,
+    "sample_id_required": true,
     "nominal_composition_required": true,
     "preparation_batch_family_required": true,
+    "preparation_family_required": true,
+    "real_replay_identity_fields_verified": [
+      "sample_id",
+      "nominal_composition",
+      "preparation_family_id"
+    ],
     "join_by_row_order": false,
     "join_by_spreadsheet_row": false,
     "join_by_inferred_filename_position": false,
@@ -63,17 +94,26 @@
   "readiness": {
     "source_audit_complete": true,
     "consumer_contract_frozen": true,
-    "mca_handoff_available": false,
-    "mda_characterization_import_ready": false,
-    "cross_modal_descriptive_case_ready": false,
+    "mca_handoff_available": true,
+    "mca_real_source_replay_complete": true,
+    "mda_characterization_import_ready": true,
+    "mda_magnetic_real_source_replay_complete": true,
+    "cross_modal_descriptive_case_ready": true,
+    "predictive_negative_control_passed": true,
     "predictive_case_ready": false,
     "causal_case_ready": false,
     "engineering_decision_ready": false
   },
+  "closeout": {
+    "evidence_level": "Diagnostic",
+    "result": "real_cross_repository_descriptive_case_complete",
+    "strongest_evidence": "A checksum-bound MCA XRD bundle and six checksum-bound public 300 K M-H traces completed an explicit three-field one-to-one identity join; a predictive-use request failed closed before output creation.",
+    "primary_limitation": "Exact XRD/VSM physical aliquot identity and independent XRD peak truth are unconfirmed, and the six nominal compositions are not sufficient evidence for generalizable association, prediction, causality, or engineering use."
+  },
   "next_requirements": [
-    "MCA must freeze a descriptive XRD handoff contract with stable nominal-composition/preparation-family identities and the XRD integer-offset limitation.",
-    "MCA must emit a checksum-bound characterization bundle that passes the existing MDA characterization import contract.",
-    "MDA must build the magnetic consumer table independently and bind rows only through the frozen stable producer identities.",
-    "Only after the import succeeds may a descriptive cross-modal summary be generated; no predictive, causal, or engineering-use promotion is authorized by this case."
+    "Treat this end-to-end case as complete for descriptive software/provenance validation; do not add more TM-Fe-Si algorithms merely to expand scope.",
+    "Keep the separate dc-magnetization instrument-split and dM/dT provenance limitations unresolved unless a future scientific question specifically requires those data.",
+    "A stronger scientific claim requires a new dataset or study design with exact sample lineage, relevant characterization truth/metadata, and enough independent samples for the stated hypothesis.",
+    "Keep predictive, causal, and engineering readiness false until such evidence exists."
   ]
 }

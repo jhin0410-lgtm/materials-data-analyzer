@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "case_id": "tm-fe-si-public-xrd-mh-descriptive-v1",
+  "replay_date": "2026-08-09",
+  "mda_pr": 97,
+  "mda_replay_code_sha": "a1fe061daaf2c21ba1d2b8cccca6368f341dbcd4",
+  "mda_replay_wheel_sha256": "076457683eb7cbd122fcda08a2a7f1326848283b0cd0118ef01147c7eb49e1d1",
+  "mca_producer": {
+    "merge_commit": "9be7c5ab1306639d90db15b61d2a7139073758ba",
+    "case_id": "tm-fe-si-public-xrd-descriptive-v1",
+    "bundle_manifest_sha256": "c4305411f6a0232f1a567637672ad9527a9b098a881716ffc3eeecea4c0b8cfb",
+    "feature_table_sha256": "65ed347524a953473f76d3a7b3cfbfa2b85a34243ee32090c703f7520c80753e",
+    "sample_context_sha256": "fee764f8469d74a2990bb63f06c855907535d60d7f9be1d236ca46e9f48e6d3c"
+  },
+  "descriptive_replay": {
+    "status": "verified_descriptive_cross_repo_case",
+    "sample_count": 6,
+    "characterization_evidence_level": "Diagnostic",
+    "requested_use": "descriptive",
+    "maximum_allowed_use": "descriptive",
+    "identity_fields_verified": [
+      "sample_id",
+      "nominal_composition",
+      "preparation_family_id"
+    ],
+    "preparation_family_id": "tm-fe-si-arc-melt-remelt-1050c-1d-air-cool",
+    "row_order_join_used": false,
+    "exact_xrd_vsm_physical_aliquot_identity_confirmed": false,
+    "correlation_computed": false,
+    "hypothesis_test_computed": false,
+    "model_trained": false,
+    "saturation_magnetization_claimed": false,
+    "interpolation_performed": false,
+    "smoothing_performed": false,
+    "artifacts": {
+      "magnetic_consumer_table_sha256": "4c5d28ff0f943c883e6b906d686a382d163a79cb672c679c6a9fbb2e4a15987c",
+      "magnetic_source_manifest_sha256": "4ebc28a39551fdd2c1090c3baa7c22925b7257b00bfabf305edc0f2dd45b0163",
+      "cross_modal_descriptive_table_sha256": "4efa75f7ddf76339d63085a281e5b420617d17efddbd9e3b0b9bb53af53c3570",
+      "characterization_import_summary_sha256": "c5e79a01a13ae90ba366bfed08dd861091d9bff98383f50a91d7292c5e836876",
+      "characterization_use_eligibility_sha256": "12dcaffce3577bf719bc307c927dac7f4a7b41c509cb99124a0a506bf58b9337"
+    }
+  },
+  "magnetic_endpoint_observations": {
+    "Hf7Fe52Si41": {
+      "mean_emu_g": 16.7805,
+      "endpoint_abs_difference_emu_g": 0.0110000000000028,
+      "endpoint_field_min_koe": 30.0,
+      "endpoint_field_max_koe": 30.0,
+      "loop_point_count": 442
+    },
+    "Nb7Fe52Si41": {
+      "mean_emu_g": 25.873,
+      "endpoint_abs_difference_emu_g": 0.0139999999999993,
+      "endpoint_field_min_koe": 30.0,
+      "endpoint_field_max_koe": 30.0,
+      "loop_point_count": 437
+    },
+    "Ta7Fe52Si41": {
+      "mean_emu_g": 18.4785,
+      "endpoint_abs_difference_emu_g": 0.0090000000000003,
+      "endpoint_field_min_koe": 30.0,
+      "endpoint_field_max_koe": 30.0,
+      "loop_point_count": 437
+    },
+    "Ti7Fe52Si41": {
+      "mean_emu_g": 1.0381,
+      "endpoint_abs_difference_emu_g": 0.0004,
+      "endpoint_field_min_koe": 30.0,
+      "endpoint_field_max_koe": 30.0,
+      "loop_point_count": 437
+    },
+    "V7Fe52Si41": {
+      "mean_emu_g": 6.7582,
+      "endpoint_abs_difference_emu_g": 0.0054000000000007,
+      "endpoint_field_min_koe": 29.999,
+      "endpoint_field_max_koe": 30.0,
+      "loop_point_count": 437
+    },
+    "Zr7Fe52Si41": {
+      "mean_emu_g": 18.26,
+      "endpoint_abs_difference_emu_g": 0.0100000000000016,
+      "endpoint_field_min_koe": 30.0,
+      "endpoint_field_max_koe": 30.0,
+      "loop_point_count": 442
+    }
+  },
+  "stronger_use_negative_control": {
+    "requested_use": "predictive",
+    "exit_code": 1,
+    "output_created": false,
+    "staging_directory_left_behind": false,
+    "reason_contains": "requested use 'predictive' exceeds maximum_allowed_use 'descriptive'"
+  },
+  "scientific_closeout": {
+    "evidence_level": "Diagnostic",
+    "strongest_evidence": "A checksum-bound real MCA XRD bundle and six checksum-bound public 300 K M-H traces completed an explicit three-field identity join while preserving the producer downstream-use limit.",
+    "primary_limitation": "Exact XRD/VSM physical aliquot identity and independent XRD peak truth are unconfirmed; the six nominal compositions are not an adequate basis for generalizable association, prediction, causality, or engineering claims.",
+    "suitable_for": [
+      "descriptive per-composition inspection",
+      "real cross-repository software/provenance/identity validation"
+    ],
+    "unsupported_for": [
+      "absolute XRD intensity comparison",
+      "phase assignment",
+      "saturation magnetization claim",
+      "association significance",
+      "prediction",
+      "causality",
+      "engineering decision"
+    ]
+  }
+}
