@@ -3,7 +3,7 @@
 The package deliberately contains no language model, unconstrained code
 generation, model fitting, or automatic scientific conclusion logic. It provides
 immutable state, strict action registries, typed deterministic action execution,
-and deterministic planning, transition, authorization, and execution gates.
+and deterministic planning, transition, authorization, execution, and cycle gates.
 """
 
 from .action_authorization import (
@@ -78,6 +78,12 @@ from .planning_transition import (
     prepare_reopen_evidence_review,
 )
 from .protocol_stratification import build_protocol_stratification
+from .research_cycle import (
+    CYCLE_POLICY_VERSION,
+    CYCLE_SCHEMA_VERSION,
+    ResearchCycleError,
+    run_research_cycle,
+)
 from .target_reference_sensitivity import (
     TargetReferenceSensitivityError,
     build_target_reference_sensitivity,
@@ -88,6 +94,8 @@ __all__ = [
     "ACTION_REPORT_FILENAME",
     "AUTHORIZATION_POLICY_VERSION",
     "AUTHORIZATION_SCHEMA_VERSION",
+    "CYCLE_POLICY_VERSION",
+    "CYCLE_SCHEMA_VERSION",
     "EXECUTION_POLICY_VERSION",
     "EXECUTION_SCHEMA_VERSION",
     "LEDGER_FILENAME",
@@ -107,6 +115,7 @@ __all__ = [
     "PlanningAdapterError",
     "PlanningStateError",
     "PlanningTransitionError",
+    "ResearchCycleError",
     "ResearchLoopError",
     "TargetReferenceSensitivityError",
     "action_summaries",
@@ -134,6 +143,7 @@ __all__ = [
     "plan_nasa_next_action",
     "plan_research_next_action",
     "prepare_reopen_evidence_review",
+    "run_research_cycle",
     "validate_action_registry",
     "verify_nasa_audit_action_report",
     "verify_nasa_protocol_stratification_report",
