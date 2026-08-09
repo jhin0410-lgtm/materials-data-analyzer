@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "case_id": "tm_fe_si_characterization_consumer_readiness",
+  "audit_date": "2026-08-09",
+  "source": {
+    "title": "Datasets on materials research of hard ferromagnet in TM-Fe-Si (TM=Ti, Zr, Hf, V, Nb, and Ta) ternary systems",
+    "article_doi": "10.1016/j.dib.2022.108868",
+    "dataset_doi": "10.17632/gp8rkw2k6v.2",
+    "dataset_version": 2,
+    "nominal_compositions": [
+      "Ti7Fe52Si41",
+      "Zr7Fe52Si41",
+      "Hf7Fe52Si41",
+      "V7Fe52Si41",
+      "Nb7Fe52Si41",
+      "Ta7Fe52Si41"
+    ]
+  },
+  "producer": {
+    "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+    "source_audit_merge_commit": "439aac38bec9cc6ce549550fc2a4b049fd1fb61c",
+    "source_audit_path": "case_studies/tm_fe_si_public_excel_source_audit/source_audit_snapshot.json",
+    "source_audit_supported": true,
+    "characterization_handoff_contract_ready": false,
+    "characterization_bundle_ready": false,
+    "required_future_identity_level": "nominal_composition_and_preparation_batch_family",
+    "exact_cross_modality_specimen_identity_supported": false
+  },
+  "consumer_intent": {
+    "requested_use": "descriptive",
+    "display_authorized": true,
+    "descriptive_authorized": true,
+    "association_authorized": false,
+    "predictive_authorized": false,
+    "causal_authorized": false,
+    "engineering_authorized": false
+  },
+  "characterization_semantics": {
+    "xrd_peak_position_descriptive_use": "Diagnostic",
+    "absolute_xrd_intensity_cross_composition_use": "Unsupported",
+    "phase_assignment_from_uploaded_xrd_only": "Unsupported",
+    "xrd_integer_plot_offset_preserved_as_limitation": true,
+    "raw_workbook_transfer_to_mda_authorized": false
+  },
+  "magnetic_consumer_data": {
+    "owner": "materials-data-analyzer",
+    "dc_magnetization_descriptive_use": "Diagnostic",
+    "m_h_descriptive_use": "Diagnostic",
+    "consumer_table_ready": false,
+    "join_authorized_before_stable_producer_identity_exists": false,
+    "high_temperature_instrument_split_must_be_preserved": true,
+    "dmdt_derivation_provenance_resolved": false
+  },
+  "join_policy": {
+    "stable_producer_identity_required": true,
+    "nominal_composition_required": true,
+    "preparation_batch_family_required": true,
+    "join_by_row_order": false,
+    "join_by_spreadsheet_row": false,
+    "join_by_inferred_filename_position": false,
+    "join_by_unverified_exact_specimen_identity": false
+  },
+  "readiness": {
+    "source_audit_complete": true,
+    "consumer_contract_frozen": true,
+    "mca_handoff_available": false,
+    "mda_characterization_import_ready": false,
+    "cross_modal_descriptive_case_ready": false,
+    "predictive_case_ready": false,
+    "causal_case_ready": false,
+    "engineering_decision_ready": false
+  },
+  "next_requirements": [
+    "MCA must freeze a descriptive XRD handoff contract with stable nominal-composition/preparation-family identities and the XRD integer-offset limitation.",
+    "MCA must emit a checksum-bound characterization bundle that passes the existing MDA characterization import contract.",
+    "MDA must build the magnetic consumer table independently and bind rows only through the frozen stable producer identities.",
+    "Only after the import succeeds may a descriptive cross-modal summary be generated; no predictive, causal, or engineering-use promotion is authorized by this case."
+  ]
+}
