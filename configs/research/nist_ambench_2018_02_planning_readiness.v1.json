@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "case_id": "nist-ambench-2018-02-planning-readiness-v1",
+  "domain": "additive_manufacturing_process_characterization",
+  "research_question": "Can the NIST AM-Bench 2018-02 AMMT process-characterization evidence support use beyond the completed descriptive diagnostic case without inventing missing physical evidence or violating the downstream-use boundary?",
+  "current_scope": {
+    "evidence_level": "Diagnostic",
+    "maximum_allowed_use": "descriptive",
+    "descriptive_case_complete": true,
+    "predictive_use_authorized": false,
+    "causal_use_authorized": false,
+    "engineering_use_authorized": false
+  },
+  "tracked_case": {
+    "process_table": "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv",
+    "measurement_table": "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv",
+    "case_readme": "data/case_studies/nist_ambench_2018_02/README.md",
+    "trace_count": 10,
+    "unique_process_condition_count": 3,
+    "material": "IN625",
+    "system": "AMMT"
+  },
+  "current_blocker": {
+    "code": "descriptive_case_complete_predictive_evidence_not_established",
+    "summary": "The tracked case contains only ten traces at three process conditions, while the policy-aware characterization evidence is Diagnostic and descriptive-only. Measurement timing and an independence/split grouping contract sufficient for predictive validation are not established."
+  },
+  "required_new_evidence": [
+    "Acquire or identify genuinely additional physical AMMT trace evidence under predeclared process conditions beyond the currently tracked three-condition case; do not synthesize or infer missing traces.",
+    "Preserve stable sample/trace identifiers and authoritative actual laser power, scan speed, material, system, specimen/acquisition lineage, and preprocessing history for every added trace.",
+    "Use the same transverse optical-metrology procedure or document a scientifically justified compatibility mapping, including measurement uncertainty and any material differences in preparation or acquisition.",
+    "Establish an explicit independence/split grouping field and enough independent groups or conditions to support the intended validation design before any predictive model fit.",
+    "Establish measurement timing relative to the intended prediction target; pre-outcome timing is required before characterization features can be used predictively."
+  ],
+  "reopen_conditions": [
+    "New physical trace evidence satisfying the frozen lineage, metrology-compatibility, independence, and timing requirements is available for manual semantic review.",
+    "An authoritative NIST release or associated primary source materially changes the currently unresolved independence or measurement-timing evidence without redefining the scientific question."
+  ],
+  "automatic_acquisition_authorized": false,
+  "automatic_experiment_control_authorized": false,
+  "model_fit_authorized": false,
+  "automatic_reopen_authorized": false,
+  "scientific_evidence_upgrade_authorized": false,
+  "scientific_boundary": "This readiness contract freezes the current evidence gap for planning. It does not assert that any future file satisfies the requirement, that more traces alone are sufficient for prediction, or that the existing diagnostic case is externally validated."
+}
