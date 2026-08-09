@@ -1,11 +1,4 @@
-"""TM-Fe-Si real-data cross-repository descriptive consumer.
-
-This case is intentionally narrow. It consumes an already validated MCA XRD
-handoff and joins consumer-owned 300 K M-H endpoint observations by explicit
-stable identity. It does not infer saturation magnetization, coercivity, Curie
-temperature, phase identity, correlation, prediction, causality, or engineering
-readiness.
-"""
+"""Frozen real-data TM-Fe-Si MCA-to-MDA descriptive consumer."""
 from __future__ import annotations
 
 import hashlib
@@ -30,7 +23,7 @@ DATASET_DOI = "10.17632/gp8rkw2k6v.2"
 PUBLICATION_DOI = "10.1016/j.dib.2022.108868"
 DATASET_VERSION = "2"
 DATASET_LICENSE = "CC BY 4.0"
-PREPARATION_FAMILY_ID = "tm-fe-si-arc-melt-remelt-1050c-1d"
+PREPARATION_FAMILY_ID = "tm-fe-si-arc-melt-remelt-1050c-1d-air-cool"
 FIELD_TARGET_KOE = 30.0
 FIELD_ENDPOINT_TOLERANCE_KOE = 0.005
 EXPECTED_FIELD_MIN_KOE = -30.0
@@ -117,7 +110,7 @@ MAGNETIC_SOURCES = (
 
 
 class TMFeSiCrossRepoError(ValueError):
-    """Raised when the frozen TM-Fe-Si case contract fails closed."""
+    """Raised when a frozen case invariant fails closed."""
 
 
 def _sha256(path: Path) -> str:
@@ -135,8 +128,7 @@ def _validate_source(path: Path, contract: MagneticSourceContract) -> None:
         raise TMFeSiCrossRepoError(f"unexpected magnetic source filename: {path.name}")
     if path.stat().st_size != contract.size_bytes:
         raise TMFeSiCrossRepoError(f"magnetic source size mismatch: {path.name}")
-    digest = _sha256(path)
-    if digest != contract.sha256:
+    if _sha256(path) != contract.sha256:
         raise TMFeSiCrossRepoError(f"magnetic source SHA-256 mismatch: {path.name}")
 
 
@@ -185,7 +177,6 @@ def _trace_from_cells(
         raise TMFeSiCrossRepoError("unexpected 300 K field header")
     if cells.get("H2") != EXPECTED_MAGNETIZATION_HEADER:
         raise TMFeSiCrossRepoError("unexpected 300 K magnetization header")
-
     trace: list[tuple[float, float]] = []
     row = 3
     while True:
@@ -201,7 +192,6 @@ def _trace_from_cells(
             raise TMFeSiCrossRepoError(f"non-finite 300 K M-H pair at row {row}")
         trace.append((field, magnetization))
         row += 1
-
     if len(trace) != contract.point_count:
         raise TMFeSiCrossRepoError(
             f"unexpected 300 K point count for {contract.nominal_composition}: {len(trace)}"
@@ -223,8 +213,8 @@ def _magnetic_row(
     contract: MagneticSourceContract,
     trace: list[tuple[float, float]],
 ) -> dict[str, object]:
-    endpoint_fields = [trace[0][0], trace[-1][0]]
-    endpoint_values = [trace[0][1], trace[-1][1]]
+    fields = [trace[0][0], trace[-1][0]]
+    values = [trace[0][1], trace[-1][1]]
     return {
         "sample_id": contract.sample_id,
         "nominal_composition": contract.nominal_composition,
@@ -232,13 +222,11 @@ def _magnetic_row(
         "measurement_temperature_k": 300.0,
         "mh_endpoint_target_field_koe": FIELD_TARGET_KOE,
         "mh_endpoint_field_tolerance_koe": FIELD_ENDPOINT_TOLERANCE_KOE,
-        "mh_300k_plus30koe_endpoint_mean_emu_g": sum(endpoint_values) / 2.0,
-        "mh_300k_plus30koe_endpoint_abs_difference_emu_g": abs(
-            endpoint_values[0] - endpoint_values[1]
-        ),
+        "mh_300k_plus30koe_endpoint_mean_emu_g": sum(values) / 2.0,
+        "mh_300k_plus30koe_endpoint_abs_difference_emu_g": abs(values[0] - values[1]),
         "mh_300k_plus30koe_endpoint_count": 2,
-        "mh_300k_endpoint_field_min_koe": min(endpoint_fields),
-        "mh_300k_endpoint_field_max_koe": max(endpoint_fields),
+        "mh_300k_endpoint_field_min_koe": min(fields),
+        "mh_300k_endpoint_field_max_koe": max(fields),
         "mh_300k_loop_point_count": len(trace),
         "magnetic_source_file": contract.filename,
         "magnetic_source_sha256": contract.sha256,
@@ -248,8 +236,10 @@ def _magnetic_row(
     }
 
 
-def build_magnetic_consumer_table(source_dir: str | Path) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Read exact public 300 K M-H traces and return direct endpoint observations."""
+def build_magnetic_consumer_table(
+    source_dir: str | Path,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Extract direct 300 K +30 kOe endpoint observations from six pinned files."""
     root = Path(source_dir)
     if not root.is_dir() or root.is_symlink():
         raise TMFeSiCrossRepoError(f"magnetic source directory not found or unsafe: {root}")
@@ -272,7 +262,7 @@ def build_magnetic_consumer_table(source_dir: str | Path) -> tuple[pd.DataFrame,
             }
         )
     table = pd.DataFrame(rows).sort_values("sample_id").reset_index(drop=True)
-    if table["sample_id"].duplicated().any() or len(table) != 6:
+    if len(table) != 6 or table["sample_id"].duplicated().any():
         raise TMFeSiCrossRepoError("magnetic consumer table stable identities are invalid")
     manifest = {
         "schema_version": "1.0",
@@ -299,7 +289,9 @@ def build_magnetic_consumer_table(source_dir: str | Path) -> tuple[pd.DataFrame,
         },
         "scientific_boundary": {
             "evidence_level": "Diagnostic",
-            "allowed": ["direct descriptive comparison of observed 300 K +30 kOe endpoint magnetization"],
+            "allowed": [
+                "direct descriptive comparison of observed 300 K +30 kOe endpoint magnetization"
+            ],
             "blocked": [
                 "saturation magnetization claim",
                 "coercivity claim",
@@ -322,18 +314,26 @@ def _validate_identity_join(imported: pd.DataFrame, magnetic: pd.DataFrame) -> p
         raise TMFeSiCrossRepoError(
             f"stable identity columns missing; imported={missing_imported}, magnetic={missing_magnetic}"
         )
-    for label, table in (("imported characterization table", imported), ("magnetic table", magnetic)):
-        if table["sample_id"].isna().any() or table["sample_id"].astype(str).str.strip().eq("").any():
+    for label, table in (
+        ("imported characterization table", imported),
+        ("magnetic table", magnetic),
+    ):
+        sample_ids = table["sample_id"].astype("string").str.strip()
+        if sample_ids.isna().any() or sample_ids.eq("").any():
             raise TMFeSiCrossRepoError(f"{label} contains blank sample_id")
-        if table["sample_id"].duplicated().any():
+        if sample_ids.duplicated().any():
             raise TMFeSiCrossRepoError(f"{label} contains duplicate sample_id")
     imported_ids = set(imported["sample_id"].astype(str))
     magnetic_ids = set(magnetic["sample_id"].astype(str))
     if imported_ids != magnetic_ids:
         raise TMFeSiCrossRepoError(
-            f"sample_id sets differ; characterization_only={sorted(imported_ids - magnetic_ids)}, magnetic_only={sorted(magnetic_ids - imported_ids)}"
+            "sample_id sets differ; "
+            f"characterization_only={sorted(imported_ids - magnetic_ids)}, "
+            f"magnetic_only={sorted(magnetic_ids - imported_ids)}"
         )
-    compared = imported[["sample_id", "nominal_composition", "preparation_family_id"]].merge(
+    compared = imported[
+        ["sample_id", "nominal_composition", "preparation_family_id"]
+    ].merge(
         magnetic[["sample_id", "nominal_composition", "preparation_family_id"]],
         on="sample_id",
         validate="one_to_one",
@@ -346,9 +346,7 @@ def _validate_identity_join(imported: pd.DataFrame, magnetic: pd.DataFrame) -> p
         bad = ~left.eq(right)
         if bad.any():
             samples = compared.loc[bad, "sample_id"].astype(str).tolist()
-            raise TMFeSiCrossRepoError(
-                f"stable identity mismatch for {column}: {samples}"
-            )
+            raise TMFeSiCrossRepoError(f"stable identity mismatch for {column}: {samples}")
     magnetic_payload = magnetic.drop(
         columns=["nominal_composition", "preparation_family_id"]
     )
@@ -389,19 +387,15 @@ characterization workflow. Consumer-owned 300 K M-H observations were then
 joined only after exact equality of `sample_id`, `nominal_composition`, and
 `preparation_family_id`.
 
-## Magnetic quantity
-
 `mh_300k_plus30koe_endpoint_mean_emu_g` is the arithmetic mean of the first and
-last observed loop endpoints near +30 kOe (tolerance ±0.005 kOe). It is **not**
+last observed loop endpoints near +30 kOe (tolerance ±0.005 kOe). It is not
 labeled or interpreted as saturation magnetization. No interpolation, smoothing,
 outlier removal, coercivity inference, or Curie-temperature inference occurred.
 
-## Scientific boundary
-
 The six-row table is suitable for descriptive per-composition inspection and
-cross-repository provenance validation only. The case does not authorize
-correlation significance testing, predictive modeling, causal attribution,
-phase assignment, absolute XRD intensity comparison, or engineering decisions.
+cross-repository provenance validation only. Correlation significance testing,
+predictive modeling, causal attribution, phase assignment, absolute XRD
+intensity comparison, and engineering decisions remain unsupported.
 """
 
 
@@ -412,7 +406,7 @@ def build_tm_fe_si_cross_repo_case(
     *,
     requested_use: str = "descriptive",
 ) -> dict[str, object]:
-    """Build the complete real-data TM-Fe-Si descriptive case transactionally."""
+    """Build the complete TM-Fe-Si descriptive case transactionally."""
     output = Path(output_dir)
     if output.exists():
         raise FileExistsError(f"refusing to overwrite existing output: {output}")
@@ -430,7 +424,6 @@ def build_tm_fe_si_cross_repo_case(
             json.dumps(source_manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-
         import_dir = stage / IMPORTED_DIR_NAME
         consume_characterization_bundle_for_use(
             bundle_manifest,
@@ -453,8 +446,9 @@ def build_tm_fe_si_cross_repo_case(
             )
         eligibility = import_summary.get("downstream_use_eligibility")
         if not isinstance(eligibility, dict) or eligibility.get("requested_use") != "descriptive":
-            raise TMFeSiCrossRepoError("descriptive downstream-use eligibility was not preserved")
-
+            raise TMFeSiCrossRepoError(
+                "descriptive downstream-use eligibility was not preserved"
+            )
         summary = {
             "schema_version": "1.0",
             "case_id": CASE_ID,
@@ -463,7 +457,10 @@ def build_tm_fe_si_cross_repo_case(
             "sample_ids": merged["sample_id"].astype(str).tolist(),
             "identity_contract": {
                 "join_key": "sample_id",
-                "additional_verified_fields": ["nominal_composition", "preparation_family_id"],
+                "additional_verified_fields": [
+                    "nominal_composition",
+                    "preparation_family_id",
+                ],
                 "row_order_join_used": False,
                 "exact_xrd_vsm_physical_aliquot_identity_confirmed": False,
             },
@@ -471,7 +468,9 @@ def build_tm_fe_si_cross_repo_case(
                 "producer_case_id": MCA_CASE_ID,
                 "bundle_manifest_sha256": sha256_file(Path(bundle_manifest)),
                 "status": import_summary.get("status"),
-                "evidence_level": import_summary.get("scientific_closeout", {}).get("evidence_level"),
+                "evidence_level": import_summary.get("scientific_closeout", {}).get(
+                    "evidence_level"
+                ),
                 "requested_use": eligibility.get("requested_use"),
                 "maximum_allowed_use": eligibility.get("maximum_allowed_use"),
             },
@@ -495,8 +494,19 @@ def build_tm_fe_si_cross_repo_case(
                 "evidence_level": "Diagnostic",
                 "strongest_evidence": "Checksum-bound MCA XRD features and six checksum-bound public 300 K M-H traces share explicit nominal composition and preparation-family identities.",
                 "primary_limitation": "Exact XRD/VSM physical aliquot identity and independent XRD peak truth are unconfirmed; n=6 does not support predictive, causal, or generalizable association claims.",
-                "suitable_for": ["descriptive per-composition inspection", "cross-repository provenance and identity validation"],
-                "unsupported_for": ["absolute XRD intensity comparison", "phase assignment", "saturation-magnetization claim", "association significance", "prediction", "causality", "engineering decision"],
+                "suitable_for": [
+                    "descriptive per-composition inspection",
+                    "cross-repository provenance and identity validation",
+                ],
+                "unsupported_for": [
+                    "absolute XRD intensity comparison",
+                    "phase assignment",
+                    "saturation-magnetization claim",
+                    "association significance",
+                    "prediction",
+                    "causality",
+                    "engineering decision",
+                ],
             },
         }
         summary_path = stage / SUMMARY_NAME
@@ -504,8 +514,7 @@ def build_tm_fe_si_cross_repo_case(
             json.dumps(summary, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        report_path = stage / REPORT_NAME
-        report_path.write_text(_report(summary), encoding="utf-8")
+        (stage / REPORT_NAME).write_text(_report(summary), encoding="utf-8")
         stage.replace(output)
         return {
             "status": summary["status"],
