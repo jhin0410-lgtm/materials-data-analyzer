@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "case_id": "materials-project-external-source-search-closeout-v1",
+  "requirement_id": "materials-project-v1-3-source-disjoint-stability-evidence-v1",
+  "registry_id": "materials-project-external-source-candidates-v1",
+  "closed_for_current_scope": true,
+  "evidence_level": "Diagnostic",
+  "expected_candidate_count": 4,
+  "expected_eligible_candidate_count": 0,
+  "expected_disposition_counts": {
+    "diagnostic_only": 1,
+    "scientifically_ineligible": 3
+  },
+  "network_search_authorized_by_this_closeout": false,
+  "automatic_acquisition_authorized_by_this_closeout": false,
+  "model_fit_authorized_by_this_closeout": false,
+  "external_validation_claim_authorized_by_this_closeout": false,
+  "closeout_document": "docs/MATERIALS_PROJECT_EXTERNAL_SOURCE_SEARCH_CLOSEOUT.md",
+  "restart_criteria": [
+    "A genuinely new independently generated phase-stability source documents a thermodynamic reference and correction convention explicitly compatible with the frozen Materials Project target.",
+    "A source-disjoint dataset provides an authoritative predeclared transformation into the frozen target convention without fitting or tuning on benchmark-v1 locked outcomes.",
+    "An experimental or reference-standard dataset can test the frozen phase-stability question without silently redefining the target.",
+    "A materially changed release directly resolves the specific provenance, reuse, or thermodynamic-semantics blocker recorded for a rejected candidate."
+  ],
+  "scientific_boundary": "This file freezes a planning stop for the currently audited source universe only. It is not proof that no future compatible source can exist and it does not authorize new search, acquisition, model fitting, or external-validation claims."
+}
