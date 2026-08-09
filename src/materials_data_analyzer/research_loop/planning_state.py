@@ -16,12 +16,20 @@ from .kernel import ResearchLoopError, load_research_state
 from .planning_adapter import plan_research_next_action
 
 PLANNING_STATE_SCHEMA_VERSION = "1.0"
-PLANNING_STATE_VERSION = "1.2"
+PLANNING_STATE_VERSION = "1.3"
 
 _NASA_ADAPTER = "nasa-battery"
 _MATERIALS_PROJECT_ADAPTER = "materials-project-external-source"
 _TM_FE_SI_ADAPTER = "tm-fe-si-descriptive"
 _NIST_AMBENCH_ADAPTER = "nist-ambench-process-characterization"
+_SUPPORTED_SELECTION_STATUSES = {
+    "ready_to_execute": "continue",
+    "no_positive_value_action": "terminal_for_current_scope",
+    "research_stopped": "terminal_for_current_scope",
+    "manual_review_required": "manual_review_gate",
+    "blocked_by_budget": "operationally_blocked",
+    "blocked_unimplemented_action": "operationally_blocked",
+}
 
 _MP_REQUIREMENT_CONFIG = Path(
     "configs/research/materials_project_external_evidence_requirement.v1.json"
@@ -138,14 +146,12 @@ def _normalize_action(candidate: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _stop_state(selection_status: str, reason: str) -> dict[str, Any]:
-    if selection_status in {"no_positive_value_action", "research_stopped"}:
-        status = "terminal_for_current_scope"
-    elif selection_status == "manual_review_required":
-        status = "manual_review_gate"
-    elif selection_status in {"blocked_by_budget", "blocked_unimplemented_action"}:
-        status = "operationally_blocked"
-    else:
-        status = "continue"
+    try:
+        status = _SUPPORTED_SELECTION_STATUSES[selection_status]
+    except KeyError as exc:
+        raise PlanningStateError(
+            f"unsupported planning selection_status: {selection_status!r}"
+        ) from exc
     return {
         "status": status,
         "selection_status": selection_status,
@@ -203,7 +209,8 @@ def _base_state(decision: Mapping[str, Any]) -> dict[str, Any]:
         "constraints": [],
         "stop_rules": [],
         "stop_state": _stop_state(selection_status, reason),
-        "evidence_bindings": evidence_bindings,
+        "recorded_stop": None,
+        "evidence_bindings": [dict(item) if isinstance(item, Mapping) else item for item in evidence_bindings],
         "network_access_performed": False,
         "action_executed": False,
         "model_fit_performed": False,
@@ -211,8 +218,32 @@ def _base_state(decision: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _verify_nasa_ledger_binding(state: Mapping[str, Any], research: Mapping[str, Any]) -> None:
+    bindings = state.get("evidence_bindings")
+    if not isinstance(bindings, list):
+        raise PlanningStateError("NASA planning evidence bindings are malformed")
+    ledger_bindings = [
+        item
+        for item in bindings
+        if isinstance(item, Mapping) and item.get("role") == "research_ledger"
+    ]
+    if len(ledger_bindings) > 1:
+        raise PlanningStateError("NASA planning decision binds multiple research ledgers")
+    if ledger_bindings:
+        expected = _nonempty_text(
+            ledger_bindings[0].get("sha256"),
+            "NASA research_ledger evidence binding sha256",
+        )
+        actual = _nonempty_text(research.get("ledger_sha256"), "research.ledger_sha256")
+        if expected != actual:
+            raise PlanningStateError(
+                "NASA research ledger changed between planning and state projection"
+            )
+
+
 def _project_nasa(state: dict[str, Any], *, research_run: Path) -> None:
     research = load_research_state(research_run)
+    _verify_nasa_ledger_binding(state, research)
     state["research_question"] = _nonempty_text(research.get("question"), "research.question")
     constraints = research.get("constraints")
     stop_rules = research.get("stop_rules")
@@ -253,22 +284,58 @@ def _project_nasa(state: dict[str, Any], *, research_run: Path) -> None:
         }
     elif selection_status == "blocked_by_budget":
         state["current_blocker"]["kind"] = "budget"
-        state["evidence_gap"] = {"status": "not_applicable", "requirements": []}
+        if isinstance(selected, Mapping) and selected.get("action_type") == (
+            "external_data_requirement_generation"
+        ):
+            state["evidence_gap"] = {
+                "status": "requirement_definition_blocked_by_budget",
+                "requirements": [
+                    "The selected evidence-requirement definition remains scientifically relevant but cannot execute within the verified remaining budget."
+                ],
+            }
+        else:
+            state["evidence_gap"] = {
+                "status": "uncertainty_reduction_action_blocked_by_budget",
+                "requirements": [],
+            }
     elif selection_status == "blocked_unimplemented_action":
         state["current_blocker"]["kind"] = "implementation"
         state["evidence_gap"] = {"status": "implementation_required", "requirements": []}
     elif selection_status in {"no_positive_value_action", "research_stopped"}:
-        state["current_blocker"]["kind"] = "terminal_scope"
-        state["evidence_gap"] = {
-            "status": "no_current_positive_value_gap",
-            "requirements": [],
-        }
-        if research.get("stop"):
+        stop_payload = research.get("stop")
+        if stop_payload is not None:
+            if not isinstance(stop_payload, Mapping):
+                raise PlanningStateError("NASA recorded stop payload is malformed")
+            reason_code = _nonempty_text(
+                stop_payload.get("reason_code"), "research.stop.reason_code"
+            )
+            stop_summary = _nonempty_text(
+                stop_payload.get("summary"), "research.stop.summary"
+            )
+            state["recorded_stop"] = dict(stop_payload)
+            state["current_blocker"] = {
+                "kind": "recorded_research_stop",
+                "code": reason_code,
+                "summary": stop_summary,
+            }
+            state["stop_state"]["reason"] = stop_summary
+            state["evidence_gap"] = {
+                "status": "recorded_stop_requires_new_review_evidence",
+                "requirements": [stop_summary],
+            }
             state["stop_state"]["reopen_conditions"] = [
-                "Open a new versioned research objective if materially new evidence changes the stopped scope."
+                "Open a new versioned research objective only if materially new evidence addresses the recorded stop reason."
             ]
+        else:
+            state["current_blocker"]["kind"] = "terminal_scope"
+            state["evidence_gap"] = {
+                "status": "no_current_positive_value_gap",
+                "requirements": [],
+            }
     else:
-        state["evidence_gap"] = {"status": "undetermined", "requirements": []}
+        raise PlanningStateError(
+            f"unsupported NASA planning selection_status: {selection_status!r}"
+        )
 
 
 def _project_materials_project(state: dict[str, Any], repository_root: Path) -> None:
