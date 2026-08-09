@@ -8,7 +8,9 @@ leaving each domain's actual scientific rules in its existing implementation.
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -21,7 +23,7 @@ from .kernel import ResearchLoopError
 from .nasa_action_policy import plan_nasa_next_action
 
 PLANNING_DECISION_SCHEMA_VERSION = "1.0"
-PLANNING_ADAPTER_VERSION = "1.1"
+PLANNING_ADAPTER_VERSION = "1.2"
 
 _NASA_ADAPTER = "nasa-battery"
 _MATERIALS_PROJECT_ADAPTER = "materials-project-external-source"
@@ -69,23 +71,50 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _load_json(path: Path) -> dict[str, Any]:
+def _nonempty_text(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise PlanningAdapterError(f"{field} must be a non-empty string")
+    return value.strip()
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _read_text_snapshot(path: Path) -> tuple[str, str]:
+    data = path.read_bytes()
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle, object_pairs_hook=_reject_duplicate_pairs)
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise PlanningAdapterError(f"planning evidence must be UTF-8: {path}") from exc
+    return text, _sha256_bytes(data)
+
+
+def _load_json_snapshot(path: Path) -> tuple[dict[str, Any], str]:
+    text, digest = _read_text_snapshot(path)
+    try:
+        payload = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
     except json.JSONDecodeError as exc:
         raise PlanningAdapterError(f"invalid JSON in {path}: {exc}") from exc
     if not isinstance(payload, dict):
         raise PlanningAdapterError(f"JSON root must be an object: {path}")
-    return payload
+    return payload, digest
 
 
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _load_csv_snapshot(path: Path) -> tuple[list[dict[str, str]], list[str], str]:
+    text, digest = _read_text_snapshot(path)
+    reader = csv.DictReader(io.StringIO(text))
+    fieldnames = reader.fieldnames
+    if not isinstance(fieldnames, list) or not fieldnames:
+        raise PlanningAdapterError(f"CSV header is missing: {path}")
+    if any(not isinstance(field, str) or not field.strip() for field in fieldnames):
+        raise PlanningAdapterError(f"CSV contains an empty header field: {path}")
+    if len(fieldnames) != len(set(fieldnames)):
+        raise PlanningAdapterError(f"CSV contains duplicate header fields: {path}")
+    rows = [dict(row) for row in reader]
+    if not rows:
+        raise PlanningAdapterError(f"CSV contains no data rows: {path}")
+    return rows, fieldnames, digest
 
 
 def _resolve_tracked_file(repository_root: Path, relative_path: Path) -> Path:
@@ -102,14 +131,23 @@ def _resolve_tracked_file(repository_root: Path, relative_path: Path) -> Path:
     return path
 
 
-def _binding(role: str, path: Path, repository_root: Path) -> dict[str, str]:
+def _binding(
+    role: str,
+    path: Path,
+    repository_root: Path,
+    *,
+    snapshot_sha256: str | None = None,
+) -> dict[str, str]:
     root = repository_root.expanduser().resolve(strict=True)
     resolved = path.resolve(strict=True)
     try:
         relative = resolved.relative_to(root).as_posix()
     except ValueError:
         relative = str(resolved)
-    return {"role": role, "path": relative, "sha256": _sha256_file(resolved)}
+    digest = snapshot_sha256
+    if digest is None:
+        digest = _sha256_bytes(resolved.read_bytes())
+    return {"role": role, "path": relative, "sha256": digest}
 
 
 def _decision(
@@ -171,6 +209,13 @@ def _plan_nasa(
         raise PlanningAdapterError("NASA planner omitted reason")
     if not isinstance(candidates, list):
         raise PlanningAdapterError("NASA planner candidates must be a list")
+    raw_evidence_level = delegated.get("latest_evidence_level")
+    evidence_level = None
+    if raw_evidence_level is not None:
+        evidence_level = _nonempty_text(
+            raw_evidence_level,
+            "NASA planner latest_evidence_level",
+        )
     selected_action = delegated.get("selected_action")
     run_path = Path(research_run).expanduser().resolve(strict=True)
     registry_path = Path(action_registry_path).expanduser().resolve(strict=True)
@@ -189,7 +234,7 @@ def _plan_nasa(
         selected_action=selected_action,
         candidates=[dict(item) for item in candidates if isinstance(item, Mapping)],
         reason=reason,
-        evidence_level=None,
+        evidence_level=evidence_level,
         maximum_allowed_use=None,
         evidence_bindings=bindings,
         delegated_policy_version=(
@@ -247,15 +292,17 @@ def _plan_materials_project(*, repository_root: Path) -> dict[str, Any]:
     requirement_path = _resolve_tracked_file(repository_root, _MP_REQUIREMENT_CONFIG)
     registry_path = _resolve_tracked_file(repository_root, _MP_CANDIDATE_REGISTRY)
     closeout_path = _resolve_tracked_file(repository_root, _MP_PLANNING_CLOSEOUT)
-    requirement_config = _load_json(requirement_path)
-    registry = _load_json(registry_path)
-    closeout = _load_json(closeout_path)
+    requirement_config, requirement_sha = _load_json_snapshot(requirement_path)
+    registry, registry_sha = _load_json_snapshot(registry_path)
+    closeout, closeout_sha = _load_json_snapshot(closeout_path)
 
     if (
         closeout.get("schema_version") != "1.0"
         or closeout.get("closed_for_current_scope") is not True
     ):
         raise PlanningAdapterError("Materials Project planning closeout is not frozen closed")
+    if closeout.get("evidence_level") != "Diagnostic":
+        raise PlanningAdapterError("Materials Project frozen evidence level drifted")
     if closeout.get("requirement_id") != requirement_config.get("requirement_id"):
         raise PlanningAdapterError("Materials Project closeout requirement_id mismatch")
     if closeout.get("registry_id") != registry.get("registry_id"):
@@ -264,14 +311,24 @@ def _plan_materials_project(*, repository_root: Path) -> dict[str, Any]:
     if not isinstance(raw_candidates, list) or not raw_candidates:
         raise PlanningAdapterError("Materials Project candidate registry is empty or malformed")
 
+    candidate_ids: set[str] = set()
     screening_requirement = _build_mp_screening_requirement(
         requirement_config,
-        _sha256_file(requirement_path),
+        requirement_sha,
     )
     assessments: list[dict[str, Any]] = []
     for raw_candidate in raw_candidates:
         if not isinstance(raw_candidate, Mapping):
             raise PlanningAdapterError("Materials Project candidate must be an object")
+        candidate_id = _nonempty_text(
+            raw_candidate.get("candidate_id"),
+            "Materials Project candidate_id",
+        )
+        if candidate_id in candidate_ids:
+            raise PlanningAdapterError(
+                f"Materials Project candidate_id is duplicated: {candidate_id}"
+            )
+        candidate_ids.add(candidate_id)
         try:
             assessment = evaluate_external_source_candidate(
                 screening_requirement,
@@ -312,39 +369,64 @@ def _plan_materials_project(*, repository_root: Path) -> dict[str, Any]:
         selected_action=None,
         candidates=[],
         reason=(
-            "The frozen source-disjoint search remains closed: all four tracked high-priority "
-            "candidates revalidate as ineligible or diagnostic-only. Reopen only when genuinely "
-            "new evidence directly addresses a recorded provenance or thermodynamic-semantics blocker."
+            f"The frozen source-disjoint search remains closed: all {len(raw_candidates)} tracked "
+            "high-priority candidates revalidate as ineligible or diagnostic-only. Reopen only "
+            "when genuinely new evidence directly addresses a recorded provenance or "
+            "thermodynamic-semantics blocker."
         ),
-        evidence_level=str(closeout.get("evidence_level", "Diagnostic")),
+        evidence_level="Diagnostic",
         maximum_allowed_use=None,
         evidence_bindings=[
             _binding(
                 "external_evidence_requirement_config",
                 requirement_path,
                 repository_root,
+                snapshot_sha256=requirement_sha,
             ),
-            _binding("external_source_candidate_registry", registry_path, repository_root),
-            _binding("planning_closeout", closeout_path, repository_root),
+            _binding(
+                "external_source_candidate_registry",
+                registry_path,
+                repository_root,
+                snapshot_sha256=registry_sha,
+            ),
+            _binding(
+                "planning_closeout",
+                closeout_path,
+                repository_root,
+                snapshot_sha256=closeout_sha,
+            ),
         ],
     )
 
 
 def _plan_tm_fe_si(*, repository_root: Path) -> dict[str, Any]:
     readiness_path = _resolve_tracked_file(repository_root, _TM_FE_SI_READINESS)
-    payload = _load_json(readiness_path)
+    payload, readiness_sha = _load_json_snapshot(readiness_path)
     if payload.get("schema_version") != "1.0":
         raise PlanningAdapterError("TM-Fe-Si readiness schema_version mismatch")
     if payload.get("case_id") != "tm_fe_si_characterization_consumer_readiness":
         raise PlanningAdapterError("TM-Fe-Si readiness case_id mismatch")
+    producer = payload.get("producer")
     readiness = payload.get("readiness")
     closeout = payload.get("closeout")
     intent = payload.get("consumer_intent")
-    if not all(isinstance(item, Mapping) for item in (readiness, closeout, intent)):
+    if not all(
+        isinstance(item, Mapping)
+        for item in (producer, readiness, closeout, intent)
+    ):
         raise PlanningAdapterError("TM-Fe-Si readiness sections are malformed")
+    assert isinstance(producer, Mapping)
     assert isinstance(readiness, Mapping)
     assert isinstance(closeout, Mapping)
     assert isinstance(intent, Mapping)
+    real_replay = producer.get("real_source_replay")
+    if not isinstance(real_replay, Mapping):
+        raise PlanningAdapterError("TM-Fe-Si producer real_source_replay is malformed")
+    if real_replay.get("evidence_level") != "Diagnostic":
+        raise PlanningAdapterError("TM-Fe-Si producer evidence level drifted")
+    producer_maximum_use = real_replay.get("maximum_allowed_use")
+    if producer_maximum_use != "descriptive":
+        raise PlanningAdapterError("TM-Fe-Si producer maximum allowed use drifted")
     if readiness.get("cross_modal_descriptive_case_ready") is not True:
         raise PlanningAdapterError("TM-Fe-Si descriptive case is no longer ready")
     if readiness.get("predictive_negative_control_passed") is not True:
@@ -385,14 +467,138 @@ def _plan_tm_fe_si(*, repository_root: Path) -> dict[str, Any]:
             "requires new independent evidence with exact lineage and hypothesis-relevant truth."
         ),
         evidence_level="Diagnostic",
-        maximum_allowed_use="descriptive",
-        evidence_bindings=[_binding("consumer_readiness", readiness_path, repository_root)],
+        maximum_allowed_use=producer_maximum_use,
+        evidence_bindings=[
+            _binding(
+                "consumer_readiness",
+                readiness_path,
+                repository_root,
+                snapshot_sha256=readiness_sha,
+            )
+        ],
     )
+
+
+def _required_csv_fields(
+    fieldnames: list[str],
+    required: set[str],
+    *,
+    label: str,
+) -> None:
+    missing = sorted(required - set(fieldnames))
+    if missing:
+        raise PlanningAdapterError(f"{label} CSV is missing fields: {missing}")
+
+
+def _unique_sample_ids(rows: list[dict[str, str]], *, label: str) -> list[str]:
+    sample_ids: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        sample_id = _nonempty_text(row.get("sample_id"), f"{label}.sample_id")
+        if sample_id in seen:
+            raise PlanningAdapterError(f"{label} contains duplicate sample_id: {sample_id}")
+        seen.add(sample_id)
+        sample_ids.append(sample_id)
+    return sample_ids
+
+
+def _validate_nist_case_tables(
+    process_path: Path,
+    measurement_path: Path,
+    tracked: Mapping[str, Any],
+) -> tuple[str, str]:
+    process_rows, process_fields, process_sha = _load_csv_snapshot(process_path)
+    measurement_rows, measurement_fields, measurement_sha = _load_csv_snapshot(
+        measurement_path
+    )
+    _required_csv_fields(
+        process_fields,
+        {
+            "sample_id",
+            "case_id",
+            "trace_number",
+            "actual_laser_power_w",
+            "scan_speed_mm_s",
+            "system",
+            "material",
+        },
+        label="NIST AM-Bench process",
+    )
+    _required_csv_fields(
+        measurement_fields,
+        {"sample_id", "case_id", "trace_number"},
+        label="NIST AM-Bench measurement",
+    )
+
+    expected_trace_count = tracked.get("trace_count")
+    if isinstance(expected_trace_count, bool) or not isinstance(expected_trace_count, int):
+        raise PlanningAdapterError("NIST AM-Bench tracked trace_count is malformed")
+    if expected_trace_count != 10:
+        raise PlanningAdapterError("NIST AM-Bench frozen trace_count drifted")
+    if len(process_rows) != expected_trace_count or len(measurement_rows) != expected_trace_count:
+        raise PlanningAdapterError(
+            "NIST AM-Bench actual table row counts do not match the frozen trace_count"
+        )
+
+    process_ids = _unique_sample_ids(process_rows, label="NIST AM-Bench process table")
+    measurement_ids = _unique_sample_ids(
+        measurement_rows,
+        label="NIST AM-Bench measurement table",
+    )
+    if set(process_ids) != set(measurement_ids):
+        raise PlanningAdapterError(
+            "NIST AM-Bench process and measurement tables do not join one-to-one by sample_id"
+        )
+    measurement_by_id = {row["sample_id"]: row for row in measurement_rows}
+    for process_row in process_rows:
+        measurement_row = measurement_by_id[process_row["sample_id"]]
+        for field in ("case_id", "trace_number"):
+            if process_row.get(field) != measurement_row.get(field):
+                raise PlanningAdapterError(
+                    "NIST AM-Bench process/measurement identity fields disagree for "
+                    f"sample_id={process_row['sample_id']}: {field}"
+                )
+
+    expected_system = _nonempty_text(tracked.get("system"), "NIST AM-Bench tracked system")
+    expected_material = _nonempty_text(
+        tracked.get("material"),
+        "NIST AM-Bench tracked material",
+    )
+    conditions: set[tuple[str, str]] = set()
+    for row in process_rows:
+        if row.get("system") != expected_system or row.get("material") != expected_material:
+            raise PlanningAdapterError(
+                "NIST AM-Bench process table material/system drifted from the frozen case"
+            )
+        power = _nonempty_text(
+            row.get("actual_laser_power_w"),
+            "NIST AM-Bench actual_laser_power_w",
+        )
+        speed = _nonempty_text(
+            row.get("scan_speed_mm_s"),
+            "NIST AM-Bench scan_speed_mm_s",
+        )
+        conditions.add((power, speed))
+
+    expected_condition_count = tracked.get("unique_process_condition_count")
+    if (
+        isinstance(expected_condition_count, bool)
+        or not isinstance(expected_condition_count, int)
+        or expected_condition_count != 3
+    ):
+        raise PlanningAdapterError(
+            "NIST AM-Bench frozen unique_process_condition_count drifted"
+        )
+    if len(conditions) != expected_condition_count:
+        raise PlanningAdapterError(
+            "NIST AM-Bench actual process-condition count does not match the frozen case"
+        )
+    return process_sha, measurement_sha
 
 
 def _plan_nist_ambench(*, repository_root: Path) -> dict[str, Any]:
     readiness_path = _resolve_tracked_file(repository_root, _NIST_AMBENCH_READINESS)
-    payload = _load_json(readiness_path)
+    payload, readiness_sha = _load_json_snapshot(readiness_path)
     if payload.get("schema_version") != "1.0":
         raise PlanningAdapterError("NIST AM-Bench planning readiness schema_version mismatch")
     if payload.get("case_id") != "nist-ambench-2018-02-planning-readiness-v1":
@@ -407,6 +613,10 @@ def _plan_nist_ambench(*, repository_root: Path) -> dict[str, Any]:
     assert isinstance(scope, Mapping)
     assert isinstance(tracked, Mapping)
     assert isinstance(blocker, Mapping)
+    blocker_summary = _nonempty_text(
+        blocker.get("summary"),
+        "NIST AM-Bench current_blocker.summary",
+    )
     if scope.get("evidence_level") != "Diagnostic":
         raise PlanningAdapterError("NIST AM-Bench evidence level drifted")
     if scope.get("maximum_allowed_use") != "descriptive":
@@ -441,19 +651,39 @@ def _plan_nist_ambench(*, repository_root: Path) -> dict[str, Any]:
         repository_root, Path(str(tracked["measurement_table"]))
     )
     readme_path = _resolve_tracked_file(repository_root, Path(str(tracked["case_readme"])))
+    process_sha, measurement_sha = _validate_nist_case_tables(
+        process_path,
+        measurement_path,
+        tracked,
+    )
     return _decision(
         adapter_id=_NIST_AMBENCH_ADAPTER,
-        domain=str(payload.get("domain")),
+        domain=_nonempty_text(payload.get("domain"), "NIST AM-Bench domain"),
         selection_status="no_positive_value_action",
         selected_action=None,
         candidates=[],
-        reason=str(blocker.get("summary")),
+        reason=blocker_summary,
         evidence_level="Diagnostic",
         maximum_allowed_use="descriptive",
         evidence_bindings=[
-            _binding("planning_readiness", readiness_path, repository_root),
-            _binding("source_process_conditions", process_path, repository_root),
-            _binding("source_melt_pool_measurements", measurement_path, repository_root),
+            _binding(
+                "planning_readiness",
+                readiness_path,
+                repository_root,
+                snapshot_sha256=readiness_sha,
+            ),
+            _binding(
+                "source_process_conditions",
+                process_path,
+                repository_root,
+                snapshot_sha256=process_sha,
+            ),
+            _binding(
+                "source_melt_pool_measurements",
+                measurement_path,
+                repository_root,
+                snapshot_sha256=measurement_sha,
+            ),
             _binding("case_documentation", readme_path, repository_root),
         ],
     )
