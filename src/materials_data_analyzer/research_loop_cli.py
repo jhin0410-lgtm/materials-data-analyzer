@@ -20,6 +20,7 @@ from materials_data_analyzer.research_loop import (
     build_reopen_evidence_review,
     build_research_planning_state,
     describe_action,
+    execute_authorized_action,
     execute_nasa_audit_action,
     execute_nasa_protocol_stratification_action,
     execute_nasa_target_reference_action,
@@ -267,6 +268,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_generic_planning_arguments(authorization_parser)
 
+    bounded_execute = subparsers.add_parser(
+        "execute-authorized-action",
+        help=(
+            "Execute at most one explicitly requested, currently authorized hardcoded typed "
+            "action, then independently verify its new ledger-bound action report."
+        ),
+    )
+    bounded_execute.add_argument(
+        "--adapter", required=True, choices=("nasa-battery",)
+    )
+    bounded_execute.add_argument("--repository-root", required=True, type=Path)
+    bounded_execute.add_argument("--run", required=True, type=Path)
+    bounded_execute.add_argument("--registry", required=True, type=Path)
+    bounded_execute.add_argument("--request", required=True, type=Path)
+
     reopen_parser = subparsers.add_parser(
         "prepare-reopen-review",
         help=(
@@ -385,6 +401,14 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
             repository_root=args.repository_root,
             research_run=args.run,
             action_registry_path=args.registry,
+        )
+    if args.command == "execute-authorized-action":
+        return execute_authorized_action(
+            args.adapter,
+            repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
+            request_path=args.request,
         )
     if args.command == "prepare-reopen-review":
         return build_reopen_evidence_review(
