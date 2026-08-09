@@ -37,6 +37,8 @@ def _mapping(value: object, field: str) -> Mapping[str, Any]:
 
 
 def _evidence_bindings(value: object) -> list[dict[str, Any]]:
+    if value is None:
+        return []
     if not isinstance(value, list):
         raise PlanningTransitionError("planning_state.evidence_bindings must be a list")
     bindings: list[dict[str, Any]] = []
