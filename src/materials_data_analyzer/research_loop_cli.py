@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Mapping
 
 from materials_data_analyzer.research_loop import (
     ResearchLoopError,
@@ -21,9 +22,6 @@ from materials_data_analyzer.research_loop import (
     build_research_planning_state,
     describe_action,
     execute_authorized_action,
-    execute_nasa_audit_action,
-    execute_nasa_protocol_stratification_action,
-    execute_nasa_target_reference_action,
     initialize_research_loop,
     load_action_registry,
     load_research_state,
@@ -62,6 +60,13 @@ def _add_registry_arguments(parser: argparse.ArgumentParser) -> None:
             "and source-script paths."
         ),
     )
+
+
+def _add_legacy_authorized_execution_arguments(parser: argparse.ArgumentParser) -> None:
+    """Keep legacy command names while enforcing the common authorization boundary."""
+    _add_run_argument(parser)
+    _add_registry_arguments(parser)
+    parser.add_argument("--request", required=True, type=Path)
 
 
 def _add_generic_planning_arguments(parser: argparse.ArgumentParser) -> None:
@@ -181,11 +186,12 @@ def build_parser() -> argparse.ArgumentParser:
     execute_audit = subparsers.add_parser(
         "execute-nasa-audit",
         help=(
-            "Execute the typed existing-Battery-run audit request, independently "
-            "verify outputs, and append the result to the research ledger."
+            "Legacy name for one explicitly authorized typed NASA audit action. "
+            "Current planning state, execution registry, budget, and request binding "
+            "are revalidated before execution."
         ),
     )
-    execute_audit.add_argument("--request", required=True, type=Path)
+    _add_legacy_authorized_execution_arguments(execute_audit)
 
     verify_audit = subparsers.add_parser(
         "verify-nasa-audit",
@@ -196,11 +202,12 @@ def build_parser() -> argparse.ArgumentParser:
     execute_target = subparsers.add_parser(
         "execute-nasa-target-reference",
         help=(
-            "Execute the fixed target-reference robustness request without model "
-            "refitting, target repair, or row exclusion."
+            "Legacy name for one explicitly authorized target-reference action. "
+            "Current planning state, execution registry, budget, and request binding "
+            "are revalidated before execution."
         ),
     )
-    execute_target.add_argument("--request", required=True, type=Path)
+    _add_legacy_authorized_execution_arguments(execute_target)
 
     verify_target = subparsers.add_parser(
         "verify-nasa-target-reference",
@@ -211,11 +218,12 @@ def build_parser() -> argparse.ArgumentParser:
     execute_protocol = subparsers.add_parser(
         "execute-nasa-protocol-stratification",
         help=(
-            "Execute exact-temperature battery-level protocol stratification without "
-            "binning, filtering, model refitting, or evidence promotion."
+            "Legacy name for one explicitly authorized protocol-stratification action. "
+            "Current planning state, execution registry, budget, and request binding "
+            "are revalidated before execution."
         ),
     )
-    execute_protocol.add_argument("--request", required=True, type=Path)
+    _add_legacy_authorized_execution_arguments(execute_protocol)
 
     verify_protocol = subparsers.add_parser(
         "verify-nasa-protocol-stratification",
@@ -321,6 +329,16 @@ def _load_registry_from_args(args: argparse.Namespace) -> dict[str, object]:
     )
 
 
+def _run_legacy_authorized_nasa_action(args: argparse.Namespace) -> dict[str, object]:
+    return execute_authorized_action(
+        "nasa-battery",
+        repository_root=args.repository_root,
+        research_run=args.run,
+        action_registry_path=args.registry,
+        request_path=args.request,
+    )
+
+
 def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str, object]]:
     if args.command == "init":
         return initialize_research_loop(args.objective, args.output)
@@ -374,16 +392,16 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         return action_summaries(_load_registry_from_args(args))
     if args.command == "describe-action":
         return describe_action(_load_registry_from_args(args), args.action_type)
-    if args.command == "execute-nasa-audit":
-        return execute_nasa_audit_action(args.request)
+    if args.command in {
+        "execute-nasa-audit",
+        "execute-nasa-target-reference",
+        "execute-nasa-protocol-stratification",
+    }:
+        return _run_legacy_authorized_nasa_action(args)
     if args.command == "verify-nasa-audit":
         return verify_nasa_audit_action_report(args.report)
-    if args.command == "execute-nasa-target-reference":
-        return execute_nasa_target_reference_action(args.request)
     if args.command == "verify-nasa-target-reference":
         return verify_nasa_target_reference_report(args.report)
-    if args.command == "execute-nasa-protocol-stratification":
-        return execute_nasa_protocol_stratification_action(args.request)
     if args.command == "verify-nasa-protocol-stratification":
         return verify_nasa_protocol_stratification_report(args.report)
     if args.command == "plan-nasa-next-action":
@@ -448,6 +466,15 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
     raise AssertionError(f"unhandled command: {args.command}")
 
 
+def _contains_failed_execution(result: object) -> bool:
+    if not isinstance(result, Mapping):
+        return False
+    if result.get("execution_status") == "failed":
+        return True
+    nested = result.get("execution")
+    return isinstance(nested, Mapping) and nested.get("execution_status") == "failed"
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -466,7 +493,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Research loop command failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
-    if isinstance(result, dict) and result.get("execution_status") == "failed":
+    if _contains_failed_execution(result):
         return 2
     return 0
 
