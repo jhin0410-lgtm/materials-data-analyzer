@@ -15,6 +15,7 @@ from materials_data_analyzer.research_loop import (
     append_hypothesis,
     append_stop,
     available_planning_adapters,
+    build_research_planning_state,
     describe_action,
     execute_nasa_audit_action,
     execute_nasa_protocol_stratification_action,
@@ -58,12 +59,37 @@ def _add_registry_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_generic_planning_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--adapter",
+        required=True,
+        choices=available_planning_adapters(),
+        help="Domain adapter whose existing scientific policy should be revalidated.",
+    )
+    parser.add_argument(
+        "--repository-root",
+        required=True,
+        type=Path,
+        help="Repository checkout root containing tracked planning evidence.",
+    )
+    parser.add_argument(
+        "--run",
+        type=Path,
+        help="NASA only: existing research-loop run directory.",
+    )
+    parser.add_argument(
+        "--registry",
+        type=Path,
+        help="NASA only: versioned action-registry JSON file.",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mda-research-loop",
         description=(
             "Create and verify append-only research state, bounded action registries, "
-            "typed deterministic actions, and a deterministic next-action baseline. "
+            "typed deterministic actions, and deterministic planning baselines. "
             "No unrestricted code generation is enabled."
         ),
     )
@@ -209,28 +235,16 @@ def build_parser() -> argparse.ArgumentParser:
             "planning-decision contract. The command never executes the selected action."
         ),
     )
-    plan_generic.add_argument(
-        "--adapter",
-        required=True,
-        choices=available_planning_adapters(),
-        help="Domain adapter whose existing scientific policy should be revalidated.",
+    _add_generic_planning_arguments(plan_generic)
+
+    show_planning_state = subparsers.add_parser(
+        "show-planning-state",
+        help=(
+            "Project the verified decision into the domain-general research question, blocker, "
+            "evidence-gap, action-frontier, and stop/reopen state."
+        ),
     )
-    plan_generic.add_argument(
-        "--repository-root",
-        required=True,
-        type=Path,
-        help="Repository checkout root containing tracked planning evidence.",
-    )
-    plan_generic.add_argument(
-        "--run",
-        type=Path,
-        help="NASA only: existing research-loop run directory.",
-    )
-    plan_generic.add_argument(
-        "--registry",
-        type=Path,
-        help="NASA only: versioned action-registry JSON file.",
-    )
+    _add_generic_planning_arguments(show_planning_state)
     return parser
 
 
@@ -314,6 +328,13 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         )
     if args.command == "plan-next-action":
         return plan_research_next_action(
+            args.adapter,
+            repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
+        )
+    if args.command == "show-planning-state":
+        return build_research_planning_state(
             args.adapter,
             repository_root=args.repository_root,
             research_run=args.run,
