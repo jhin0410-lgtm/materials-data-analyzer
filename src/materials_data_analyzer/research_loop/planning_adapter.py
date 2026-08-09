@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Mapping
 
 from .external_evidence_contract import (
     ExternalEvidenceContractError,
@@ -21,12 +21,18 @@ from .kernel import ResearchLoopError
 from .nasa_action_policy import plan_nasa_next_action
 
 PLANNING_DECISION_SCHEMA_VERSION = "1.0"
-PLANNING_ADAPTER_VERSION = "1.0"
+PLANNING_ADAPTER_VERSION = "1.1"
 
 _NASA_ADAPTER = "nasa-battery"
 _MATERIALS_PROJECT_ADAPTER = "materials-project-external-source"
 _TM_FE_SI_ADAPTER = "tm-fe-si-descriptive"
-_ADAPTER_IDS = (_NASA_ADAPTER, _MATERIALS_PROJECT_ADAPTER, _TM_FE_SI_ADAPTER)
+_NIST_AMBENCH_ADAPTER = "nist-ambench-process-characterization"
+_ADAPTER_IDS = (
+    _NASA_ADAPTER,
+    _MATERIALS_PROJECT_ADAPTER,
+    _TM_FE_SI_ADAPTER,
+    _NIST_AMBENCH_ADAPTER,
+)
 
 _MP_REQUIREMENT_CONFIG = Path(
     "configs/research/materials_project_external_evidence_requirement.v1.json"
@@ -39,6 +45,9 @@ _MP_PLANNING_CLOSEOUT = Path(
 )
 _TM_FE_SI_READINESS = Path(
     "configs/research/tm_fe_si_characterization_consumer_readiness.v1.json"
+)
+_NIST_AMBENCH_READINESS = Path(
+    "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
 )
 
 
@@ -165,16 +174,11 @@ def _plan_nasa(
     selected_action = delegated.get("selected_action")
     run_path = Path(research_run).expanduser().resolve(strict=True)
     registry_path = Path(action_registry_path).expanduser().resolve(strict=True)
-    bindings = [
-        _binding("action_registry", registry_path, repository_root),
-    ]
-    state_path = run_path / "research_state.json"
-    ledger_path = run_path / "research_ledger.jsonl"
-    objective_path = run_path / "research_objective.json"
+    bindings = [_binding("action_registry", registry_path, repository_root)]
     for role, path in (
-        ("research_state", state_path),
-        ("research_ledger", ledger_path),
-        ("research_objective", objective_path),
+        ("research_state", run_path / "research_state.json"),
+        ("research_ledger", run_path / "research_ledger.jsonl"),
+        ("research_objective", run_path / "research_objective.json"),
     ):
         if path.is_file():
             bindings.append(_binding(role, path, repository_root))
@@ -196,7 +200,9 @@ def _plan_nasa(
     )
 
 
-def _build_mp_screening_requirement(config: Mapping[str, Any], config_sha256: str) -> dict[str, Any]:
+def _build_mp_screening_requirement(
+    config: Mapping[str, Any], config_sha256: str
+) -> dict[str, Any]:
     required = {
         "schema_version",
         "requirement_id",
@@ -245,7 +251,10 @@ def _plan_materials_project(*, repository_root: Path) -> dict[str, Any]:
     registry = _load_json(registry_path)
     closeout = _load_json(closeout_path)
 
-    if closeout.get("schema_version") != "1.0" or closeout.get("closed_for_current_scope") is not True:
+    if (
+        closeout.get("schema_version") != "1.0"
+        or closeout.get("closed_for_current_scope") is not True
+    ):
         raise PlanningAdapterError("Materials Project planning closeout is not frozen closed")
     if closeout.get("requirement_id") != requirement_config.get("requirement_id"):
         raise PlanningAdapterError("Materials Project closeout requirement_id mismatch")
@@ -310,7 +319,11 @@ def _plan_materials_project(*, repository_root: Path) -> dict[str, Any]:
         evidence_level=str(closeout.get("evidence_level", "Diagnostic")),
         maximum_allowed_use=None,
         evidence_bindings=[
-            _binding("external_evidence_requirement_config", requirement_path, repository_root),
+            _binding(
+                "external_evidence_requirement_config",
+                requirement_path,
+                repository_root,
+            ),
             _binding("external_source_candidate_registry", registry_path, repository_root),
             _binding("planning_closeout", closeout_path, repository_root),
         ],
@@ -336,7 +349,11 @@ def _plan_tm_fe_si(*, repository_root: Path) -> dict[str, Any]:
         raise PlanningAdapterError("TM-Fe-Si descriptive case is no longer ready")
     if readiness.get("predictive_negative_control_passed") is not True:
         raise PlanningAdapterError("TM-Fe-Si predictive negative control is not preserved")
-    for field in ("predictive_case_ready", "causal_case_ready", "engineering_decision_ready"):
+    for field in (
+        "predictive_case_ready",
+        "causal_case_ready",
+        "engineering_decision_ready",
+    ):
         if readiness.get(field) is not False:
             raise PlanningAdapterError(f"TM-Fe-Si stronger-use boundary drifted: {field}")
     if closeout.get("evidence_level") != "Diagnostic":
@@ -347,7 +364,12 @@ def _plan_tm_fe_si(*, repository_root: Path) -> dict[str, Any]:
         raise PlanningAdapterError("TM-Fe-Si frozen requested use is not descriptive")
     if intent.get("descriptive_authorized") is not True:
         raise PlanningAdapterError("TM-Fe-Si descriptive use is no longer authorized")
-    for field in ("association_authorized", "predictive_authorized", "causal_authorized", "engineering_authorized"):
+    for field in (
+        "association_authorized",
+        "predictive_authorized",
+        "causal_authorized",
+        "engineering_authorized",
+    ):
         if intent.get(field) is not False:
             raise PlanningAdapterError(f"TM-Fe-Si use boundary drifted: {field}")
 
@@ -365,6 +387,75 @@ def _plan_tm_fe_si(*, repository_root: Path) -> dict[str, Any]:
         evidence_level="Diagnostic",
         maximum_allowed_use="descriptive",
         evidence_bindings=[_binding("consumer_readiness", readiness_path, repository_root)],
+    )
+
+
+def _plan_nist_ambench(*, repository_root: Path) -> dict[str, Any]:
+    readiness_path = _resolve_tracked_file(repository_root, _NIST_AMBENCH_READINESS)
+    payload = _load_json(readiness_path)
+    if payload.get("schema_version") != "1.0":
+        raise PlanningAdapterError("NIST AM-Bench planning readiness schema_version mismatch")
+    if payload.get("case_id") != "nist-ambench-2018-02-planning-readiness-v1":
+        raise PlanningAdapterError("NIST AM-Bench planning readiness case_id mismatch")
+    scope = payload.get("current_scope")
+    tracked = payload.get("tracked_case")
+    blocker = payload.get("current_blocker")
+    requirements = payload.get("required_new_evidence")
+    reopen = payload.get("reopen_conditions")
+    if not all(isinstance(item, Mapping) for item in (scope, tracked, blocker)):
+        raise PlanningAdapterError("NIST AM-Bench readiness sections are malformed")
+    assert isinstance(scope, Mapping)
+    assert isinstance(tracked, Mapping)
+    assert isinstance(blocker, Mapping)
+    if scope.get("evidence_level") != "Diagnostic":
+        raise PlanningAdapterError("NIST AM-Bench evidence level drifted")
+    if scope.get("maximum_allowed_use") != "descriptive":
+        raise PlanningAdapterError("NIST AM-Bench maximum use drifted")
+    if scope.get("descriptive_case_complete") is not True:
+        raise PlanningAdapterError("NIST AM-Bench descriptive closeout is no longer complete")
+    for field in (
+        "predictive_use_authorized",
+        "causal_use_authorized",
+        "engineering_use_authorized",
+    ):
+        if scope.get(field) is not False:
+            raise PlanningAdapterError(f"NIST AM-Bench stronger-use boundary drifted: {field}")
+    if tracked.get("trace_count") != 10 or tracked.get("unique_process_condition_count") != 3:
+        raise PlanningAdapterError("NIST AM-Bench frozen case dimensions drifted")
+    if not isinstance(requirements, list) or not requirements:
+        raise PlanningAdapterError("NIST AM-Bench evidence requirements are missing")
+    if not isinstance(reopen, list) or not reopen:
+        raise PlanningAdapterError("NIST AM-Bench reopen conditions are missing")
+    for field in (
+        "automatic_acquisition_authorized",
+        "automatic_experiment_control_authorized",
+        "model_fit_authorized",
+        "automatic_reopen_authorized",
+        "scientific_evidence_upgrade_authorized",
+    ):
+        if payload.get(field) is not False:
+            raise PlanningAdapterError(f"NIST AM-Bench safety boundary drifted: {field}")
+
+    process_path = _resolve_tracked_file(repository_root, Path(str(tracked["process_table"])))
+    measurement_path = _resolve_tracked_file(
+        repository_root, Path(str(tracked["measurement_table"]))
+    )
+    readme_path = _resolve_tracked_file(repository_root, Path(str(tracked["case_readme"])))
+    return _decision(
+        adapter_id=_NIST_AMBENCH_ADAPTER,
+        domain=str(payload.get("domain")),
+        selection_status="no_positive_value_action",
+        selected_action=None,
+        candidates=[],
+        reason=str(blocker.get("summary")),
+        evidence_level="Diagnostic",
+        maximum_allowed_use="descriptive",
+        evidence_bindings=[
+            _binding("planning_readiness", readiness_path, repository_root),
+            _binding("source_process_conditions", process_path, repository_root),
+            _binding("source_melt_pool_measurements", measurement_path, repository_root),
+            _binding("case_documentation", readme_path, repository_root),
+        ],
     )
 
 
@@ -397,7 +488,9 @@ def plan_research_next_action(
         )
     if adapter_id == _MATERIALS_PROJECT_ADAPTER:
         return _plan_materials_project(repository_root=root)
-    return _plan_tm_fe_si(repository_root=root)
+    if adapter_id == _TM_FE_SI_ADAPTER:
+        return _plan_tm_fe_si(repository_root=root)
+    return _plan_nist_ambench(repository_root=root)
 
 
 __all__ = [

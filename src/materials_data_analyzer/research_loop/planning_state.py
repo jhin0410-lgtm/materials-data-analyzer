@@ -16,11 +16,12 @@ from .kernel import ResearchLoopError, load_research_state
 from .planning_adapter import plan_research_next_action
 
 PLANNING_STATE_SCHEMA_VERSION = "1.0"
-PLANNING_STATE_VERSION = "1.1"
+PLANNING_STATE_VERSION = "1.2"
 
 _NASA_ADAPTER = "nasa-battery"
 _MATERIALS_PROJECT_ADAPTER = "materials-project-external-source"
 _TM_FE_SI_ADAPTER = "tm-fe-si-descriptive"
+_NIST_AMBENCH_ADAPTER = "nist-ambench-process-characterization"
 
 _MP_REQUIREMENT_CONFIG = Path(
     "configs/research/materials_project_external_evidence_requirement.v1.json"
@@ -30,6 +31,9 @@ _MP_PLANNING_CLOSEOUT = Path(
 )
 _TM_FE_SI_READINESS = Path(
     "configs/research/tm_fe_si_characterization_consumer_readiness.v1.json"
+)
+_NIST_AMBENCH_READINESS = Path(
+    "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
 )
 
 
@@ -207,11 +211,7 @@ def _base_state(decision: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _project_nasa(
-    state: dict[str, Any],
-    *,
-    research_run: Path,
-) -> None:
+def _project_nasa(state: dict[str, Any], *, research_run: Path) -> None:
     research = load_research_state(research_run)
     state["research_question"] = _nonempty_text(research.get("question"), "research.question")
     constraints = research.get("constraints")
@@ -259,7 +259,10 @@ def _project_nasa(
         state["evidence_gap"] = {"status": "implementation_required", "requirements": []}
     elif selection_status in {"no_positive_value_action", "research_stopped"}:
         state["current_blocker"]["kind"] = "terminal_scope"
-        state["evidence_gap"] = {"status": "no_current_positive_value_gap", "requirements": []}
+        state["evidence_gap"] = {
+            "status": "no_current_positive_value_gap",
+            "requirements": [],
+        }
         if research.get("stop"):
             state["stop_state"]["reopen_conditions"] = [
                 "Open a new versioned research objective if materially new evidence changes the stopped scope."
@@ -272,7 +275,9 @@ def _project_materials_project(state: dict[str, Any], repository_root: Path) -> 
     requirement = _load_json(
         _resolve_repository_file(repository_root, _MP_REQUIREMENT_CONFIG)
     )
-    closeout = _load_json(_resolve_repository_file(repository_root, _MP_PLANNING_CLOSEOUT))
+    closeout = _load_json(
+        _resolve_repository_file(repository_root, _MP_PLANNING_CLOSEOUT)
+    )
     state["research_question"] = _nonempty_text(
         requirement.get("objective"), "materials_project.objective"
     )
@@ -313,7 +318,9 @@ def _project_tm_fe_si(state: dict[str, Any], repository_root: Path) -> None:
     state["current_blocker"] = {
         "kind": "stronger_claim_evidence_limit",
         "code": "descriptive_case_complete_stronger_use_not_supported",
-        "summary": _nonempty_text(closeout.get("primary_limitation"), "tm_fe_si.primary_limitation"),
+        "summary": _nonempty_text(
+            closeout.get("primary_limitation"), "tm_fe_si.primary_limitation"
+        ),
     }
     stronger_requirements = [
         item
@@ -329,6 +336,51 @@ def _project_tm_fe_si(state: dict[str, Any], repository_root: Path) -> None:
         "requirements": stronger_requirements,
     }
     state["stop_state"]["reopen_conditions"] = stronger_requirements
+
+
+def _project_nist_ambench(state: dict[str, Any], repository_root: Path) -> None:
+    payload = _load_json(
+        _resolve_repository_file(repository_root, _NIST_AMBENCH_READINESS)
+    )
+    blocker = payload.get("current_blocker")
+    if not isinstance(blocker, Mapping):
+        raise PlanningStateError("NIST AM-Bench current blocker is malformed")
+    requirements = _string_list(
+        payload.get("required_new_evidence"),
+        "nist_ambench.required_new_evidence",
+        allow_empty=False,
+    )
+    reopen = _string_list(
+        payload.get("reopen_conditions"),
+        "nist_ambench.reopen_conditions",
+        allow_empty=False,
+    )
+    state["research_question"] = _nonempty_text(
+        payload.get("research_question"), "nist_ambench.research_question"
+    )
+    state["current_blocker"] = {
+        "kind": "physical_evidence_and_validation_design_limit",
+        "code": _nonempty_text(blocker.get("code"), "nist_ambench.blocker.code"),
+        "summary": _nonempty_text(
+            blocker.get("summary"), "nist_ambench.blocker.summary"
+        ),
+    }
+    state["evidence_gap"] = {
+        "status": "physical_evidence_required_for_stronger_use",
+        "requirements": requirements,
+    }
+    state["stop_state"]["reopen_conditions"] = reopen
+    state["constraints"] = [
+        "no_synthetic_trace_substitution",
+        "preserve_authoritative_process_and_metrology_lineage",
+        "no_predictive_fit_before_independence_and_timing_contract",
+        "no_automatic_experiment_control",
+        "no_scientific_evidence_promotion_from_planning",
+    ]
+    state["stop_rules"] = [
+        "stop_current_descriptive_scope",
+        "reopen_only_after_manual_semantic_review_of_new_physical_evidence",
+    ]
 
 
 def build_research_planning_state(
@@ -350,11 +402,16 @@ def build_research_planning_state(
     if adapter_id == _NASA_ADAPTER:
         if research_run is None:
             raise PlanningStateError("nasa-battery planning state requires research_run")
-        _project_nasa(state, research_run=Path(research_run).expanduser().resolve(strict=True))
+        _project_nasa(
+            state,
+            research_run=Path(research_run).expanduser().resolve(strict=True),
+        )
     elif adapter_id == _MATERIALS_PROJECT_ADAPTER:
         _project_materials_project(state, root)
     elif adapter_id == _TM_FE_SI_ADAPTER:
         _project_tm_fe_si(state, root)
+    elif adapter_id == _NIST_AMBENCH_ADAPTER:
+        _project_nist_ambench(state, root)
     else:
         raise PlanningStateError(f"unsupported planning-state adapter: {adapter_id!r}")
     return state
