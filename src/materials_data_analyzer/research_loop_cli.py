@@ -14,6 +14,7 @@ from materials_data_analyzer.research_loop import (
     append_evidence,
     append_hypothesis,
     append_stop,
+    available_planning_adapters,
     describe_action,
     execute_nasa_audit_action,
     execute_nasa_protocol_stratification_action,
@@ -22,6 +23,7 @@ from materials_data_analyzer.research_loop import (
     load_action_registry,
     load_research_state,
     plan_nasa_next_action,
+    plan_research_next_action,
     verify_nasa_audit_action_report,
     verify_nasa_protocol_stratification_report,
     verify_nasa_target_reference_report,
@@ -199,6 +201,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_run_argument(plan_next)
     _add_registry_arguments(plan_next)
+
+    plan_generic = subparsers.add_parser(
+        "plan-next-action",
+        help=(
+            "Translate existing domain-specific scientific state into the common read-only "
+            "planning-decision contract. The command never executes the selected action."
+        ),
+    )
+    plan_generic.add_argument(
+        "--adapter",
+        required=True,
+        choices=available_planning_adapters(),
+        help="Domain adapter whose existing scientific policy should be revalidated.",
+    )
+    plan_generic.add_argument(
+        "--repository-root",
+        required=True,
+        type=Path,
+        help="Repository checkout root containing tracked planning evidence.",
+    )
+    plan_generic.add_argument(
+        "--run",
+        type=Path,
+        help="NASA only: existing research-loop run directory.",
+    )
+    plan_generic.add_argument(
+        "--registry",
+        type=Path,
+        help="NASA only: versioned action-registry JSON file.",
+    )
     return parser
 
 
@@ -279,6 +311,13 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
             args.run,
             args.registry,
             args.repository_root,
+        )
+    if args.command == "plan-next-action":
+        return plan_research_next_action(
+            args.adapter,
+            repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
         )
     raise AssertionError(f"unhandled command: {args.command}")
 
