@@ -168,12 +168,29 @@ def _ensure_within(path: Path, parent: Path, *, message: str) -> None:
         raise AuthorizedExecutionError(message) from exc
 
 
+def _expected_action_directory(research_run: Path, action_id: str) -> Path:
+    """Resolve the action output boundary and reject symlink/path traversal escapes."""
+    actions_root = (research_run / "actions").resolve(strict=False)
+    _ensure_within(
+        actions_root,
+        research_run,
+        message="research actions directory resolves outside the research run",
+    )
+    action_directory = (actions_root / action_id).resolve(strict=False)
+    _ensure_within(
+        action_directory,
+        actions_root,
+        message="requested action directory resolves outside the research actions directory",
+    )
+    return action_directory
+
+
 def _latest_action_report(
     state: Mapping[str, Any],
     *,
     expected_action_type: str,
     expected_action_id: str,
-    research_run: Path,
+    expected_action_directory: Path,
 ) -> tuple[Mapping[str, Any], Path]:
     actions = state.get("actions")
     if not isinstance(actions, list) or not actions:
@@ -193,7 +210,6 @@ def _latest_action_report(
     if not isinstance(artifacts, list):
         raise AuthorizedExecutionError("latest ledger action artifacts are malformed")
     matches: list[Path] = []
-    expected_directory = (research_run / "actions" / expected_action_id).resolve()
     for item in artifacts:
         if not isinstance(item, Mapping):
             continue
@@ -202,7 +218,7 @@ def _latest_action_report(
             report_path = Path(raw_path).expanduser().resolve(strict=True)
             _ensure_within(
                 report_path,
-                expected_directory,
+                expected_action_directory,
                 message="ledger-bound action report escapes the expected action directory",
             )
             matches.append(report_path)
@@ -278,6 +294,7 @@ def execute_authorized_action(
         registry_path=registry_path,
         registry_sha256=registry_sha,
     )
+    expected_action_directory = _expected_action_directory(run, request_action_id)
 
     before_state = load_research_state(run)
     before_actions = before_state.get("actions")
@@ -304,7 +321,7 @@ def execute_authorized_action(
         after_state,
         expected_action_type=action_type,
         expected_action_id=request_action_id,
-        research_run=run,
+        expected_action_directory=expected_action_directory,
     )
     verified_report = verifier(report_path)
     if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
