@@ -1,10 +1,10 @@
 """Recoverable output-to-ledger transaction journal for authorized NASA actions.
 
 The transaction is intentionally owned by the common authorized execution boundary.
-Callers must hold the research kernel's exclusive ledger lock for the full lifetime
-of prepare -> typed execution -> pinned verification -> cleanup. The kernel lock is
-re-entrant for the owning thread so existing typed executors can keep using their
-normal load/append helpers without creating a second synchronization domain.
+The same persistent research-ledger advisory lock is held for prepare -> typed
+execution -> pinned verification -> cleanup. Existing typed executors keep using
+their normal kernel helpers; nested acquisitions in the owning context reuse the
+already-held descriptor-bound lock rather than creating a second lock domain.
 """
 
 from __future__ import annotations
@@ -14,17 +14,20 @@ import json
 import os
 import shutil
 import tempfile
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterator, Mapping
 
+from . import kernel as _kernel
 from .kernel import ResearchLoopError, append_action, append_action_and_stop
 
 SCHEMA_VERSION = "1.0"
 TRANSACTION_DIRECTORY = ".action_output_ledger_transactions"
 JOURNAL_FILENAME = "journal.json"
 ACTION_REPORT_FILENAME = "action_result.json"
-EXTERNAL_REQUIREMENT_ACTION_TYPE = "external_data_requirement"
+EXTERNAL_REQUIREMENT_ACTION_TYPE = "external_data_requirement_generation"
 EXTERNAL_REQUIREMENT_STOP_REASON = "external_evidence_required"
 AUDIT_ACTION_TYPE = "audit_existing_battery_run"
 
@@ -52,6 +55,48 @@ _AUDIT_MUTABLE_RELATIVE_PATHS = (
 
 class ActionOutputLedgerTransactionError(ResearchLoopError):
     """Raised when crash recovery cannot prove a safe output/ledger transition."""
+
+
+_OWNED_LEDGER_LOCKS: ContextVar[frozenset[str]] = ContextVar(
+    "owned_research_ledger_locks", default=frozenset()
+)
+_ORIGINAL_LOCK_EXISTING_LEDGER = _kernel._lock_existing_ledger
+
+
+@contextmanager
+def _reentrant_lock_existing_ledger(run_directory: Path) -> Iterator[None]:
+    """Reuse the kernel's existing advisory lock when this context already owns it."""
+    key = os.path.normcase(str(run_directory.resolve()))
+    owned = _OWNED_LEDGER_LOCKS.get()
+    if key in owned:
+        yield
+        return
+    with _ORIGINAL_LOCK_EXISTING_LEDGER(run_directory):
+        token = _OWNED_LEDGER_LOCKS.set(owned | {key})
+        try:
+            yield
+        finally:
+            _OWNED_LEDGER_LOCKS.reset(token)
+
+
+# Extend the existing kernel lock rather than introducing a second advisory lock.
+# Both _exclusive_ledger_lock() and read-side _load_consistent_read() resolve this
+# module global at call time, so nested executor reads/writes stay in one lock scope.
+_kernel._lock_existing_ledger = _reentrant_lock_existing_ledger
+
+
+@contextmanager
+def shared_research_ledger_transaction_lock(
+    research_run: str | Path,
+) -> Iterator[Path]:
+    """Hold the kernel's persistent ledger lock across output publication and commit."""
+    run = Path(research_run).expanduser().resolve(strict=True)
+    if not run.is_dir():
+        raise ActionOutputLedgerTransactionError(
+            f"research transaction run is not a directory: {run}"
+        )
+    with _kernel._exclusive_ledger_lock(run):
+        yield run
 
 
 def _utc_now() -> str:
@@ -100,8 +145,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _transaction_directory(research_run: Path, action_id: str) -> Path:
     digest = hashlib.sha256(action_id.encode("utf-8")).hexdigest()[:32]
-    root = research_run / TRANSACTION_DIRECTORY
-    return root / digest
+    return research_run / TRANSACTION_DIRECTORY / digest
 
 
 def _journal_path(research_run: Path, action_id: str) -> Path:
@@ -156,7 +200,11 @@ def _record_matches(record: Mapping[str, Any]) -> bool:
         current = _file_record(Path(raw_path))
     except (OSError, ResearchLoopError):
         return False
-    return current == {"path": str(Path(raw_path).expanduser().resolve()), "bytes": size, "sha256": digest}
+    return current == {
+        "path": str(Path(raw_path).expanduser().resolve()),
+        "bytes": size,
+        "sha256": digest,
+    }
 
 
 def _write_phase(journal_path: Path, journal: dict[str, Any], phase: str) -> None:
@@ -180,7 +228,11 @@ def _snapshot_audit_run(
         raise ActionOutputLedgerTransactionError(
             "audit transaction analysis_run must be a directory"
         )
-    if analysis_run == research_run or analysis_run in research_run.parents or research_run in analysis_run.parents:
+    if (
+        analysis_run == research_run
+        or analysis_run in research_run.parents
+        or research_run in analysis_run.parents
+    ):
         raise ActionOutputLedgerTransactionError(
             "audit transaction requires non-overlapping analysis and research runs"
         )
@@ -301,7 +353,9 @@ def _validate_journal_binding(
         )
 
 
-def _published_artifact_paths(report_path: Path, report: Mapping[str, Any]) -> list[Path]:
+def _published_artifact_paths(
+    report_path: Path, report: Mapping[str, Any]
+) -> list[Path]:
     paths = [report_path]
     records: list[Mapping[str, Any]] = []
     outputs = report.get("outputs")
@@ -425,7 +479,11 @@ def prepare_action_output_ledger_transaction(
         actions = state.get("actions")
         if not isinstance(actions, list):
             raise ActionOutputLedgerTransactionError("research action state is malformed")
-        matches = [item for item in actions if isinstance(item, Mapping) and item.get("action_id") == action_id]
+        matches = [
+            item
+            for item in actions
+            if isinstance(item, Mapping) and item.get("action_id") == action_id
+        ]
         if len(matches) > 1:
             raise ActionOutputLedgerTransactionError(
                 "research ledger contains duplicate action IDs during transaction recovery"
@@ -518,7 +576,11 @@ def mark_action_output_ledger_committed(
     actions = state.get("actions")
     if not isinstance(actions, list):
         raise ActionOutputLedgerTransactionError("post-execution action state is malformed")
-    matches = [item for item in actions if isinstance(item, Mapping) and item.get("action_id") == action_id]
+    matches = [
+        item
+        for item in actions
+        if isinstance(item, Mapping) and item.get("action_id") == action_id
+    ]
     if len(matches) != 1 or matches[0].get("action_type") != action_type:
         raise ActionOutputLedgerTransactionError(
             "transaction cannot mark ledger_committed without one matching ledger action"
@@ -553,4 +615,5 @@ __all__ = [
     "cleanup_action_output_ledger_transaction",
     "mark_action_output_ledger_committed",
     "prepare_action_output_ledger_transaction",
+    "shared_research_ledger_transaction_lock",
 ]
