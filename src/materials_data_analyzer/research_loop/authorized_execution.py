@@ -601,17 +601,17 @@ def execute_authorized_action(
             raise AuthorizedExecutionError(
                 "typed executor or recovery must append exactly one research action per invocation"
             )
-        mark_action_output_ledger_committed(
-            research_run=run,
-            action_id=request_action_id,
-            action_type=action_type,
-            state=after_state,
-        )
         ledger_action, report_path = _latest_action_report(
             after_state,
             expected_action_type=action_type,
             expected_action_id=request_action_id,
             expected_action_directory=expected_action_directory,
+        )
+        mark_action_output_ledger_committed(
+            research_run=run,
+            action_id=request_action_id,
+            action_type=action_type,
+            state=after_state,
         )
         verified_report = verifier(
             report_path,
