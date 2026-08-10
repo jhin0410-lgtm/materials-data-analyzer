@@ -93,10 +93,22 @@ Keep the request local unless it contains only portable, non-sensitive paths.
 
 ## Execute
 
+The legacy action-specific command is an authorization-enforcing compatibility
+entry point. It revalidates the current planning state, budget, execution
+registry, and request binding before invoking the typed executor; it does not
+bypass `execute-authorized-action`.
+
 ```powershell
 mda-research-loop execute-nasa-audit `
-  --request .\local\nasa_audit_action_request.json
+  --repository-root . `
+  --run outputs/nasa_research_loop `
+  --registry configs/research/nasa_research_action_registry.v1.json `
+  --request .\nasa_audit_action_request.json
 ```
+
+The example keeps the request at the repository root so its relative paths above
+resolve as shown. If the request is stored in another directory, adjust its
+relative path fields accordingly.
 
 A verified success returns exit code `0`. A preflight contract failure returns
 exit code `1` and consumes no action budget. An execution or verification failure
