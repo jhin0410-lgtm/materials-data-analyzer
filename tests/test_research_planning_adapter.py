@@ -215,7 +215,7 @@ def test_nist_ambench_fails_closed_if_measurement_value_is_non_finite(
         / "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
     )
     rows = _read_csv(measurement_path)
-    rows[0]["width_mean_um"] = "nan"
+    rows[0]["melt_pool_width_mean_um"] = "nan"
     _rewrite_csv(measurement_path, rows)
 
     with pytest.raises(planning.PlanningAdapterError, match="must be finite"):
