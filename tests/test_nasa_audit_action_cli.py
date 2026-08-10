@@ -131,10 +131,24 @@ def _prepare(tmp_path: Path) -> tuple[Path, Path]:
     return request, research
 
 
-def test_cli_executes_and_reverifies_typed_nasa_audit(tmp_path: Path, capsys) -> None:
-    request, _ = _prepare(tmp_path)
+def _execute_args(request: Path, research: Path) -> list[str]:
+    return [
+        "execute-nasa-audit",
+        "--run",
+        str(research),
+        "--registry",
+        str(REGISTRY),
+        "--repository-root",
+        str(ROOT),
+        "--request",
+        str(request),
+    ]
 
-    assert cli.main(["execute-nasa-audit", "--request", str(request)]) == 0
+
+def test_cli_executes_and_reverifies_typed_nasa_audit(tmp_path: Path, capsys) -> None:
+    request, research = _prepare(tmp_path)
+
+    assert cli.main(_execute_args(request, research)) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["execution_status"] == "completed"
 
@@ -155,7 +169,7 @@ def test_cli_preflight_error_returns_nonzero_without_action(tmp_path: Path, caps
     payload["expected_registry_sha256"] = "0" * 64
     request.write_text(json.dumps(payload), encoding="utf-8")
 
-    assert cli.main(["execute-nasa-audit", "--request", str(request)]) == 1
-    assert "registry SHA-256" in capsys.readouterr().err
+    assert cli.main(_execute_args(request, research)) == 1
+    assert "expected_registry_sha256 does not match authorization" in capsys.readouterr().err
     state = json.loads((research / "research_state.json").read_text(encoding="utf-8"))
     assert state["actions"] == []
