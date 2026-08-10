@@ -21,30 +21,32 @@ from .kernel import ResearchLoopError, load_research_state
 from .nasa_audit_executor import (
     ACTION_TYPE as AUDIT_ACTION_TYPE,
     execute_nasa_audit_action_preparsed,
-    verify_nasa_audit_action_report,
 )
 from .nasa_external_data_requirement_action import (
     ACTION_TYPE as EXTERNAL_REQUIREMENT_ACTION_TYPE,
     execute_nasa_external_data_requirement_action_preparsed,
-    verify_nasa_external_data_requirement_report,
 )
 from .nasa_protocol_stratification_action import (
     ACTION_TYPE as PROTOCOL_ACTION_TYPE,
     execute_nasa_protocol_stratification_action_preparsed,
-    verify_nasa_protocol_stratification_report,
 )
 from .nasa_target_reference_action import (
     ACTION_TYPE as TARGET_REFERENCE_ACTION_TYPE,
     execute_nasa_target_reference_action_preparsed,
-    verify_nasa_target_reference_report,
+)
+from .pinned_execution_verifier import (
+    verify_nasa_audit_action_report_pinned,
+    verify_nasa_external_data_requirement_report_pinned,
+    verify_nasa_protocol_stratification_report_pinned,
+    verify_nasa_target_reference_report_pinned,
 )
 
 EXECUTION_SCHEMA_VERSION = "1.0"
-EXECUTION_POLICY_VERSION = "1.2"
+EXECUTION_POLICY_VERSION = "1.3"
 _ACTION_REPORT_FILENAME = "action_result.json"
 
 Executor = Callable[..., dict[str, Any]]
-Verifier = Callable[[str | Path], dict[str, Any]]
+Verifier = Callable[..., dict[str, Any]]
 
 # Dispatch is bound to the exact action contract version implemented by each
 # hardcoded executor. A registry version bump therefore requires an explicit code
@@ -52,19 +54,19 @@ Verifier = Callable[[str | Path], dict[str, Any]]
 _DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
     (AUDIT_ACTION_TYPE, "1.0"): (
         execute_nasa_audit_action_preparsed,
-        verify_nasa_audit_action_report,
+        verify_nasa_audit_action_report_pinned,
     ),
     (TARGET_REFERENCE_ACTION_TYPE, "1.0"): (
         execute_nasa_target_reference_action_preparsed,
-        verify_nasa_target_reference_report,
+        verify_nasa_target_reference_report_pinned,
     ),
     (PROTOCOL_ACTION_TYPE, "1.0"): (
         execute_nasa_protocol_stratification_action_preparsed,
-        verify_nasa_protocol_stratification_report,
+        verify_nasa_protocol_stratification_report_pinned,
     ),
     (EXTERNAL_REQUIREMENT_ACTION_TYPE, "1.0"): (
         execute_nasa_external_data_requirement_action_preparsed,
-        verify_nasa_external_data_requirement_report,
+        verify_nasa_external_data_requirement_report_pinned,
     ),
 }
 
@@ -332,7 +334,12 @@ def execute_authorized_action(
         expected_action_id=request_action_id,
         expected_action_directory=expected_action_directory,
     )
-    verified_report = verifier(report_path)
+    verified_report = verifier(
+        report_path,
+        request_value=request,
+        request_path=request_file,
+        request_record=request_record,
+    )
     if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
         raise AuthorizedExecutionError("typed executor/verifier returned malformed result")
     if executor_result.get("action_id") != request_action_id:
@@ -377,9 +384,9 @@ def execute_authorized_action(
         "scientific_evidence_upgraded_by_orchestrator": False,
         "scientific_boundary": (
             "This wrapper proves bounded typed dispatch, exact request-byte handoff, "
-            "and independent report verification. Scientific interpretation remains "
-            "owned by the typed action and downstream evidence contracts; execution "
-            "success does not itself upgrade scientific evidence."
+            "and independent pinned-snapshot report verification. Scientific "
+            "interpretation remains owned by the typed action and downstream evidence "
+            "contracts; execution success does not itself upgrade scientific evidence."
         ),
     }
 
