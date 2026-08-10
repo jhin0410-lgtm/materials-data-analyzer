@@ -20,51 +20,53 @@ from .action_authorization import (
 from .kernel import ResearchLoopError, load_research_state
 from .nasa_audit_executor import (
     ACTION_TYPE as AUDIT_ACTION_TYPE,
-    execute_nasa_audit_action,
-    verify_nasa_audit_action_report,
+    execute_nasa_audit_action_preparsed,
 )
 from .nasa_external_data_requirement_action import (
     ACTION_TYPE as EXTERNAL_REQUIREMENT_ACTION_TYPE,
-    execute_nasa_external_data_requirement_action,
-    verify_nasa_external_data_requirement_report,
+    execute_nasa_external_data_requirement_action_preparsed,
 )
 from .nasa_protocol_stratification_action import (
     ACTION_TYPE as PROTOCOL_ACTION_TYPE,
-    execute_nasa_protocol_stratification_action,
-    verify_nasa_protocol_stratification_report,
+    execute_nasa_protocol_stratification_action_preparsed,
 )
 from .nasa_target_reference_action import (
     ACTION_TYPE as TARGET_REFERENCE_ACTION_TYPE,
-    execute_nasa_target_reference_action,
-    verify_nasa_target_reference_report,
+    execute_nasa_target_reference_action_preparsed,
+)
+from .pinned_execution_verifier import (
+    verify_nasa_audit_action_report_pinned,
+    verify_nasa_external_data_requirement_report_pinned,
+    verify_nasa_protocol_stratification_report_pinned,
+    verify_nasa_target_reference_report_pinned,
 )
 
 EXECUTION_SCHEMA_VERSION = "1.0"
-EXECUTION_POLICY_VERSION = "1.1"
+EXECUTION_POLICY_VERSION = "1.3"
 _ACTION_REPORT_FILENAME = "action_result.json"
 
-Executor = Callable[[str | Path], dict[str, Any]]
-Verifier = Callable[[str | Path], dict[str, Any]]
+Executor = Callable[..., dict[str, Any]]
+Verifier = Callable[..., dict[str, Any]]
 
 # Dispatch is bound to the exact action contract version implemented by each
 # hardcoded executor. A registry version bump therefore requires an explicit code
 # change before execution can proceed.
 _DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
     (AUDIT_ACTION_TYPE, "1.0"): (
-        execute_nasa_audit_action,
-        verify_nasa_audit_action_report,
+        execute_nasa_audit_action_preparsed,
+        verify_nasa_audit_action_report_pinned,
     ),
     (TARGET_REFERENCE_ACTION_TYPE, "1.0"): (
-        execute_nasa_target_reference_action,
-        verify_nasa_target_reference_report,
+        execute_nasa_target_reference_action_preparsed,
+        verify_nasa_target_reference_report_pinned,
     ),
     (PROTOCOL_ACTION_TYPE, "1.0"): (
-        execute_nasa_protocol_stratification_action,
-        verify_nasa_protocol_stratification_report,
+        execute_nasa_protocol_stratification_action_preparsed,
+        verify_nasa_protocol_stratification_report_pinned,
     ),
     (EXTERNAL_REQUIREMENT_ACTION_TYPE, "1.0"): (
-        execute_nasa_external_data_requirement_action,
-        verify_nasa_external_data_requirement_report,
+        execute_nasa_external_data_requirement_action_preparsed,
+        verify_nasa_external_data_requirement_report_pinned,
     ),
 }
 
@@ -82,27 +84,36 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _load_request(path: Path) -> dict[str, Any]:
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _load_request_snapshot(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Read and parse the request once, preserving the exact authorized bytes."""
     if not path.is_file():
         raise AuthorizedExecutionError(f"execution request is not a file: {path}")
-    if path.stat().st_size <= 0:
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        raise AuthorizedExecutionError(f"could not read execution request: {path}") from exc
+    if not data:
         raise AuthorizedExecutionError("execution request file must not be empty")
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            value = json.load(handle, object_pairs_hook=_reject_duplicate_pairs)
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise AuthorizedExecutionError("execution request must be UTF-8 JSON") from exc
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
     except json.JSONDecodeError as exc:
         raise AuthorizedExecutionError(f"invalid execution request JSON: {exc}") from exc
     if not isinstance(value, dict):
         raise AuthorizedExecutionError("execution request root must be an object")
-    return value
-
-
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    record = {
+        "path": str(path),
+        "bytes": len(data),
+        "sha256": _sha256_bytes(data),
+    }
+    return value, record
 
 
 def _resolve_request_path(raw: object, *, field: str, base: Path) -> Path:
@@ -245,7 +256,7 @@ def execute_authorized_action(
     root = Path(repository_root).expanduser().resolve(strict=True)
     run = Path(research_run).expanduser().resolve(strict=True)
     request_file = Path(request_path).expanduser().resolve(strict=True)
-    request = _load_request(request_file)
+    request, request_record = _load_request_snapshot(request_file)
 
     try:
         authorization = assess_current_action_authorization(
@@ -303,11 +314,11 @@ def execute_authorized_action(
     before_count = len(before_actions)
 
     executor, verifier = _DISPATCH[dispatch_key]
-    # The typed executor intentionally receives the original request path so its
-    # documented relative-path semantics remain unchanged. Atomic request handoff
-    # requires a future typed-executor API that accepts pre-parsed/canonical input;
-    # this wrapper does not claim to solve that boundary by relocating the file.
-    executor_result = executor(request_file)
+    executor_result = executor(
+        request,
+        request_path=request_file,
+        request_record=request_record,
+    )
 
     after_state = load_research_state(run)
     after_actions = after_state.get("actions")
@@ -323,7 +334,12 @@ def execute_authorized_action(
         expected_action_id=request_action_id,
         expected_action_directory=expected_action_directory,
     )
-    verified_report = verifier(report_path)
+    verified_report = verifier(
+        report_path,
+        request_value=request,
+        request_path=request_file,
+        request_record=request_record,
+    )
     if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
         raise AuthorizedExecutionError("typed executor/verifier returned malformed result")
     if executor_result.get("action_id") != request_action_id:
@@ -342,9 +358,9 @@ def execute_authorized_action(
         "action_type": action_type,
         "action_version": action_version,
         "request_binding": {
-            "path": str(request_file),
-            "sha256": _sha256_file(request_file),
-            "size_bytes": request_file.stat().st_size,
+            "path": request_record["path"],
+            "sha256": request_record["sha256"],
+            "size_bytes": request_record["bytes"],
         },
         "authorization_status": authorization["authorization_status"],
         "execution_registry": {
@@ -367,8 +383,9 @@ def execute_authorized_action(
         "model_fit_initiated_by_orchestrator": False,
         "scientific_evidence_upgraded_by_orchestrator": False,
         "scientific_boundary": (
-            "This wrapper proves bounded typed dispatch and independent report verification. "
-            "Scientific interpretation remains owned by the typed action and downstream evidence "
+            "This wrapper proves bounded typed dispatch, exact request-byte handoff, "
+            "and independent pinned-snapshot report verification. Scientific "
+            "interpretation remains owned by the typed action and downstream evidence "
             "contracts; execution success does not itself upgrade scientific evidence."
         ),
     }
