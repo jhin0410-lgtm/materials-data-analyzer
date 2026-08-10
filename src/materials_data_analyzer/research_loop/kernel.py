@@ -379,6 +379,14 @@ def _write_run_state(
     return state
 
 
+def _write_lock_seed(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as handle:
+        handle.write(b"\0")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
 def initialize_research_loop(
     objective_path: str | Path,
     output_directory: str | Path,
@@ -402,9 +410,15 @@ def initialize_research_loop(
     with transactional_output_directory(
         output_directory,
         protected_paths=(source_path,),
-        recognized_markers=(OBJECTIVE_FILENAME, LEDGER_FILENAME, STATE_FILENAME),
+        recognized_markers=(
+            OBJECTIVE_FILENAME,
+            LEDGER_FILENAME,
+            STATE_FILENAME,
+            LOCK_FILENAME,
+        ),
     ) as staging:
         _atomic_write_text(staging / OBJECTIVE_FILENAME, objective_text)
+        _write_lock_seed(staging / LOCK_FILENAME)
         state = _write_run_state(staging, [event])
     return state
 
@@ -416,13 +430,17 @@ def _resolve_run_path(run_directory: str | Path) -> Path:
     return run_path
 
 
-def _seed_lock_file(handle: Any) -> None:
-    handle.seek(0, os.SEEK_END)
-    if handle.tell() == 0:
-        handle.write(b"\0")
-        handle.flush()
-        os.fsync(handle.fileno())
-    handle.seek(0)
+def _ensure_lock_file(run_directory: Path) -> Path:
+    lock_path = run_directory / LOCK_FILENAME
+    if lock_path.is_file():
+        return lock_path
+    try:
+        _write_lock_seed(lock_path)
+    except FileExistsError:
+        pass
+    if not lock_path.is_file():
+        raise ResearchLoopError(f"research ledger lock is not a file: {lock_path}")
+    return lock_path
 
 
 def _acquire_windows_lock(handle: Any) -> None:
@@ -447,11 +465,10 @@ def _release_windows_lock(handle: Any) -> None:
 
 
 @contextmanager
-def _exclusive_ledger_lock(run_directory: Path) -> Iterator[None]:
-    """Serialize ledger/state transactions across processes without stale sentinels."""
+def _lock_existing_ledger(run_directory: Path) -> Iterator[None]:
+    """Lock a pre-existing lock byte without modifying the research run."""
     lock_path = run_directory / LOCK_FILENAME
-    with lock_path.open("a+b") as handle:
-        _seed_lock_file(handle)
+    with lock_path.open("rb") as handle:
         if os.name == "nt":
             _acquire_windows_lock(handle)
             try:
@@ -466,6 +483,14 @@ def _exclusive_ledger_lock(run_directory: Path) -> Iterator[None]:
                 yield
             finally:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _exclusive_ledger_lock(run_directory: Path) -> Iterator[None]:
+    """Serialize writers using a persistent OS lock whose ownership is descriptor-bound."""
+    _ensure_lock_file(run_directory)
+    with _lock_existing_ledger(run_directory):
+        yield
 
 
 def _load_verified_run(
@@ -505,6 +530,26 @@ def _load_verified_run(
             "research objective copy does not match the registered hash"
         )
     return run_path, events, state
+
+
+def _load_consistent_read(
+    run_directory: str | Path,
+) -> tuple[Path, list[dict[str, Any]], dict[str, Any]]:
+    """Read under the stable lock when present without creating archive files."""
+    run_path = _resolve_run_path(run_directory)
+    lock_path = run_path / LOCK_FILENAME
+    if lock_path.is_file():
+        with _lock_existing_ledger(run_path):
+            return _load_verified_run(run_path)
+
+    # Legacy runs predate the lock file. Verify them without mutation, then check
+    # whether a concurrent writer created the lock before we return. If it did,
+    # repeat under that lock so the returned snapshot has a linearization point.
+    result = _load_verified_run(run_path)
+    if lock_path.is_file():
+        with _lock_existing_ledger(run_path):
+            return _load_verified_run(run_path)
+    return result
 
 
 @contextmanager
@@ -823,20 +868,20 @@ def append_stop(
 
 
 def load_research_state(run_directory: str | Path) -> dict[str, Any]:
-    """Return a lock-consistent state reconstructed from the immutable ledger."""
-    with _locked_verified_run(run_directory) as (_, _, state):
-        return state
+    """Return a read-only-compatible state reconstructed from the immutable ledger."""
+    _, _, state = _load_consistent_read(run_directory)
+    return state
 
 
 def verify_research_loop(run_directory: str | Path) -> dict[str, Any]:
     """Verify ledger chaining, objective binding, and snapshot reconstruction."""
-    with _locked_verified_run(run_directory) as (run_path, events, state):
-        return {
-            "valid": True,
-            "run_directory": str(run_path),
-            "research_id": state["research_id"],
-            "status": state["status"],
-            "event_count": len(events),
-            "latest_event_hash": state["latest_event_hash"],
-            "ledger_sha256": state["ledger_sha256"],
-        }
+    run_path, events, state = _load_consistent_read(run_directory)
+    return {
+        "valid": True,
+        "run_directory": str(run_path),
+        "research_id": state["research_id"],
+        "status": state["status"],
+        "event_count": len(events),
+        "latest_event_hash": state["latest_event_hash"],
+        "ledger_sha256": state["ledger_sha256"],
+    }
