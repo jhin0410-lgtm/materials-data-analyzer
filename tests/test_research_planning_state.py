@@ -49,6 +49,24 @@ def test_tm_fe_si_state_stops_current_scope_without_promoting_use() -> None:
     assert state["scientific_evidence_upgraded"] is False
 
 
+def _nasa_research_state(*, stop: object = None, ledger_sha256: str = "b" * 64) -> dict[str, object]:
+    return {
+        "question": "Can protocol structure explain concentrated error?",
+        "constraints": ["battery_disjoint_validation"],
+        "stop_rules": ["no_positive_value_action"],
+        "budget": {
+            "maximum_actions": 12,
+            "actions_used": 2,
+            "actions_remaining": 10,
+            "maximum_cost_units": 100,
+            "cost_units_used": 8,
+            "cost_units_remaining": 92,
+        },
+        "stop": stop,
+        "ledger_sha256": ledger_sha256,
+    }
+
+
 def test_nasa_state_projects_verified_question_budget_and_action_without_fake_information_gain(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -90,20 +108,7 @@ def test_nasa_state_projects_verified_question_budget_and_action_without_fake_in
     monkeypatch.setattr(
         planning_state,
         "load_research_state",
-        lambda path: {
-            "question": "Can protocol structure explain concentrated error?",
-            "constraints": ["battery_disjoint_validation"],
-            "stop_rules": ["no_positive_value_action"],
-            "budget": {
-                "maximum_actions": 12,
-                "actions_used": 2,
-                "actions_remaining": 10,
-                "maximum_cost_units": 100,
-                "cost_units_used": 8,
-                "cost_units_remaining": 92,
-            },
-            "stop": None,
-        },
+        lambda path: _nasa_research_state(),
     )
 
     state = planning_state.build_research_planning_state(
@@ -152,13 +157,7 @@ def test_nasa_external_requirement_action_becomes_explicit_evidence_gap(
     monkeypatch.setattr(
         planning_state,
         "load_research_state",
-        lambda path: {
-            "question": "What evidence is missing?",
-            "constraints": [],
-            "stop_rules": ["external_evidence_required"],
-            "budget": {},
-            "stop": None,
-        },
+        lambda path: _nasa_research_state(),
     )
 
     state = planning_state.build_research_planning_state(
@@ -169,6 +168,157 @@ def test_nasa_external_requirement_action_becomes_explicit_evidence_gap(
     )
     assert state["evidence_gap"]["status"] == "requirement_definition_needed"
     assert state["evidence_gap"]["requirements"]
+
+
+def test_nasa_budget_block_preserves_external_requirement_gap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setattr(
+        planning_state,
+        "plan_research_next_action",
+        lambda *args, **kwargs: {
+            "adapter_id": "nasa-battery",
+            "domain": "battery_degradation",
+            "selection_status": "blocked_by_budget",
+            "selected_action": {
+                "action_type": "external_data_requirement_generation",
+                "availability": "available",
+                "cost_units": 2,
+                "score": 140,
+                "trigger": "required_reference_metadata_missing",
+                "rationale": "Specify missing reference metadata.",
+            },
+            "candidates": [],
+            "reason": "Budget blocks the evidence requirement action.",
+            "evidence_level": "Unsupported",
+            "maximum_allowed_use": None,
+            "evidence_bindings": [],
+        },
+    )
+    monkeypatch.setattr(planning_state, "load_research_state", lambda path: _nasa_research_state())
+
+    state = planning_state.build_research_planning_state(
+        "nasa-battery",
+        repository_root=tmp_path,
+        research_run=run,
+        action_registry_path=tmp_path / "unused.json",
+    )
+
+    assert state["stop_state"]["status"] == "operationally_blocked"
+    assert state["evidence_gap"]["status"] == "requirement_definition_blocked_by_budget"
+    assert state["evidence_gap"]["requirements"]
+
+
+def test_nasa_recorded_stop_payload_is_preserved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    stop_payload = {
+        "reason_code": "external_evidence_required",
+        "summary": "Independent external evidence is required before continuing.",
+    }
+    monkeypatch.setattr(
+        planning_state,
+        "plan_research_next_action",
+        lambda *args, **kwargs: {
+            "adapter_id": "nasa-battery",
+            "domain": "battery_degradation",
+            "selection_status": "research_stopped",
+            "selected_action": None,
+            "candidates": [],
+            "reason": "The research run is terminal.",
+            "evidence_level": "Unsupported",
+            "maximum_allowed_use": None,
+            "evidence_bindings": [],
+        },
+    )
+    monkeypatch.setattr(
+        planning_state,
+        "load_research_state",
+        lambda path: _nasa_research_state(stop=stop_payload),
+    )
+
+    state = planning_state.build_research_planning_state(
+        "nasa-battery",
+        repository_root=tmp_path,
+        research_run=run,
+        action_registry_path=tmp_path / "unused.json",
+    )
+
+    assert state["recorded_stop"] == stop_payload
+    assert state["current_blocker"]["code"] == "external_evidence_required"
+    assert state["current_blocker"]["summary"] == stop_payload["summary"]
+    assert state["evidence_gap"]["requirements"] == [stop_payload["summary"]]
+
+
+def test_nasa_projection_rejects_ledger_binding_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setattr(
+        planning_state,
+        "plan_research_next_action",
+        lambda *args, **kwargs: {
+            "adapter_id": "nasa-battery",
+            "domain": "battery_degradation",
+            "selection_status": "no_positive_value_action",
+            "selected_action": None,
+            "candidates": [],
+            "reason": "No action remains.",
+            "evidence_level": "Unsupported",
+            "maximum_allowed_use": None,
+            "evidence_bindings": [
+                {"role": "research_ledger", "path": "ledger.jsonl", "sha256": "a" * 64}
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        planning_state,
+        "load_research_state",
+        lambda path: _nasa_research_state(ledger_sha256="b" * 64),
+    )
+
+    with pytest.raises(planning_state.PlanningStateError, match="changed between planning"):
+        planning_state.build_research_planning_state(
+            "nasa-battery",
+            repository_root=tmp_path,
+            research_run=run,
+            action_registry_path=tmp_path / "unused.json",
+        )
+
+
+def test_unknown_selection_status_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        planning_state,
+        "plan_research_next_action",
+        lambda *args, **kwargs: {
+            "adapter_id": "materials-project-external-source",
+            "domain": "materials_phase_stability",
+            "selection_status": "future_unknown_status",
+            "selected_action": None,
+            "candidates": [],
+            "reason": "unknown",
+            "evidence_level": "Diagnostic",
+            "maximum_allowed_use": None,
+            "evidence_bindings": [],
+        },
+    )
+
+    with pytest.raises(planning_state.PlanningStateError, match="unsupported planning selection_status"):
+        planning_state.build_research_planning_state(
+            "materials-project-external-source",
+            repository_root=tmp_path,
+        )
 
 
 def test_unknown_planning_state_adapter_fails_closed(
