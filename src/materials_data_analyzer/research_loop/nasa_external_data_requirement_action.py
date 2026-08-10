@@ -15,8 +15,7 @@ from platform_core.output_safety import transactional_output_directory
 from .action_registry import describe_action, load_action_registry
 from .kernel import (
     ResearchLoopError,
-    append_action,
-    append_stop,
+    append_action_and_stop,
     load_research_state,
 )
 from .nasa_protocol_stratification_action import (
@@ -705,7 +704,7 @@ def execute_nasa_external_data_requirement_action_preparsed(
         }
         _write_json(staging / ACTION_REPORT_FILENAME, report)
 
-    append_action(
+    final_state = append_action_and_stop(
         research_run,
         action_id=action_id,
         action_type=ACTION_TYPE,
@@ -715,15 +714,12 @@ def execute_nasa_external_data_requirement_action_preparsed(
             "evidence remains Unsupported."
         ),
         cost_units=contract["cost_units"],
-        artifact_paths=[report_path, requirement_path],
-    )
-    final_state = append_stop(
-        research_run,
         reason_code=STOP_REASON,
-        summary=(
+        stop_summary=(
             "The bounded loop requires authoritative recovered metadata or "
             "independently sourced evidence satisfying the generated contract."
         ),
+        artifact_paths=[report_path, requirement_path],
     )
     return {
         "execution_status": "completed",

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
 import tempfile
-from collections.abc import Iterable, Mapping, Sequence
+import time
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -17,6 +20,7 @@ SCHEMA_VERSION = "1.0"
 OBJECTIVE_FILENAME = "research_objective.json"
 LEDGER_FILENAME = "research_ledger.jsonl"
 STATE_FILENAME = "research_state.json"
+LOCK_FILENAME = ".research_ledger.lock"
 
 _ALLOWED_ACTION_STATUSES = {"completed", "failed", "rejected"}
 _REQUIRED_OBJECTIVE_KEYS = {
@@ -31,6 +35,8 @@ _REQUIRED_OBJECTIVE_KEYS = {
 _ALLOWED_OBJECTIVE_KEYS = _REQUIRED_OBJECTIVE_KEYS | {"metadata"}
 _REQUIRED_METRIC_KEYS = {"primary", "secondary"}
 _REQUIRED_BUDGET_KEYS = {"maximum_actions", "maximum_cost_units"}
+_WINDOWS_LOCK_RETRY_ERRNOS = {errno.EACCES, errno.EAGAIN, errno.EDEADLK}
+_WINDOWS_LOCK_RETRY_SECONDS = 0.05
 
 
 class ResearchLoopError(ValueError):
@@ -217,7 +223,10 @@ def _atomic_write_text(path: Path, content: str) -> None:
 
 
 def _write_json(path: Path, value: Any) -> None:
-    _atomic_write_text(path, json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
+    _atomic_write_text(
+        path,
+        json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+    )
 
 
 def _read_ledger(run_directory: Path) -> list[dict[str, Any]]:
@@ -269,7 +278,8 @@ def _verify_events(events: Sequence[Mapping[str, Any]]) -> None:
             )
         if event["sequence"] != expected_sequence:
             raise ResearchLoopError(
-                f"ledger sequence mismatch: expected {expected_sequence}, got {event['sequence']!r}"
+                "ledger sequence mismatch: "
+                f"expected {expected_sequence}, got {event['sequence']!r}"
             )
         if event["previous_event_hash"] != previous_hash:
             raise ResearchLoopError(
@@ -288,7 +298,9 @@ def _verify_events(events: Sequence[Mapping[str, Any]]) -> None:
         previous_hash = expected_hash
 
 
-def _event_ids(events: Iterable[Mapping[str, Any]], event_type: str, id_key: str) -> set[str]:
+def _event_ids(
+    events: Iterable[Mapping[str, Any]], event_type: str, id_key: str
+) -> set[str]:
     return {
         str(event["payload"][id_key])
         for event in events
@@ -296,11 +308,15 @@ def _event_ids(events: Iterable[Mapping[str, Any]], event_type: str, id_key: str
     }
 
 
-def _reconstruct_state(events: Sequence[Mapping[str, Any]], ledger_sha256: str) -> dict[str, Any]:
+def _reconstruct_state(
+    events: Sequence[Mapping[str, Any]], ledger_sha256: str
+) -> dict[str, Any]:
     _verify_events(events)
     first = events[0]
     if first["event_type"] != "objective_registered":
-        raise ResearchLoopError("the first ledger event must register the research objective")
+        raise ResearchLoopError(
+            "the first ledger event must register the research objective"
+        )
     objective = validate_objective(first["payload"]["objective"])
 
     hypotheses: list[dict[str, Any]] = []
@@ -352,13 +368,23 @@ def _reconstruct_state(events: Sequence[Mapping[str, Any]], ledger_sha256: str) 
     }
 
 
-def _write_run_state(run_directory: Path, events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def _write_run_state(
+    run_directory: Path, events: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
     ledger_text = _serialize_ledger(events)
     ledger_sha256 = _sha256_bytes(ledger_text.encode("utf-8"))
     state = _reconstruct_state(events, ledger_sha256)
     _atomic_write_text(run_directory / LEDGER_FILENAME, ledger_text)
     _write_json(run_directory / STATE_FILENAME, state)
     return state
+
+
+def _write_lock_seed(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as handle:
+        handle.write(b"\0")
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def initialize_research_loop(
@@ -368,9 +394,9 @@ def initialize_research_loop(
     """Create a new research run with an immutable objective-registration event."""
     source_path = Path(objective_path).expanduser().resolve(strict=True)
     objective = validate_objective(_load_json(source_path))
-    objective_text = json.dumps(
-        objective, indent=2, ensure_ascii=False, sort_keys=True
-    ) + "\n"
+    objective_text = (
+        json.dumps(objective, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    )
     objective_sha256 = _sha256_bytes(objective_text.encode("utf-8"))
     event = _build_event(
         sequence=1,
@@ -384,23 +410,103 @@ def initialize_research_loop(
     with transactional_output_directory(
         output_directory,
         protected_paths=(source_path,),
-        recognized_markers=(OBJECTIVE_FILENAME, LEDGER_FILENAME, STATE_FILENAME),
+        recognized_markers=(
+            OBJECTIVE_FILENAME,
+            LEDGER_FILENAME,
+            STATE_FILENAME,
+            LOCK_FILENAME,
+        ),
     ) as staging:
         _atomic_write_text(staging / OBJECTIVE_FILENAME, objective_text)
+        _write_lock_seed(staging / LOCK_FILENAME)
         state = _write_run_state(staging, [event])
     return state
 
 
-def _load_verified_run(run_directory: str | Path) -> tuple[Path, list[dict[str, Any]], dict[str, Any]]:
+def _resolve_run_path(run_directory: str | Path) -> Path:
     run_path = Path(run_directory).expanduser().resolve(strict=True)
     if not run_path.is_dir():
         raise NotADirectoryError(f"research run is not a directory: {run_path}")
+    return run_path
+
+
+def _ensure_lock_file(run_directory: Path) -> Path:
+    lock_path = run_directory / LOCK_FILENAME
+    if lock_path.is_file():
+        return lock_path
+    try:
+        _write_lock_seed(lock_path)
+    except FileExistsError:
+        pass
+    if not lock_path.is_file():
+        raise ResearchLoopError(f"research ledger lock is not a file: {lock_path}")
+    return lock_path
+
+
+def _acquire_windows_lock(handle: Any) -> None:
+    import msvcrt
+
+    handle.seek(0)
+    while True:
+        try:
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            return
+        except OSError as exc:
+            if exc.errno not in _WINDOWS_LOCK_RETRY_ERRNOS:
+                raise
+            time.sleep(_WINDOWS_LOCK_RETRY_SECONDS)
+
+
+def _release_windows_lock(handle: Any) -> None:
+    import msvcrt
+
+    handle.seek(0)
+    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+
+
+@contextmanager
+def _lock_existing_ledger(run_directory: Path) -> Iterator[None]:
+    """Lock a pre-existing lock byte without modifying the research run."""
+    lock_path = run_directory / LOCK_FILENAME
+    with lock_path.open("rb") as handle:
+        if os.name == "nt":
+            _acquire_windows_lock(handle)
+            try:
+                yield
+            finally:
+                _release_windows_lock(handle)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _exclusive_ledger_lock(run_directory: Path) -> Iterator[None]:
+    """Serialize writers using a persistent OS lock whose ownership is descriptor-bound."""
+    _ensure_lock_file(run_directory)
+    with _lock_existing_ledger(run_directory):
+        yield
+
+
+def _load_verified_run(
+    run_directory: str | Path,
+) -> tuple[Path, list[dict[str, Any]], dict[str, Any]]:
+    run_path = _resolve_run_path(run_directory)
     events = _read_ledger(run_path)
     ledger_text = _serialize_ledger(events)
-    state = _reconstruct_state(events, _sha256_bytes(ledger_text.encode("utf-8")))
+    state = _reconstruct_state(
+        events, _sha256_bytes(ledger_text.encode("utf-8"))
+    )
     snapshot_path = run_path / STATE_FILENAME
     if not snapshot_path.is_file():
-        raise FileNotFoundError(f"research state snapshot not found: {snapshot_path}")
+        raise FileNotFoundError(
+            f"research state snapshot not found: {snapshot_path}"
+        )
     snapshot = _load_json(snapshot_path)
     if snapshot != state:
         raise ResearchLoopError(
@@ -408,15 +514,75 @@ def _load_verified_run(run_directory: str | Path) -> tuple[Path, list[dict[str, 
         )
     objective_path = run_path / OBJECTIVE_FILENAME
     if not objective_path.is_file():
-        raise FileNotFoundError(f"research objective copy not found: {objective_path}")
+        raise FileNotFoundError(
+            f"research objective copy not found: {objective_path}"
+        )
     objective = validate_objective(_load_json(objective_path))
     registered = events[0]["payload"]
-    expected_text = json.dumps(
-        objective, indent=2, ensure_ascii=False, sort_keys=True
-    ) + "\n"
-    if _sha256_bytes(expected_text.encode("utf-8")) != registered["objective_sha256"]:
-        raise ResearchLoopError("research objective copy does not match the registered hash")
+    expected_text = (
+        json.dumps(objective, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    )
+    if (
+        _sha256_bytes(expected_text.encode("utf-8"))
+        != registered["objective_sha256"]
+    ):
+        raise ResearchLoopError(
+            "research objective copy does not match the registered hash"
+        )
     return run_path, events, state
+
+
+def _load_consistent_read(
+    run_directory: str | Path,
+) -> tuple[Path, list[dict[str, Any]], dict[str, Any]]:
+    """Read under the stable lock when present without creating archive files."""
+    run_path = _resolve_run_path(run_directory)
+    lock_path = run_path / LOCK_FILENAME
+    if lock_path.is_file():
+        with _lock_existing_ledger(run_path):
+            return _load_verified_run(run_path)
+
+    # Legacy runs predate the lock file. Verify them without mutation, then check
+    # whether a concurrent writer created the lock before we return. If it did,
+    # repeat under that lock so the returned snapshot has a linearization point.
+    result = _load_verified_run(run_path)
+    if lock_path.is_file():
+        with _lock_existing_ledger(run_path):
+            return _load_verified_run(run_path)
+    return result
+
+
+@contextmanager
+def _locked_verified_run(
+    run_directory: str | Path,
+) -> Iterator[tuple[Path, list[dict[str, Any]], dict[str, Any]]]:
+    run_path = _resolve_run_path(run_directory)
+    with _exclusive_ledger_lock(run_path):
+        yield _load_verified_run(run_path)
+
+
+def _append_events_locked(
+    run_path: Path,
+    events: Sequence[Mapping[str, Any]],
+    state: Mapping[str, Any],
+    additions: Sequence[tuple[str, Mapping[str, Any]]],
+) -> dict[str, Any]:
+    if state["status"] != "active":
+        raise ResearchLoopError(
+            "research run is stopped and cannot accept new events"
+        )
+    updated = [dict(event) for event in events]
+    previous_hash = updated[-1]["event_hash"]
+    for event_type, payload in additions:
+        event = _build_event(
+            sequence=len(updated) + 1,
+            event_type=event_type,
+            payload=payload,
+            previous_event_hash=previous_hash,
+        )
+        updated.append(event)
+        previous_hash = event["event_hash"]
+    return _write_run_state(run_path, updated)
 
 
 def _append_event(
@@ -425,16 +591,13 @@ def _append_event(
     event_type: str,
     payload: Mapping[str, Any],
 ) -> dict[str, Any]:
-    run_path, events, state = _load_verified_run(run_directory)
-    if state["status"] != "active":
-        raise ResearchLoopError("research run is stopped and cannot accept new events")
-    event = _build_event(
-        sequence=len(events) + 1,
-        event_type=event_type,
-        payload=payload,
-        previous_event_hash=events[-1]["event_hash"],
-    )
-    return _write_run_state(run_path, [*events, event])
+    with _locked_verified_run(run_directory) as (run_path, events, state):
+        return _append_events_locked(
+            run_path,
+            events,
+            state,
+            [(event_type, payload)],
+        )
 
 
 def append_hypothesis(
@@ -444,23 +607,34 @@ def append_hypothesis(
     statement: str,
     rationale: str,
 ) -> dict[str, Any]:
-    run_path, events, state = _load_verified_run(run_directory)
-    del run_path
-    if state["status"] != "active":
-        raise ResearchLoopError("research run is stopped and cannot accept hypotheses")
     normalized_id = _require_nonempty_string(hypothesis_id, "hypothesis_id")
-    if normalized_id in _event_ids(events, "hypothesis_registered", "hypothesis_id"):
-        raise ResearchLoopError(f"duplicate hypothesis_id: {normalized_id}")
-    return _append_event(
-        run_directory,
-        event_type="hypothesis_registered",
-        payload={
-            "hypothesis_id": normalized_id,
-            "statement": _require_nonempty_string(statement, "statement"),
-            "rationale": _require_nonempty_string(rationale, "rationale"),
-            "status": "proposed",
-        },
-    )
+    normalized_statement = _require_nonempty_string(statement, "statement")
+    normalized_rationale = _require_nonempty_string(rationale, "rationale")
+    with _locked_verified_run(run_directory) as (run_path, events, state):
+        if state["status"] != "active":
+            raise ResearchLoopError(
+                "research run is stopped and cannot accept hypotheses"
+            )
+        if normalized_id in _event_ids(
+            events, "hypothesis_registered", "hypothesis_id"
+        ):
+            raise ResearchLoopError(f"duplicate hypothesis_id: {normalized_id}")
+        return _append_events_locked(
+            run_path,
+            events,
+            state,
+            [
+                (
+                    "hypothesis_registered",
+                    {
+                        "hypothesis_id": normalized_id,
+                        "statement": normalized_statement,
+                        "rationale": normalized_rationale,
+                        "status": "proposed",
+                    },
+                )
+            ],
+        )
 
 
 def append_evidence(
@@ -471,28 +645,106 @@ def append_evidence(
     source_path: str | Path,
     summary: str,
 ) -> dict[str, Any]:
-    run_path, events, state = _load_verified_run(run_directory)
-    del run_path
-    if state["status"] != "active":
-        raise ResearchLoopError("research run is stopped and cannot accept evidence")
     normalized_id = _require_nonempty_string(evidence_id, "evidence_id")
-    if normalized_id in _event_ids(events, "evidence_registered", "evidence_id"):
-        raise ResearchLoopError(f"duplicate evidence_id: {normalized_id}")
+    normalized_type = _require_nonempty_string(evidence_type, "evidence_type")
+    normalized_summary = _require_nonempty_string(summary, "summary")
     evidence_path = Path(source_path).expanduser().resolve(strict=True)
     if not evidence_path.is_file():
-        raise ResearchLoopError(f"evidence source must be a regular file: {evidence_path}")
-    return _append_event(
-        run_directory,
-        event_type="evidence_registered",
-        payload={
-            "evidence_id": normalized_id,
-            "evidence_type": _require_nonempty_string(evidence_type, "evidence_type"),
-            "source_path": str(evidence_path),
-            "source_sha256": _sha256_file(evidence_path),
-            "source_bytes": evidence_path.stat().st_size,
-            "summary": _require_nonempty_string(summary, "summary"),
-        },
-    )
+        raise ResearchLoopError(
+            f"evidence source must be a regular file: {evidence_path}"
+        )
+    with _locked_verified_run(run_directory) as (run_path, events, state):
+        if state["status"] != "active":
+            raise ResearchLoopError(
+                "research run is stopped and cannot accept evidence"
+            )
+        if normalized_id in _event_ids(
+            events, "evidence_registered", "evidence_id"
+        ):
+            raise ResearchLoopError(f"duplicate evidence_id: {normalized_id}")
+        return _append_events_locked(
+            run_path,
+            events,
+            state,
+            [
+                (
+                    "evidence_registered",
+                    {
+                        "evidence_id": normalized_id,
+                        "evidence_type": normalized_type,
+                        "source_path": str(evidence_path),
+                        "source_sha256": _sha256_file(evidence_path),
+                        "source_bytes": evidence_path.stat().st_size,
+                        "summary": normalized_summary,
+                    },
+                )
+            ],
+        )
+
+
+def _validate_action_inputs(
+    *,
+    action_id: str,
+    action_type: str,
+    status: str,
+    summary: str,
+    cost_units: int,
+) -> tuple[str, str, str]:
+    normalized_id = _require_nonempty_string(action_id, "action_id")
+    normalized_type = _require_nonempty_string(action_type, "action_type")
+    normalized_summary = _require_nonempty_string(summary, "summary")
+    if status not in _ALLOWED_ACTION_STATUSES:
+        raise ResearchLoopError(
+            "action status must be one of: "
+            + ", ".join(sorted(_ALLOWED_ACTION_STATUSES))
+        )
+    if (
+        isinstance(cost_units, bool)
+        or not isinstance(cost_units, int)
+        or cost_units < 0
+    ):
+        raise ResearchLoopError("cost_units must be a non-negative integer")
+    return normalized_id, normalized_type, normalized_summary
+
+
+def _action_artifacts(
+    artifact_paths: Sequence[str | Path],
+) -> list[dict[str, Any]]:
+    artifacts: list[dict[str, Any]] = []
+    for raw_path in artifact_paths:
+        artifact_path = Path(raw_path).expanduser().resolve(strict=True)
+        if not artifact_path.is_file():
+            raise ResearchLoopError(
+                f"action artifact must be a regular file: {artifact_path}"
+            )
+        artifacts.append(
+            {
+                "path": str(artifact_path),
+                "sha256": _sha256_file(artifact_path),
+                "bytes": artifact_path.stat().st_size,
+            }
+        )
+    return artifacts
+
+
+def _validate_action_against_state(
+    *,
+    events: Sequence[Mapping[str, Any]],
+    state: Mapping[str, Any],
+    action_id: str,
+    cost_units: int,
+) -> None:
+    if state["status"] != "active":
+        raise ResearchLoopError(
+            "research run is stopped and cannot accept actions"
+        )
+    if action_id in _event_ids(events, "action_recorded", "action_id"):
+        raise ResearchLoopError(f"duplicate action_id: {action_id}")
+    budget = state["budget"]
+    if budget["actions_remaining"] <= 0:
+        raise ResearchLoopError("research action budget is exhausted")
+    if cost_units > budget["cost_units_remaining"]:
+        raise ResearchLoopError("research cost budget would be exceeded")
 
 
 def append_action(
@@ -505,48 +757,96 @@ def append_action(
     cost_units: int,
     artifact_paths: Sequence[str | Path] = (),
 ) -> dict[str, Any]:
-    run_path, events, state = _load_verified_run(run_directory)
-    del run_path
-    if state["status"] != "active":
-        raise ResearchLoopError("research run is stopped and cannot accept actions")
-    normalized_id = _require_nonempty_string(action_id, "action_id")
-    if normalized_id in _event_ids(events, "action_recorded", "action_id"):
-        raise ResearchLoopError(f"duplicate action_id: {normalized_id}")
-    if status not in _ALLOWED_ACTION_STATUSES:
-        raise ResearchLoopError(
-            "action status must be one of: " + ", ".join(sorted(_ALLOWED_ACTION_STATUSES))
-        )
-    if isinstance(cost_units, bool) or not isinstance(cost_units, int) or cost_units < 0:
-        raise ResearchLoopError("cost_units must be a non-negative integer")
-    if state["budget"]["actions_remaining"] <= 0:
-        raise ResearchLoopError("research action budget is exhausted")
-    if cost_units > state["budget"]["cost_units_remaining"]:
-        raise ResearchLoopError("research cost budget would be exceeded")
-
-    artifacts: list[dict[str, Any]] = []
-    for raw_path in artifact_paths:
-        artifact_path = Path(raw_path).expanduser().resolve(strict=True)
-        if not artifact_path.is_file():
-            raise ResearchLoopError(f"action artifact must be a regular file: {artifact_path}")
-        artifacts.append(
-            {
-                "path": str(artifact_path),
-                "sha256": _sha256_file(artifact_path),
-                "bytes": artifact_path.stat().st_size,
-            }
-        )
-    return _append_event(
-        run_directory,
-        event_type="action_recorded",
-        payload={
-            "action_id": normalized_id,
-            "action_type": _require_nonempty_string(action_type, "action_type"),
-            "status": status,
-            "summary": _require_nonempty_string(summary, "summary"),
-            "cost_units": cost_units,
-            "artifacts": artifacts,
-        },
+    normalized_id, normalized_type, normalized_summary = _validate_action_inputs(
+        action_id=action_id,
+        action_type=action_type,
+        status=status,
+        summary=summary,
+        cost_units=cost_units,
     )
+    with _locked_verified_run(run_directory) as (run_path, events, state):
+        _validate_action_against_state(
+            events=events,
+            state=state,
+            action_id=normalized_id,
+            cost_units=cost_units,
+        )
+        artifacts = _action_artifacts(artifact_paths)
+        return _append_events_locked(
+            run_path,
+            events,
+            state,
+            [
+                (
+                    "action_recorded",
+                    {
+                        "action_id": normalized_id,
+                        "action_type": normalized_type,
+                        "status": status,
+                        "summary": normalized_summary,
+                        "cost_units": cost_units,
+                        "artifacts": artifacts,
+                    },
+                )
+            ],
+        )
+
+
+def append_action_and_stop(
+    run_directory: str | Path,
+    *,
+    action_id: str,
+    action_type: str,
+    status: str,
+    summary: str,
+    cost_units: int,
+    reason_code: str,
+    stop_summary: str,
+    artifact_paths: Sequence[str | Path] = (),
+) -> dict[str, Any]:
+    """Atomically record one action and the terminal stop event it requires."""
+    normalized_id, normalized_type, normalized_summary = _validate_action_inputs(
+        action_id=action_id,
+        action_type=action_type,
+        status=status,
+        summary=summary,
+        cost_units=cost_units,
+    )
+    normalized_reason = _require_nonempty_string(reason_code, "reason_code")
+    normalized_stop_summary = _require_nonempty_string(stop_summary, "stop_summary")
+    with _locked_verified_run(run_directory) as (run_path, events, state):
+        _validate_action_against_state(
+            events=events,
+            state=state,
+            action_id=normalized_id,
+            cost_units=cost_units,
+        )
+        artifacts = _action_artifacts(artifact_paths)
+        return _append_events_locked(
+            run_path,
+            events,
+            state,
+            [
+                (
+                    "action_recorded",
+                    {
+                        "action_id": normalized_id,
+                        "action_type": normalized_type,
+                        "status": status,
+                        "summary": normalized_summary,
+                        "cost_units": cost_units,
+                        "artifacts": artifacts,
+                    },
+                ),
+                (
+                    "research_stopped",
+                    {
+                        "reason_code": normalized_reason,
+                        "summary": normalized_stop_summary,
+                    },
+                ),
+            ],
+        )
 
 
 def append_stop(
@@ -555,25 +855,27 @@ def append_stop(
     reason_code: str,
     summary: str,
 ) -> dict[str, Any]:
+    normalized_reason = _require_nonempty_string(reason_code, "reason_code")
+    normalized_summary = _require_nonempty_string(summary, "summary")
     return _append_event(
         run_directory,
         event_type="research_stopped",
         payload={
-            "reason_code": _require_nonempty_string(reason_code, "reason_code"),
-            "summary": _require_nonempty_string(summary, "summary"),
+            "reason_code": normalized_reason,
+            "summary": normalized_summary,
         },
     )
 
 
 def load_research_state(run_directory: str | Path) -> dict[str, Any]:
-    """Return the verified state reconstructed from the immutable ledger."""
-    _, _, state = _load_verified_run(run_directory)
+    """Return a read-only-compatible state reconstructed from the immutable ledger."""
+    _, _, state = _load_consistent_read(run_directory)
     return state
 
 
 def verify_research_loop(run_directory: str | Path) -> dict[str, Any]:
     """Verify ledger chaining, objective binding, and snapshot reconstruction."""
-    run_path, events, state = _load_verified_run(run_directory)
+    run_path, events, state = _load_consistent_read(run_directory)
     return {
         "valid": True,
         "run_directory": str(run_path),
