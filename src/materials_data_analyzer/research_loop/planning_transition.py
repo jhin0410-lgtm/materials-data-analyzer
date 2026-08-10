@@ -17,7 +17,7 @@ from .kernel import ResearchLoopError
 from .planning_state import build_research_planning_state
 
 TRANSITION_SCHEMA_VERSION = "1.0"
-TRANSITION_POLICY_VERSION = "1.1"
+TRANSITION_POLICY_VERSION = "1.2"
 
 
 class PlanningTransitionError(ResearchLoopError):
@@ -36,6 +36,13 @@ def _mapping(value: object, field: str) -> Mapping[str, Any]:
     return value
 
 
+def _sha256_hex(value: object, field: str) -> str:
+    text = _nonempty_text(value, field)
+    if len(text) != 64 or any(char not in "0123456789abcdef" for char in text):
+        raise PlanningTransitionError(f"{field} must be lowercase SHA-256 hex")
+    return text
+
+
 def _evidence_bindings(value: object) -> list[dict[str, Any]]:
     if value is None:
         return []
@@ -47,16 +54,29 @@ def _evidence_bindings(value: object) -> list[dict[str, Any]]:
             raise PlanningTransitionError(
                 f"planning_state.evidence_bindings[{index}] must be an object"
             )
+        _nonempty_text(
+            item.get("role"), f"planning_state.evidence_bindings[{index}].role"
+        )
+        _nonempty_text(
+            item.get("path"), f"planning_state.evidence_bindings[{index}].path"
+        )
+        _sha256_hex(
+            item.get("sha256"), f"planning_state.evidence_bindings[{index}].sha256"
+        )
         bindings.append(dict(item))
     return bindings
 
 
-def _stable_file_snapshot(path: Path) -> tuple[bytes, os.stat_result]:
-    """Read one stable file snapshot and reject metadata changes during the read."""
+def _stable_file_snapshot(path: Path) -> tuple[str, int, os.stat_result]:
+    """Stream one stable file snapshot and reject metadata changes during the read."""
+    digest = hashlib.sha256()
+    size_bytes = 0
     try:
         with path.open("rb") as handle:
             before = os.fstat(handle.fileno())
-            data = handle.read()
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+                size_bytes += len(chunk)
             after = os.fstat(handle.fileno())
     except OSError as exc:
         raise PlanningTransitionError(f"failed to read reopen evidence: {path}") from exc
@@ -66,7 +86,7 @@ def _stable_file_snapshot(path: Path) -> tuple[bytes, os.stat_result]:
         raise PlanningTransitionError(
             "reopen evidence changed or disappeared while it was being bound"
         ) from exc
-    stable_fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
+    stable_fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
     if any(getattr(before, field) != getattr(after, field) for field in stable_fields):
         raise PlanningTransitionError(
             "reopen evidence metadata changed while the file was being read"
@@ -75,11 +95,11 @@ def _stable_file_snapshot(path: Path) -> tuple[bytes, os.stat_result]:
         raise PlanningTransitionError(
             "reopen evidence path changed after the file snapshot was read"
         )
-    if len(data) != after.st_size:
+    if size_bytes != after.st_size:
         raise PlanningTransitionError(
             "reopen evidence size does not match the bytes read from the stable snapshot"
         )
-    return data, after
+    return digest.hexdigest(), size_bytes, after
 
 
 def _transition_base(state: Mapping[str, Any]) -> dict[str, Any]:
@@ -194,8 +214,8 @@ def prepare_reopen_evidence_review(
     path = Path(evidence_path).expanduser().resolve(strict=True)
     if not path.is_file():
         raise PlanningTransitionError(f"reopen evidence must be a file: {path}")
-    data, snapshot_stat = _stable_file_snapshot(path)
-    if not data:
+    snapshot_sha256, snapshot_size, snapshot_stat = _stable_file_snapshot(path)
+    if snapshot_size <= 0:
         raise PlanningTransitionError("reopen evidence file must not be empty")
 
     return {
@@ -210,9 +230,10 @@ def prepare_reopen_evidence_review(
         "reopen_condition": condition,
         "evidence_binding": {
             "path": str(path),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "size_bytes": len(data),
+            "sha256": snapshot_sha256,
+            "size_bytes": snapshot_size,
             "mtime_ns": snapshot_stat.st_mtime_ns,
+            "ctime_ns": snapshot_stat.st_ctime_ns,
         },
         "condition_satisfaction_established": False,
         "scientific_comparability_established": False,
