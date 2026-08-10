@@ -9,7 +9,7 @@ import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import pandas as pd
 
@@ -117,6 +117,47 @@ def _file_record(path: Path) -> dict[str, Any]:
     }
 
 
+def _request_record_from_bytes(path: Path, data: bytes) -> dict[str, Any]:
+    return {
+        "path": str(path),
+        "bytes": len(data),
+        "sha256": _sha256_bytes(data),
+    }
+
+
+def _load_request_snapshot(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    if not path.is_file():
+        raise NasaAuditActionError(f"action request is not a file: {path}")
+    data = path.read_bytes()
+    if not data:
+        raise NasaAuditActionError("action request file must not be empty")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise NasaAuditActionError("action request must be UTF-8 JSON") from exc
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
+    except json.JSONDecodeError as exc:
+        raise NasaAuditActionError(f"invalid JSON in {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise NasaAuditActionError("action request must be a JSON object")
+    return value, _request_record_from_bytes(path, data)
+
+
+def _validate_request_record(record: Mapping[str, Any], *, request_path: Path) -> dict[str, Any]:
+    if set(record) != {"path", "bytes", "sha256"}:
+        raise NasaAuditActionError("request record must contain path, bytes, and sha256")
+    if record.get("path") != str(request_path):
+        raise NasaAuditActionError("request record path does not match the pinned request path")
+    size = record.get("bytes")
+    digest = record.get("sha256")
+    if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+        raise NasaAuditActionError("request record bytes must be a positive integer")
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise NasaAuditActionError("request record sha256 must be lowercase SHA-256 hex")
+    return {"path": str(request_path), "bytes": size, "sha256": digest}
+
+
 def _atomic_write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
@@ -144,12 +185,9 @@ def _resolve_request_path(raw: Any, *, field: str, base: Path) -> Path:
     return candidate.resolve(strict=True)
 
 
-def _validate_request(path: Path) -> dict[str, Any]:
-    raw = _load_json(path)
-    if not isinstance(raw, dict):
-        raise NasaAuditActionError("action request must be a JSON object")
-    missing = sorted(_REQUEST_KEYS - set(raw))
-    unknown = sorted(set(raw) - _REQUEST_KEYS)
+def _validate_request(value: Mapping[str, Any], *, base: Path) -> dict[str, Any]:
+    missing = sorted(_REQUEST_KEYS - set(value))
+    unknown = sorted(set(value) - _REQUEST_KEYS)
     if missing:
         raise NasaAuditActionError(
             "action request is missing required keys: " + ", ".join(missing)
@@ -158,42 +196,40 @@ def _validate_request(path: Path) -> dict[str, Any]:
         raise NasaAuditActionError(
             "action request has unknown keys: " + ", ".join(unknown)
         )
-    if raw["schema_version"] != REQUEST_SCHEMA_VERSION:
+    if value["schema_version"] != REQUEST_SCHEMA_VERSION:
         raise NasaAuditActionError(
-            f"unsupported action request schema_version: {raw['schema_version']!r}"
+            f"unsupported action request schema_version: {value['schema_version']!r}"
         )
-    action_id = raw["action_id"]
+    action_id = value["action_id"]
     if not isinstance(action_id, str) or not _SAFE_ID.fullmatch(action_id):
         raise NasaAuditActionError(
             "action_id must use only letters, digits, dot, underscore, or hyphen"
         )
-    if raw["action_type"] != ACTION_TYPE:
+    if value["action_type"] != ACTION_TYPE:
         raise NasaAuditActionError(
             f"this executor accepts only action_type={ACTION_TYPE!r}"
         )
-    expected_sha = raw["expected_registry_sha256"]
+    expected_sha = value["expected_registry_sha256"]
     if not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_sha):
         raise NasaAuditActionError(
             "expected_registry_sha256 must be a lowercase SHA-256 hex string"
         )
-    base = path.parent
-    resolved = {
+    return {
         "schema_version": REQUEST_SCHEMA_VERSION,
         "action_id": action_id,
         "action_type": ACTION_TYPE,
         "research_run": _resolve_request_path(
-            raw["research_run"], field="research_run", base=base
+            value["research_run"], field="research_run", base=base
         ),
         "analysis_run": _resolve_request_path(
-            raw["analysis_run"], field="analysis_run", base=base
+            value["analysis_run"], field="analysis_run", base=base
         ),
-        "registry": _resolve_request_path(raw["registry"], field="registry", base=base),
+        "registry": _resolve_request_path(value["registry"], field="registry", base=base),
         "repository_root": _resolve_request_path(
-            raw["repository_root"], field="repository_root", base=base
+            value["repository_root"], field="repository_root", base=base
         ),
         "expected_registry_sha256": expected_sha,
     }
-    return resolved
 
 
 def _paths_overlap(first: Path, second: Path) -> bool:
@@ -336,8 +372,8 @@ def _write_action_report(
     return action_directory / ACTION_REPORT_FILENAME
 
 
-def _preflight(request_path: Path) -> dict[str, Any]:
-    request = _validate_request(request_path)
+def _preflight(request_path: Path, request_value: Mapping[str, Any]) -> dict[str, Any]:
+    request = _validate_request(request_value, base=request_path.parent)
     research_run = request["research_run"]
     analysis_run = request["analysis_run"]
     repository_root = request["repository_root"]
@@ -389,10 +425,18 @@ def _preflight(request_path: Path) -> dict[str, Any]:
     }
 
 
-def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
-    """Execute, verify, and ledger-record one existing Battery run audit action."""
-    request_path = Path(request_file).expanduser().resolve(strict=True)
-    preflight = _preflight(request_path)
+def execute_nasa_audit_action_preparsed(
+    request_value: Mapping[str, Any],
+    *,
+    request_path: str | Path,
+    request_record: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Execute one audit from a request payload whose bytes were already pinned."""
+    pinned_path = Path(request_path)
+    if not pinned_path.is_absolute():
+        raise NasaAuditActionError("pinned request_path must be absolute")
+    pinned_record = _validate_request_record(request_record, request_path=pinned_path)
+    preflight = _preflight(pinned_path, request_value)
     request = preflight["request"]
     analysis_run: Path = request["analysis_run"]
     research_run: Path = request["research_run"]
@@ -406,7 +450,7 @@ def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
     mutable_snapshot = _snapshot(mutable_paths)
     evidence_before = _evidence_level(analysis_run)
     input_records = [_file_record(path) for path in immutable_paths]
-    request_record = _file_record(request_path)
+    request_record_dict = dict(pinned_record)
 
     try:
         target_result = audit_battery_intelligence_run(analysis_run)
@@ -426,7 +470,7 @@ def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
             "cost_units": action_contract["cost_units"],
             "started_at_utc": started_at,
             "completed_at_utc": _utc_now(),
-            "request": request_record,
+            "request": request_record_dict,
             "registry": {
                 "registry_id": preflight["registry"]["registry_id"],
                 "registry_path": preflight["registry"]["registry_path"],
@@ -451,7 +495,7 @@ def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
         report_path = _write_action_report(
             research_run=research_run,
             action_id=action_id,
-            request_path=request_path,
+            request_path=pinned_path,
             report=report,
         )
         state = append_action(
@@ -487,7 +531,7 @@ def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
             "cost_units": action_contract["cost_units"],
             "started_at_utc": started_at,
             "completed_at_utc": _utc_now(),
-            "request": request_record,
+            "request": request_record_dict,
             "registry": {
                 "registry_id": preflight["registry"]["registry_id"],
                 "registry_path": preflight["registry"]["registry_path"],
@@ -503,7 +547,7 @@ def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
         report_path = _write_action_report(
             research_run=research_run,
             action_id=action_id,
-            request_path=request_path,
+            request_path=pinned_path,
             report=failure_report,
         )
         state = append_action(
@@ -526,6 +570,17 @@ def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
             "action_report": str(report_path),
             "research_state": state,
         }
+
+
+def execute_nasa_audit_action(request_file: str | Path) -> dict[str, Any]:
+    """Execute, verify, and ledger-record one existing Battery run audit action."""
+    request_path = Path(request_file).expanduser().resolve(strict=True)
+    request_value, request_record = _load_request_snapshot(request_path)
+    return execute_nasa_audit_action_preparsed(
+        request_value,
+        request_path=request_path,
+        request_record=request_record,
+    )
 
 
 def verify_nasa_audit_action_report(report_file: str | Path) -> dict[str, Any]:

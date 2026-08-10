@@ -8,7 +8,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from platform_core.output_safety import transactional_output_directory
 
@@ -99,6 +99,10 @@ def _write_json(path: Path, value: Any) -> None:
     )
 
 
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -118,6 +122,63 @@ def _file_record(path: Path) -> dict[str, Any]:
     }
 
 
+def _request_record_from_bytes(path: Path, data: bytes) -> dict[str, Any]:
+    return {"path": str(path), "bytes": len(data), "sha256": _sha256_bytes(data)}
+
+
+def _load_request_snapshot(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    if not path.is_file():
+        raise NasaExternalDataRequirementActionError(
+            f"action request is not a file: {path}"
+        )
+    data = path.read_bytes()
+    if not data:
+        raise NasaExternalDataRequirementActionError(
+            "action request file must not be empty"
+        )
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise NasaExternalDataRequirementActionError(
+            "action request must be UTF-8 JSON"
+        ) from exc
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
+    except json.JSONDecodeError as exc:
+        raise NasaExternalDataRequirementActionError(
+            f"invalid JSON in {path}: {exc}"
+        ) from exc
+    if not isinstance(value, dict):
+        raise NasaExternalDataRequirementActionError(
+            "action request must be a JSON object"
+        )
+    return value, _request_record_from_bytes(path, data)
+
+
+def _validate_request_record(
+    record: Mapping[str, Any], *, request_path: Path
+) -> dict[str, Any]:
+    if set(record) != {"path", "bytes", "sha256"}:
+        raise NasaExternalDataRequirementActionError(
+            "request record must contain path, bytes, and sha256"
+        )
+    if record.get("path") != str(request_path):
+        raise NasaExternalDataRequirementActionError(
+            "request record path does not match the pinned request path"
+        )
+    size = record.get("bytes")
+    digest = record.get("sha256")
+    if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+        raise NasaExternalDataRequirementActionError(
+            "request record bytes must be a positive integer"
+        )
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise NasaExternalDataRequirementActionError(
+            "request record sha256 must be lowercase SHA-256 hex"
+        )
+    return {"path": str(request_path), "bytes": size, "sha256": digest}
+
+
 def _resolve_path(raw: Any, *, field: str, base: Path) -> Path:
     if not isinstance(raw, str) or not raw.strip():
         raise NasaExternalDataRequirementActionError(
@@ -129,12 +190,7 @@ def _resolve_path(raw: Any, *, field: str, base: Path) -> Path:
     return candidate.resolve(strict=True)
 
 
-def _validate_request(path: Path) -> dict[str, Any]:
-    value = _load_json(path)
-    if not isinstance(value, dict):
-        raise NasaExternalDataRequirementActionError(
-            "action request must be a JSON object"
-        )
+def _validate_request(value: Mapping[str, Any], *, base: Path) -> dict[str, Any]:
     missing = sorted(_REQUEST_KEYS - set(value))
     unknown = sorted(set(value) - _REQUEST_KEYS)
     if missing:
@@ -165,7 +221,6 @@ def _validate_request(path: Path) -> dict[str, Any]:
         raise NasaExternalDataRequirementActionError(
             "expected_registry_sha256 must be lowercase SHA-256 hex"
         )
-    base = path.parent
     return {
         "schema_version": REQUEST_SCHEMA_VERSION,
         "action_id": action_id,
@@ -522,8 +577,10 @@ def _build_requirement(
     )
 
 
-def _preflight(request_path: Path) -> dict[str, Any]:
-    request = _validate_request(request_path)
+def _preflight(
+    request_path: Path, request_value: Mapping[str, Any]
+) -> dict[str, Any]:
+    request = _validate_request(request_value, base=request_path.parent)
     research_run = request["research_run"]
     repository_root = request["repository_root"]
     if not research_run.is_dir() or not repository_root.is_dir():
@@ -587,12 +644,20 @@ def _preflight(request_path: Path) -> dict[str, Any]:
     }
 
 
-def execute_nasa_external_data_requirement_action(
-    request_file: str | Path,
+def execute_nasa_external_data_requirement_action_preparsed(
+    request_value: Mapping[str, Any],
+    *,
+    request_path: str | Path,
+    request_record: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Generate a minimum external-data contract and stop the bounded loop."""
-    request_path = Path(request_file).expanduser().resolve(strict=True)
-    preflight = _preflight(request_path)
+    """Generate an external-data requirement from already-pinned request bytes."""
+    pinned_path = Path(request_path)
+    if not pinned_path.is_absolute():
+        raise NasaExternalDataRequirementActionError(
+            "pinned request_path must be absolute"
+        )
+    pinned_record = _validate_request_record(request_record, request_path=pinned_path)
+    preflight = _preflight(pinned_path, request_value)
     request = preflight["request"]
     contract = preflight["contract"]
     research_run: Path = request["research_run"]
@@ -604,7 +669,7 @@ def execute_nasa_external_data_requirement_action(
 
     with transactional_output_directory(
         action_directory,
-        protected_paths=(request_path, *preflight["source_paths"]),
+        protected_paths=(pinned_path, *preflight["source_paths"]),
         recognized_markers=(ACTION_REPORT_FILENAME,),
     ) as staging:
         staged_requirement = staging / OUTPUT_RELATIVE_PATH
@@ -618,7 +683,7 @@ def execute_nasa_external_data_requirement_action(
             "cost_units": contract["cost_units"],
             "started_at_utc": started_at,
             "completed_at_utc": _utc_now(),
-            "request": _file_record(request_path),
+            "request": dict(pinned_record),
             "registry": {
                 "registry_id": preflight["registry"]["registry_id"],
                 "registry_path": preflight["registry"]["registry_path"],
@@ -670,6 +735,19 @@ def execute_nasa_external_data_requirement_action(
     }
 
 
+def execute_nasa_external_data_requirement_action(
+    request_file: str | Path,
+) -> dict[str, Any]:
+    """Generate a minimum external-data contract and stop the bounded loop."""
+    request_path = Path(request_file).expanduser().resolve(strict=True)
+    request_value, request_record = _load_request_snapshot(request_path)
+    return execute_nasa_external_data_requirement_action_preparsed(
+        request_value,
+        request_path=request_path,
+        request_record=request_record,
+    )
+
+
 def verify_nasa_external_data_requirement_report(
     report_file: str | Path,
 ) -> dict[str, Any]:
@@ -706,12 +784,13 @@ def verify_nasa_external_data_requirement_report(
         raise NasaExternalDataRequirementActionError(
             "action report is missing the request binding"
         )
-    request_path = Path(request_record.get("path", ""))
-    if _file_record(request_path) != request_record:
+    request_path = Path(request_record.get("path", "")).expanduser().resolve(strict=True)
+    request_value, current_request_record = _load_request_snapshot(request_path)
+    if current_request_record != request_record:
         raise NasaExternalDataRequirementActionError(
             "action request no longer matches the report"
         )
-    request = _validate_request(request_path)
+    request = _validate_request(request_value, base=request_path.parent)
     if request["action_id"] != report.get("action_id"):
         raise NasaExternalDataRequirementActionError(
             "action report action_id does not match the request"
