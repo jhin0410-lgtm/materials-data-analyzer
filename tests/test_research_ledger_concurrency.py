@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import multiprocessing
 import os
+import stat
 from pathlib import Path
 from queue import Empty
 from typing import Any
@@ -188,6 +189,55 @@ def test_os_releases_ledger_lock_when_holder_process_dies(tmp_path: Path) -> Non
 
     assert [item["action_id"] for item in state["actions"]] == ["after-crash"]
     assert (run / kernel.LOCK_FILENAME).is_file()
+    assert kernel.verify_research_loop(run)["valid"] is True
+
+
+def test_read_only_lock_file_does_not_break_state_verification(tmp_path: Path) -> None:
+    run = _initialize_run(
+        tmp_path,
+        maximum_actions=1,
+        maximum_cost_units=1,
+    )
+    lock_path = run / kernel.LOCK_FILENAME
+    original_mode = stat.S_IMODE(lock_path.stat().st_mode)
+    lock_path.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    try:
+        state = kernel.load_research_state(run)
+        verification = kernel.verify_research_loop(run)
+    finally:
+        lock_path.chmod(original_mode)
+
+    assert state["research_id"] == "ledger-concurrency-test"
+    assert verification["valid"] is True
+    assert verification["ledger_sha256"] == state["ledger_sha256"]
+
+
+def test_legacy_read_without_lock_does_not_mutate_run(tmp_path: Path) -> None:
+    run = _initialize_run(
+        tmp_path,
+        maximum_actions=1,
+        maximum_cost_units=1,
+    )
+    lock_path = run / kernel.LOCK_FILENAME
+    lock_path.unlink()
+
+    state = kernel.load_research_state(run)
+    verification = kernel.verify_research_loop(run)
+
+    assert state["research_id"] == "ledger-concurrency-test"
+    assert verification["valid"] is True
+    assert not lock_path.exists()
+
+    migrated = kernel.append_action(
+        run,
+        action_id="first-writer-after-legacy-read",
+        action_type="lock_migration_probe",
+        status="completed",
+        summary="The first writer creates the persistent advisory lock.",
+        cost_units=1,
+    )
+    assert lock_path.is_file()
+    assert migrated["actions"][0]["action_id"] == "first-writer-after-legacy-read"
     assert kernel.verify_research_loop(run)["valid"] is True
 
 
