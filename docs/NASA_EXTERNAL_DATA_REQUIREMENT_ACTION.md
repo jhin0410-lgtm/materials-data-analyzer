@@ -123,10 +123,18 @@ Create a JSON request with exactly these keys:
 
 ## Execute and verify
 
+Execution is authorization-gated. The command-line planning context must bind
+the repository root, research run, and planning action registry in addition to
+the checksum-bound typed request. The typed request continues to carry the
+external-data action registry used by the executor.
+
 ```powershell
 .\.venv313\Scripts\python.exe `
   .\scripts\run_nasa_external_data_requirement_action.py `
   execute `
+  --repository-root . `
+  --run .\outputs\nasa_autonomous_loop `
+  --registry .\configs\research\nasa_research_action_registry.v1.json `
   --request .\external_data_requirement_request.json
 ```
 
