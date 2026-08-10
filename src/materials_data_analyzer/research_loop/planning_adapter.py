@@ -38,16 +38,16 @@ _ADAPTER_IDS = (
 )
 _NASA_EVIDENCE_LEVELS = {"Unsupported", "Inconclusive", "Diagnostic"}
 _NIST_EXPECTED_TRACES: dict[int, tuple[str, float, float]] = {
-    1: ("amb2018-02-C", 297.0, 800.0),
-    2: ("amb2018-02-C", 297.0, 800.0),
-    3: ("amb2018-02-C", 297.0, 800.0),
-    4: ("amb2018-02-C", 297.0, 800.0),
-    5: ("amb2018-02-A", 195.0, 800.0),
-    6: ("amb2018-02-A", 195.0, 800.0),
-    7: ("amb2018-02-A", 195.0, 800.0),
-    8: ("amb2018-02-B", 195.0, 1200.0),
-    9: ("amb2018-02-B", 195.0, 1200.0),
-    10: ("amb2018-02-B", 195.0, 1200.0),
+    1: ("C", 179.2, 1200.0),
+    2: ("C", 179.2, 1200.0),
+    3: ("C", 179.2, 1200.0),
+    4: ("C", 179.2, 1200.0),
+    5: ("A", 137.9, 400.0),
+    6: ("A", 137.9, 400.0),
+    7: ("A", 137.9, 400.0),
+    8: ("B", 179.2, 800.0),
+    9: ("B", 179.2, 800.0),
+    10: ("B", 179.2, 800.0),
 }
 
 _MP_REQUIREMENT_CONFIG = Path(
@@ -601,10 +601,10 @@ def _validate_nist_case_tables(
             "sample_id",
             "case_id",
             "trace_number",
-            "width_mean_um",
-            "width_std_um",
-            "depth_mean_um",
-            "depth_std_um",
+            "melt_pool_width_mean_um",
+            "melt_pool_width_std_dev_um",
+            "melt_pool_depth_mean_um",
+            "melt_pool_depth_std_dev_um",
         },
         label="NIST AM-Bench measurement",
     )
@@ -699,23 +699,23 @@ def _validate_nist_case_tables(
                 f"sample_id={sample_id}"
             )
         _finite_float(
-            row.get("width_mean_um"),
-            "NIST AM-Bench width_mean_um",
+            row.get("melt_pool_width_mean_um"),
+            "NIST AM-Bench melt_pool_width_mean_um",
             positive=True,
         )
         _finite_float(
-            row.get("depth_mean_um"),
-            "NIST AM-Bench depth_mean_um",
+            row.get("melt_pool_depth_mean_um"),
+            "NIST AM-Bench melt_pool_depth_mean_um",
             positive=True,
         )
         _finite_float(
-            row.get("width_std_um"),
-            "NIST AM-Bench width_std_um",
+            row.get("melt_pool_width_std_dev_um"),
+            "NIST AM-Bench melt_pool_width_std_dev_um",
             nonnegative=True,
         )
         _finite_float(
-            row.get("depth_std_um"),
-            "NIST AM-Bench depth_std_um",
+            row.get("melt_pool_depth_std_dev_um"),
+            "NIST AM-Bench melt_pool_depth_std_dev_um",
             nonnegative=True,
         )
 
