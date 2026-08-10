@@ -34,6 +34,16 @@ from materials_data_analyzer.research_loop import (
     verify_research_loop,
 )
 
+_LEGACY_EXECUTION_ACTION_TYPES = {
+    "execute-nasa-audit": "audit_existing_battery_run",
+    "execute-nasa-target-reference": "target_reference_sensitivity",
+    "execute-nasa-protocol-stratification": "protocol_stratification",
+}
+
+
+class _ExecutionStartedError(ResearchLoopError):
+    """Raised when execution appended an action before later verification failed."""
+
 
 def _add_run_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
@@ -284,9 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
             "action, then independently verify its new ledger-bound action report."
         ),
     )
-    bounded_execute.add_argument(
-        "--adapter", required=True, choices=("nasa-battery",)
-    )
+    bounded_execute.add_argument("--adapter", required=True, choices=("nasa-battery",))
     bounded_execute.add_argument("--repository-root", required=True, type=Path)
     bounded_execute.add_argument("--run", required=True, type=Path)
     bounded_execute.add_argument("--registry", required=True, type=Path)
@@ -329,13 +337,64 @@ def _load_registry_from_args(args: argparse.Namespace) -> dict[str, object]:
     )
 
 
+def _request_action_type(request_path: Path) -> str:
+    try:
+        payload = json.loads(request_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ResearchLoopError(f"cannot read legacy execution request: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise ResearchLoopError("legacy execution request root must be an object")
+    action_type = payload.get("action_type")
+    if not isinstance(action_type, str) or not action_type.strip():
+        raise ResearchLoopError("legacy execution request action_type must be a non-empty string")
+    return action_type.strip()
+
+
+def _execute_authorized_with_failure_classification(
+    args: argparse.Namespace,
+    *,
+    expected_action_type: str | None = None,
+) -> dict[str, object]:
+    if expected_action_type is not None:
+        requested_action_type = _request_action_type(args.request)
+        if requested_action_type != expected_action_type:
+            raise ResearchLoopError(
+                f"{args.command} requires action_type={expected_action_type!r}; "
+                f"request contains {requested_action_type!r}"
+            )
+
+    before_state = load_research_state(args.run)
+    before_actions = before_state.get("actions")
+    if not isinstance(before_actions, list):
+        raise ResearchLoopError("pre-execution research action ledger is malformed")
+    before_count = len(before_actions)
+
+    try:
+        return execute_authorized_action(
+            "nasa-battery",
+            repository_root=args.repository_root,
+            research_run=args.run,
+            action_registry_path=args.registry,
+            request_path=args.request,
+        )
+    except ResearchLoopError as exc:
+        try:
+            after_state = load_research_state(args.run)
+            after_actions = after_state.get("actions")
+        except ResearchLoopError:
+            raise
+        if isinstance(after_actions, list) and len(after_actions) > before_count:
+            raise _ExecutionStartedError(str(exc)) from exc
+        raise
+
+
 def _run_legacy_authorized_nasa_action(args: argparse.Namespace) -> dict[str, object]:
-    return execute_authorized_action(
-        "nasa-battery",
-        repository_root=args.repository_root,
-        research_run=args.run,
-        action_registry_path=args.registry,
-        request_path=args.request,
+    expected_action_type = _LEGACY_EXECUTION_ACTION_TYPES.get(args.command)
+    if expected_action_type is None:
+        raise AssertionError(f"unhandled legacy NASA execution command: {args.command}")
+    return _execute_authorized_with_failure_classification(
+        args,
+        expected_action_type=expected_action_type,
     )
 
 
@@ -392,11 +451,7 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
         return action_summaries(_load_registry_from_args(args))
     if args.command == "describe-action":
         return describe_action(_load_registry_from_args(args), args.action_type)
-    if args.command in {
-        "execute-nasa-audit",
-        "execute-nasa-target-reference",
-        "execute-nasa-protocol-stratification",
-    }:
+    if args.command in _LEGACY_EXECUTION_ACTION_TYPES:
         return _run_legacy_authorized_nasa_action(args)
     if args.command == "verify-nasa-audit":
         return verify_nasa_audit_action_report(args.report)
@@ -439,13 +494,7 @@ def _run_command(args: argparse.Namespace) -> dict[str, object] | list[dict[str,
             action_registry_path=args.registry,
         )
     if args.command == "execute-authorized-action":
-        return execute_authorized_action(
-            args.adapter,
-            repository_root=args.repository_root,
-            research_run=args.run,
-            action_registry_path=args.registry,
-            request_path=args.request,
-        )
+        return _execute_authorized_with_failure_classification(args)
     if args.command == "run-research-cycle":
         return run_research_cycle(
             args.adapter,
@@ -479,6 +528,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         result = _run_command(args)
+    except _ExecutionStartedError as exc:
+        print(f"Research loop command failed after execution started: {exc}", file=sys.stderr)
+        return 2
     except (
         FileNotFoundError,
         FileExistsError,
