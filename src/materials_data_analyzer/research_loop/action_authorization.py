@@ -16,7 +16,7 @@ from .planning_state import build_research_planning_state
 from .planning_transition import determine_research_transition
 
 AUTHORIZATION_SCHEMA_VERSION = "1.0"
-AUTHORIZATION_POLICY_VERSION = "1.0"
+AUTHORIZATION_POLICY_VERSION = "1.1"
 _EXECUTABLE_BINDING_KINDS = {"installed_command", "source_script"}
 _AUTHORIZABLE_TRANSITIONS = {
     "action_pending_authorization",
@@ -57,6 +57,29 @@ def _resolve_registry_path(raw: object, repository_root: Path) -> Path:
             f"selected execution registry is not a file: {resolved}"
         )
     return resolved
+
+
+def _verify_source_script_binding(binding: Mapping[str, Any], repository_root: Path) -> None:
+    raw_path = _nonempty_text(binding.get("path"), "execution_contract.binding.path")
+    candidate = Path(raw_path).expanduser()
+    if not candidate.is_absolute():
+        candidate = repository_root / candidate
+    try:
+        resolved = candidate.resolve(strict=True)
+    except (FileNotFoundError, OSError) as exc:
+        raise ActionAuthorizationError(
+            "source-script binding does not resolve to an existing repository file"
+        ) from exc
+    try:
+        resolved.relative_to(repository_root)
+    except ValueError as exc:
+        raise ActionAuthorizationError(
+            "source-script binding resolves outside repository root"
+        ) from exc
+    if not resolved.is_file():
+        raise ActionAuthorizationError(
+            "source-script binding does not resolve to a regular repository file"
+        )
 
 
 def _base_result(state: Mapping[str, Any], transition: Mapping[str, Any]) -> dict[str, Any]:
@@ -167,6 +190,8 @@ def assess_action_authorization(
             "The selected action does not bind a registered installed command or source script."
         )
         return result
+    if binding_kind == "source_script":
+        _verify_source_script_binding(binding, root)
     verifier_checks = contract.get("verifier_checks")
     if not isinstance(verifier_checks, list) or not verifier_checks:
         raise ActionAuthorizationError(

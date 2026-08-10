@@ -40,23 +40,29 @@ from .nasa_target_reference_action import (
 )
 
 EXECUTION_SCHEMA_VERSION = "1.0"
-EXECUTION_POLICY_VERSION = "1.0"
+EXECUTION_POLICY_VERSION = "1.1"
 _ACTION_REPORT_FILENAME = "action_result.json"
 
 Executor = Callable[[str | Path], dict[str, Any]]
 Verifier = Callable[[str | Path], dict[str, Any]]
 
-_DISPATCH: dict[str, tuple[Executor, Verifier]] = {
-    AUDIT_ACTION_TYPE: (execute_nasa_audit_action, verify_nasa_audit_action_report),
-    TARGET_REFERENCE_ACTION_TYPE: (
+# Dispatch is bound to the exact action contract version implemented by each
+# hardcoded executor. A registry version bump therefore requires an explicit code
+# change before execution can proceed.
+_DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
+    (AUDIT_ACTION_TYPE, "1.0"): (
+        execute_nasa_audit_action,
+        verify_nasa_audit_action_report,
+    ),
+    (TARGET_REFERENCE_ACTION_TYPE, "1.0"): (
         execute_nasa_target_reference_action,
         verify_nasa_target_reference_report,
     ),
-    PROTOCOL_ACTION_TYPE: (
+    (PROTOCOL_ACTION_TYPE, "1.0"): (
         execute_nasa_protocol_stratification_action,
         verify_nasa_protocol_stratification_report,
     ),
-    EXTERNAL_REQUIREMENT_ACTION_TYPE: (
+    (EXTERNAL_REQUIREMENT_ACTION_TYPE, "1.0"): (
         execute_nasa_external_data_requirement_action,
         verify_nasa_external_data_requirement_report,
     ),
@@ -117,11 +123,14 @@ def _require_request_binding(
     repository_root: Path,
     registry_path: Path,
     registry_sha256: str,
-) -> None:
+) -> str:
     if request.get("action_type") != action_type:
         raise AuthorizedExecutionError(
             "execution request action_type does not match the authorized selected action"
         )
+    action_id = request.get("action_id")
+    if not isinstance(action_id, str) or not action_id.strip():
+        raise AuthorizedExecutionError("execution request action_id must be a non-empty string")
     request_run = _resolve_request_path(
         request.get("research_run"), field="research_run", base=request_path.parent
     )
@@ -149,12 +158,39 @@ def _require_request_binding(
         raise AuthorizedExecutionError(
             "execution request expected_registry_sha256 does not match authorization"
         )
+    return action_id
+
+
+def _ensure_within(path: Path, parent: Path, *, message: str) -> None:
+    try:
+        path.relative_to(parent)
+    except ValueError as exc:
+        raise AuthorizedExecutionError(message) from exc
+
+
+def _expected_action_directory(research_run: Path, action_id: str) -> Path:
+    """Resolve the action output boundary and reject symlink/path traversal escapes."""
+    actions_root = (research_run / "actions").resolve(strict=False)
+    _ensure_within(
+        actions_root,
+        research_run,
+        message="research actions directory resolves outside the research run",
+    )
+    action_directory = (actions_root / action_id).resolve(strict=False)
+    _ensure_within(
+        action_directory,
+        actions_root,
+        message="requested action directory resolves outside the research actions directory",
+    )
+    return action_directory
 
 
 def _latest_action_report(
     state: Mapping[str, Any],
     *,
     expected_action_type: str,
+    expected_action_id: str,
+    expected_action_directory: Path,
 ) -> tuple[Mapping[str, Any], Path]:
     actions = state.get("actions")
     if not isinstance(actions, list) or not actions:
@@ -166,6 +202,10 @@ def _latest_action_report(
         raise AuthorizedExecutionError(
             "latest ledger action type does not match the explicitly executed action"
         )
+    if latest.get("action_id") != expected_action_id:
+        raise AuthorizedExecutionError(
+            "latest ledger action ID does not match the explicit execution request"
+        )
     artifacts = latest.get("artifacts")
     if not isinstance(artifacts, list):
         raise AuthorizedExecutionError("latest ledger action artifacts are malformed")
@@ -175,7 +215,13 @@ def _latest_action_report(
             continue
         raw_path = item.get("path")
         if isinstance(raw_path, str) and Path(raw_path).name == _ACTION_REPORT_FILENAME:
-            matches.append(Path(raw_path).expanduser().resolve(strict=True))
+            report_path = Path(raw_path).expanduser().resolve(strict=True)
+            _ensure_within(
+                report_path,
+                expected_action_directory,
+                message="ledger-bound action report escapes the expected action directory",
+            )
+            matches.append(report_path)
     if len(matches) != 1:
         raise AuthorizedExecutionError(
             "executed ledger action must bind exactly one action_result.json"
@@ -220,16 +266,26 @@ def execute_authorized_action(
     if not isinstance(selected, Mapping) or not isinstance(contract, Mapping):
         raise AuthorizedExecutionError("authorization omitted selected action contract")
     action_type = selected.get("action_type")
-    if not isinstance(action_type, str) or action_type not in _DISPATCH:
+    action_version = selected.get("action_version")
+    contract_version = contract.get("action_version")
+    if not isinstance(action_type, str) or not isinstance(action_version, str):
+        raise AuthorizedExecutionError("selected action type/version binding is malformed")
+    if contract_version != action_version:
         raise AuthorizedExecutionError(
-            f"selected action has no hardcoded typed executor: {action_type!r}"
+            "selected action version does not match the authorized execution contract"
+        )
+    dispatch_key = (action_type, action_version)
+    if dispatch_key not in _DISPATCH:
+        raise AuthorizedExecutionError(
+            "selected action type/version has no hardcoded typed executor: "
+            f"{action_type!r} version {action_version!r}"
         )
     registry_raw = contract.get("registry_path")
     registry_sha = contract.get("registry_sha256")
     if not isinstance(registry_raw, str) or not isinstance(registry_sha, str):
         raise AuthorizedExecutionError("authorization execution registry binding is malformed")
     registry_path = Path(registry_raw).expanduser().resolve(strict=True)
-    _require_request_binding(
+    request_action_id = _require_request_binding(
         request,
         request_path=request_file,
         action_type=action_type,
@@ -238,6 +294,7 @@ def execute_authorized_action(
         registry_path=registry_path,
         registry_sha256=registry_sha,
     )
+    expected_action_directory = _expected_action_directory(run, request_action_id)
 
     before_state = load_research_state(run)
     before_actions = before_state.get("actions")
@@ -245,7 +302,11 @@ def execute_authorized_action(
         raise AuthorizedExecutionError("pre-execution research action ledger is malformed")
     before_count = len(before_actions)
 
-    executor, verifier = _DISPATCH[action_type]
+    executor, verifier = _DISPATCH[dispatch_key]
+    # The typed executor intentionally receives the original request path so its
+    # documented relative-path semantics remain unchanged. Atomic request handoff
+    # requires a future typed-executor API that accepts pre-parsed/canonical input;
+    # this wrapper does not claim to solve that boundary by relocating the file.
     executor_result = executor(request_file)
 
     after_state = load_research_state(run)
@@ -259,16 +320,27 @@ def execute_authorized_action(
     ledger_action, report_path = _latest_action_report(
         after_state,
         expected_action_type=action_type,
+        expected_action_id=request_action_id,
+        expected_action_directory=expected_action_directory,
     )
     verified_report = verifier(report_path)
     if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
         raise AuthorizedExecutionError("typed executor/verifier returned malformed result")
+    if executor_result.get("action_id") != request_action_id:
+        raise AuthorizedExecutionError(
+            "typed executor result action_id does not match the explicit request"
+        )
+    if verified_report.get("action_id") != request_action_id:
+        raise AuthorizedExecutionError(
+            "verified action report action_id does not match the explicit request"
+        )
 
     return {
         "schema_version": EXECUTION_SCHEMA_VERSION,
         "execution_policy_version": EXECUTION_POLICY_VERSION,
         "adapter_id": adapter_id,
         "action_type": action_type,
+        "action_version": action_version,
         "request_binding": {
             "path": str(request_file),
             "sha256": _sha256_file(request_file),

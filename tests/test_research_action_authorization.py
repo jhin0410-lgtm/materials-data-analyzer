@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -18,16 +19,20 @@ from materials_data_analyzer.research_loop.action_registry import (
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_REGISTRY = ROOT / "configs/research/nasa_protocol_stratification_action_registry.v1.json"
 PLANNING_REGISTRY = ROOT / "configs/research/nasa_research_action_registry.v1.json"
+EXTERNAL_REQUIREMENT_REGISTRY = (
+    ROOT / "configs/research/nasa_external_data_requirement_action_registry.v1.json"
+)
 
 
 def _state_from_contract(
     registry_path: Path,
     action_type: str,
     *,
+    repository_root: Path = ROOT,
     actions_remaining: int = 2,
     cost_units_remaining: int = 10,
 ) -> dict[str, object]:
-    registry = load_action_registry(registry_path, repository_root=ROOT)
+    registry = load_action_registry(registry_path, repository_root=repository_root)
     contract = describe_action(registry, action_type)
     return {
         "adapter_id": "nasa-battery",
@@ -108,6 +113,34 @@ def test_planned_action_is_not_authorized() -> None:
 
     assert result["authorization_status"] == "denied_action_not_available"
     assert result["automatic_execution_authorized"] is False
+
+
+def test_source_script_symlink_escape_is_denied(
+    tmp_path: Path,
+) -> None:
+    repository_root = tmp_path / "repo"
+    scripts = repository_root / "scripts"
+    scripts.mkdir(parents=True)
+    outside_script = tmp_path / "outside.py"
+    outside_script.write_text("print('outside')\n", encoding="utf-8")
+    bound_script = scripts / "run.py"
+    try:
+        bound_script.symlink_to(outside_script)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable on this platform: {exc}")
+
+    payload = json.loads(EXTERNAL_REQUIREMENT_REGISTRY.read_text(encoding="utf-8"))
+    payload["actions"][0]["binding"]["path"] = "scripts/run.py"
+    registry_path = repository_root / "registry.json"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    state = _state_from_contract(
+        registry_path,
+        "external_data_requirement_generation",
+        repository_root=repository_root,
+    )
+
+    with pytest.raises(ActionAuthorizationError, match="outside repository root"):
+        assess_action_authorization(state, repository_root=repository_root)
 
 
 def test_action_budget_exhaustion_denies_request() -> None:
