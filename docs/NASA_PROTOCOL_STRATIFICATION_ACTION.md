@@ -91,10 +91,22 @@ new in the research ledger.
 
 ## Execute and verify
 
+The legacy action-specific command is an authorization-enforcing compatibility
+entry point. The CLI `--registry` is the planning registry used to revalidate the
+selected action; the request remains bound to the protocol execution registry
+shown above.
+
 ```powershell
 mda-research-loop execute-nasa-protocol-stratification `
+  --repository-root . `
+  --run outputs/nasa_research_loop `
+  --registry configs/research/nasa_research_action_registry.v1.json `
   --request .\protocol_action_request.json
 ```
+
+The command rejects a request whose `action_type` is not
+`protocol_stratification` and routes execution through the same
+`execute-authorized-action` boundary used by the generic CLI.
 
 ```powershell
 mda-research-loop verify-nasa-protocol-stratification `
