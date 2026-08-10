@@ -10,10 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator, Mapping
+from typing import Any, Callable, Mapping
 
 from .action_authorization import (
     ActionAuthorizationError,
@@ -44,14 +42,13 @@ from .nasa_target_reference_action import (
 EXECUTION_SCHEMA_VERSION = "1.0"
 EXECUTION_POLICY_VERSION = "1.1"
 _ACTION_REPORT_FILENAME = "action_result.json"
-_AUTHORIZED_REQUEST_DIRECTORY = "authorized_requests"
-_EXECUTION_LOCK_FILENAME = ".authorized_execution.lock"
 
 Executor = Callable[[str | Path], dict[str, Any]]
 Verifier = Callable[[str | Path], dict[str, Any]]
 
-# Dispatch is deliberately bound to the exact action contract version implemented
-# by each hardcoded executor. A registry upgrade must add explicit code support.
+# Dispatch is bound to the exact action contract version implemented by each
+# hardcoded executor. A registry version bump therefore requires an explicit code
+# change before execution can proceed.
 _DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
     (AUDIT_ACTION_TYPE, "1.0"): (
         execute_nasa_audit_action,
@@ -85,27 +82,19 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _load_request_snapshot(path: Path) -> tuple[dict[str, Any], bytes]:
+def _load_request(path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise AuthorizedExecutionError(f"execution request is not a file: {path}")
-    data = path.read_bytes()
-    if not data:
+    if path.stat().st_size <= 0:
         raise AuthorizedExecutionError("execution request file must not be empty")
     try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise AuthorizedExecutionError("execution request must be UTF-8 JSON") from exc
-    try:
-        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
+        with path.open("r", encoding="utf-8") as handle:
+            value = json.load(handle, object_pairs_hook=_reject_duplicate_pairs)
     except json.JSONDecodeError as exc:
         raise AuthorizedExecutionError(f"invalid execution request JSON: {exc}") from exc
     if not isinstance(value, dict):
         raise AuthorizedExecutionError("execution request root must be an object")
-    return value, data
-
-
-def _sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    return value
 
 
 def _sha256_file(path: Path) -> str:
@@ -179,79 +168,6 @@ def _ensure_within(path: Path, parent: Path, *, message: str) -> None:
         raise AuthorizedExecutionError(message) from exc
 
 
-def _materialize_authorized_request_snapshot(
-    request_bytes: bytes,
-    *,
-    research_run: Path,
-) -> Path:
-    """Persist the exact validated bytes that the typed executor must consume."""
-    snapshot_directory = research_run / _AUTHORIZED_REQUEST_DIRECTORY
-    snapshot_directory.mkdir(parents=True, exist_ok=True)
-    resolved_directory = snapshot_directory.resolve(strict=True)
-    _ensure_within(
-        resolved_directory,
-        research_run,
-        message="authorized request directory escapes the research run",
-    )
-
-    digest = _sha256_bytes(request_bytes)
-    snapshot_path = resolved_directory / f"{digest}.json"
-    try:
-        descriptor = os.open(
-            snapshot_path,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-            0o400,
-        )
-    except FileExistsError:
-        if snapshot_path.is_symlink() or not snapshot_path.is_file():
-            raise AuthorizedExecutionError(
-                "authorized request snapshot path already exists but is not a regular file"
-            )
-        if snapshot_path.read_bytes() != request_bytes:
-            raise AuthorizedExecutionError(
-                "authorized request snapshot digest collision or content drift detected"
-            )
-    else:
-        try:
-            with os.fdopen(descriptor, "wb") as handle:
-                handle.write(request_bytes)
-                handle.flush()
-                os.fsync(handle.fileno())
-        except Exception:
-            snapshot_path.unlink(missing_ok=True)
-            raise
-
-    if snapshot_path.read_bytes() != request_bytes:
-        raise AuthorizedExecutionError(
-            "authorized request snapshot changed before typed execution"
-        )
-    return snapshot_path
-
-
-@contextmanager
-def _exclusive_execution_lock(research_run: Path) -> Iterator[None]:
-    """Serialize wrapper-owned ledger mutation for one research run."""
-    lock_path = research_run / _EXECUTION_LOCK_FILENAME
-    try:
-        descriptor = os.open(
-            lock_path,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-            0o600,
-        )
-    except FileExistsError as exc:
-        raise AuthorizedExecutionError(
-            "another authorized execution is already active for this research run"
-        ) from exc
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(f"pid={os.getpid()}\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        yield
-    finally:
-        lock_path.unlink(missing_ok=True)
-
-
 def _latest_action_report(
     state: Mapping[str, Any],
     *,
@@ -277,7 +193,7 @@ def _latest_action_report(
     if not isinstance(artifacts, list):
         raise AuthorizedExecutionError("latest ledger action artifacts are malformed")
     matches: list[Path] = []
-    expected_action_directory = (research_run / "actions" / expected_action_id).resolve()
+    expected_directory = (research_run / "actions" / expected_action_id).resolve()
     for item in artifacts:
         if not isinstance(item, Mapping):
             continue
@@ -286,7 +202,7 @@ def _latest_action_report(
             report_path = Path(raw_path).expanduser().resolve(strict=True)
             _ensure_within(
                 report_path,
-                expected_action_directory,
+                expected_directory,
                 message="ledger-bound action report escapes the expected action directory",
             )
             matches.append(report_path)
@@ -313,136 +229,132 @@ def execute_authorized_action(
     root = Path(repository_root).expanduser().resolve(strict=True)
     run = Path(research_run).expanduser().resolve(strict=True)
     request_file = Path(request_path).expanduser().resolve(strict=True)
-    request, request_bytes = _load_request_snapshot(request_file)
-    request_sha256 = _sha256_bytes(request_bytes)
+    request = _load_request(request_file)
 
-    with _exclusive_execution_lock(run):
-        try:
-            authorization = assess_current_action_authorization(
-                adapter_id,
-                repository_root=root,
-                research_run=run,
-                action_registry_path=action_registry_path,
-            )
-        except ActionAuthorizationError as exc:
-            raise AuthorizedExecutionError(str(exc)) from exc
-        if authorization.get("authorization_status") != "ready_for_explicit_execution_request":
-            raise AuthorizedExecutionError(
-                "current selected action is not ready for an explicit execution request: "
-                f"{authorization.get('authorization_status')!r}"
-            )
-        selected = authorization.get("selected_action")
-        contract = authorization.get("execution_contract")
-        if not isinstance(selected, Mapping) or not isinstance(contract, Mapping):
-            raise AuthorizedExecutionError("authorization omitted selected action contract")
-        action_type = selected.get("action_type")
-        action_version = selected.get("action_version")
-        contract_version = contract.get("action_version")
-        if not isinstance(action_type, str) or not isinstance(action_version, str):
-            raise AuthorizedExecutionError("selected action type/version binding is malformed")
-        if contract_version != action_version:
-            raise AuthorizedExecutionError(
-                "selected action version does not match the authorized execution contract"
-            )
-        dispatch_key = (action_type, action_version)
-        if dispatch_key not in _DISPATCH:
-            raise AuthorizedExecutionError(
-                "selected action type/version has no hardcoded typed executor: "
-                f"{action_type!r} version {action_version!r}"
-            )
-        registry_raw = contract.get("registry_path")
-        registry_sha = contract.get("registry_sha256")
-        if not isinstance(registry_raw, str) or not isinstance(registry_sha, str):
-            raise AuthorizedExecutionError("authorization execution registry binding is malformed")
-        registry_path = Path(registry_raw).expanduser().resolve(strict=True)
-        request_action_id = _require_request_binding(
-            request,
-            request_path=request_file,
-            action_type=action_type,
-            research_run=run,
+    try:
+        authorization = assess_current_action_authorization(
+            adapter_id,
             repository_root=root,
-            registry_path=registry_path,
-            registry_sha256=registry_sha,
-        )
-        request_snapshot = _materialize_authorized_request_snapshot(
-            request_bytes,
             research_run=run,
+            action_registry_path=action_registry_path,
+        )
+    except ActionAuthorizationError as exc:
+        raise AuthorizedExecutionError(str(exc)) from exc
+    if authorization.get("authorization_status") != "ready_for_explicit_execution_request":
+        raise AuthorizedExecutionError(
+            "current selected action is not ready for an explicit execution request: "
+            f"{authorization.get('authorization_status')!r}"
+        )
+    selected = authorization.get("selected_action")
+    contract = authorization.get("execution_contract")
+    if not isinstance(selected, Mapping) or not isinstance(contract, Mapping):
+        raise AuthorizedExecutionError("authorization omitted selected action contract")
+    action_type = selected.get("action_type")
+    action_version = selected.get("action_version")
+    contract_version = contract.get("action_version")
+    if not isinstance(action_type, str) or not isinstance(action_version, str):
+        raise AuthorizedExecutionError("selected action type/version binding is malformed")
+    if contract_version != action_version:
+        raise AuthorizedExecutionError(
+            "selected action version does not match the authorized execution contract"
+        )
+    dispatch_key = (action_type, action_version)
+    if dispatch_key not in _DISPATCH:
+        raise AuthorizedExecutionError(
+            "selected action type/version has no hardcoded typed executor: "
+            f"{action_type!r} version {action_version!r}"
+        )
+    registry_raw = contract.get("registry_path")
+    registry_sha = contract.get("registry_sha256")
+    if not isinstance(registry_raw, str) or not isinstance(registry_sha, str):
+        raise AuthorizedExecutionError("authorization execution registry binding is malformed")
+    registry_path = Path(registry_raw).expanduser().resolve(strict=True)
+    request_action_id = _require_request_binding(
+        request,
+        request_path=request_file,
+        action_type=action_type,
+        research_run=run,
+        repository_root=root,
+        registry_path=registry_path,
+        registry_sha256=registry_sha,
+    )
+
+    before_state = load_research_state(run)
+    before_actions = before_state.get("actions")
+    if not isinstance(before_actions, list):
+        raise AuthorizedExecutionError("pre-execution research action ledger is malformed")
+    before_count = len(before_actions)
+
+    executor, verifier = _DISPATCH[dispatch_key]
+    # The typed executor intentionally receives the original request path so its
+    # documented relative-path semantics remain unchanged. Atomic request handoff
+    # requires a future typed-executor API that accepts pre-parsed/canonical input;
+    # this wrapper does not claim to solve that boundary by relocating the file.
+    executor_result = executor(request_file)
+
+    after_state = load_research_state(run)
+    after_actions = after_state.get("actions")
+    if not isinstance(after_actions, list):
+        raise AuthorizedExecutionError("post-execution research action ledger is malformed")
+    if len(after_actions) != before_count + 1:
+        raise AuthorizedExecutionError(
+            "typed executor must append exactly one research action per invocation"
+        )
+    ledger_action, report_path = _latest_action_report(
+        after_state,
+        expected_action_type=action_type,
+        expected_action_id=request_action_id,
+        research_run=run,
+    )
+    verified_report = verifier(report_path)
+    if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
+        raise AuthorizedExecutionError("typed executor/verifier returned malformed result")
+    if executor_result.get("action_id") != request_action_id:
+        raise AuthorizedExecutionError(
+            "typed executor result action_id does not match the explicit request"
+        )
+    if verified_report.get("action_id") != request_action_id:
+        raise AuthorizedExecutionError(
+            "verified action report action_id does not match the explicit request"
         )
 
-        before_state = load_research_state(run)
-        before_actions = before_state.get("actions")
-        if not isinstance(before_actions, list):
-            raise AuthorizedExecutionError("pre-execution research action ledger is malformed")
-        before_count = len(before_actions)
-
-        executor, verifier = _DISPATCH[dispatch_key]
-        executor_result = executor(request_snapshot)
-
-        after_state = load_research_state(run)
-        after_actions = after_state.get("actions")
-        if not isinstance(after_actions, list):
-            raise AuthorizedExecutionError("post-execution research action ledger is malformed")
-        if len(after_actions) != before_count + 1:
-            raise AuthorizedExecutionError(
-                "typed executor must append exactly one research action per invocation"
-            )
-        ledger_action, report_path = _latest_action_report(
-            after_state,
-            expected_action_type=action_type,
-            expected_action_id=request_action_id,
-            research_run=run,
-        )
-        verified_report = verifier(report_path)
-        if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
-            raise AuthorizedExecutionError("typed executor/verifier returned malformed result")
-        if executor_result.get("action_id") != request_action_id:
-            raise AuthorizedExecutionError(
-                "typed executor result action_id does not match the explicit request"
-            )
-        if verified_report.get("action_id") != request_action_id:
-            raise AuthorizedExecutionError(
-                "verified action report action_id does not match the explicit request"
-            )
-
-        return {
-            "schema_version": EXECUTION_SCHEMA_VERSION,
-            "execution_policy_version": EXECUTION_POLICY_VERSION,
-            "adapter_id": adapter_id,
-            "action_type": action_type,
-            "action_version": action_version,
-            "request_binding": {
-                "path": str(request_file),
-                "sha256": request_sha256,
-                "size_bytes": len(request_bytes),
-                "executed_snapshot_path": str(request_snapshot),
-                "executed_snapshot_sha256": _sha256_file(request_snapshot),
-            },
-            "authorization_status": authorization["authorization_status"],
-            "execution_registry": {
-                "registry_id": contract.get("registry_id"),
-                "registry_sha256": registry_sha,
-                "registry_path": str(registry_path),
-            },
-            "execution_status": ledger_action.get("status"),
-            "ledger_action_id": ledger_action.get("action_id"),
-            "action_report": str(report_path),
-            "verified_report": dict(verified_report),
-            "actions_before": before_count,
-            "actions_after": len(after_actions),
-            "maximum_actions_executed_per_invocation": 1,
-            "action_executed": True,
-            "automatic_execution_authorized": False,
-            "explicit_execution_request_used": True,
-            "generic_command_execution_available": False,
-            "network_access_initiated_by_orchestrator": False,
-            "model_fit_initiated_by_orchestrator": False,
-            "scientific_evidence_upgraded_by_orchestrator": False,
-            "scientific_boundary": (
-                "This wrapper proves bounded typed dispatch and independent report verification. "
-                "Scientific interpretation remains owned by the typed action and downstream evidence "
-                "contracts; execution success does not itself upgrade scientific evidence."
-            ),
-        }
+    return {
+        "schema_version": EXECUTION_SCHEMA_VERSION,
+        "execution_policy_version": EXECUTION_POLICY_VERSION,
+        "adapter_id": adapter_id,
+        "action_type": action_type,
+        "action_version": action_version,
+        "request_binding": {
+            "path": str(request_file),
+            "sha256": _sha256_file(request_file),
+            "size_bytes": request_file.stat().st_size,
+        },
+        "authorization_status": authorization["authorization_status"],
+        "execution_registry": {
+            "registry_id": contract.get("registry_id"),
+            "registry_sha256": registry_sha,
+            "registry_path": str(registry_path),
+        },
+        "execution_status": ledger_action.get("status"),
+        "ledger_action_id": ledger_action.get("action_id"),
+        "action_report": str(report_path),
+        "verified_report": dict(verified_report),
+        "actions_before": before_count,
+        "actions_after": len(after_actions),
+        "maximum_actions_executed_per_invocation": 1,
+        "action_executed": True,
+        "automatic_execution_authorized": False,
+        "explicit_execution_request_used": True,
+        "generic_command_execution_available": False,
+        "network_access_initiated_by_orchestrator": False,
+        "model_fit_initiated_by_orchestrator": False,
+        "scientific_evidence_upgraded_by_orchestrator": False,
+        "scientific_boundary": (
+            "This wrapper proves bounded typed dispatch and independent report verification. "
+            "Scientific interpretation remains owned by the typed action and downstream evidence "
+            "contracts; execution success does not itself upgrade scientific evidence."
+        ),
+    }
 
 
 __all__ = [
