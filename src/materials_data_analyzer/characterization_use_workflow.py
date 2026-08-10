@@ -208,9 +208,14 @@ def _record_eligibility(
         decision,
     )
     outputs["use_eligibility"] = eligibility_path
+    eligibility_payload = json.loads(eligibility_path.read_text(encoding="utf-8"))
+    if not isinstance(eligibility_payload, dict):
+        raise ValueError("characterization use eligibility must contain a JSON object")
+    eligibility_payload["split_group_binding"] = split_group_binding
+    _write_json(eligibility_path, eligibility_payload)
+
     decision_payload = decision.to_dict()
     decision_payload["split_group_binding"] = split_group_binding
-    _write_json(eligibility_path, decision_payload)
 
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     if not isinstance(summary, dict):
