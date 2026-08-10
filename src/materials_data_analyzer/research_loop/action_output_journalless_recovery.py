@@ -9,7 +9,6 @@ verified registry contract, and one matching immutable-ledger action.
 """
 from __future__ import annotations
 
-import os
 import shutil
 from collections.abc import Mapping
 from pathlib import Path
@@ -150,9 +149,6 @@ def recover_journalless_action_transaction_before_authorization(
         report_path=report_path,
     )
 
-    # Recreate only the minimal proof needed for the normal verifier + cleanup path.
-    # Existing remnants (for example an audit backup left by interrupted rmtree)
-    # remain in place until normal transaction cleanup removes the directory.
     journal = {
         "schema_version": SCHEMA_VERSION,
         "action_id": action_id,
