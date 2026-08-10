@@ -42,7 +42,7 @@ from .pinned_execution_verifier import (
 )
 
 EXECUTION_SCHEMA_VERSION = "1.0"
-EXECUTION_POLICY_VERSION = "1.3"
+EXECUTION_POLICY_VERSION = "1.4"
 _ACTION_REPORT_FILENAME = "action_result.json"
 
 Executor = Callable[..., dict[str, Any]]
@@ -73,6 +73,10 @@ _DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
 
 class AuthorizedExecutionError(ResearchLoopError):
     """Raised when explicit typed execution cannot preserve its frozen contract."""
+
+
+class AuthorizedExecutionStartedError(AuthorizedExecutionError):
+    """Raised when a later verification failure follows a ledger mutation."""
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -123,6 +127,23 @@ def _resolve_request_path(raw: object, *, field: str, base: Path) -> Path:
     if not candidate.is_absolute():
         candidate = base / candidate
     return candidate.resolve(strict=True)
+
+
+def _require_expected_action_type(
+    request: Mapping[str, Any],
+    *,
+    expected_action_type: str | None,
+) -> None:
+    if expected_action_type is None:
+        return
+    if not expected_action_type.strip():
+        raise AuthorizedExecutionError("expected_action_type must be a non-empty string")
+    requested = request.get("action_type")
+    if requested != expected_action_type:
+        raise AuthorizedExecutionError(
+            f"execution surface requires action_type={expected_action_type!r}; "
+            f"pinned request contains {requested!r}"
+        )
 
 
 def _require_request_binding(
@@ -240,6 +261,14 @@ def _latest_action_report(
     return latest, matches[0]
 
 
+def _action_count(run: Path, *, phase: str) -> int:
+    state = load_research_state(run)
+    actions = state.get("actions")
+    if not isinstance(actions, list):
+        raise AuthorizedExecutionError(f"{phase} research action ledger is malformed")
+    return len(actions)
+
+
 def execute_authorized_action(
     adapter_id: str,
     *,
@@ -247,6 +276,7 @@ def execute_authorized_action(
     research_run: str | Path,
     action_registry_path: str | Path,
     request_path: str | Path,
+    expected_action_type: str | None = None,
 ) -> dict[str, Any]:
     """Execute exactly one explicitly requested, currently authorized typed action."""
     if adapter_id != "nasa-battery":
@@ -257,6 +287,7 @@ def execute_authorized_action(
     run = Path(research_run).expanduser().resolve(strict=True)
     request_file = Path(request_path).expanduser().resolve(strict=True)
     request, request_record = _load_request_snapshot(request_file)
+    _require_expected_action_type(request, expected_action_type=expected_action_type)
 
     try:
         authorization = assess_current_action_authorization(
@@ -384,16 +415,50 @@ def execute_authorized_action(
         "scientific_evidence_upgraded_by_orchestrator": False,
         "scientific_boundary": (
             "This wrapper proves bounded typed dispatch, exact request-byte handoff, "
-            "and independent pinned-snapshot report verification. Scientific "
-            "interpretation remains owned by the typed action and downstream evidence "
-            "contracts; execution success does not itself upgrade scientific evidence."
+            "surface-specific action restriction, and independent pinned-snapshot report "
+            "verification. Scientific interpretation remains owned by the typed action and "
+            "downstream evidence contracts; execution success does not itself upgrade "
+            "scientific evidence."
         ),
     }
+
+
+def execute_authorized_action_with_failure_classification(
+    adapter_id: str,
+    *,
+    repository_root: str | Path,
+    research_run: str | Path,
+    action_registry_path: str | Path,
+    request_path: str | Path,
+    expected_action_type: str | None = None,
+) -> dict[str, Any]:
+    """Execute once and distinguish post-ledger verification failure from preflight failure."""
+    run = Path(research_run).expanduser().resolve(strict=True)
+    before_count = _action_count(run, phase="pre-execution")
+    try:
+        return execute_authorized_action(
+            adapter_id,
+            repository_root=repository_root,
+            research_run=run,
+            action_registry_path=action_registry_path,
+            request_path=request_path,
+            expected_action_type=expected_action_type,
+        )
+    except ResearchLoopError as exc:
+        try:
+            after_count = _action_count(run, phase="post-failure")
+        except ResearchLoopError:
+            raise
+        if after_count > before_count:
+            raise AuthorizedExecutionStartedError(str(exc)) from exc
+        raise
 
 
 __all__ = [
     "EXECUTION_POLICY_VERSION",
     "EXECUTION_SCHEMA_VERSION",
     "AuthorizedExecutionError",
+    "AuthorizedExecutionStartedError",
     "execute_authorized_action",
+    "execute_authorized_action_with_failure_classification",
 ]
