@@ -59,12 +59,23 @@ mda-research-loop validate-actions `
   --repository-root .
 ```
 
-Execute a typed request:
+Execute a typed request through the current planning authorization boundary. The
+CLI `--registry` below is the planning registry used to revalidate the selected
+action; the request itself remains checksum-bound to its typed target-reference
+execution registry.
 
 ```powershell
 mda-research-loop execute-nasa-target-reference `
+  --repository-root . `
+  --run outputs/nasa_autonomous_loop `
+  --registry configs/research/nasa_research_action_registry.v1.json `
   --request outputs/nasa_research_requests/target_reference_request.json
 ```
+
+The legacy action-specific command is only a compatibility entry point. It routes
+through `execute-authorized-action`, checks that the request declares
+`target_reference_sensitivity`, and revalidates current planning state and budget
+before execution.
 
 Re-verify the completed or failed report:
 
