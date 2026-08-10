@@ -140,6 +140,13 @@ jobs:
           assert eligibility["evidence_level"] == "Diagnostic"
           assert eligibility["measurement_timing"] == "unknown"
           assert eligibility["reasons"] == []
+          assert eligibility["split_group_binding"] == {
+              "required": False,
+              "field": None,
+              "source": "not_required",
+              "external_values_compared": False,
+              "mismatch_count": 0,
+          }
 
           expected = {
               key: eligibility[key]
@@ -153,6 +160,7 @@ jobs:
                   "review_status",
                   "independence_group_field",
                   "split_group_field",
+                  "split_group_binding",
                   "measurement_timing",
                   "reasons",
                   "warnings",

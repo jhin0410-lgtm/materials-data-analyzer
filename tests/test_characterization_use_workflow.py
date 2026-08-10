@@ -137,6 +137,22 @@ def _write_valid_bundle(root: Path, *, policy: dict[str, object] | None) -> Path
     return manifest_path
 
 
+def _write_process(
+    path: Path,
+    *,
+    parent_specimen_id: str | None,
+) -> Path:
+    row: dict[str, object] = {
+        "sample_id": "sample-a",
+        "material": "diagnostic material",
+        "process_temperature_c": 750.0,
+    }
+    if parent_specimen_id is not None:
+        row["parent_specimen_id"] = parent_specimen_id
+    pd.DataFrame([row]).to_csv(path, index=False)
+    return path
+
+
 def test_public_workflow_records_eligibility_in_all_audit_outputs(tmp_path: Path) -> None:
     manifest = _write_valid_bundle(
         tmp_path / "producer",
@@ -156,6 +172,7 @@ def test_public_workflow_records_eligibility_in_all_audit_outputs(tmp_path: Path
     report = (output / REPORT_NAME).read_text(encoding="utf-8")
 
     assert eligibility["allowed"] is True
+    assert eligibility["split_group_binding"]["source"] == "not_required"
     assert summary["downstream_use_eligibility"]["requested_use"] == "descriptive"
     assert consumer_manifest["downstream_use_eligibility"]["allowed"] is True
     assert "Downstream Use Eligibility" in report
@@ -190,6 +207,79 @@ def test_association_requires_matching_independent_split_group(tmp_path: Path) -
     assert "association or stronger use requires --split-group-field" in missing.reasons
     assert mismatch.allowed is False
     assert allowed.allowed is True
+
+
+def test_external_process_cannot_redefine_independence_group(tmp_path: Path) -> None:
+    manifest = _write_valid_bundle(
+        tmp_path / "producer",
+        policy=_policy("association"),
+    )
+    process = _write_process(
+        tmp_path / "process.csv",
+        parent_specimen_id="consumer-redefined-parent",
+    )
+    output = tmp_path / "consumer"
+
+    with pytest.raises(ValueError, match="attempts to redefine.*parent_specimen_id"):
+        consume_characterization_bundle_for_use(
+            manifest,
+            output,
+            process_table_path=process,
+            requested_use="association",
+            split_group_field="parent_specimen_id",
+        )
+
+    assert not output.exists()
+
+
+def test_matching_external_independence_group_is_checksum_bound(tmp_path: Path) -> None:
+    manifest = _write_valid_bundle(
+        tmp_path / "producer",
+        policy=_policy("association"),
+    )
+    process = _write_process(tmp_path / "process.csv", parent_specimen_id="parent-1")
+    output = tmp_path / "consumer"
+
+    outputs = consume_characterization_bundle_for_use(
+        manifest,
+        output,
+        process_table_path=process,
+        requested_use="association",
+        split_group_field="parent_specimen_id",
+    )
+
+    eligibility = json.loads(outputs["use_eligibility"].read_text(encoding="utf-8"))
+    binding = eligibility["split_group_binding"]
+    assert binding == {
+        "required": True,
+        "field": "parent_specimen_id",
+        "source": "external_process_matches_bundle_context",
+        "external_values_compared": True,
+        "mismatch_count": 0,
+        "sample_count": 1,
+    }
+
+
+def test_missing_external_independence_group_is_injected_from_bundle(tmp_path: Path) -> None:
+    manifest = _write_valid_bundle(
+        tmp_path / "producer",
+        policy=_policy("association"),
+    )
+    process = _write_process(tmp_path / "process.csv", parent_specimen_id=None)
+    output = tmp_path / "consumer"
+
+    outputs = consume_characterization_bundle_for_use(
+        manifest,
+        output,
+        process_table_path=process,
+        requested_use="association",
+        split_group_field="parent_specimen_id",
+    )
+
+    eligibility = json.loads(outputs["use_eligibility"].read_text(encoding="utf-8"))
+    assert eligibility["split_group_binding"]["source"] == "bundle_context_injected"
+    validated_process = pd.read_csv(outputs["validated_process_input"])
+    assert validated_process.loc[0, "parent_specimen_id"] == "parent-1"
 
 
 def test_blocked_association_creates_no_output(tmp_path: Path) -> None:
