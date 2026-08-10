@@ -17,8 +17,10 @@ from .action_authorization import (
     ActionAuthorizationError,
     assess_current_action_authorization,
 )
+from .action_output_journalless_recovery import (
+    recover_journalless_action_transaction_before_authorization,
+)
 from .action_output_ledger_transaction import (
-    ActionOutputLedgerTransactionError,
     cleanup_action_output_ledger_transaction,
     mark_action_output_ledger_committed,
     prepare_action_output_ledger_transaction,
@@ -50,15 +52,12 @@ from .pinned_execution_verifier import (
 )
 
 EXECUTION_SCHEMA_VERSION = "1.0"
-EXECUTION_POLICY_VERSION = "1.6"
+EXECUTION_POLICY_VERSION = "1.7"
 _ACTION_REPORT_FILENAME = "action_result.json"
 
 Executor = Callable[..., dict[str, Any]]
 Verifier = Callable[..., dict[str, Any]]
 
-# Dispatch is bound to the exact action contract version implemented by each
-# hardcoded executor. A registry version bump therefore requires an explicit code
-# change before execution can proceed.
 _DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
     (AUDIT_ACTION_TYPE, "1.0"): (
         execute_nasa_audit_action_preparsed,
@@ -78,10 +77,6 @@ _DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
     ),
 }
 
-# Cost is part of the hardcoded executor contract, not merely planner metadata.
-# An execution registry that changes cost without changing action version therefore
-# fails closed. Older unit mocks that omit the redundant authorization cost still
-# exercise the same code-bound cost value.
 _DISPATCH_COST_UNITS: dict[tuple[str, str], int] = {
     (AUDIT_ACTION_TYPE, "1.0"): 2,
     (TARGET_REFERENCE_ACTION_TYPE, "1.0"): 4,
@@ -190,9 +185,7 @@ def _require_request_binding(
             "execution request research_run does not match the authorized research run"
         )
     request_root = _resolve_request_path(
-        request.get("repository_root"),
-        field="repository_root",
-        base=request_path.parent,
+        request.get("repository_root"), field="repository_root", base=request_path.parent
     )
     if request_root != repository_root:
         raise AuthorizedExecutionError(
@@ -220,7 +213,6 @@ def _ensure_within(path: Path, parent: Path, *, message: str) -> None:
 
 
 def _expected_action_directory(research_run: Path, action_id: str) -> Path:
-    """Resolve the action output boundary and reject symlink/path traversal escapes."""
     actions_root = (research_run / "actions").resolve(strict=False)
     _ensure_within(
         actions_root,
@@ -401,6 +393,90 @@ def _build_result(
     }
 
 
+def _finish_recovered_transaction(
+    *,
+    adapter_id: str,
+    run: Path,
+    request: Mapping[str, Any],
+    request_file: Path,
+    request_record: Mapping[str, Any],
+    recovery: Mapping[str, Any],
+) -> dict[str, Any]:
+    action_type = recovery.get("action_type")
+    action_version = recovery.get("action_version")
+    action_id = recovery.get("action_id")
+    if not isinstance(action_type, str) or not isinstance(action_version, str):
+        raise AuthorizedExecutionError("recovered action type/version binding is malformed")
+    if not isinstance(action_id, str):
+        raise AuthorizedExecutionError("recovered action ID is malformed")
+    dispatch_key = (action_type, action_version)
+    if dispatch_key not in _DISPATCH:
+        raise AuthorizedExecutionError(
+            "recovered action type/version has no hardcoded typed verifier"
+        )
+    expected_cost = _DISPATCH_COST_UNITS.get(dispatch_key)
+    if recovery.get("cost_units") != expected_cost:
+        raise AuthorizedExecutionError(
+            "recovered action cost does not match the hardcoded action version"
+        )
+    expected_action_directory = _expected_action_directory(run, action_id)
+    after_state = recovery.get("research_state")
+    if not isinstance(after_state, Mapping):
+        raise AuthorizedExecutionError("recovered research state is malformed")
+    ledger_action, report_path = _action_report_for_id(
+        after_state,
+        expected_action_type=action_type,
+        expected_action_id=action_id,
+        expected_action_directory=expected_action_directory,
+        require_latest=False,
+    )
+    _, verifier = _DISPATCH[dispatch_key]
+    verified_report = verifier(
+        report_path,
+        request_value=request,
+        request_path=request_file,
+        request_record=request_record,
+    )
+    if not isinstance(verified_report, Mapping):
+        raise AuthorizedExecutionError("typed verifier returned malformed result")
+    if verified_report.get("action_id") != action_id:
+        raise AuthorizedExecutionError(
+            "verified recovered report action_id does not match the explicit request"
+        )
+    cleanup_action_output_ledger_transaction(research_run=run, action_id=action_id)
+    actions = after_state.get("actions")
+    if not isinstance(actions, list):
+        raise AuthorizedExecutionError("recovered research actions are malformed")
+    recovery_stage = recovery.get("recovery_stage")
+    actions_added = 1 if recovery_stage == "published" else 0
+    registry = recovery.get("registry")
+    if not isinstance(registry, Mapping):
+        raise AuthorizedExecutionError("recovered execution registry is malformed")
+    registry_path_raw = registry.get("registry_path")
+    registry_sha = registry.get("registry_sha256")
+    if not isinstance(registry_path_raw, str) or not isinstance(registry_sha, str):
+        raise AuthorizedExecutionError("recovered execution registry binding is malformed")
+    return _build_result(
+        adapter_id=adapter_id,
+        action_type=action_type,
+        action_version=action_version,
+        request_record=request_record,
+        authorization_status="recovered_prior_authorized_transaction",
+        registry_id=registry.get("registry_id"),
+        registry_sha=registry_sha,
+        registry_path=Path(registry_path_raw),
+        ledger_action=ledger_action,
+        report_path=report_path,
+        verified_report=verified_report,
+        actions_before=len(actions) - actions_added,
+        actions_after=len(actions),
+        transaction_recovered=True,
+        recovery_stage=str(recovery_stage) if recovery_stage is not None else None,
+        state_snapshot_repaired=bool(recovery.get("state_snapshot_repaired")),
+        action_executed=False,
+    )
+
+
 def execute_authorized_action(
     adapter_id: str,
     *,
@@ -422,94 +498,27 @@ def execute_authorized_action(
     _require_expected_action_type(request, expected_action_type=expected_action_type)
 
     with shared_research_ledger_transaction_lock(run):
-        prior_recovery = recover_action_output_ledger_transaction_before_authorization(
+        prior_recovery = recover_journalless_action_transaction_before_authorization(
             research_run=run,
             request=request,
             request_path=request_file,
             request_record=request_record,
         )
-        if prior_recovery is not None:
-            action_type = prior_recovery["action_type"]
-            action_version = prior_recovery["action_version"]
-            if not isinstance(action_type, str) or not isinstance(action_version, str):
-                raise AuthorizedExecutionError(
-                    "recovered action type/version binding is malformed"
-                )
-            dispatch_key = (action_type, action_version)
-            if dispatch_key not in _DISPATCH:
-                raise AuthorizedExecutionError(
-                    "recovered action type/version has no hardcoded typed verifier"
-                )
-            expected_cost = _DISPATCH_COST_UNITS.get(dispatch_key)
-            if prior_recovery.get("cost_units") != expected_cost:
-                raise AuthorizedExecutionError(
-                    "recovered action cost does not match the hardcoded action version"
-                )
-            action_id = prior_recovery.get("action_id")
-            if not isinstance(action_id, str):
-                raise AuthorizedExecutionError("recovered action ID is malformed")
-            expected_action_directory = _expected_action_directory(run, action_id)
-            after_state = prior_recovery.get("research_state")
-            if not isinstance(after_state, Mapping):
-                raise AuthorizedExecutionError("recovered research state is malformed")
-            ledger_action, report_path = _action_report_for_id(
-                after_state,
-                expected_action_type=action_type,
-                expected_action_id=action_id,
-                expected_action_directory=expected_action_directory,
-                require_latest=False,
-            )
-            _, verifier = _DISPATCH[dispatch_key]
-            verified_report = verifier(
-                report_path,
-                request_value=request,
+        if prior_recovery is None:
+            prior_recovery = recover_action_output_ledger_transaction_before_authorization(
+                research_run=run,
+                request=request,
                 request_path=request_file,
                 request_record=request_record,
             )
-            if not isinstance(verified_report, Mapping):
-                raise AuthorizedExecutionError("typed verifier returned malformed result")
-            if verified_report.get("action_id") != action_id:
-                raise AuthorizedExecutionError(
-                    "verified recovered report action_id does not match the explicit request"
-                )
-            cleanup_action_output_ledger_transaction(
-                research_run=run,
-                action_id=action_id,
-            )
-            actions = after_state.get("actions")
-            if not isinstance(actions, list):
-                raise AuthorizedExecutionError("recovered research actions are malformed")
-            recovery_stage = prior_recovery.get("recovery_stage")
-            actions_added = 1 if recovery_stage == "published" else 0
-            registry = prior_recovery.get("registry")
-            if not isinstance(registry, Mapping):
-                raise AuthorizedExecutionError("recovered execution registry is malformed")
-            registry_path_raw = registry.get("registry_path")
-            registry_sha = registry.get("registry_sha256")
-            if not isinstance(registry_path_raw, str) or not isinstance(registry_sha, str):
-                raise AuthorizedExecutionError(
-                    "recovered execution registry binding is malformed"
-                )
-            return _build_result(
+        if prior_recovery is not None:
+            return _finish_recovered_transaction(
                 adapter_id=adapter_id,
-                action_type=action_type,
-                action_version=action_version,
+                run=run,
+                request=request,
+                request_file=request_file,
                 request_record=request_record,
-                authorization_status="recovered_prior_authorized_transaction",
-                registry_id=registry.get("registry_id"),
-                registry_sha=registry_sha,
-                registry_path=Path(registry_path_raw),
-                ledger_action=ledger_action,
-                report_path=report_path,
-                verified_report=verified_report,
-                actions_before=len(actions) - actions_added,
-                actions_after=len(actions),
-                transaction_recovered=True,
-                recovery_stage=str(recovery_stage) if recovery_stage is not None else None,
-                state_snapshot_repaired=bool(
-                    prior_recovery.get("state_snapshot_repaired")
-                ),
-                action_executed=False,
+                recovery=prior_recovery,
             )
 
         try:
@@ -676,8 +685,6 @@ def execute_authorized_action_with_failure_classification(
             request_path=request_path,
             expected_action_type=expected_action_type,
         )
-    except ActionOutputLedgerTransactionError:
-        raise
     except ResearchLoopError as exc:
         try:
             after_count = _action_count(run, phase="post-failure")
