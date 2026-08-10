@@ -12,6 +12,7 @@ import csv
 import hashlib
 import io
 import json
+import math
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -19,11 +20,11 @@ from .external_evidence_contract import (
     ExternalEvidenceContractError,
     evaluate_external_source_candidate,
 )
-from .kernel import ResearchLoopError
+from .kernel import ResearchLoopError, load_research_state
 from .nasa_action_policy import plan_nasa_next_action
 
 PLANNING_DECISION_SCHEMA_VERSION = "1.0"
-PLANNING_ADAPTER_VERSION = "1.2"
+PLANNING_ADAPTER_VERSION = "1.3"
 
 _NASA_ADAPTER = "nasa-battery"
 _MATERIALS_PROJECT_ADAPTER = "materials-project-external-source"
@@ -35,6 +36,19 @@ _ADAPTER_IDS = (
     _TM_FE_SI_ADAPTER,
     _NIST_AMBENCH_ADAPTER,
 )
+_NASA_EVIDENCE_LEVELS = {"Unsupported", "Inconclusive", "Diagnostic"}
+_NIST_EXPECTED_TRACES: dict[int, tuple[str, float, float]] = {
+    1: ("amb2018-02-C", 297.0, 800.0),
+    2: ("amb2018-02-C", 297.0, 800.0),
+    3: ("amb2018-02-C", 297.0, 800.0),
+    4: ("amb2018-02-C", 297.0, 800.0),
+    5: ("amb2018-02-A", 195.0, 800.0),
+    6: ("amb2018-02-A", 195.0, 800.0),
+    7: ("amb2018-02-A", 195.0, 800.0),
+    8: ("amb2018-02-B", 195.0, 1200.0),
+    9: ("amb2018-02-B", 195.0, 1200.0),
+    10: ("amb2018-02-B", 195.0, 1200.0),
+}
 
 _MP_REQUIREMENT_CONFIG = Path(
     "configs/research/materials_project_external_evidence_requirement.v1.json"
@@ -75,6 +89,38 @@ def _nonempty_text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise PlanningAdapterError(f"{field} must be a non-empty string")
     return value.strip()
+
+
+def _finite_float(
+    value: object,
+    field: str,
+    *,
+    positive: bool = False,
+    nonnegative: bool = False,
+) -> float:
+    text = _nonempty_text(value, field)
+    try:
+        number = float(text)
+    except ValueError as exc:
+        raise PlanningAdapterError(f"{field} must be numeric") from exc
+    if not math.isfinite(number):
+        raise PlanningAdapterError(f"{field} must be finite")
+    if positive and number <= 0:
+        raise PlanningAdapterError(f"{field} must be positive")
+    if nonnegative and number < 0:
+        raise PlanningAdapterError(f"{field} must be non-negative")
+    return number
+
+
+def _canonical_positive_int(value: object, field: str) -> int:
+    text = _nonempty_text(value, field)
+    try:
+        parsed = int(text)
+    except ValueError as exc:
+        raise PlanningAdapterError(f"{field} must be an integer") from exc
+    if parsed <= 0 or text != str(parsed):
+        raise PlanningAdapterError(f"{field} must be a canonical positive integer")
+    return parsed
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -193,11 +239,24 @@ def _plan_nasa(
         raise PlanningAdapterError(
             "nasa-battery planning requires both research_run and action_registry_path"
         )
+    run_path = Path(research_run).expanduser().resolve(strict=True)
+    state_before = load_research_state(run_path)
+    ledger_sha_before = _nonempty_text(
+        state_before.get("ledger_sha256"), "NASA research ledger SHA-256"
+    )
     delegated = plan_nasa_next_action(
-        research_run,
+        run_path,
         action_registry_path,
         repository_root,
     )
+    state_after = load_research_state(run_path)
+    ledger_sha_after = _nonempty_text(
+        state_after.get("ledger_sha256"), "NASA post-planning research ledger SHA-256"
+    )
+    if ledger_sha_after != ledger_sha_before:
+        raise PlanningAdapterError(
+            "NASA research ledger changed while the planning decision was being built"
+        )
     if not isinstance(delegated, Mapping):
         raise PlanningAdapterError("NASA planner returned a non-object decision")
     status = delegated.get("selection_status")
@@ -216,17 +275,29 @@ def _plan_nasa(
             raw_evidence_level,
             "NASA planner latest_evidence_level",
         )
+        if evidence_level not in _NASA_EVIDENCE_LEVELS:
+            raise PlanningAdapterError(
+                f"NASA planner returned unsupported evidence level: {evidence_level!r}"
+            )
     selected_action = delegated.get("selected_action")
-    run_path = Path(research_run).expanduser().resolve(strict=True)
     registry_path = Path(action_registry_path).expanduser().resolve(strict=True)
     bindings = [_binding("action_registry", registry_path, repository_root)]
-    for role, path in (
-        ("research_state", run_path / "research_state.json"),
-        ("research_ledger", run_path / "research_ledger.jsonl"),
-        ("research_objective", run_path / "research_objective.json"),
-    ):
-        if path.is_file():
-            bindings.append(_binding(role, path, repository_root))
+    state_path = run_path / "research_state.json"
+    if state_path.is_file():
+        bindings.append(_binding("research_state", state_path, repository_root))
+    ledger_path = run_path / "research_ledger.jsonl"
+    if ledger_path.is_file():
+        bindings.append(
+            _binding(
+                "research_ledger",
+                ledger_path,
+                repository_root,
+                snapshot_sha256=ledger_sha_before,
+            )
+        )
+    objective_path = run_path / "research_objective.json"
+    if objective_path.is_file():
+        bindings.append(_binding("research_objective", objective_path, repository_root))
     return _decision(
         adapter_id=_NASA_ADAPTER,
         domain="battery_degradation",
@@ -526,7 +597,15 @@ def _validate_nist_case_tables(
     )
     _required_csv_fields(
         measurement_fields,
-        {"sample_id", "case_id", "trace_number"},
+        {
+            "sample_id",
+            "case_id",
+            "trace_number",
+            "width_mean_um",
+            "width_std_um",
+            "depth_mean_um",
+            "depth_std_um",
+        },
         label="NIST AM-Bench measurement",
     )
 
@@ -549,36 +628,96 @@ def _validate_nist_case_tables(
         raise PlanningAdapterError(
             "NIST AM-Bench process and measurement tables do not join one-to-one by sample_id"
         )
-    measurement_by_id = {row["sample_id"]: row for row in measurement_rows}
-    for process_row in process_rows:
-        measurement_row = measurement_by_id[process_row["sample_id"]]
-        for field in ("case_id", "trace_number"):
-            if process_row.get(field) != measurement_row.get(field):
-                raise PlanningAdapterError(
-                    "NIST AM-Bench process/measurement identity fields disagree for "
-                    f"sample_id={process_row['sample_id']}: {field}"
-                )
 
     expected_system = _nonempty_text(tracked.get("system"), "NIST AM-Bench tracked system")
     expected_material = _nonempty_text(
         tracked.get("material"),
         "NIST AM-Bench tracked material",
     )
-    conditions: set[tuple[str, str]] = set()
+    process_by_id: dict[str, dict[str, str]] = {}
+    seen_traces: set[int] = set()
+    conditions: set[tuple[float, float]] = set()
     for row in process_rows:
+        sample_id = _nonempty_text(row.get("sample_id"), "NIST AM-Bench process sample_id")
+        trace = _canonical_positive_int(
+            row.get("trace_number"), "NIST AM-Bench process trace_number"
+        )
+        if trace in seen_traces or trace not in _NIST_EXPECTED_TRACES:
+            raise PlanningAdapterError(
+                f"NIST AM-Bench process trace identity drifted: {trace}"
+            )
+        seen_traces.add(trace)
+        expected_case, expected_power, expected_speed = _NIST_EXPECTED_TRACES[trace]
+        expected_sample_id = f"amb2018_02_ammt_trace_{trace:02d}"
+        if sample_id != expected_sample_id or row.get("case_id") != expected_case:
+            raise PlanningAdapterError(
+                f"NIST AM-Bench frozen trace/case/sample identity drifted for trace {trace}"
+            )
         if row.get("system") != expected_system or row.get("material") != expected_material:
             raise PlanningAdapterError(
                 "NIST AM-Bench process table material/system drifted from the frozen case"
             )
-        power = _nonempty_text(
+        power = _finite_float(
             row.get("actual_laser_power_w"),
             "NIST AM-Bench actual_laser_power_w",
+            positive=True,
         )
-        speed = _nonempty_text(
+        speed = _finite_float(
             row.get("scan_speed_mm_s"),
             "NIST AM-Bench scan_speed_mm_s",
+            positive=True,
         )
+        if not math.isclose(power, expected_power, rel_tol=0.0, abs_tol=1e-9) or not math.isclose(
+            speed, expected_speed, rel_tol=0.0, abs_tol=1e-9
+        ):
+            raise PlanningAdapterError(
+                f"NIST AM-Bench frozen process condition drifted for trace {trace}"
+            )
         conditions.add((power, speed))
+        process_by_id[sample_id] = row
+
+    if seen_traces != set(_NIST_EXPECTED_TRACES):
+        raise PlanningAdapterError("NIST AM-Bench frozen trace sequence is incomplete")
+
+    for row in measurement_rows:
+        sample_id = _nonempty_text(
+            row.get("sample_id"), "NIST AM-Bench measurement sample_id"
+        )
+        process_row = process_by_id.get(sample_id)
+        if process_row is None:
+            raise PlanningAdapterError(
+                "NIST AM-Bench measurement row has no process-table identity match"
+            )
+        trace = _canonical_positive_int(
+            row.get("trace_number"), "NIST AM-Bench measurement trace_number"
+        )
+        if str(trace) != process_row.get("trace_number") or row.get("case_id") != process_row.get(
+            "case_id"
+        ):
+            raise PlanningAdapterError(
+                "NIST AM-Bench process/measurement identity fields disagree for "
+                f"sample_id={sample_id}"
+            )
+        _finite_float(
+            row.get("width_mean_um"),
+            "NIST AM-Bench width_mean_um",
+            positive=True,
+        )
+        _finite_float(
+            row.get("depth_mean_um"),
+            "NIST AM-Bench depth_mean_um",
+            positive=True,
+        )
+        _finite_float(
+            row.get("width_std_um"),
+            "NIST AM-Bench width_std_um",
+            nonnegative=True,
+        )
+        _finite_float(
+            row.get("depth_std_um"),
+            "NIST AM-Bench depth_std_um",
+            nonnegative=True,
+        )
 
     expected_condition_count = tracked.get("unique_process_condition_count")
     if (
