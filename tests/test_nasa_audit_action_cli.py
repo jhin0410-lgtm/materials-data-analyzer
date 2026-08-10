@@ -170,6 +170,6 @@ def test_cli_preflight_error_returns_nonzero_without_action(tmp_path: Path, caps
     request.write_text(json.dumps(payload), encoding="utf-8")
 
     assert cli.main(_execute_args(request, research)) == 1
-    assert "registry SHA-256" in capsys.readouterr().err
+    assert "expected_registry_sha256 does not match authorization" in capsys.readouterr().err
     state = json.loads((research / "research_state.json").read_text(encoding="utf-8"))
     assert state["actions"] == []
