@@ -17,6 +17,13 @@ from .action_authorization import (
     ActionAuthorizationError,
     assess_current_action_authorization,
 )
+from .action_output_ledger_transaction import (
+    ActionOutputLedgerTransactionError,
+    cleanup_action_output_ledger_transaction,
+    mark_action_output_ledger_committed,
+    prepare_action_output_ledger_transaction,
+    shared_research_ledger_transaction_lock,
+)
 from .kernel import ResearchLoopError, load_research_state
 from .nasa_audit_executor import (
     ACTION_TYPE as AUDIT_ACTION_TYPE,
@@ -42,7 +49,7 @@ from .pinned_execution_verifier import (
 )
 
 EXECUTION_SCHEMA_VERSION = "1.0"
-EXECUTION_POLICY_VERSION = "1.4"
+EXECUTION_POLICY_VERSION = "1.5"
 _ACTION_REPORT_FILENAME = "action_result.json"
 
 Executor = Callable[..., dict[str, Any]]
@@ -289,138 +296,172 @@ def execute_authorized_action(
     request, request_record = _load_request_snapshot(request_file)
     _require_expected_action_type(request, expected_action_type=expected_action_type)
 
-    try:
-        authorization = assess_current_action_authorization(
-            adapter_id,
-            repository_root=root,
+    with shared_research_ledger_transaction_lock(run):
+        try:
+            authorization = assess_current_action_authorization(
+                adapter_id,
+                repository_root=root,
+                research_run=run,
+                action_registry_path=action_registry_path,
+            )
+        except ActionAuthorizationError as exc:
+            raise AuthorizedExecutionError(str(exc)) from exc
+        if authorization.get("authorization_status") != "ready_for_explicit_execution_request":
+            raise AuthorizedExecutionError(
+                "current selected action is not ready for an explicit execution request: "
+                f"{authorization.get('authorization_status')!r}"
+            )
+        selected = authorization.get("selected_action")
+        contract = authorization.get("execution_contract")
+        if not isinstance(selected, Mapping) or not isinstance(contract, Mapping):
+            raise AuthorizedExecutionError("authorization omitted selected action contract")
+        action_type = selected.get("action_type")
+        action_version = selected.get("action_version")
+        contract_version = contract.get("action_version")
+        if not isinstance(action_type, str) or not isinstance(action_version, str):
+            raise AuthorizedExecutionError("selected action type/version binding is malformed")
+        if contract_version != action_version:
+            raise AuthorizedExecutionError(
+                "selected action version does not match the authorized execution contract"
+            )
+        dispatch_key = (action_type, action_version)
+        if dispatch_key not in _DISPATCH:
+            raise AuthorizedExecutionError(
+                "selected action type/version has no hardcoded typed executor: "
+                f"{action_type!r} version {action_version!r}"
+            )
+        registry_raw = contract.get("registry_path")
+        registry_sha = contract.get("registry_sha256")
+        if not isinstance(registry_raw, str) or not isinstance(registry_sha, str):
+            raise AuthorizedExecutionError("authorization execution registry binding is malformed")
+        cost_units = contract.get("cost_units")
+        if isinstance(cost_units, bool) or not isinstance(cost_units, int) or cost_units < 0:
+            raise AuthorizedExecutionError("authorization execution cost binding is malformed")
+        registry_path = Path(registry_raw).expanduser().resolve(strict=True)
+        request_action_id = _require_request_binding(
+            request,
+            request_path=request_file,
+            action_type=action_type,
             research_run=run,
-            action_registry_path=action_registry_path,
+            repository_root=root,
+            registry_path=registry_path,
+            registry_sha256=registry_sha,
         )
-    except ActionAuthorizationError as exc:
-        raise AuthorizedExecutionError(str(exc)) from exc
-    if authorization.get("authorization_status") != "ready_for_explicit_execution_request":
-        raise AuthorizedExecutionError(
-            "current selected action is not ready for an explicit execution request: "
-            f"{authorization.get('authorization_status')!r}"
-        )
-    selected = authorization.get("selected_action")
-    contract = authorization.get("execution_contract")
-    if not isinstance(selected, Mapping) or not isinstance(contract, Mapping):
-        raise AuthorizedExecutionError("authorization omitted selected action contract")
-    action_type = selected.get("action_type")
-    action_version = selected.get("action_version")
-    contract_version = contract.get("action_version")
-    if not isinstance(action_type, str) or not isinstance(action_version, str):
-        raise AuthorizedExecutionError("selected action type/version binding is malformed")
-    if contract_version != action_version:
-        raise AuthorizedExecutionError(
-            "selected action version does not match the authorized execution contract"
-        )
-    dispatch_key = (action_type, action_version)
-    if dispatch_key not in _DISPATCH:
-        raise AuthorizedExecutionError(
-            "selected action type/version has no hardcoded typed executor: "
-            f"{action_type!r} version {action_version!r}"
-        )
-    registry_raw = contract.get("registry_path")
-    registry_sha = contract.get("registry_sha256")
-    if not isinstance(registry_raw, str) or not isinstance(registry_sha, str):
-        raise AuthorizedExecutionError("authorization execution registry binding is malformed")
-    registry_path = Path(registry_raw).expanduser().resolve(strict=True)
-    request_action_id = _require_request_binding(
-        request,
-        request_path=request_file,
-        action_type=action_type,
-        research_run=run,
-        repository_root=root,
-        registry_path=registry_path,
-        registry_sha256=registry_sha,
-    )
-    expected_action_directory = _expected_action_directory(run, request_action_id)
+        expected_action_directory = _expected_action_directory(run, request_action_id)
 
-    before_state = load_research_state(run)
-    before_actions = before_state.get("actions")
-    if not isinstance(before_actions, list):
-        raise AuthorizedExecutionError("pre-execution research action ledger is malformed")
-    before_count = len(before_actions)
+        before_state = load_research_state(run)
+        before_actions = before_state.get("actions")
+        if not isinstance(before_actions, list):
+            raise AuthorizedExecutionError("pre-execution research action ledger is malformed")
+        before_count = len(before_actions)
 
-    executor, verifier = _DISPATCH[dispatch_key]
-    executor_result = executor(
-        request,
-        request_path=request_file,
-        request_record=request_record,
-    )
-
-    after_state = load_research_state(run)
-    after_actions = after_state.get("actions")
-    if not isinstance(after_actions, list):
-        raise AuthorizedExecutionError("post-execution research action ledger is malformed")
-    if len(after_actions) != before_count + 1:
-        raise AuthorizedExecutionError(
-            "typed executor must append exactly one research action per invocation"
-        )
-    ledger_action, report_path = _latest_action_report(
-        after_state,
-        expected_action_type=action_type,
-        expected_action_id=request_action_id,
-        expected_action_directory=expected_action_directory,
-    )
-    verified_report = verifier(
-        report_path,
-        request_value=request,
-        request_path=request_file,
-        request_record=request_record,
-    )
-    if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
-        raise AuthorizedExecutionError("typed executor/verifier returned malformed result")
-    if executor_result.get("action_id") != request_action_id:
-        raise AuthorizedExecutionError(
-            "typed executor result action_id does not match the explicit request"
-        )
-    if verified_report.get("action_id") != request_action_id:
-        raise AuthorizedExecutionError(
-            "verified action report action_id does not match the explicit request"
+        transaction = prepare_action_output_ledger_transaction(
+            research_run=run,
+            request=request,
+            request_path=request_file,
+            request_record=request_record,
+            action_id=request_action_id,
+            action_type=action_type,
+            action_version=action_version,
+            cost_units=cost_units,
+            state=before_state,
         )
 
-    return {
-        "schema_version": EXECUTION_SCHEMA_VERSION,
-        "execution_policy_version": EXECUTION_POLICY_VERSION,
-        "adapter_id": adapter_id,
-        "action_type": action_type,
-        "action_version": action_version,
-        "request_binding": {
-            "path": request_record["path"],
-            "sha256": request_record["sha256"],
-            "size_bytes": request_record["bytes"],
-        },
-        "authorization_status": authorization["authorization_status"],
-        "execution_registry": {
-            "registry_id": contract.get("registry_id"),
-            "registry_sha256": registry_sha,
-            "registry_path": str(registry_path),
-        },
-        "execution_status": ledger_action.get("status"),
-        "ledger_action_id": ledger_action.get("action_id"),
-        "action_report": str(report_path),
-        "verified_report": dict(verified_report),
-        "actions_before": before_count,
-        "actions_after": len(after_actions),
-        "maximum_actions_executed_per_invocation": 1,
-        "action_executed": True,
-        "automatic_execution_authorized": False,
-        "explicit_execution_request_used": True,
-        "generic_command_execution_available": False,
-        "network_access_initiated_by_orchestrator": False,
-        "model_fit_initiated_by_orchestrator": False,
-        "scientific_evidence_upgraded_by_orchestrator": False,
-        "scientific_boundary": (
-            "This wrapper proves bounded typed dispatch, exact request-byte handoff, "
-            "surface-specific action restriction, and independent pinned-snapshot report "
-            "verification. Scientific interpretation remains owned by the typed action and "
-            "downstream evidence contracts; execution success does not itself upgrade "
-            "scientific evidence."
-        ),
-    }
+        executor, verifier = _DISPATCH[dispatch_key]
+        if transaction.get("recovered"):
+            executor_result: Mapping[str, Any] = {
+                "execution_status": "recovered",
+                "action_id": request_action_id,
+            }
+        else:
+            executor_result = executor(
+                request,
+                request_path=request_file,
+                request_record=request_record,
+            )
+
+        after_state = load_research_state(run)
+        after_actions = after_state.get("actions")
+        if not isinstance(after_actions, list):
+            raise AuthorizedExecutionError("post-execution research action ledger is malformed")
+        if len(after_actions) != before_count + 1:
+            raise AuthorizedExecutionError(
+                "typed executor or recovery must append exactly one research action per invocation"
+            )
+        mark_action_output_ledger_committed(
+            research_run=run,
+            action_id=request_action_id,
+            action_type=action_type,
+            state=after_state,
+        )
+        ledger_action, report_path = _latest_action_report(
+            after_state,
+            expected_action_type=action_type,
+            expected_action_id=request_action_id,
+            expected_action_directory=expected_action_directory,
+        )
+        verified_report = verifier(
+            report_path,
+            request_value=request,
+            request_path=request_file,
+            request_record=request_record,
+        )
+        if not isinstance(executor_result, Mapping) or not isinstance(verified_report, Mapping):
+            raise AuthorizedExecutionError("typed executor/verifier returned malformed result")
+        if executor_result.get("action_id") != request_action_id:
+            raise AuthorizedExecutionError(
+                "typed executor result action_id does not match the explicit request"
+            )
+        if verified_report.get("action_id") != request_action_id:
+            raise AuthorizedExecutionError(
+                "verified action report action_id does not match the explicit request"
+            )
+        cleanup_action_output_ledger_transaction(
+            research_run=run,
+            action_id=request_action_id,
+        )
+
+        return {
+            "schema_version": EXECUTION_SCHEMA_VERSION,
+            "execution_policy_version": EXECUTION_POLICY_VERSION,
+            "adapter_id": adapter_id,
+            "action_type": action_type,
+            "action_version": action_version,
+            "request_binding": {
+                "path": request_record["path"],
+                "sha256": request_record["sha256"],
+                "size_bytes": request_record["bytes"],
+            },
+            "authorization_status": authorization["authorization_status"],
+            "execution_registry": {
+                "registry_id": contract.get("registry_id"),
+                "registry_sha256": registry_sha,
+                "registry_path": str(registry_path),
+            },
+            "execution_status": ledger_action.get("status"),
+            "ledger_action_id": ledger_action.get("action_id"),
+            "action_report": str(report_path),
+            "verified_report": dict(verified_report),
+            "actions_before": before_count,
+            "actions_after": len(after_actions),
+            "maximum_actions_executed_per_invocation": 1,
+            "action_executed": True,
+            "transaction_recovered": bool(transaction.get("recovered")),
+            "output_ledger_transaction": "cleaned",
+            "automatic_execution_authorized": False,
+            "explicit_execution_request_used": True,
+            "generic_command_execution_available": False,
+            "network_access_initiated_by_orchestrator": False,
+            "model_fit_initiated_by_orchestrator": False,
+            "scientific_evidence_upgraded_by_orchestrator": False,
+            "scientific_boundary": (
+                "This wrapper proves bounded typed dispatch, exact request-byte handoff, "
+                "surface-specific action restriction, recoverable output-to-ledger commit, "
+                "and independent pinned-snapshot report verification. Scientific "
+                "interpretation remains owned by the typed action and downstream evidence "
+                "contracts; execution success does not itself upgrade scientific evidence."
+            ),
+        }
 
 
 def execute_authorized_action_with_failure_classification(
@@ -444,6 +485,8 @@ def execute_authorized_action_with_failure_classification(
             request_path=request_path,
             expected_action_type=expected_action_type,
         )
+    except ActionOutputLedgerTransactionError:
+        raise
     except ResearchLoopError as exc:
         try:
             after_count = _action_count(run, phase="post-failure")
