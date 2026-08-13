@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Mapping
 from io import StringIO
@@ -14,6 +15,40 @@ from .characterization_features import REQUIRED_COLUMNS
 
 CONTRACT_VERSION = "1.0"
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+_SOURCE_RECORD_CONTAINER_KEYS = {
+    "sources",
+    "source_files",
+    "source_records",
+    "files",
+    "input_files",
+    "raw_files",
+    "archive_members",
+    "raw_archive_members",
+}
+_SOURCE_RECORD_KEYS = {
+    "source",
+    "source_file",
+    "source_record",
+    "measurement_source",
+    "raw_source",
+    "raw_file",
+    "input_file",
+    "archive_member",
+}
+_SOURCE_IDENTITY_FIELDS = {
+    "path",
+    "filename",
+    "source_file",
+    "url",
+    "download_url",
+    "record_url",
+    "member_path",
+    "archive_member",
+    "doi",
+    "provenance_type",
+    "source_type",
+}
+_EXPLICIT_SOURCE_DIGEST_KEYS = {"source_sha256", "file_sha256", "member_sha256"}
 
 
 def validate_required_evidence_identity_binding(
@@ -66,9 +101,9 @@ def validate_required_evidence_identity_binding(
 
 
 def _contract(manifest: Mapping[str, Any]) -> dict[str, Any] | None:
-    raw = manifest.get("evidence_identity_binding_contract")
-    if raw is None:
+    if "evidence_identity_binding_contract" not in manifest:
         return None
+    raw = manifest["evidence_identity_binding_contract"]
     if not isinstance(raw, Mapping):
         raise ValueError("evidence_identity_binding_contract must be an object")
     if set(raw) != {"schema_version", "required"}:
@@ -100,9 +135,19 @@ def _analysis_binding(path: Path, feature_table: pd.DataFrame) -> dict[str, Any]
         features = analysis.get("features")
         if not isinstance(features, list):
             raise ValueError(f"analysis manifest entry {index} features must be a list")
-        for feature in features:
+        for feature_index, feature in enumerate(features):
             if not isinstance(feature, Mapping):
                 raise ValueError("analysis feature entries must be objects")
+            value = feature.get("value")
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+            ):
+                raise ValueError(
+                    "analysis manifest feature value must be a finite JSON number; "
+                    f"entry={index}, feature={feature_index}"
+                )
             rows.append(dict(feature))
     if not rows:
         raise ValueError("analysis manifest contains no feature records")
@@ -155,7 +200,7 @@ def _source_binding(
             "required evidence identity binding failed: every feature row requires source_sha256"
         )
     feature_digests = {str(value).strip().lower() for value in raw_digests}
-    source_digests = _collect_sha256_values(source)
+    source_digests = _collect_source_record_sha256_values(source)
     missing = sorted(feature_digests - source_digests)
     if missing:
         raise ValueError(
@@ -167,6 +212,7 @@ def _source_binding(
         "feature_source_sha256_count": len(feature_digests),
         "source_manifest_sha256_value_count": len(source_digests),
         "source_manifest_case_id_checked": case_id_checked,
+        "source_digest_scope": "recognized_source_records_only",
     }
 
 
@@ -267,21 +313,56 @@ def _normalized_feature_rows(table: pd.DataFrame) -> list[tuple[object, ...]]:
     return sorted(rows, key=repr)
 
 
-def _collect_sha256_values(value: object) -> set[str]:
+def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
+    """Collect digests only from records that are structurally source-scoped.
+
+    A generic checksum in audit/expected/output metadata is not evidence that a
+    feature's source bytes are represented by the source manifest.  Explicit
+    source digest fields are accepted directly.  Generic ``sha256`` is accepted
+    only on a record reached through a recognized source key/container (or on a
+    root record with a source identity field).
+    """
     digests: set[str] = set()
-    if isinstance(value, Mapping):
-        for key, item in value.items():
-            key_text = str(key).strip().lower()
-            if (
-                isinstance(item, str)
-                and (key_text == "sha256" or key_text.endswith("_sha256"))
-                and _SHA256.fullmatch(item.strip())
-            ):
-                digests.add(item.strip().lower())
-            digests.update(_collect_sha256_values(item))
-    elif isinstance(value, list):
-        for item in value:
-            digests.update(_collect_sha256_values(item))
+
+    def visit(value: object, *, source_scoped: bool, record_key: str | None) -> None:
+        if isinstance(value, Mapping):
+            keys = {str(key).strip().lower() for key in value}
+            current_scoped = source_scoped or (
+                record_key in _SOURCE_RECORD_KEYS
+                or record_key in _SOURCE_RECORD_CONTAINER_KEYS
+            )
+            for key, item in value.items():
+                key_text = str(key).strip().lower()
+                if (
+                    key_text in _EXPLICIT_SOURCE_DIGEST_KEYS
+                    and isinstance(item, str)
+                    and _SHA256.fullmatch(item.strip())
+                ):
+                    digests.add(item.strip().lower())
+                elif (
+                    key_text == "sha256"
+                    and isinstance(item, str)
+                    and _SHA256.fullmatch(item.strip())
+                    and (
+                        current_scoped
+                        or record_key in _SOURCE_RECORD_KEYS
+                        or bool(keys & _SOURCE_IDENTITY_FIELDS)
+                    )
+                ):
+                    digests.add(item.strip().lower())
+
+                child_scoped = current_scoped or key_text in _SOURCE_RECORD_CONTAINER_KEYS
+                child_record_key = key_text if isinstance(item, Mapping) else record_key
+                visit(
+                    item,
+                    source_scoped=child_scoped,
+                    record_key=child_record_key,
+                )
+        elif isinstance(value, list):
+            for item in value:
+                visit(item, source_scoped=source_scoped, record_key=record_key)
+
+    visit(source, source_scoped=False, record_key=None)
     return digests
 
 
