@@ -9,6 +9,9 @@ from typing import Any
 
 import pandas as pd
 
+from .characterization_evidence_binding import (
+    validate_required_evidence_identity_binding,
+)
 from .characterization_features import (
     REQUIRED_COLUMNS,
     run_characterization_handoff,
@@ -37,6 +40,7 @@ class ValidatedCharacterizationBundle:
     evidence_paths: dict[str, Path]
     feature_table: pd.DataFrame
     sample_context: pd.DataFrame
+    evidence_identity_binding: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -45,10 +49,25 @@ class ValidatedProcessInput:
     metadata: dict[str, Any]
 
 
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key in characterization bundle: {key}")
+        result[key] = value
+    return result
+
+
 def _read_json_object(path: Path, label: str) -> dict[str, Any]:
     if not path.is_file():
         raise FileNotFoundError(f"{label} not found: {path}")
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_pairs,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"could not read {label}: {path}") from exc
     if not isinstance(payload, dict):
         raise ValueError(f"{label} must contain a JSON object.")
     return payload
@@ -205,6 +224,12 @@ def validate_characterization_bundle(
             "Feature and sample-context sample_id sets must match exactly."
         )
 
+    evidence_identity_binding = validate_required_evidence_identity_binding(
+        manifest=manifest,
+        feature_table=features,
+        evidence_paths=evidence_paths,
+    )
+
     closeout = _as_dict(
         manifest.get("scientific_closeout"), "scientific_closeout"
     )
@@ -222,6 +247,7 @@ def validate_characterization_bundle(
         evidence_paths=evidence_paths,
         feature_table=features,
         sample_context=context,
+        evidence_identity_binding=evidence_identity_binding,
     )
 
 
@@ -429,6 +455,7 @@ def _build_report(summary: dict[str, Any]) -> str:
     )
     normalization = summary["unit_label_normalization"]
     process = summary["process_input"]
+    binding = summary["evidence_identity_binding"]
     verified_identity = ", ".join(process["verified_identity_columns"])
     return f"""# Cross-Repository Characterization Handoff Report
 
@@ -452,6 +479,21 @@ metadata inference, model training, or scientific metric recomputation occurred.
 - Measurements: {summary['feature_summary']['measurement_count']}
 - Samples: {summary['feature_summary']['sample_count']}
 - Matched samples: {summary['join_summary']['matched']}
+
+## Evidence Identity Binding
+
+- Contract present: `{str(binding['contract_present']).lower()}`
+- Contract required: `{str(binding['contract_required']).lower()}`
+- Semantic identity binding independently verified: `{str(binding['semantic_identity_binding_verified']).lower()}`
+- Legacy checksum-only validation: `{str(binding['legacy_checksum_only_validation']).lower()}`
+- Scientific comparability established: `{str(binding['scientific_comparability_established']).lower()}`
+
+When the producer declares `evidence_identity_binding_contract.required=true`,
+the consumer independently reconstructs the exported features from the analysis
+manifest, verifies every feature source digest against the source manifest, and
+checks comparability sample/modality identity coverage. It does not trust a
+producer-side validation summary. Legacy bundles without the optional contract
+retain their historical checksum-only validation semantics.
 
 ## Process Input
 
@@ -495,9 +537,11 @@ physical unit.
 ## Decision Boundary
 
 This package validates software interoperability, explicit process-context
-identity, and provenance transfer. It does not prove causal process-response
-relationships, predictive generalization, phase or chemical-state assignments,
-or engineering release readiness.
+identity, provenance transfer, and—when required—the semantic identity binding
+between feature records and their checksum-verified evidence files. It does not
+prove identical physical aliquots, scientific comparability, causal
+process-response relationships, predictive generalization, phase or chemical-state
+assignments, or engineering release readiness.
 """
 
 
@@ -577,10 +621,21 @@ def consume_characterization_bundle(
         "process_input": process_input.metadata,
         "unit_label_normalization": normalization,
         "join_summary": join_summary,
+        "evidence_identity_binding": bundle.evidence_identity_binding,
         "software_validation": {
             "all_bundle_checksums_verified": True,
             "stable_feature_contract_validated": True,
             "sample_identity_sets_match": True,
+            "evidence_identity_binding_contract_present": bundle.evidence_identity_binding[
+                "contract_present"
+            ],
+            "semantic_evidence_identity_binding_verified": bundle.evidence_identity_binding[
+                "semantic_identity_binding_verified"
+            ],
+            "legacy_checksum_only_evidence_validation": bundle.evidence_identity_binding[
+                "legacy_checksum_only_validation"
+            ],
+            "scientific_comparability_established": False,
             "external_process_table_used": bool(process_table_path is not None),
             "process_identity_columns_verified": process_input.metadata[
                 "verified_identity_columns"
@@ -628,6 +683,7 @@ def consume_characterization_bundle(
         },
         "process_input": process_input.metadata,
         "unit_label_normalization": normalization,
+        "evidence_identity_binding": bundle.evidence_identity_binding,
         "validation": summary["software_validation"],
         "join_summary": join_summary,
         "scientific_closeout": bundle.manifest["scientific_closeout"],

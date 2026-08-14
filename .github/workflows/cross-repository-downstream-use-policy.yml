@@ -8,7 +8,9 @@ on:
       - "src/materials_data_analyzer/characterization_use_workflow.py"
       - "src/materials_data_analyzer/characterization_import_cli.py"
       - "src/loaders/characterization_bundle.py"
+      - "src/loaders/characterization_evidence_binding.py"
       - "scripts/consume_characterization_handoff_bundle.py"
+      - "tests/test_characterization_bundle.py"
       - "tests/test_characterization_use_policy.py"
       - "tests/test_characterization_use_workflow.py"
       - ".github/workflows/cross-repository-downstream-use-policy.yml"
@@ -21,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MCA_COMMIT: cdc89e4ed54be6ebe61ef869d0f5b912be0c84a4
+  MCA_COMMIT: 07879eb4e204ab47916b242dfb6ee652796ad444
 
 jobs:
   validate-policy-aware-handoff:
@@ -83,6 +85,7 @@ jobs:
           policy = manifest["downstream_use_policy"]
 
           assert manifest["scientific_closeout"]["evidence_level"] == "Diagnostic"
+          assert "evidence_identity_binding_contract" not in manifest
           assert policy["schema_version"] == "1.0"
           assert policy["maximum_allowed_use"] == "descriptive"
           assert policy["evidence_level"] == "Diagnostic"
@@ -105,7 +108,7 @@ jobs:
             --output materials-data-analyzer/outputs/policy-aware-nist-consumer \
             --requested-use descriptive
 
-      - name: Verify recorded eligibility and output hashes
+      - name: Verify recorded eligibility and legacy evidence semantics
         shell: bash
         run: |
           python - <<'PY'
@@ -169,6 +172,16 @@ jobs:
           }
           assert summary["downstream_use_eligibility"] == expected
           assert manifest["downstream_use_eligibility"] == expected
+          assert summary["evidence_identity_binding"] == {
+              "contract_present": False,
+              "contract_required": False,
+              "legacy_checksum_only_validation": True,
+              "semantic_identity_binding_verified": False,
+              "scientific_comparability_established": False,
+          }
+          assert manifest["evidence_identity_binding"] == summary[
+              "evidence_identity_binding"
+          ]
 
           for name, filename in manifest["outputs"].items():
               path = output / filename
@@ -176,6 +189,159 @@ jobs:
               assert manifest["output_sha256"][name] == hashlib.sha256(
                   path.read_bytes()
               ).hexdigest()
+          PY
+
+      - name: Build producer hardened evidence-binding bundle
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from mca.handoff_bundle_builder import build_characterization_handoff_bundle_from_config
+
+          root = Path("materials-characterization-analyzer/outputs/hardened-contract-input")
+          root.mkdir(parents=True, exist_ok=True)
+          digest = "a" * 64
+          source = root / "source_manifest.json"
+          analysis = root / "analysis_manifest.json"
+          comparability = root / "comparability_matrix.csv"
+          config = root / "handoff_config.json"
+
+          source.write_text(
+              json.dumps(
+                  {
+                      "case_id": "cross-repo-hardened-evidence-test",
+                      "source": {"sha256": digest},
+                  },
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          feature = {
+              "sample_id": "sample-a",
+              "measurement_id": "sample-a-xrd",
+              "instrument": "xrd",
+              "feature_name": "detected_peak_count",
+              "feature_label": None,
+              "value": 3.0,
+              "unit": "count",
+              "method": "diagnostic_peak_detection",
+              "source_file": "producer-local/source.csv",
+              "source_sha256": digest,
+              "preprocessing_id": "xrd-preprocessing-v1",
+              "quality_flag": "review_required",
+          }
+          analysis.write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1.0",
+                      "analysis_count": 1,
+                      "analyses": [
+                          {
+                              "schema_version": "1.0",
+                              "software_version": "cross-repo-contract",
+                              "features": [feature],
+                          }
+                      ],
+                  },
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          comparability.write_text(
+              "sample_id,modality,comparability_status\n"
+              "sample-a,xrd,not_established\n",
+              encoding="utf-8",
+          )
+          config.write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1.0",
+                      "case_id": "cross-repo-hardened-evidence-test",
+                      "producer_repository": "jhin0410-lgtm/materials-characterization-analyzer",
+                      "evidence_level": "Diagnostic",
+                      "sample_context_rows": [
+                          {
+                              "sample_id": "sample-a",
+                              "case_id": "cross-repo-hardened-evidence-test",
+                          }
+                      ],
+                      "scientific_boundary": {
+                          "result": "contract_fixture_only",
+                          "strongest_evidence": "Checksum-bound identity fixture.",
+                          "primary_limitation": "Not scientific validation.",
+                          "suitable_for": ["cross-repository contract validation"],
+                          "unsuitable_for": ["scientific performance claims"],
+                      },
+                      "evidence": {
+                          "source_manifest": "source_manifest.json",
+                          "analysis_manifest": "analysis_manifest.json",
+                          "comparability_matrix": "comparability_matrix.csv",
+                      },
+                  },
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          result = build_characterization_handoff_bundle_from_config(
+              config,
+              "materials-characterization-analyzer/outputs/hardened-contract-bundle",
+          )
+          binding = result["validation"]["evidence_identity_binding"]
+          assert binding["analysis_manifest_features_reproduced"] is True
+          assert binding["source_sha256_coverage_verified"] is True
+          assert binding["comparability_identity_coverage_verified"] is True
+          manifest = json.loads(
+              Path(result["manifest"]).read_text(encoding="utf-8")
+          )
+          assert manifest["evidence_identity_binding_contract"] == {
+              "schema_version": "1.0",
+              "required": True,
+          }
+          PY
+
+      - name: Consume hardened bundle through independent consumer loader
+        shell: bash
+        run: |
+          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest materials-characterization-analyzer/outputs/hardened-contract-bundle/characterization_handoff_bundle.json \
+            --output materials-data-analyzer/outputs/hardened-contract-consumer
+
+      - name: Verify independent consumer evidence binding
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          output = Path("materials-data-analyzer/outputs/hardened-contract-consumer")
+          summary = json.loads(
+              (output / "cross_repository_handoff_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          manifest = json.loads(
+              (output / "cross_repository_handoff_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          binding = summary["evidence_identity_binding"]
+          assert binding["contract_present"] is True
+          assert binding["contract_required"] is True
+          assert binding["semantic_identity_binding_verified"] is True
+          assert binding["analysis_manifest_features_reproduced"] is True
+          assert binding["every_feature_row_source_sha256_bound"] is True
+          assert binding["comparability_identity_coverage_verified"] is True
+          assert binding["comparability_sample_instrument_pair_coverage_verified"] is True
+          assert binding["scientific_comparability_established"] is False
+          assert manifest["evidence_identity_binding"] == binding
+          assert summary["software_validation"][
+              "semantic_evidence_identity_binding_verified"
+          ] is True
+          assert summary["software_validation"][
+              "scientific_comparability_established"
+          ] is False
           PY
 
       - name: Verify predictive use fails closed before output creation
@@ -198,10 +364,11 @@ jobs:
           grep -F "exceeds maximum_allowed_use 'descriptive'" \
             materials-data-analyzer/outputs/policy-aware-predictive-block.log
 
-      - name: Run focused policy regressions
+      - name: Run focused policy and evidence-binding regressions
         working-directory: materials-data-analyzer
         run: |
           python -m pytest -q \
+            tests/test_characterization_bundle.py \
             tests/test_characterization_use_policy.py \
             tests/test_characterization_use_workflow.py \
             tests/test_characterization_import_cli.py
@@ -213,7 +380,9 @@ jobs:
           name: cross-repository-downstream-use-policy-evidence
           path: |
             materials-characterization-analyzer/outputs/policy-aware-nist-ambench
+            materials-characterization-analyzer/outputs/hardened-contract-bundle
             materials-data-analyzer/outputs/policy-aware-nist-consumer
+            materials-data-analyzer/outputs/hardened-contract-consumer
             materials-data-analyzer/outputs/policy-aware-predictive-block.log
           if-no-files-found: warn
           retention-days: 14

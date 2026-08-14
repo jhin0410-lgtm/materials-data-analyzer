@@ -1,0 +1,240 @@
+name: Cross-repository evidence-binding parity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/loaders/characterization_bundle.py"
+      - "src/loaders/characterization_evidence_binding.py"
+      - "tests/test_characterization_bundle.py"
+      - "tests/test_characterization_evidence_binding_*.py"
+      - ".github/workflows/cross-repository-evidence-binding-parity.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-repository-evidence-binding-parity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MCA_COMMIT: aca5fb14e37f01d35044696f5f7448180e8cb01b
+
+jobs:
+  validate-latest-producer-consumer-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+        with:
+          path: materials-data-analyzer
+
+      - name: Check out exact hardened materials-characterization-analyzer producer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: ${{ env.MCA_COMMIT }}
+          path: materials-characterization-analyzer
+
+      - name: Verify exact producer commit
+        shell: bash
+        run: |
+          actual="$(git -C materials-characterization-analyzer rev-parse HEAD)"
+          test "$actual" = "$MCA_COMMIT"
+          echo "verified MCA producer commit: $actual"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install both repositories independently
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r materials-data-analyzer/requirements.txt
+          python -m pip install -e materials-data-analyzer
+          python -m pip install -e materials-characterization-analyzer
+
+      - name: Run producer evidence-binding parity regressions
+        working-directory: materials-characterization-analyzer
+        run: |
+          python -m pytest -q \
+            tests/test_handoff_evidence_binding_parity.py \
+            tests/test_handoff_evidence_binding_source_context.py \
+            tests/test_handoff_evidence_binding_workbook_source.py \
+            tests/test_handoff_evidence_binding_nested_scope.py \
+            tests/test_handoff_evidence_binding_root_scope.py
+
+      - name: Run consumer evidence-binding parity regressions
+        working-directory: materials-data-analyzer
+        run: |
+          python -m pytest -q \
+            tests/test_characterization_evidence_binding_review_regressions.py \
+            tests/test_characterization_evidence_binding_source_context.py \
+            tests/test_characterization_evidence_binding_source_scope.py \
+            tests/test_characterization_evidence_binding_workbook_source.py \
+            tests/test_characterization_evidence_binding_nested_scope.py \
+            tests/test_characterization_evidence_binding_root_scope.py
+
+      - name: Build hardened producer bundle with config-checksum trap
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from mca.handoff_bundle_builder import build_characterization_handoff_bundle_from_config
+
+          root = Path("parity-input")
+          root.mkdir()
+          source_digest = "a" * 64
+          config_digest = "b" * 64
+
+          source = root / "source_manifest.json"
+          analysis = root / "analysis_manifest.json"
+          comparability = root / "comparability_matrix.csv"
+          config = root / "handoff_config.json"
+
+          source.write_text(
+              json.dumps(
+                  {
+                      "case_id": "latest-evidence-binding-parity",
+                      "tracked_inputs": {
+                          "case_config": {
+                              "path": "case_config.json",
+                              "sha256": config_digest,
+                          },
+                          "measurement_source": {
+                              "path": "measurements.csv",
+                              "sha256": source_digest,
+                          },
+                      },
+                  },
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          feature = {
+              "sample_id": "sample-a",
+              "measurement_id": "sample-a-xrd",
+              "instrument": "xrd",
+              "feature_name": "detected_peak_count",
+              "feature_label": None,
+              "value": 3.0,
+              "unit": "count",
+              "method": "diagnostic_peak_detection",
+              "source_file": "measurements.csv",
+              "source_sha256": source_digest,
+              "preprocessing_id": "xrd-preprocessing-v1",
+              "quality_flag": "review_required",
+          }
+          analysis.write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1.0",
+                      "analysis_count": 1,
+                      "analyses": [
+                          {
+                              "schema_version": "1.0",
+                              "software_version": "latest-parity-workflow",
+                              "features": [feature],
+                          }
+                      ],
+                  },
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          comparability.write_text(
+              "sample_id,modality,comparability_status\n"
+              "sample-a,xrd,not_established\n",
+              encoding="utf-8",
+          )
+          config.write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1.0",
+                      "case_id": "latest-evidence-binding-parity",
+                      "producer_repository": "jhin0410-lgtm/materials-characterization-analyzer",
+                      "evidence_level": "Diagnostic",
+                      "sample_context_rows": [
+                          {
+                              "sample_id": "sample-a",
+                              "case_id": "latest-evidence-binding-parity",
+                          }
+                      ],
+                      "scientific_boundary": {
+                          "result": "contract_fixture_only",
+                          "strongest_evidence": "Checksum-bound identity fixture.",
+                          "primary_limitation": "Not scientific validation.",
+                          "suitable_for": ["cross-repository contract validation"],
+                          "unsuitable_for": ["scientific performance claims"],
+                      },
+                      "evidence": {
+                          "source_manifest": source.name,
+                          "analysis_manifest": analysis.name,
+                          "comparability_matrix": comparability.name,
+                      },
+                  },
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+
+          result = build_characterization_handoff_bundle_from_config(
+              config,
+              "producer-parity-bundle",
+          )
+          binding = result["validation"]["evidence_identity_binding"]
+          assert binding["source_sha256_coverage_verified"] is True
+          assert binding["feature_source_sha256_count"] == 1
+          assert binding["source_manifest_sha256_value_count"] == 1
+          assert binding["source_digest_scope"] == "recognized_source_records_only"
+          print(json.dumps(binding, indent=2, sort_keys=True))
+          PY
+
+      - name: Consume exact hardened producer bundle
+        shell: bash
+        run: |
+          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest producer-parity-bundle/characterization_handoff_bundle.json \
+            --output consumer-parity-output
+
+      - name: Verify independent consumer parity result
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(
+              Path("consumer-parity-output/cross_repository_handoff_summary.json")
+              .read_text(encoding="utf-8")
+          )
+          binding = summary["evidence_identity_binding"]
+          assert binding["contract_present"] is True
+          assert binding["contract_required"] is True
+          assert binding["semantic_identity_binding_verified"] is True
+          assert binding["analysis_manifest_features_reproduced"] is True
+          assert binding["every_feature_row_source_sha256_bound"] is True
+          assert binding["feature_source_sha256_count"] == 1
+          assert binding["source_manifest_sha256_value_count"] == 1
+          assert binding["source_digest_scope"] == "recognized_source_records_only"
+          assert binding["comparability_identity_coverage_verified"] is True
+          assert binding["scientific_comparability_established"] is False
+          print(json.dumps(binding, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload parity evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-repository-evidence-binding-parity
+          path: |
+            producer-parity-bundle
+            consumer-parity-output
+          if-no-files-found: warn
+          retention-days: 14

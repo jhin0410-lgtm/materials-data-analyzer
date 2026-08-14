@@ -146,6 +146,71 @@ def _write_bundle(root: Path) -> Path:
     return manifest_path
 
 
+def _harden_bundle(manifest_path: Path) -> Path:
+    root = manifest_path.parent
+    features = pd.read_csv(root / "characterization_features_long.csv")
+    feature_records = json.loads(features.to_json(orient="records"))
+
+    source_manifest = root / "case_source_manifest.json"
+    source_manifest.write_text(
+        json.dumps(
+            {
+                "case_id": "public-carbon-dwcnt-multimodal-v1",
+                "sources": [
+                    {"source_sha256": value}
+                    for value in features["source_sha256"].astype(str).tolist()
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    analysis_manifest = root / "case_analysis_manifest.json"
+    analysis_manifest.write_text(
+        json.dumps(
+            {
+                "analysis_count": 1,
+                "analyses": [
+                    {
+                        "schema_version": "1.0",
+                        "software_version": "test",
+                        "features": feature_records,
+                    }
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["evidence_identity_binding_contract"] = {
+        "schema_version": "1.0",
+        "required": True,
+    }
+    manifest["evidence_references"]["source_manifest"] = _record(source_manifest)
+    manifest["evidence_references"]["analysis_manifest"] = _record(analysis_manifest)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return manifest_path
+
+
+def _refresh_evidence_record(manifest_path: Path, label: str) -> None:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    path = manifest_path.parent / manifest["evidence_references"][label]["path"]
+    manifest["evidence_references"][label] = _record(path)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def test_consumer_validates_bundle_and_builds_integrated_sample_table(tmp_path: Path) -> None:
     bundle_manifest = _write_bundle(tmp_path / "producer")
     output = tmp_path / "consumer"
@@ -205,19 +270,118 @@ def test_consumer_validates_bundle_and_builds_integrated_sample_table(tmp_path: 
         "numeric_values_modified": False,
         "source_feature_table_preserved": True,
     }
+    assert summary["evidence_identity_binding"] == {
+        "contract_present": False,
+        "contract_required": False,
+        "legacy_checksum_only_validation": True,
+        "semantic_identity_binding_verified": False,
+        "scientific_comparability_established": False,
+    }
     assert summary["scientific_closeout"]["evidence_level"] == "Diagnostic"
     assert summary["software_validation"]["numeric_values_modified"] is False
     assert summary["software_validation"]["model_trained"] is False
     assert summary["software_validation"]["scientific_metrics_recomputed"] is False
+    assert summary["software_validation"]["legacy_checksum_only_evidence_validation"] is True
+    assert summary["software_validation"]["scientific_comparability_established"] is False
 
     consumer_manifest = json.loads((output / MANIFEST_NAME).read_text(encoding="utf-8"))
     assert consumer_manifest["unit_label_normalization"]["mappings"] == {
         "%": "percent"
     }
+    assert consumer_manifest["evidence_identity_binding"]["contract_present"] is False
     for name, filename in consumer_manifest["outputs"].items():
         assert consumer_manifest["output_sha256"][name] == sha256_file(output / filename)
     assert not list(output.glob("*.pkl"))
     assert not list(output.glob("*model*"))
+
+
+def test_hardened_bundle_is_independently_revalidated_by_consumer(tmp_path: Path) -> None:
+    bundle_manifest = _harden_bundle(_write_bundle(tmp_path / "producer"))
+    validated = validate_characterization_bundle(bundle_manifest)
+    binding = validated.evidence_identity_binding
+    assert binding["contract_present"] is True
+    assert binding["contract_required"] is True
+    assert binding["semantic_identity_binding_verified"] is True
+    assert binding["analysis_manifest_features_reproduced"] is True
+    assert binding["every_feature_row_source_sha256_bound"] is True
+    assert binding["comparability_identity_coverage_verified"] is True
+    assert binding["scientific_comparability_established"] is False
+
+    output = tmp_path / "consumer"
+    consume_characterization_bundle(bundle_manifest, output)
+    summary = json.loads((output / SUMMARY_NAME).read_text(encoding="utf-8"))
+    assert summary["software_validation"][
+        "semantic_evidence_identity_binding_verified"
+    ] is True
+    assert summary["software_validation"]["scientific_comparability_established"] is False
+    consumer_manifest = json.loads((output / MANIFEST_NAME).read_text(encoding="utf-8"))
+    assert consumer_manifest["evidence_identity_binding"][
+        "semantic_identity_binding_verified"
+    ] is True
+
+
+def test_hardened_bundle_rejects_semantically_drifted_analysis_with_refreshed_hash(
+    tmp_path: Path,
+) -> None:
+    bundle_manifest = _harden_bundle(_write_bundle(tmp_path / "producer"))
+    analysis_path = bundle_manifest.parent / "case_analysis_manifest.json"
+    analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+    analysis["analyses"][0]["features"][0]["value"] = 999.0
+    analysis_path.write_text(json.dumps(analysis), encoding="utf-8")
+    _refresh_evidence_record(bundle_manifest, "analysis_manifest")
+
+    with pytest.raises(ValueError, match="analysis manifest does not reproduce feature table"):
+        validate_characterization_bundle(bundle_manifest)
+
+
+def test_hardened_bundle_rejects_unbound_source_with_refreshed_hash(tmp_path: Path) -> None:
+    bundle_manifest = _harden_bundle(_write_bundle(tmp_path / "producer"))
+    source_path = bundle_manifest.parent / "case_source_manifest.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    source["sources"] = source["sources"][1:]
+    source_path.write_text(json.dumps(source), encoding="utf-8")
+    _refresh_evidence_record(bundle_manifest, "source_manifest")
+
+    with pytest.raises(ValueError, match="source manifest does not bind every feature"):
+        validate_characterization_bundle(bundle_manifest)
+
+
+def test_hardened_bundle_rejects_unrelated_comparability_with_refreshed_hash(
+    tmp_path: Path,
+) -> None:
+    bundle_manifest = _harden_bundle(_write_bundle(tmp_path / "producer"))
+    comparability_path = bundle_manifest.parent / "comparability_matrix.csv"
+    table = pd.read_csv(comparability_path)
+    table.loc[table["modality"].eq("tga"), "modality"] = "xrd"
+    table.to_csv(comparability_path, index=False)
+    _refresh_evidence_record(bundle_manifest, "comparability_matrix")
+
+    with pytest.raises(ValueError, match="comparability matrix misses feature instruments"):
+        validate_characterization_bundle(bundle_manifest)
+
+
+def test_hardened_bundle_rejects_malformed_required_contract(tmp_path: Path) -> None:
+    bundle_manifest = _harden_bundle(_write_bundle(tmp_path / "producer"))
+    manifest = json.loads(bundle_manifest.read_text(encoding="utf-8"))
+    manifest["evidence_identity_binding_contract"]["required"] = False
+    bundle_manifest.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="required must be true"):
+        validate_characterization_bundle(bundle_manifest)
+
+
+def test_bundle_manifest_duplicate_json_key_fails_closed(tmp_path: Path) -> None:
+    bundle_manifest = _write_bundle(tmp_path / "producer")
+    text = bundle_manifest.read_text(encoding="utf-8")
+    text = text.replace(
+        '{\n  "bundle_type"',
+        '{\n  "case_id": "duplicate",\n  "bundle_type"',
+        1,
+    )
+    bundle_manifest.write_text(text, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        validate_characterization_bundle(bundle_manifest)
 
 
 def test_consumer_cli_runs_end_to_end(tmp_path: Path) -> None:
