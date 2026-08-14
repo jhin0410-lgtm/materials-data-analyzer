@@ -16,9 +16,10 @@ from .scientific_critic import (
     SCIENTIFIC_CRITIC_POLICY_VERSION,
     ScientificCriticError,
     _build_structural_scientific_critic_report as _build_base_report,
+    _criticize_target,
 )
 
-SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.8"
+SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.9"
 
 _EMPIRICAL_TARGET_SCOPES = {"empirical", "mixed"}
 _INFERENCE_SCOPES = {"structural", "computational", "empirical_derived", "empirical_direct"}
@@ -38,19 +39,6 @@ _VERIFICATION_DECISION_KEYS = {
     "rationale",
     "limitations",
     "domain_verified",
-}
-_NEGATIVE_AUTHORITY_FINDING_CODES = {
-    "VERIFIED_FALSIFICATION_PRESENT",
-    "VERIFIED_CONTRADICTION_PRESENT",
-    "VERIFIED_EVIDENCE_CONFLICT",
-}
-_NEGATIVE_AUTHORITY_ACTION_SUFFIXES = {
-    ":reframe-falsified-scope",
-    ":reassess-contradicted-scope",
-    ":resolve-verified-conflict",
-}
-_NEGATIVE_AUTHORITY_ALTERNATIVE_SUFFIXES = {
-    ":scope-heterogeneity",
 }
 
 
@@ -416,15 +404,7 @@ def _validate_current_verifier_provenance(
     nodes_by_id: Mapping[str, Mapping[str, Any]],
     lineage_by_id: Mapping[str, Mapping[str, Any]],
 ) -> str | None:
-    """Validate the current verifier contract without granting exact-edge authority.
-
-    Transition provenance v1.0 does not checksum-authenticate the exact proposed
-    `inference_edge_id`. Graph metadata is extensible, so a manually inserted edge ID is
-    not authoritative. This function validates everything that the current contract can
-    prove and returns the verifier's declared scope for diagnostics only. The caller must
-    not treat the return value as proof that this exact graph edge was independently
-    verified.
-    """
+    """Validate everything transition-v1 can prove, without granting exact-edge authority."""
     binding = edge.get("verification_artifact")
     if not isinstance(binding, Mapping) or binding.get("role") != "domain_verification_decision":
         return None
@@ -494,47 +474,62 @@ def _validate_current_verifier_provenance(
     return scope
 
 
-def _remove_negative_authority_claims(raw: dict[str, Any], *, target_id: str) -> None:
-    findings = raw.get("critic_findings")
-    alternatives = raw.get("methodological_alternatives")
-    actions = raw.get("discriminating_actions")
-    if (
-        not isinstance(findings, list)
-        or not isinstance(alternatives, list)
-        or not isinstance(actions, list)
-    ):
-        raise ScientificCriticError("critic target proposal collections are malformed")
+def _assessment_without_negative_authority(
+    assessment: Mapping[str, Any],
+) -> dict[str, Any]:
+    sanitized = dict(assessment)
+    support_edges = assessment.get("verified_support_edges")
+    if not isinstance(support_edges, list):
+        raise ScientificCriticError("verified_support_edges must be a list")
+    sanitized["verified_contradiction_edges"] = []
+    sanitized["verified_falsification_edges"] = []
+    sanitized["status"] = "provisionally_supported" if support_edges else "inconclusive"
+    sanitized["domain_closeout_required_for_positive_conclusion"] = bool(support_edges)
+    sanitized["final_positive_support_granted"] = False
+    sanitized["confidence_score"] = None
+    return sanitized
 
-    findings[:] = [
-        item
-        for item in findings
+
+def _rebuild_target_without_negative_authority(
+    raw: dict[str, Any],
+    *,
+    target_id: str,
+    assessment: Mapping[str, Any],
+    nodes_by_id: Mapping[str, Mapping[str, Any]],
+    edges: Sequence[Mapping[str, Any]],
+    negative_edge_ids: Sequence[str],
+) -> None:
+    """Recompute critic obligations after removing unauthenticated negative edges.
+
+    Scrubbing only the negative finding is insufficient because the structural core may
+    already have omitted counterevidence search, no-test, or uninterpreted-test duties.
+    Re-running the deterministic critic with those exact negative edges excluded restores
+    the proposal set that is justified by the remaining authority. The evaluator's
+    original assessment is then embedded unchanged so scientific status is not rewritten.
+    """
+    negative_ids = set(negative_edge_ids)
+    filtered_edges = [
+        edge
+        for edge in edges
         if not (
-            isinstance(item, Mapping)
-            and item.get("code") in _NEGATIVE_AUTHORITY_FINDING_CODES
+            isinstance(edge.get("edge_id"), str)
+            and str(edge["edge_id"]) in negative_ids
         )
     ]
-    alternatives[:] = [
-        item
-        for item in alternatives
-        if not (
-            isinstance(item, Mapping)
-            and any(
-                str(item.get("alternative_id", "")).endswith(suffix)
-                for suffix in _NEGATIVE_AUTHORITY_ALTERNATIVE_SUFFIXES
-            )
-        )
-    ]
-    actions[:] = [
-        item
-        for item in actions
-        if not (
-            isinstance(item, Mapping)
-            and any(
-                str(item.get("action_id", "")).endswith(suffix)
-                for suffix in _NEGATIVE_AUTHORITY_ACTION_SUFFIXES
-            )
-        )
-    ]
+    rebuilt = _criticize_target(
+        target_id,
+        assessment=_assessment_without_negative_authority(assessment),
+        nodes_by_id=nodes_by_id,
+        edges=filtered_edges,
+    )
+    rebuilt["epistemic_assessment"] = dict(assessment)
+    raw.clear()
+    raw.update(rebuilt)
+
+    findings = raw.get("critic_findings")
+    actions = raw.get("discriminating_actions")
+    if not isinstance(findings, list) or not isinstance(actions, list):
+        raise ScientificCriticError("rebuilt critic target proposal collections are malformed")
     findings.append(
         {
             "finding_id": f"critic:{target_id}:negative-directional-provenance-unproven",
@@ -542,16 +537,15 @@ def _remove_negative_authority_claims(raw: dict[str, Any], *, target_id: str) ->
             "severity": "high",
             "statement": (
                 "The evaluator reports one or more usable verified negative directional relations, "
-                "but the critic cannot authenticate the exact inference-edge identity under the current "
+                "but the critic cannot authenticate their exact inference-edge identity under the current "
                 "transition-v1 provenance contract."
             ),
             "rationale": (
-                "A contradiction or falsification must not drive critic stop/reframe authority or derived "
-                "conflict interpretation when a verifier could be reused across same-source/target/relation "
-                "edges and exact edge identity is not checksum-authenticated. The evaluator assessment is "
-                "preserved unchanged; only critic authority is withheld pending stronger provenance."
+                "The evaluator assessment is preserved unchanged, while critic findings, alternatives, "
+                "actions, and missing-evidence obligations are recomputed as if the unauthenticated negative "
+                "edges were absent. This prevents ambiguous negative provenance from suppressing research duties."
             ),
-            "edge_ids": [],
+            "edge_ids": list(negative_edge_ids),
             "node_ids": [],
             "scientific_status_changed": False,
         }
@@ -622,9 +616,10 @@ def _apply_directional_provenance_policy(
     raw_edges = graph.get("edges")
     if not isinstance(raw_edges, list):
         raise ScientificCriticError("bound epistemic graph edges must be a list")
+    edges = [edge for edge in raw_edges if isinstance(edge, Mapping)]
     edges_by_id: dict[str, Mapping[str, Any]] = {}
-    for edge in raw_edges:
-        if not isinstance(edge, Mapping) or not isinstance(edge.get("edge_id"), str):
+    for edge in edges:
+        if not isinstance(edge.get("edge_id"), str):
             continue
         edge_id = str(edge["edge_id"])
         if edge_id in edges_by_id:
@@ -640,8 +635,12 @@ def _apply_directional_provenance_policy(
         raise ScientificCriticError(f"artifact_root must be a directory: {artifacts}")
 
     for raw in relevant:
-        assessment = raw["epistemic_assessment"]
+        assessment = raw.get("epistemic_assessment")
+        if not isinstance(assessment, Mapping):
+            raise ScientificCriticError("critic target assessment is malformed")
         target_id = str(raw.get("target_node_id"))
+        if target_id not in nodes_by_id:
+            raise ScientificCriticError(f"critic target is absent from bound graph: {target_id}")
         support_ids = [str(item) for item in assessment["verified_support_edges"]]
         contradiction_ids = [str(item) for item in assessment["verified_contradiction_edges"]]
         falsification_ids = [str(item) for item in assessment["verified_falsification_edges"]]
@@ -660,10 +659,16 @@ def _apply_directional_provenance_policy(
                 lineage_by_id=lineage_by_id,
             )
 
-        if contradiction_ids or falsification_ids:
-            _remove_negative_authority_claims(raw, target_id=target_id)
-            negative_finding = raw["critic_findings"][-1]
-            negative_finding["edge_ids"] = contradiction_ids + falsification_ids
+        negative_ids = contradiction_ids + falsification_ids
+        if negative_ids:
+            _rebuild_target_without_negative_authority(
+                raw,
+                target_id=target_id,
+                assessment=assessment,
+                nodes_by_id=nodes_by_id,
+                edges=edges,
+                negative_edge_ids=negative_ids,
+            )
 
         if raw.get("claim_scope") in _EMPIRICAL_TARGET_SCOPES and support_ids:
             findings = raw.get("critic_findings")
@@ -735,8 +740,8 @@ def build_policy_hardened_scientific_critic_report(
         target_node_ids=target_node_ids,
     )
     report = copy.deepcopy(base)
-    _replace_independence_assumption(report)
     _apply_directional_provenance_policy(report, artifact_root=artifact_root)
+    _replace_independence_assumption(report)
     _mark_action_availability_unproven(report)
     gaps = _program_evidence_gaps(program_state)
     report["critic_policy_version"] = (
@@ -777,6 +782,7 @@ def build_policy_hardened_scientific_critic_report(
             "empirical_support_scope_accepted_without_authenticated_inference_edge_identity": False,
             "empirical_derived_scope_inferred_from_unclassified_input_bindings": False,
             "negative_directional_authority_accepted_without_authenticated_inference_edge_identity": False,
+            "negative_directional_edges_allowed_to_suppress_research_obligations": False,
             "opaque_graph_metadata_treated_as_scientific_authority": False,
             "action_availability_inferred": False,
             "program_evidence_requirements_target_attributed_without_mapping": False,
