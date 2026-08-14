@@ -4,6 +4,7 @@ import json
 import runpy
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from materials_data_analyzer.research_loop.design_simulation import (
@@ -182,17 +183,25 @@ def test_tracked_config_matches_frozen_nist_case_contract_and_stage1_plan() -> N
     }
     assert observed == {
         case_id: (
-            expected_cases[case_id]["expected_actual_power_w"],
-            expected_cases[case_id]["scan_speed_mm_s"],
-            expected_cases[case_id]["expected_trace_count"],
+            float(expected_cases[case_id]["power"]),
+            float(expected_cases[case_id]["speed"]),
+            int(expected_cases[case_id]["count"]),
         )
         for case_id in ("A", "B", "C")
     }
 
+    # Bind the proposed cells to the planner's real, current output rather than
+    # duplicating an imaginary constant. This makes the regression fail closed if
+    # the source table or augmentation planner changes independently.
     plan_module = runpy.run_path(
         str(ROOT / "scripts/plan_nist_ambench_2018_02_design_augmentation.py")
     )
-    stage1 = plan_module["STAGE1_TARGETS"]
+    source_process = pd.read_csv(case_module["PROCESS_SOURCE"])
+    recommendations, _ = plan_module["build_augmentation_plan"](source_process)
+    stage1 = recommendations.loc[
+        recommendations["stage"] == "stage_1_complete_observed_grid"
+    ]
+
     proposed = {
         (
             cell["factor_values"]["actual_laser_power_w"],
@@ -203,10 +212,10 @@ def test_tracked_config_matches_frozen_nist_case_contract_and_stage1_plan() -> N
     }
     expected_stage1 = {
         (
-            float(item["actual_power_w"]),
-            float(item["scan_speed_mm_s"]),
-            int(item["minimum_trace_count"]),
+            float(row["actual_laser_power_w"]),
+            float(row["scan_speed_mm_s"]),
+            int(row["minimum_trace_replicates"]),
         )
-        for item in stage1
+        for _, row in stage1.iterrows()
     }
     assert proposed == expected_stage1
