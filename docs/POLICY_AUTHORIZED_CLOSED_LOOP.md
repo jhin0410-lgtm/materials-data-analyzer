@@ -2,146 +2,138 @@
 
 ## Purpose
 
-The autonomous research target needs more than repeated action execution. A completed
-analysis must become part of the research state before the next action is selected,
-but successful computation must not be silently promoted into scientific support.
-
-This control layer closes the following bounded loop:
+This layer closes the first bounded autonomous execution loop without granting the
+orchestrator scientific interpretation authority:
 
 ```text
 epistemic graph
 → epistemic gate
-→ current domain planner
-→ current authorization check
-→ one predeclared checksum-bound typed local request
-→ pinned typed result verification
+→ current planner and authorization
+→ one exact predeclared typed-local request
+→ pinned action-result verification
 → independent report↔ledger recheck
-→ record-only immutable graph successor
-→ gate the successor graph
-→ rebuild planning state
-→ continue or stop
+→ record-only immutable successor graph
+→ gate and replan from the successor
 ```
 
-The implementation is intentionally asymmetric: it automates **recording** but not
-**scientific interpretation**.
-
-## Record-only transition
-
-Each consumed execution request has one matching entry in a finite
-`result_record_plan`. The entry predeclares:
-
-- request ID and expected action type/version;
-- target hypothesis/claim/conclusion;
-- result node ID and result type;
-- local result origin;
-- a descriptive action-class label;
-- neutral result statement;
-- explicit limitations.
-
-The action-class label is plan metadata only. It does not authorize execution, alter
-planner selection, or change epistemic status. Execution authority still comes from
-the current planner, action registry, exact request bytes, authorization policy, typed
-dispatch, and result verifier.
-
-After the existing authorized executor independently verifies the typed action report,
-the closed loop binds the current report bytes by SHA-256 and appends:
-
-1. one completed `analysis` or `simulation` node; and
-2. one `tests` edge at `proposal` assessment level.
-
-It does **not** generate `supports`, `contradicts`, or `falsifies`. It does not create
-a domain-verification decision. The target's verified assessment is compared before
-and after recording and the transition fails closed if any protected epistemic field
-changes.
-
-Directional scientific interpretation remains a separate operation through the
-existing epistemic-transition proposal and domain-verifier contract.
-
-## Verifier-to-graph TOCTOU closure
-
-The typed pinned verifier already proves that the action report is reproducible and
-checksum-bound in the research ledger. A second check is performed immediately before
-graph ingestion because the report pathname remains mutable after verifier return.
-
-The record-only transition therefore:
-
-1. reads the current action-report bytes and computes their SHA-256;
-2. reloads the current research ledger;
-3. requires the current ledger SHA to equal the ledger SHA returned by the pinned
-   verifier;
-4. locates exactly one matching action ID;
-5. requires exactly one ledger artifact with the same absolute report path, SHA-256,
-   and byte count;
-6. fails before creating the successor directory if any of these bindings changed.
-
-This prevents a report that was valid at verification time but replaced before graph
-recording from becoming epistemic provenance.
-
-## Result-record-plan binding
-
-The exact `result_record_plan` bytes are also checksum-bound. Graph ingestion re-hashes
-the plan immediately before use and records the plan SHA-256 in:
-
-- result-node metadata;
-- graph transition lineage; and
-- the transition manifest.
-
-The record plan can define neutral recording semantics, but it cannot grant execution
-authority or scientific inference authority.
-
-## Execution boundary
-
-The current closed-loop policy accepts only result records with these local semantics:
-
-- `analysis` + `authorized_local_analysis`;
-- `simulation` + `authorized_local_simulation`.
-
-Allowed descriptive action classes are bounded computational/data operations:
-
-- `existing_data_reanalysis`
-- `computational_experiment`
-- `sensitivity_analysis`
-- `simulation`
-- `replication`
-
-This does not authorize arbitrary code, network evidence acquisition, or laboratory
-equipment. The actual action still has to pass the existing planner, action registry,
-budget, request-byte, ledger transaction, typed-dispatch, and pinned-result-verifier
-checks on every cycle.
-
-A local action that writes an external-data requirement is still only a local planning
-computation. It does not authorize the later network search or download.
+Recording is automated. Scientific interpretation is not.
 
 ## Finite authority
 
-The runner requires two finite predeclared inputs:
+One invocation consumes two finite predeclared objects:
 
 1. the existing checksum-bound execution request queue;
-2. a result-record plan that binds every queued request exactly once.
+2. a `result_record_plan` (`schema_version: 1.1`).
 
-The runner never invents another request or another record semantic. When the queue is
-exhausted while the planner still wants work, it stops with
-`predeclared_request_required`.
+Every result-record entry must bind:
 
-The invocation is hard bounded to at most 32 cycles.
+- `request_id`;
+- the **exact queued `request_sha256`**;
+- expected action type/version;
+- one gate-selected hypothesis/claim/conclusion target;
+- result node ID, result type and local origin;
+- a descriptive action-class label;
+- neutral statement and limitations.
 
-## Runtime-context binding
+The plan must cover every queued request exactly once. The runner never invents a
+request or extra recording semantics. A changed request file, queue file, or record-plan
+file is rejected before execution.
 
-Before every possible execution, the epistemic gate reconstructs the mission program
-state and binds the exact runtime-context file. The closed loop independently checks
-that:
+`action_class` is descriptive plan metadata only. It cannot authorize execution,
+change planner selection, or upgrade epistemic status.
 
-- the context bytes still match the gate SHA-256;
-- the context path still matches;
-- the selected workstream's research-run path matches execution;
-- the selected workstream's action-registry path matches execution.
+## Full preflight before side effects
 
-This prevents a gate decision made for one run/registry from being reused against a
-different execution context.
+The runner rejects incompatibilities that can be known before an action commits:
+
+- target node does not exist or is not a hypothesis/claim/conclusion;
+- record target is outside the exact target set whose epistemic gate is used;
+- predeclared result-node ID already exists;
+- generated `tests` edge ID already exists;
+- output root is non-empty or the next cycle directory already exists;
+- the queue/plan bytes changed;
+- the request bytes changed;
+- the mission, current graph, or runtime-context bytes changed after gate evaluation;
+- runtime-context run/registry paths differ from the actual execution paths.
+
+The mission, graph, and runtime-context bindings are rechecked immediately before the
+typed executor is delegated the request.
+
+## Mutable orchestration state is not durable scientific provenance
+
+NASA planning exposes `research_state` and `research_ledger` bindings whose checksums
+change when an action commits. Rebinding an old evidence node to the new checksum would
+silently rewrite historical provenance.
+
+Therefore the closed-loop runner **fails before execution** if an epistemic evidence
+node uses either mutable role as its durable program evidence binding:
+
+- `research_state`
+- `research_ledger`
+
+Closed-loop graphs must instead use an immutable program evidence role or a deliberately
+frozen snapshot contract. This restriction can be relaxed later only by adding a
+first-class historical-snapshot registry; it is not bypassed by replacing checksums in
+place.
+
+## Verifier-to-graph TOCTOU closure
+
+The existing typed verifier proves the action report against the request, action inputs,
+outputs, and research ledger. Graph ingestion independently checks that proof is still
+valid immediately before creating the successor:
+
+1. hash the current action-report bytes;
+2. reload the current research ledger;
+3. require the current ledger SHA-256 to equal the SHA returned by the pinned verifier;
+4. find exactly one matching action ID;
+5. require ledger action status to equal verified execution status;
+6. require exactly one ledger artifact with the current absolute report path, SHA-256,
+   and byte count.
+
+A report modified after typed verification therefore cannot become epistemic provenance.
+
+The exact result-record-plan SHA is persisted in result metadata, graph lineage, and
+the per-cycle transition manifest.
+
+## Completed versus failed actions
+
+A valid typed action report may describe either `completed` or `failed` execution.
+These states are not conflated.
+
+For a completed action the successor adds:
+
+- one completed `analysis` or `simulation` node with the verified report as an artifact;
+- one proposal-level `tests` edge to the selected target.
+
+For a failed action the successor adds:
+
+- one `analysis` or `simulation` node with `execution_status: failed`;
+- the exact failed-report checksum only in failure provenance metadata/manifest;
+- **no `tests` edge and no completed result artifact binding**.
+
+This preserves the failed attempt without making it usable as a completed scientific
+result.
+
+## Record-only epistemic transition
+
+The closed loop never creates:
+
+- `supports`;
+- `contradicts`;
+- `falsifies`;
+- `domain_verified` relations;
+- confidence scores;
+- causal, mechanistic, phase, or engineering conclusions.
+
+The target's verified epistemic assessment is compared before and after every record
+transition. Any protected-status change causes a fail-closed error.
+
+Directional interpretation remains a separate proposal followed, where appropriate,
+by the existing domain-verification boundary.
 
 ## Immutable graph evolution
 
-Each successful action produces a new directory:
+Each successfully recorded attempt gets its own directory:
 
 ```text
 <output>/cycle_001/
@@ -149,21 +141,43 @@ Each successful action produces a new directory:
   record_only_transition_manifest.json
 ```
 
-The parent graph is never rewritten. The successor graph records lineage including:
+The parent graph is not rewritten. Lineage includes:
 
 - parent graph SHA-256;
-- request SHA-256;
-- result-record-plan SHA-256;
+- exact request SHA-256;
+- exact result-record-plan SHA-256;
 - verified research-ledger SHA-256;
-- action ID;
+- action ID and execution status;
 - action-report SHA-256;
 - result node ID.
 
-The next cycle gates the successor graph, not the original graph.
+The next cycle gates the successor graph, not the invocation's original graph.
+
+## Execution boundary
+
+Automatic recording accepts only local result semantics:
+
+- `analysis` + `authorized_local_analysis`;
+- `simulation` + `authorized_local_simulation`.
+
+Descriptive local action classes are limited to:
+
+- `existing_data_reanalysis`
+- `computational_experiment`
+- `sensitivity_analysis`
+- `simulation`
+- `replication`
+
+Actual execution still has to pass the existing planner, action registry, budget,
+request-byte snapshot, ledger transaction, hardcoded typed dispatch, and pinned result
+verifier on every cycle.
+
+The runner cannot execute arbitrary commands, initiate network evidence acquisition, or
+execute a physical laboratory experiment. A local action that merely writes an external
+data requirement remains a planning computation, not authorization for the subsequent
+search/download.
 
 ## CLI
-
-The existing mission-level command exposes the closed loop:
 
 ```powershell
 mda-research-program run-closed-loop `
@@ -182,25 +196,23 @@ mda-research-program run-closed-loop `
   --max-cycles 8
 ```
 
-`--context` is mandatory for this subcommand even though it remains optional for
-other `mda-research-program` operations.
+`--context` is mandatory for this subcommand. One invocation is hard-bounded to at most
+32 cycles.
 
-## Scientific boundary
+## Scientific boundary and next layer
 
-This feature demonstrates a provenance-aware **execute → observe → update state →
-replan** loop. It does not demonstrate autonomous scientific truth discovery.
+This proves a provenance-aware **execute → observe → update state → replan** mechanism.
+It does not prove autonomous scientific truth discovery.
 
-In particular:
+The next layer should be a Scientific Critic that consumes the immutable graph and
+produces only evidence-bound **proposals** for:
 
-- action success is not evidence of a hypothesis;
-- a recorded simulation is not empirical evidence;
-- a `tests` relation is not support or contradiction;
-- no confidence score is invented;
-- no causal, mechanistic, phase, or engineering conclusion is promoted;
-- physical experiments remain external unless a future lab-control capability has a
-  separate safety, calibration, authorization, and provenance contract.
+- favored and alternative hypotheses;
+- counterevidence and strongest counterexamples;
+- confounders, leakage, dependence and non-independence;
+- robustness/falsification checks;
+- discriminating next evidence or experiment;
+- explicit claim boundaries.
 
-The next scientific layer should consume recorded results and produce bounded
-critic/inference **proposals** that explicitly preserve alternative hypotheses,
-counterevidence, confounders, and claim boundaries. Domain verification must remain a
-separate trust boundary.
+Those proposals must remain non-authoritative until the appropriate domain verifier
+accepts the exact evidence and inference contract.

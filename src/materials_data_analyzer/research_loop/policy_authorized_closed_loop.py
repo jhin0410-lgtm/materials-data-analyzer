@@ -1,14 +1,13 @@
 """Policy-authorized closed-loop research orchestration.
 
-This layer closes one narrow autonomous loop without creating scientific authority.
-It may consume only finite checksum-bound execution requests, execute the existing
-typed local action contract, append the exact verified action report to an immutable
-successor epistemic graph as a record-only ``tests`` relation, and then re-gate and
-replan from that successor graph.
+This module closes one deliberately narrow autonomous loop:
 
-It never generates execution requests, support/contradiction/falsification
-relations, domain-verification decisions, network actions, arbitrary commands, or
-physical experiment execution.
+    epistemic gate -> planner/authorization -> one typed local action
+    -> pinned result verification -> record-only immutable graph successor
+    -> gate/replan from that successor.
+
+It never invents execution requests, directional scientific inference, domain
+verification, network actions, generic commands, or physical experiment execution.
 """
 
 from __future__ import annotations
@@ -26,8 +25,8 @@ from .research_cycle import run_research_cycle
 from .research_program import build_research_program
 
 CLOSED_LOOP_SCHEMA_VERSION = "1.0"
-CLOSED_LOOP_POLICY_VERSION = "1.0"
-RESULT_RECORD_PLAN_SCHEMA_VERSION = "1.0"
+CLOSED_LOOP_POLICY_VERSION = "1.1"
+RESULT_RECORD_PLAN_SCHEMA_VERSION = "1.1"
 
 _DEFAULT_MAX_CYCLES = 8
 _HARD_MAX_CYCLES = 32
@@ -48,6 +47,8 @@ _LOCAL_ACTION_CLASSES = {
     "simulation",
     "replication",
 }
+_MUTABLE_PROGRAM_EVIDENCE_ROLES = {"research_state", "research_ledger"}
+_TARGET_TYPES = {"hypothesis", "claim", "conclusion"}
 
 
 class PolicyAuthorizedClosedLoopError(ResearchLoopError):
@@ -169,12 +170,38 @@ def _resolved_dir(value: str | Path, field: str) -> Path:
     return path
 
 
+def _verify_binding_file(
+    binding: object,
+    *,
+    expected_path: str | Path,
+    field: str,
+) -> dict[str, str]:
+    if not isinstance(binding, Mapping):
+        raise PolicyAuthorizedClosedLoopError(f"{field} is missing or malformed")
+    actual_path = _resolved_file(expected_path, f"{field} expected path")
+    bound_path = _resolved_file(
+        _nonempty_text(binding.get("path"), f"{field}.path"),
+        f"{field}.path",
+    )
+    if bound_path != actual_path:
+        raise PolicyAuthorizedClosedLoopError(
+            f"{field} path differs from the exact gated/predeclared path"
+        )
+    expected_sha = _nonempty_text(binding.get("sha256"), f"{field}.sha256")
+    current_sha = _sha256_file(actual_path)
+    if current_sha != expected_sha:
+        raise PolicyAuthorizedClosedLoopError(
+            f"{field} bytes changed after validation: expected {expected_sha}, got {current_sha}"
+        )
+    return {"path": str(actual_path), "sha256": current_sha}
+
+
 def load_result_record_plan(
     path: str | Path,
     *,
     request_queue: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Load a finite predeclared record-only graph-update plan."""
+    """Load a finite record-only plan bound to exact queued request bytes."""
     plan_path = _resolved_file(path, "result_record_plan")
     raw, _, plan_sha = _read_json_snapshot(plan_path)
     root = _exact_object(
@@ -215,6 +242,7 @@ def load_result_record_plan(
             required={
                 "record_id",
                 "request_id",
+                "request_sha256",
                 "expected_action_type",
                 "expected_action_version",
                 "target_node_id",
@@ -228,6 +256,7 @@ def load_result_record_plan(
             allowed={
                 "record_id",
                 "request_id",
+                "request_sha256",
                 "expected_action_type",
                 "expected_action_version",
                 "target_node_id",
@@ -264,6 +293,13 @@ def load_result_record_plan(
             raise PolicyAuthorizedClosedLoopError(
                 f"record references unknown request_id: {request_id}"
             )
+        request_sha = _nonempty_text(
+            record["request_sha256"], f"records[{index}].request_sha256"
+        )
+        if request_sha != request.get("sha256"):
+            raise PolicyAuthorizedClosedLoopError(
+                f"record {record_id} is not bound to the exact queued request checksum"
+            )
         action_type = _nonempty_text(
             record["expected_action_type"], f"records[{index}].expected_action_type"
         )
@@ -278,7 +314,6 @@ def load_result_record_plan(
             raise PolicyAuthorizedClosedLoopError(
                 f"record {record_id} action type/version does not match request {request_id}"
             )
-
         node_type = _nonempty_text(
             record["result_node_type"], f"records[{index}].result_node_type"
         )
@@ -301,6 +336,7 @@ def load_result_record_plan(
             {
                 "record_id": record_id,
                 "request_id": request_id,
+                "request_sha256": request_sha,
                 "expected_action_type": action_type,
                 "expected_action_version": action_version,
                 "target_node_id": _nonempty_text(
@@ -342,22 +378,204 @@ def load_result_record_plan(
     return result
 
 
-def _assessment_for(evaluation: Mapping[str, Any], node_id: str) -> dict[str, Any]:
-    assessments = evaluation.get("assessments")
-    if not isinstance(assessments, list):
+def _preflight_output_root(output_root: Path) -> None:
+    if output_root.exists():
+        if not output_root.is_dir():
+            raise PolicyAuthorizedClosedLoopError(
+                f"output_root must be a directory when it exists: {output_root}"
+            )
+        if any(output_root.iterdir()):
+            raise PolicyAuthorizedClosedLoopError(
+                "output_root must be absent or empty before any closed-loop action executes"
+            )
+
+
+def _preflight_graph_and_records(
+    *,
+    graph_path: Path,
+    records: Sequence[Mapping[str, Any]],
+    target_ids: Sequence[str],
+) -> dict[str, Any]:
+    graph, _, graph_sha = _read_json_snapshot(graph_path)
+    nodes = graph.get("nodes")
+    edges = graph.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
         raise PolicyAuthorizedClosedLoopError(
-            "epistemic evaluation assessments are malformed"
+            "initial epistemic graph nodes/edges are malformed"
         )
-    matches = [
-        item
-        for item in assessments
-        if isinstance(item, Mapping) and item.get("node_id") == node_id
-    ]
-    if len(matches) != 1:
+    nodes_by_id = {
+        str(item.get("node_id")): item
+        for item in nodes
+        if isinstance(item, Mapping) and isinstance(item.get("node_id"), str)
+    }
+    edge_ids = {
+        str(item.get("edge_id"))
+        for item in edges
+        if isinstance(item, Mapping) and isinstance(item.get("edge_id"), str)
+    }
+    selected = set(target_ids)
+    for target_id in selected:
+        target = nodes_by_id.get(target_id)
+        if not isinstance(target, Mapping) or target.get("node_type") not in _TARGET_TYPES:
+            raise PolicyAuthorizedClosedLoopError(
+                f"selected target is not an existing hypothesis/claim/conclusion: {target_id}"
+            )
+
+    mutable_bindings: list[str] = []
+    for node in nodes:
+        if not isinstance(node, Mapping) or node.get("node_type") != "evidence":
+            continue
+        binding = node.get("evidence_binding")
+        if not isinstance(binding, Mapping):
+            continue
+        role = binding.get("role")
+        if role in _MUTABLE_PROGRAM_EVIDENCE_ROLES:
+            mutable_bindings.append(str(node.get("node_id")))
+    if mutable_bindings:
         raise PolicyAuthorizedClosedLoopError(
-            f"target assessment is not unique: {node_id}"
+            "closed-loop graphs must not use mutable research_state/research_ledger "
+            "program evidence bindings; use an immutable evidence binding or frozen "
+            f"snapshot before execution: nodes={sorted(mutable_bindings)}"
         )
-    return dict(matches[0])
+
+    for record in records:
+        target_id = _nonempty_text(record.get("target_node_id"), "record.target_node_id")
+        if target_id not in selected:
+            raise PolicyAuthorizedClosedLoopError(
+                "every result-record target must be one of the exact gate-selected targets"
+            )
+        result_node_id = _nonempty_text(
+            record.get("result_node_id"), "record.result_node_id"
+        )
+        if result_node_id in nodes_by_id:
+            raise PolicyAuthorizedClosedLoopError(
+                f"predeclared result node collides with initial graph: {result_node_id}"
+            )
+        edge_id = f"{_nonempty_text(record.get('record_id'), 'record.record_id')}::tests"
+        if edge_id in edge_ids:
+            raise PolicyAuthorizedClosedLoopError(
+                f"predeclared tests edge collides with initial graph: {edge_id}"
+            )
+    return {"path": str(graph_path), "sha256": graph_sha}
+
+
+def _verify_runtime_context_execution_binding(
+    gate: Mapping[str, Any],
+    *,
+    runtime_context_path: str | Path,
+    workstream_id: str,
+    research_run: str | Path,
+    action_registry_path: str | Path,
+) -> dict[str, str]:
+    context_path = _resolved_file(runtime_context_path, "runtime_context_path")
+    binding = _verify_binding_file(
+        gate.get("runtime_context_binding"),
+        expected_path=context_path,
+        field="runtime_context_binding",
+    )
+    context, _, _ = _read_json_snapshot(context_path)
+    workstreams = context.get("workstreams")
+    if not isinstance(workstreams, Mapping):
+        raise PolicyAuthorizedClosedLoopError(
+            "runtime context workstreams must be an object"
+        )
+    selected = workstreams.get(workstream_id)
+    if not isinstance(selected, Mapping):
+        raise PolicyAuthorizedClosedLoopError(
+            f"runtime context omits workstream: {workstream_id}"
+        )
+    expected_run = _resolved_dir(
+        _nonempty_text(selected.get("research_run"), "runtime research_run"),
+        "runtime research_run",
+    )
+    expected_registry = _resolved_file(
+        _nonempty_text(
+            selected.get("action_registry_path"), "runtime action_registry_path"
+        ),
+        "runtime action_registry_path",
+    )
+    actual_run = _resolved_dir(research_run, "research_run")
+    actual_registry = _resolved_file(action_registry_path, "action_registry_path")
+    if expected_run != actual_run or expected_registry != actual_registry:
+        raise PolicyAuthorizedClosedLoopError(
+            "execution paths differ from the checksum-bound epistemic runtime context"
+        )
+    return {
+        "runtime_context_path": binding["path"],
+        "runtime_context_sha256": binding["sha256"],
+        "research_run": str(actual_run),
+        "action_registry_path": str(actual_registry),
+    }
+
+
+def _verify_gate_execution_bindings(
+    gate: Mapping[str, Any],
+    *,
+    mission_path: str | Path,
+    graph_path: str | Path,
+    runtime_context_path: str | Path,
+    workstream_id: str,
+    research_run: str | Path,
+    action_registry_path: str | Path,
+) -> dict[str, Any]:
+    mission_binding = _verify_binding_file(
+        gate.get("mission_binding"),
+        expected_path=mission_path,
+        field="mission_binding",
+    )
+    graph_binding = _verify_binding_file(
+        gate.get("graph_binding"),
+        expected_path=graph_path,
+        field="graph_binding",
+    )
+    runtime_binding = _verify_runtime_context_execution_binding(
+        gate,
+        runtime_context_path=runtime_context_path,
+        workstream_id=workstream_id,
+        research_run=research_run,
+        action_registry_path=action_registry_path,
+    )
+    return {
+        "mission_binding": mission_binding,
+        "graph_binding": graph_binding,
+        "runtime_context_binding": runtime_binding,
+    }
+
+
+def _verify_static_plan_and_queue_bindings(
+    *,
+    queue: Mapping[str, Any],
+    record_plan: Mapping[str, Any],
+) -> None:
+    queue_binding = queue.get("queue_binding")
+    plan_binding = record_plan.get("plan_binding")
+    if not isinstance(queue_binding, Mapping) or not isinstance(plan_binding, Mapping):
+        raise PolicyAuthorizedClosedLoopError(
+            "queue/result-record plan bindings are malformed"
+        )
+    _verify_binding_file(
+        queue_binding,
+        expected_path=_nonempty_text(queue_binding.get("path"), "queue_binding.path"),
+        field="queue_binding",
+    )
+    _verify_binding_file(
+        plan_binding,
+        expected_path=_nonempty_text(plan_binding.get("path"), "plan_binding.path"),
+        field="result_record_plan_binding",
+    )
+
+
+def _verify_request_binding_now(request: Mapping[str, Any]) -> dict[str, str]:
+    path = _resolved_file(
+        _nonempty_text(request.get("path"), "request.path"), "request.path"
+    )
+    expected_sha = _nonempty_text(request.get("sha256"), "request.sha256")
+    actual_sha = _sha256_file(path)
+    if actual_sha != expected_sha:
+        raise PolicyAuthorizedClosedLoopError(
+            "queued request bytes changed after queue validation and before execution"
+        )
+    return {"path": str(path), "sha256": actual_sha}
 
 
 def _verify_action_report_still_ledger_bound(
@@ -368,14 +586,24 @@ def _verify_action_report_still_ledger_bound(
     action_id: str,
     execution: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Recheck report bytes against the current ledger after typed verification."""
     run = _resolved_dir(research_run, "research_run")
-    state = load_research_state(run)
     verified_report = execution.get("verified_report")
     if not isinstance(verified_report, Mapping):
         raise PolicyAuthorizedClosedLoopError(
             "execution result omitted the pinned verifier result"
         )
+    execution_status = _nonempty_text(
+        execution.get("execution_status"), "execution.execution_status"
+    )
+    verified_status = _nonempty_text(
+        verified_report.get("execution_status"),
+        "execution.verified_report.execution_status",
+    )
+    if execution_status not in {"completed", "failed"} or verified_status != execution_status:
+        raise PolicyAuthorizedClosedLoopError(
+            "execution status does not match the pinned verifier result"
+        )
+    state = load_research_state(run)
     verified_ledger_sha = _nonempty_text(
         verified_report.get("ledger_sha256"),
         "execution.verified_report.ledger_sha256",
@@ -399,6 +627,10 @@ def _verify_action_report_still_ledger_bound(
         raise PolicyAuthorizedClosedLoopError(
             "research ledger must contain exactly one recorded action for the result"
         )
+    if matches[0].get("status") != execution_status:
+        raise PolicyAuthorizedClosedLoopError(
+            "research ledger action status differs from the verified execution status"
+        )
     artifacts = matches[0].get("artifacts")
     if not isinstance(artifacts, list):
         raise PolicyAuthorizedClosedLoopError(
@@ -421,15 +653,34 @@ def _verify_action_report_still_ledger_bound(
         "research_run": str(run),
         "ledger_sha256": current_ledger_sha,
         "action_id": action_id,
+        "execution_status": execution_status,
         "action_report_sha256": report_sha256,
         "action_report_bytes": report_size,
     }
 
 
-def apply_record_only_action_result(
+def _assessment_for(evaluation: Mapping[str, Any], node_id: str) -> dict[str, Any]:
+    assessments = evaluation.get("assessments")
+    if not isinstance(assessments, list):
+        raise PolicyAuthorizedClosedLoopError(
+            "epistemic evaluation assessments are malformed"
+        )
+    matches = [
+        item
+        for item in assessments
+        if isinstance(item, Mapping) and item.get("node_id") == node_id
+    ]
+    if len(matches) != 1:
+        raise PolicyAuthorizedClosedLoopError(
+            f"target assessment is not unique: {node_id}"
+        )
+    return dict(matches[0])
+
+
+def _apply_record_only_action_result(
     *,
     base_graph_path: str | Path,
-    program_state: Mapping[str, Any],
+    pre_execution_program_state: Mapping[str, Any],
     artifact_root: str | Path,
     output_dir: str | Path,
     research_run: str | Path,
@@ -438,27 +689,35 @@ def apply_record_only_action_result(
     request: Mapping[str, Any],
     execution: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Append one completed local result without creating a directional inference."""
+    """Append one verified action outcome without generating scientific inference."""
     base_path = _resolved_file(base_graph_path, "base_graph_path")
     artifacts = _resolved_dir(artifact_root, "artifact_root")
     output = Path(output_dir).expanduser().resolve()
     if output.exists():
         raise PolicyAuthorizedClosedLoopError(
-            f"output_dir must not already exist: {output}"
+            f"cycle output already exists before graph recording: {output}"
         )
 
     base_raw, _, base_sha = _read_json_snapshot(base_path)
     base_validated = validate_epistemic_graph(
-        base_raw, program_state=program_state, artifact_root=artifacts
+        base_raw,
+        program_state=pre_execution_program_state,
+        artifact_root=artifacts,
     )
     before_eval = evaluate_epistemic_graph(
-        base_raw, program_state=program_state, artifact_root=artifacts
+        base_raw,
+        program_state=pre_execution_program_state,
+        artifact_root=artifacts,
     )
 
     request_id = _nonempty_text(request.get("request_id"), "request.request_id")
     if request_id != record.get("request_id"):
         raise PolicyAuthorizedClosedLoopError(
             "record does not match the consumed execution request"
+        )
+    if record.get("request_sha256") != request.get("sha256"):
+        raise PolicyAuthorizedClosedLoopError(
+            "record request checksum differs from the consumed request"
         )
     for record_field, execution_field in (
         ("expected_action_type", "action_type"),
@@ -484,17 +743,15 @@ def apply_record_only_action_result(
         action_id=action_id,
         execution=execution,
     )
-    plan_path = _resolved_file(
-        _nonempty_text(record_plan_binding.get("path"), "record_plan_binding.path"),
-        "record_plan_binding.path",
+    execution_status = str(ledger_binding["execution_status"])
+    plan_binding = _verify_binding_file(
+        record_plan_binding,
+        expected_path=_nonempty_text(
+            record_plan_binding.get("path"), "record_plan_binding.path"
+        ),
+        field="result_record_plan_binding",
     )
-    plan_sha = _nonempty_text(
-        record_plan_binding.get("sha256"), "record_plan_binding.sha256"
-    )
-    if _sha256_file(plan_path) != plan_sha:
-        raise PolicyAuthorizedClosedLoopError(
-            "result-record plan changed after it was validated"
-        )
+
     request_binding = execution.get("request_binding")
     if not isinstance(request_binding, Mapping):
         raise PolicyAuthorizedClosedLoopError(
@@ -502,7 +759,7 @@ def apply_record_only_action_result(
         )
     if request_binding.get("sha256") != request.get("sha256"):
         raise PolicyAuthorizedClosedLoopError(
-            "execution request binding does not match the queued request bytes"
+            "execution request binding does not match queued request bytes"
         )
     if execution.get("scientific_evidence_upgraded_by_orchestrator") is not False:
         raise PolicyAuthorizedClosedLoopError(
@@ -519,8 +776,7 @@ def apply_record_only_action_result(
         (
             item
             for item in nodes
-            if item["node_id"] == target_id
-            and item["node_type"] in {"hypothesis", "claim", "conclusion"}
+            if item["node_id"] == target_id and item["node_type"] in _TARGET_TYPES
         ),
         None,
     )
@@ -551,26 +807,16 @@ def apply_record_only_action_result(
         raise PolicyAuthorizedClosedLoopError(
             "automatic record transition attempted a non-local result origin"
         )
-    result_node = {
+    result_node: dict[str, Any] = {
         "node_id": result_node_id,
         "node_type": node_type,
         "statement": _nonempty_text(record.get("statement"), "record.statement"),
-        "execution_status": "completed",
-        "artifact_bindings": [
-            {
-                "role": "authorized_action_report",
-                "path": str(report_path),
-                "sha256": report_sha,
-            }
-        ],
+        "execution_status": execution_status,
         "metadata": {
             "result_origin": result_origin,
             "record_only_transition": True,
             "record_id": record["record_id"],
-            "record_plan_binding": {
-                "path": str(plan_path),
-                "sha256": plan_sha,
-            },
+            "record_plan_binding": plan_binding,
             "verified_ledger_binding": ledger_binding,
             "source_action": {
                 "action_id": action_id,
@@ -588,19 +834,35 @@ def apply_record_only_action_result(
             "limitations": list(record.get("limitations", [])),
         },
     }
-    tests_edge = {
-        "edge_id": tests_edge_id,
-        "source_node_id": result_node_id,
-        "target_node_id": target_id,
-        "relation": "tests",
-        "assessment_level": "proposal",
-        "rationale": (
-            "The completed, checksum-bound local result is recorded as testing this "
-            "target. No supports, contradicts, or falsifies relation is generated by "
-            "the closed-loop orchestrator."
-        ),
-        "active": True,
-    }
+    appended_edges: list[dict[str, Any]] = []
+    if execution_status == "completed":
+        result_node["artifact_bindings"] = [
+            {
+                "role": "authorized_action_report",
+                "path": str(report_path),
+                "sha256": report_sha,
+            }
+        ]
+        appended_edges.append(
+            {
+                "edge_id": tests_edge_id,
+                "source_node_id": result_node_id,
+                "target_node_id": target_id,
+                "relation": "tests",
+                "assessment_level": "proposal",
+                "rationale": (
+                    "The completed checksum-bound local result is recorded as testing "
+                    "this target. No directional inference is generated."
+                ),
+                "active": True,
+            }
+        )
+    else:
+        result_node["metadata"]["failed_action_report_binding"] = {
+            "path": str(report_path),
+            "sha256": report_sha,
+            "bytes": report_path.stat().st_size,
+        }
 
     metadata = dict(base_raw.get("metadata", {}))
     lineage = metadata.get("record_only_transition_lineage", [])
@@ -617,9 +879,10 @@ def apply_record_only_action_result(
             "parent_graph_sha256": base_sha,
             "request_id": request_id,
             "request_sha256": request["sha256"],
-            "record_plan_sha256": plan_sha,
+            "record_plan_sha256": plan_binding["sha256"],
             "verified_ledger_sha256": ledger_binding["ledger_sha256"],
             "action_id": action_id,
+            "action_execution_status": execution_status,
             "action_report_sha256": report_sha,
             "result_node_id": result_node_id,
         },
@@ -629,11 +892,13 @@ def apply_record_only_action_result(
         "graph_id": f"{base_validated['graph_id']}::{record_id}",
         "research_scope": base_raw["research_scope"],
         "nodes": [*base_raw["nodes"], result_node],
-        "edges": [*base_raw["edges"], tests_edge],
+        "edges": [*base_raw["edges"], *appended_edges],
         "metadata": metadata,
     }
     after_eval = evaluate_epistemic_graph(
-        successor, program_state=program_state, artifact_root=artifacts
+        successor,
+        program_state=pre_execution_program_state,
+        artifact_root=artifacts,
     )
     before_target = _assessment_for(before_eval, target_id)
     after_target = _assessment_for(after_eval, target_id)
@@ -658,16 +923,14 @@ def apply_record_only_action_result(
         "closed_loop_policy_version": CLOSED_LOOP_POLICY_VERSION,
         "transition_kind": "record_only_action_result",
         "record_id": record_id,
+        "execution_status": execution_status,
         "base_graph_binding": {"path": str(base_path), "sha256": base_sha},
         "request_binding": {
             "request_id": request_id,
             "path": request.get("path"),
             "sha256": request.get("sha256"),
         },
-        "result_record_plan_binding": {
-            "path": str(plan_path),
-            "sha256": plan_sha,
-        },
+        "result_record_plan_binding": plan_binding,
         "verified_ledger_binding": ledger_binding,
         "action_binding": {
             "action_id": action_id,
@@ -679,6 +942,7 @@ def apply_record_only_action_result(
         "target_node_id": target_id,
         "target_before": before_target,
         "target_after": after_target,
+        "tests_edge_generated": execution_status == "completed",
         "directional_inference_generated": False,
         "domain_verification_generated": False,
         "successor_graph": {
@@ -691,6 +955,7 @@ def apply_record_only_action_result(
             "contradicts_relation_generated": False,
             "falsifies_relation_generated": False,
             "scientific_status_upgraded": False,
+            "failed_action_misrepresented_as_completed": False,
             "network_access_performed_by_transition": False,
             "physical_experiment_executed_by_transition": False,
             "base_graph_mutated": False,
@@ -702,71 +967,6 @@ def apply_record_only_action_result(
         _canonical_json_bytes(manifest)
     )
     return {**manifest, "successor_graph_evaluation": after_eval}
-
-
-def _verify_runtime_context_execution_binding(
-    gate: Mapping[str, Any],
-    *,
-    runtime_context_path: str | Path,
-    workstream_id: str,
-    research_run: str | Path,
-    action_registry_path: str | Path,
-) -> dict[str, str]:
-    context_path = _resolved_file(runtime_context_path, "runtime_context_path")
-    context, _, context_sha = _read_json_snapshot(context_path)
-    binding = gate.get("runtime_context_binding")
-    if not isinstance(binding, Mapping):
-        raise PolicyAuthorizedClosedLoopError(
-            "epistemic gate omitted runtime-context binding"
-        )
-    if binding.get("sha256") != context_sha:
-        raise PolicyAuthorizedClosedLoopError(
-            "runtime context changed after epistemic gate evaluation"
-        )
-    try:
-        bound_path = Path(
-            _nonempty_text(binding.get("path"), "runtime_context_binding.path")
-        ).expanduser().resolve(strict=True)
-    except OSError as exc:
-        raise PolicyAuthorizedClosedLoopError(
-            "runtime context binding path does not resolve"
-        ) from exc
-    if bound_path != context_path:
-        raise PolicyAuthorizedClosedLoopError(
-            "gate runtime-context path differs from execution context"
-        )
-    workstreams = context.get("workstreams")
-    if not isinstance(workstreams, Mapping):
-        raise PolicyAuthorizedClosedLoopError(
-            "runtime context workstreams must be an object"
-        )
-    selected = workstreams.get(workstream_id)
-    if not isinstance(selected, Mapping):
-        raise PolicyAuthorizedClosedLoopError(
-            f"runtime context omits workstream: {workstream_id}"
-        )
-    expected_run = _resolved_dir(
-        _nonempty_text(selected.get("research_run"), "runtime research_run"),
-        "runtime research_run",
-    )
-    expected_registry = _resolved_file(
-        _nonempty_text(
-            selected.get("action_registry_path"), "runtime action_registry_path"
-        ),
-        "runtime action_registry_path",
-    )
-    actual_run = _resolved_dir(research_run, "research_run")
-    actual_registry = _resolved_file(action_registry_path, "action_registry_path")
-    if expected_run != actual_run or expected_registry != actual_registry:
-        raise PolicyAuthorizedClosedLoopError(
-            "execution paths differ from the checksum-bound epistemic runtime context"
-        )
-    return {
-        "runtime_context_path": str(context_path),
-        "runtime_context_sha256": context_sha,
-        "research_run": str(actual_run),
-        "action_registry_path": str(actual_registry),
-    }
 
 
 def _selected_action(authorization: object) -> dict[str, Any] | None:
@@ -869,17 +1069,6 @@ def run_policy_authorized_closed_loop(
         str(item["request_id"]): item for item in record_plan["records"]
     }
     requests = queue["requests"]
-    request_index = 0
-    cycles: list[dict[str, Any]] = []
-    seen_after_fingerprints: set[str] = set()
-    program_status: str | None = None
-    stop_reason: str | None = None
-    output_base = Path(output_root).expanduser().resolve()
-    if output_base.exists() and not output_base.is_dir():
-        raise PolicyAuthorizedClosedLoopError(
-            f"output_root must be a directory when it exists: {output_base}"
-        )
-    output_base.mkdir(parents=True, exist_ok=True)
 
     target_ids = [
         _nonempty_text(value, f"epistemic_target_node_ids[{index}]")
@@ -889,6 +1078,21 @@ def run_policy_authorized_closed_loop(
         raise PolicyAuthorizedClosedLoopError(
             "epistemic_target_node_ids must be unique and non-empty"
         )
+    initial_graph_binding = _preflight_graph_and_records(
+        graph_path=current_graph,
+        records=record_plan["records"],
+        target_ids=target_ids,
+    )
+    output_base = Path(output_root).expanduser().resolve()
+    _preflight_output_root(output_base)
+    _verify_static_plan_and_queue_bindings(queue=queue, record_plan=record_plan)
+    output_base.mkdir(parents=True, exist_ok=True)
+
+    request_index = 0
+    cycles: list[dict[str, Any]] = []
+    seen_after_fingerprints: set[str] = set()
+    program_status: str | None = None
+    stop_reason: str | None = None
 
     for cycle_index in range(1, max_cycles + 1):
         gate = evaluate_epistemic_gate(
@@ -901,18 +1105,20 @@ def run_policy_authorized_closed_loop(
             runtime_context_path=runtime_context_path,
             artifact_root=artifacts,
         )
-        context_binding = _verify_runtime_context_execution_binding(
-            gate,
-            runtime_context_path=runtime_context_path,
-            workstream_id=epistemic_workstream_id,
-            research_run=research_run,
-            action_registry_path=action_registry_path,
-        )
         directive = gate.get("directive")
         if not isinstance(directive, Mapping):
             raise PolicyAuthorizedClosedLoopError(
                 "epistemic gate directive is malformed"
             )
+        gate_bindings = _verify_gate_execution_bindings(
+            gate,
+            mission_path=mission_path,
+            graph_path=current_graph,
+            runtime_context_path=runtime_context_path,
+            workstream_id=epistemic_workstream_id,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
         if directive.get("automatic_execution_permitted") is not True:
             program_status, stop_reason = _gate_stop_status(
                 str(directive.get("directive"))
@@ -922,7 +1128,7 @@ def run_policy_authorized_closed_loop(
                     "cycle_index": cycle_index,
                     "graph_before": str(current_graph),
                     "epistemic_gate": gate,
-                    "execution_context_binding": context_binding,
+                    "execution_input_bindings": gate_bindings,
                     "probe": None,
                     "request": None,
                     "execution": None,
@@ -953,7 +1159,7 @@ def run_policy_authorized_closed_loop(
                     "cycle_index": cycle_index,
                     "graph_before": str(current_graph),
                     "epistemic_gate": gate,
-                    "execution_context_binding": context_binding,
+                    "execution_input_bindings": gate_bindings,
                     "probe": probe,
                     "request": None,
                     "execution": None,
@@ -981,7 +1187,7 @@ def run_policy_authorized_closed_loop(
                     "cycle_index": cycle_index,
                     "graph_before": str(current_graph),
                     "epistemic_gate": gate,
-                    "execution_context_binding": context_binding,
+                    "execution_input_bindings": gate_bindings,
                     "probe": probe,
                     "request": None,
                     "execution": None,
@@ -997,13 +1203,49 @@ def run_policy_authorized_closed_loop(
             raise PolicyAuthorizedClosedLoopError(
                 "queued request has no checksum-bound result-record directive"
             )
+        if record.get("target_node_id") not in target_ids:
+            raise PolicyAuthorizedClosedLoopError(
+                "result-record target is outside the exact gate-selected target set"
+            )
+        cycle_output = output_base / f"cycle_{cycle_index:03d}"
+        if cycle_output.exists():
+            raise PolicyAuthorizedClosedLoopError(
+                "cycle output collision detected before action execution"
+            )
+
+        _verify_static_plan_and_queue_bindings(queue=queue, record_plan=record_plan)
+        request_binding_now = _verify_request_binding_now(request)
+        gate_bindings = _verify_gate_execution_bindings(
+            gate,
+            mission_path=mission_path,
+            graph_path=current_graph,
+            runtime_context_path=runtime_context_path,
+            workstream_id=epistemic_workstream_id,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
+        pre_execution_program = build_research_program(
+            mission_path,
+            repository_root=root,
+            runtime_context_path=runtime_context_path,
+        )
+        if pre_execution_program.get("mission_binding") != gate.get("mission_binding"):
+            raise PolicyAuthorizedClosedLoopError(
+                "mission program snapshot changed after epistemic gate evaluation"
+            )
+        if pre_execution_program.get("runtime_context_binding") != gate.get(
+            "runtime_context_binding"
+        ):
+            raise PolicyAuthorizedClosedLoopError(
+                "runtime program snapshot changed after epistemic gate evaluation"
+            )
 
         execution_cycle = run_research_cycle(
             adapter,
             repository_root=root,
             research_run=research_run,
             action_registry_path=action_registry_path,
-            request_path=request["path"],
+            request_path=request_binding_now["path"],
         )
         if execution_cycle.get("cycle_status") != "one_action_executed":
             program_status = "execution_cycle_not_completed"
@@ -1015,7 +1257,7 @@ def run_policy_authorized_closed_loop(
                     "cycle_index": cycle_index,
                     "graph_before": str(current_graph),
                     "epistemic_gate": gate,
-                    "execution_context_binding": context_binding,
+                    "execution_input_bindings": gate_bindings,
                     "probe": probe,
                     "request": request,
                     "execution": execution_cycle,
@@ -1029,15 +1271,9 @@ def run_policy_authorized_closed_loop(
                 "completed research cycle omitted execution result"
             )
 
-        program_state = build_research_program(
-            mission_path,
-            repository_root=root,
-            runtime_context_path=runtime_context_path,
-        )
-        cycle_output = output_base / f"cycle_{cycle_index:03d}"
-        transition = apply_record_only_action_result(
+        transition = _apply_record_only_action_result(
             base_graph_path=current_graph,
-            program_state=program_state,
+            pre_execution_program_state=pre_execution_program,
             artifact_root=artifacts,
             output_dir=cycle_output,
             research_run=research_run,
@@ -1052,20 +1288,21 @@ def run_policy_authorized_closed_loop(
         )
         before_fp = _state_fingerprint(probe.get("before_planning_state"))
         after_fp = _state_fingerprint(execution_cycle.get("after_planning_state"))
-        cycle_record = {
-            "cycle_index": cycle_index,
-            "graph_before": str(current_graph),
-            "graph_after": str(next_graph),
-            "epistemic_gate": gate,
-            "execution_context_binding": context_binding,
-            "probe": probe,
-            "request": request,
-            "execution": execution_cycle,
-            "record_transition": transition,
-            "before_state_fingerprint": before_fp,
-            "after_state_fingerprint": after_fp,
-        }
-        cycles.append(cycle_record)
+        cycles.append(
+            {
+                "cycle_index": cycle_index,
+                "graph_before": str(current_graph),
+                "graph_after": str(next_graph),
+                "epistemic_gate": gate,
+                "execution_input_bindings": gate_bindings,
+                "probe": probe,
+                "request": request,
+                "execution": execution_cycle,
+                "record_transition": transition,
+                "before_state_fingerprint": before_fp,
+                "after_state_fingerprint": after_fp,
+            }
+        )
         request_index += 1
         current_graph = next_graph
 
@@ -1076,8 +1313,8 @@ def run_policy_authorized_closed_loop(
         if after_fp == before_fp or after_fp in seen_after_fingerprints:
             program_status = "stopped_no_verified_planning_progress"
             stop_reason = (
-                "The action result was recorded in the graph, but the bounded planning "
-                "state did not progress; automatic execution stopped."
+                "The action outcome was recorded, but the bounded planning state did "
+                "not progress; automatic execution stopped."
             )
             break
         seen_after_fingerprints.add(after_fp)
@@ -1129,6 +1366,7 @@ def run_policy_authorized_closed_loop(
         "actions_executed": request_index,
         "requests_consumed": request_index,
         "requests_remaining": len(requests) - request_index,
+        "initial_graph_binding": initial_graph_binding,
         "request_queue": queue,
         "result_record_plan": record_plan,
         "final_graph_binding": {
@@ -1138,10 +1376,17 @@ def run_policy_authorized_closed_loop(
         "cycles": cycles,
         "autonomy_boundary": {
             "only_checksum_bound_predeclared_requests_consumed": True,
+            "request_bytes_revalidated_immediately_before_execution": True,
             "only_predeclared_record_semantics_consumed": True,
+            "record_plan_binds_exact_request_checksums": True,
+            "record_targets_restricted_to_gate_selected_targets": True,
+            "record_graph_collisions_preflighted_before_execution": True,
+            "cycle_output_collisions_preflighted_before_execution": True,
+            "mission_graph_runtime_bindings_rechecked_before_execution": True,
             "authorization_rechecked_before_every_execution": True,
             "epistemic_gate_revalidated_before_every_execution": True,
             "successor_graph_used_for_next_gate": True,
+            "mutable_program_evidence_bindings_allowed": False,
             "automatic_request_generation_available": False,
             "automatic_directional_inference_generation_available": False,
             "automatic_domain_verification_available": False,
@@ -1158,7 +1403,6 @@ __all__ = [
     "CLOSED_LOOP_SCHEMA_VERSION",
     "RESULT_RECORD_PLAN_SCHEMA_VERSION",
     "PolicyAuthorizedClosedLoopError",
-    "apply_record_only_action_result",
     "load_result_record_plan",
     "run_policy_authorized_closed_loop",
 ]
