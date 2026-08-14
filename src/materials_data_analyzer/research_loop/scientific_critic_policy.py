@@ -1,17 +1,7 @@
 """Conservative policy overlay for the deterministic scientific critic.
 
-This wrapper deliberately refuses three shortcuts that a structural graph alone cannot
-justify:
-
-1. distinct support nodes/artifacts are *not* treated as independent replication unless
-   a future explicit independence contract proves that property;
-2. mission-program evidence requirements are preserved at workstream scope and are not
-   silently attributed to an epistemic target without an explicit target↔workstream
-   provenance mapping;
-3. an empirical or mixed target is not assumed to have empirical support merely because
-   a supporting source node is something other than a simulation. Empirical inference
-   scope must be recoverable from the exact bound domain-verification decision and its
-   transition lineage.
+The overlay refuses to infer scientific authority from artifact multiplicity, source-node
+labels, incomplete verifier provenance, workstream proximity, or action proposal shape.
 """
 
 from __future__ import annotations
@@ -28,11 +18,33 @@ from .scientific_critic import (
     _build_structural_scientific_critic_report as _build_base_report,
 )
 
-SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.4"
+SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.5"
 
 _EMPIRICAL_TARGET_SCOPES = {"empirical", "mixed"}
 _INFERENCE_SCOPES = {"structural", "computational", "empirical_derived", "empirical_direct"}
 _EMPIRICAL_INFERENCE_SCOPES = {"empirical_derived", "empirical_direct"}
+_DIRECTIONAL_RELATIONS = {"supports", "contradicts", "falsifies"}
+_VERIFICATION_DECISION_KEYS = {
+    "schema_version",
+    "decision_id",
+    "transition_id",
+    "proposal_sha256",
+    "base_graph_sha256",
+    "result_node_id",
+    "target_node_id",
+    "relation",
+    "inference_scope",
+    "verifier_id",
+    "rationale",
+    "limitations",
+    "domain_verified",
+}
+
+
+def _nonempty_text(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ScientificCriticError(f"{field} must be non-empty text")
+    return value.strip()
 
 
 def _program_evidence_gaps(program_state: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -59,11 +71,9 @@ def _program_evidence_gaps(program_state: Mapping[str, Any]) -> list[dict[str, A
             )
         normalized: list[str] = []
         for index, requirement in enumerate(requirements):
-            if not isinstance(requirement, str) or not requirement.strip():
-                raise ScientificCriticError(
-                    f"generated goal evidence_requirements[{index}] must be non-empty text"
-                )
-            text = requirement.strip()
+            text = _nonempty_text(
+                requirement, f"generated goal evidence_requirements[{index}]"
+            )
             if text not in normalized:
                 normalized.append(text)
         if not normalized or status == "scope_exhausted":
@@ -307,11 +317,76 @@ def _transition_lineage_by_id(graph: Mapping[str, Any]) -> dict[str, Mapping[str
     return result
 
 
+def _validate_verification_decision_contract(decision: Mapping[str, Any]) -> str:
+    keys = set(decision)
+    missing = sorted(_VERIFICATION_DECISION_KEYS - keys)
+    unknown = sorted(keys - _VERIFICATION_DECISION_KEYS)
+    if missing:
+        raise ScientificCriticError(
+            "domain verification decision is missing required keys: " + ", ".join(missing)
+        )
+    if unknown:
+        raise ScientificCriticError(
+            "domain verification decision has unknown keys: " + ", ".join(unknown)
+        )
+    if decision.get("schema_version") != "1.0":
+        raise ScientificCriticError("bound domain verification decision is not schema v1.0")
+    if decision.get("domain_verified") is not True:
+        raise ScientificCriticError("domain verification decision must set domain_verified=true")
+
+    for field in (
+        "decision_id",
+        "transition_id",
+        "proposal_sha256",
+        "base_graph_sha256",
+        "result_node_id",
+        "target_node_id",
+        "verifier_id",
+        "rationale",
+    ):
+        _nonempty_text(decision.get(field), f"domain verification decision {field}")
+
+    relation = _nonempty_text(
+        decision.get("relation"), "domain verification decision relation"
+    )
+    if relation not in _DIRECTIONAL_RELATIONS:
+        raise ScientificCriticError("domain verification decision relation is unsupported")
+    scope = _nonempty_text(
+        decision.get("inference_scope"), "domain verification decision inference_scope"
+    )
+    if scope not in _INFERENCE_SCOPES:
+        raise ScientificCriticError("domain verification decision inference_scope is unsupported")
+
+    limitations = decision.get("limitations")
+    if not isinstance(limitations, list):
+        raise ScientificCriticError("domain verification decision limitations must be a list")
+    seen: set[str] = set()
+    for index, value in enumerate(limitations):
+        text = _nonempty_text(
+            value, f"domain verification decision limitations[{index}]"
+        )
+        if text in seen:
+            raise ScientificCriticError(
+                "domain verification decision limitations must not contain duplicates"
+            )
+        seen.add(text)
+    return scope
+
+
 def _validate_empirical_scope_source(
     *, scope: str, source_node: Mapping[str, Any]
-) -> None:
+) -> bool:
+    """Return whether the graph contract can establish the requested empirical scope.
+
+    `empirical_derived` cannot currently be established from the graph because its
+    `input_evidence_bindings` identify workstream/role/checksum only; they do not carry
+    a provenance-bound empirical-vs-computational origin classification. The critic must
+    therefore keep that scope unestablished until a first-class evidence-origin contract
+    exists. `empirical_direct` can be established from an external physical experiment.
+    """
     if scope not in _EMPIRICAL_INFERENCE_SCOPES:
-        return
+        return True
+
     node_type = source_node.get("node_type")
     metadata = source_node.get("metadata")
     if not isinstance(metadata, Mapping):
@@ -320,12 +395,14 @@ def _validate_empirical_scope_source(
         )
     result_origin = metadata.get("result_origin")
     input_evidence = metadata.get("input_evidence_bindings")
+
     if scope == "empirical_direct":
         if node_type != "experiment" or result_origin != "external_physical_experiment":
             raise ScientificCriticError(
                 "empirical_direct verifier scope is incompatible with its source-node provenance"
             )
-        return
+        return True
+
     if not isinstance(input_evidence, list) or not input_evidence:
         raise ScientificCriticError(
             "empirical_derived verifier scope requires bound input evidence on its source node"
@@ -347,6 +424,10 @@ def _validate_empirical_scope_source(
         raise ScientificCriticError(
             "empirical_derived verifier scope requires analysis or data-experiment provenance"
         )
+
+    # The current binding object has no empirical-origin classification, so presence of
+    # input bindings alone cannot prove that this is empirical-derived evidence.
+    return False
 
 
 def _bound_domain_verification_scope(
@@ -382,13 +463,12 @@ def _bound_domain_verification_scope(
             "domain verification decision changed after graph verification"
         )
 
+    scope = _validate_verification_decision_contract(decision)
     expected_pairs = {
         "result_node_id": edge.get("source_node_id"),
         "target_node_id": edge.get("target_node_id"),
         "relation": edge.get("relation"),
     }
-    if decision.get("schema_version") != "1.0" or decision.get("domain_verified") is not True:
-        raise ScientificCriticError("bound domain verification decision is not a verified v1.0 decision")
     for field, expected in expected_pairs.items():
         if decision.get(field) != expected:
             raise ScientificCriticError(
@@ -405,13 +485,11 @@ def _bound_domain_verification_scope(
             "domain verification decision source node lacks transition metadata"
         )
     transition_id = decision.get("transition_id")
-    if not isinstance(transition_id, str) or not transition_id.strip():
-        raise ScientificCriticError("domain verification decision transition_id is malformed")
     if source_metadata.get("transition_id") != transition_id:
         raise ScientificCriticError(
             "domain verification decision transition_id does not match source-node provenance"
         )
-    lineage = lineage_by_id.get(transition_id)
+    lineage = lineage_by_id.get(str(transition_id))
     if not isinstance(lineage, Mapping):
         raise ScientificCriticError(
             "domain verification decision is not bound by graph transition_lineage"
@@ -432,10 +510,22 @@ def _bound_domain_verification_scope(
                 f"domain verification decision {field} does not match graph transition_lineage"
             )
 
-    scope = decision.get("inference_scope")
-    if not isinstance(scope, str) or scope not in _INFERENCE_SCOPES:
-        raise ScientificCriticError("domain verification decision inference_scope is unsupported")
-    _validate_empirical_scope_source(scope=scope, source_node=source_node)
+    # The merged transition-lineage v1.0 contract does not record inference_edge_id.
+    # Without that exact identity, a verifier for one same-triple edge could be attached
+    # to another. Missing identity therefore leaves scope unestablished; an explicit but
+    # conflicting identity is a provenance error and fails closed.
+    lineage_edge_id = lineage.get("inference_edge_id")
+    if lineage_edge_id is None:
+        return None
+    if not isinstance(lineage_edge_id, str) or not lineage_edge_id.strip():
+        raise ScientificCriticError("transition lineage inference_edge_id is malformed")
+    if lineage_edge_id != edge.get("edge_id"):
+        raise ScientificCriticError(
+            "domain verification decision does not match the exact inference edge identity"
+        )
+
+    if not _validate_empirical_scope_source(scope=scope, source_node=source_node):
+        return None
     return scope
 
 
@@ -531,11 +621,12 @@ def _add_empirical_support_scope_obligation(
                     "inference scope."
                 ),
                 "rationale": (
-                    "A domain-verified support edge remains domain verified, but node type alone cannot "
-                    "show whether an analysis is computational or empirically derived. The critic therefore "
-                    "requires the verifier decision, source transition metadata, and graph transition lineage "
-                    f"to agree. Observed bound scopes: {observed_scope_text}; support edges without a recognized "
-                    f"lineage-bound empirical scope: {unresolved_text}."
+                    "A domain-verified support edge remains domain verified, but the critic requires a "
+                    "complete verifier contract, exact transition/inference-edge identity, and provenance-"
+                    "bound empirical origin before treating support as empirical. Current transition lineage "
+                    "does not prove inference-edge identity, and empirical_derived input bindings do not yet "
+                    f"classify empirical origin. Observed established scopes: {observed_scope_text}; unresolved "
+                    f"support edges: {unresolved_text}."
                 ),
                 "edge_ids": list(support_edge_ids),
                 "node_ids": source_node_ids,
@@ -547,20 +638,20 @@ def _add_empirical_support_scope_obligation(
                 "action_id": f"critic:{target_id}:bind-empirical-support-scope",
                 "action_class": "manual_review",
                 "description": (
-                    "Reconstruct the positive-support verification provenance and bind an explicit "
-                    "empirical_derived or empirical_direct inference scope when justified; if no such "
+                    "Strengthen verifier/transition provenance with exact inference-edge identity and "
+                    "first-class empirical input-origin classification where applicable; if no empirical "
                     "support exists, plan independent empirical validation."
                 ),
                 "rationale": (
-                    "The critic must distinguish computational support from empirical evidence using "
-                    "checksum- and transition-lineage-bound verifier provenance rather than source-node labels."
+                    "The critic must distinguish computational support from empirical evidence without "
+                    "inferring authority from source labels or generic evidence bindings."
                 ),
                 "execution_mode": "plan_only",
                 "information_gain_priority": "high",
                 "information_gain_is_calibrated_probability": False,
                 "expected_discrimination": (
-                    "Determines whether the current positive support actually includes an empirically "
-                    "verified inference scope without changing the existing scientific status automatically."
+                    "Determines whether positive support has provenance sufficient to establish empirical "
+                    "scope without changing existing scientific status automatically."
                 ),
                 "automatic_execution_authorized": False,
                 "availability_asserted": False,
@@ -622,6 +713,8 @@ def build_policy_hardened_scientific_critic_report(
             "support_independence_inferred_from_artifact_identity": False,
             "empirical_support_scope_inferred_from_source_node_type": False,
             "empirical_support_scope_accepted_without_transition_lineage": False,
+            "empirical_support_scope_accepted_without_exact_inference_edge_identity": False,
+            "empirical_derived_scope_inferred_from_unclassified_input_bindings": False,
             "action_availability_inferred": False,
             "program_evidence_requirements_target_attributed_without_mapping": False,
             "program_evidence_acquisition_authorized": False,
