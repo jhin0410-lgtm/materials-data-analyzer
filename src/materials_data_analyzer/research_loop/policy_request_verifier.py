@@ -1,8 +1,8 @@
 """Independent verifier for machine-authored bounded local execution requests.
 
-This verifier deliberately re-derives planner selection, registry contract, budget,
-mission binding, delegation scope, research-ledger binding, deterministic action ID,
-and the exact typed request shape.  It does not trust compiler-returned booleans and
+The verifier re-derives planner selection, planning/execution registry identities,
+budget state, delegation scope, typed inputs, research-ledger binding, and the
+deterministic action ID. It does not trust compiler-returned authorization booleans and
 performs no execution itself.
 """
 
@@ -18,51 +18,89 @@ from .action_registry import describe_action, load_action_registry
 from .kernel import ResearchLoopError, load_research_state
 from .research_program import validate_research_mission
 
-VERIFIER_SCHEMA_VERSION = "1.0"
-VERIFIER_POLICY_VERSION = "1.0"
-_EXPECTED_COMPILER_POLICY_VERSION = "1.0"
+VERIFIER_SCHEMA_VERSION = "1.1"
+VERIFIER_POLICY_VERSION = "1.1"
+_EXPECTED_COMPILER_POLICY_VERSION = "1.1"
+_EXPECTED_MANIFEST_SCHEMA_VERSION = "1.1"
 _EXPECTED_DELEGATION_SCHEMA_VERSION = "1.0"
-_EXPECTED_REQUEST_SCHEMA_VERSION = "1.0"
+_EXPECTED_EXECUTION_REQUEST_SCHEMA_VERSION = "1.0"
 
-# Repeated intentionally instead of importing the compiler allowlist.  This keeps a
-# compiler edit from silently widening the independent verification boundary.
+# Deliberately duplicated instead of importing the compiler allowlist. A compiler edit
+# therefore cannot silently widen the independent verifier surface.
 _VERIFIED_SAFE_ACTIONS: dict[str, dict[str, Any]] = {
     "audit_existing_battery_run": {
         "version": "1.0",
         "category": "diagnostic_audit",
         "cost_units": 2,
         "request_inputs": ("analysis_run",),
+        "registry_inputs": ("run_output",),
+        "input_aliases": {"run_output": "analysis_run"},
+        "binding": {
+            "kind": "installed_command",
+            "name": "mda-battery-result-audit",
+            "path": None,
+            "platform": "cross_platform",
+        },
     },
     "target_reference_sensitivity": {
         "version": "1.0",
         "category": "target_semantics_audit",
         "cost_units": 4,
         "request_inputs": ("analysis_run",),
+        "registry_inputs": ("analysis_run", "research_run"),
+        "input_aliases": {"analysis_run": "analysis_run"},
+        "binding": {
+            "kind": "installed_command",
+            "name": "mda-research-loop",
+            "path": None,
+            "platform": "cross_platform",
+        },
     },
     "protocol_stratification": {
         "version": "1.0",
         "category": "hypothesis_discrimination",
         "cost_units": 5,
         "request_inputs": ("import_run", "analysis_run"),
+        "registry_inputs": ("import_run", "analysis_run", "research_run"),
+        "input_aliases": {
+            "import_run": "import_run",
+            "analysis_run": "analysis_run",
+        },
+        "binding": {
+            "kind": "installed_command",
+            "name": "mda-research-loop",
+            "path": None,
+            "platform": "cross_platform",
+        },
     },
     "external_data_requirement_generation": {
         "version": "1.0",
         "category": "next_evidence_planning",
         "cost_units": 2,
         "request_inputs": (),
+        "registry_inputs": ("research_state", "unresolved_blocker_reports"),
+        "input_aliases": {},
+        "binding": {
+            "kind": "source_script",
+            "name": None,
+            "path": "scripts/run_nasa_external_data_requirement_action.py",
+            "platform": "cross_platform",
+        },
     },
 }
 
 
 class PolicyRequestVerificationError(ResearchLoopError):
-    """Raised when a compiled request cannot be independently re-authorized."""
+    """Raised when compiled request bytes cannot be independently re-authorized."""
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            raise PolicyRequestVerificationError(f"duplicate JSON key is not allowed: {key}")
+            raise PolicyRequestVerificationError(
+                f"duplicate JSON key is not allowed: {key}"
+            )
         result[key] = value
     return result
 
@@ -72,12 +110,22 @@ def _snapshot_json(path: Path) -> tuple[dict[str, Any], bytes, str]:
     if not raw:
         raise PolicyRequestVerificationError(f"JSON file must not be empty: {path}")
     try:
-        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs
+        )
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise PolicyRequestVerificationError(f"invalid JSON snapshot: {path}") from exc
+        raise PolicyRequestVerificationError(
+            f"invalid JSON snapshot: {path}"
+        ) from exc
     if not isinstance(value, dict):
-        raise PolicyRequestVerificationError(f"JSON root must be an object: {path}")
+        raise PolicyRequestVerificationError(
+            f"JSON root must be an object: {path}"
+        )
     return value, raw, hashlib.sha256(raw).hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _canonical_digest(value: Mapping[str, Any]) -> str:
@@ -93,14 +141,18 @@ def _canonical_digest(value: Mapping[str, Any]) -> str:
 
 def _nonempty_text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise PolicyRequestVerificationError(f"{field} must be a non-empty string")
+        raise PolicyRequestVerificationError(
+            f"{field} must be a non-empty string"
+        )
     return value.strip()
 
 
 def _sha256_text(value: object, field: str) -> str:
     text = _nonempty_text(value, field)
     if len(text) != 64 or any(char not in "0123456789abcdef" for char in text):
-        raise PolicyRequestVerificationError(f"{field} must be lowercase SHA-256 hex")
+        raise PolicyRequestVerificationError(
+            f"{field} must be lowercase SHA-256 hex"
+        )
     return text
 
 
@@ -130,32 +182,59 @@ def _resolve_file(value: str | Path, field: str) -> Path:
     try:
         path = Path(value).expanduser().resolve(strict=True)
     except (FileNotFoundError, NotADirectoryError, OSError) as exc:
-        raise PolicyRequestVerificationError(f"{field} does not resolve: {value}") from exc
+        raise PolicyRequestVerificationError(
+            f"{field} does not resolve: {value}"
+        ) from exc
     if not path.is_file():
         raise PolicyRequestVerificationError(f"{field} must be a file: {path}")
     return path
+
+
+def _resolve_repo_file(value: object, *, root: Path, field: str) -> Path:
+    text = _nonempty_text(value, field)
+    path = Path(text).expanduser()
+    if not path.is_absolute():
+        path = root / path
+    try:
+        resolved = path.resolve(strict=True)
+    except (FileNotFoundError, NotADirectoryError, OSError) as exc:
+        raise PolicyRequestVerificationError(f"{field} does not resolve") from exc
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise PolicyRequestVerificationError(
+            f"{field} escapes repository_root"
+        ) from exc
+    if not resolved.is_file():
+        raise PolicyRequestVerificationError(
+            f"{field} must resolve to a regular file"
+        )
+    return resolved
 
 
 def _resolve_dir(value: str | Path, field: str) -> Path:
     try:
         path = Path(value).expanduser().resolve(strict=True)
     except (FileNotFoundError, NotADirectoryError, OSError) as exc:
-        raise PolicyRequestVerificationError(f"{field} does not resolve: {value}") from exc
+        raise PolicyRequestVerificationError(
+            f"{field} does not resolve: {value}"
+        ) from exc
     if not path.is_dir():
-        raise PolicyRequestVerificationError(f"{field} must be a directory: {path}")
+        raise PolicyRequestVerificationError(
+            f"{field} must be a directory: {path}"
+        )
     return path
 
 
-def _binding_path(value: object, *, base: Path, field: str, expect_file: bool) -> Path:
-    text = _nonempty_text(value, field)
-    path = Path(text).expanduser()
+def _binding_path(value: object, *, base: Path, field: str) -> Path:
+    path = Path(_nonempty_text(value, field)).expanduser()
     if not path.is_absolute():
         path = base / path
     try:
         resolved = path.resolve(strict=True)
     except (FileNotFoundError, NotADirectoryError, OSError) as exc:
         raise PolicyRequestVerificationError(f"{field} does not resolve") from exc
-    if expect_file and not resolved.is_file():
+    if not resolved.is_file():
         raise PolicyRequestVerificationError(f"{field} must resolve to a file")
     return resolved
 
@@ -164,7 +243,6 @@ def _verify_policy(
     value: Mapping[str, Any],
     *,
     policy_path: Path,
-    policy_sha256: str,
     mission_path: Path,
     mission_sha256: str,
     adapter_id: str,
@@ -200,7 +278,9 @@ def _verify_policy(
         field="delegation policy",
     )
     if policy["schema_version"] != _EXPECTED_DELEGATION_SCHEMA_VERSION:
-        raise PolicyRequestVerificationError("unsupported delegation policy schema_version")
+        raise PolicyRequestVerificationError(
+            "unsupported delegation policy schema_version"
+        )
     _nonempty_text(policy["policy_id"], "policy.policy_id")
     if _nonempty_text(policy["adapter_id"], "policy.adapter_id") != adapter_id:
         raise PolicyRequestVerificationError("policy adapter_id mismatch")
@@ -210,31 +290,55 @@ def _verify_policy(
         allowed={"path", "sha256"},
         field="policy.mission_binding",
     )
-    bound_mission = _binding_path(
-        mission_binding["path"],
-        base=policy_path.parent,
-        field="policy.mission_binding.path",
-        expect_file=True,
-    )
-    if bound_mission != mission_path:
-        raise PolicyRequestVerificationError("policy is bound to a different mission path")
-    if _sha256_text(mission_binding["sha256"], "policy.mission_binding.sha256") != mission_sha256:
+    if (
+        _binding_path(
+            mission_binding["path"],
+            base=policy_path.parent,
+            field="policy.mission_binding.path",
+        )
+        != mission_path
+    ):
+        raise PolicyRequestVerificationError(
+            "policy is bound to a different mission path"
+        )
+    if (
+        _sha256_text(
+            mission_binding["sha256"], "policy.mission_binding.sha256"
+        )
+        != mission_sha256
+    ):
         raise PolicyRequestVerificationError("policy mission checksum mismatch")
-    for field in ("network_access", "physical_experiment_execution", "generic_command_execution"):
+    for field in (
+        "network_access",
+        "physical_experiment_execution",
+        "generic_command_execution",
+    ):
         if policy[field] is not False:
-            raise PolicyRequestVerificationError(f"policy must keep {field}=false")
+            raise PolicyRequestVerificationError(
+                f"policy must keep {field}=false"
+            )
     max_cost = policy["max_cost_units_per_request"]
-    if isinstance(max_cost, bool) or not isinstance(max_cost, int) or max_cost <= 0:
-        raise PolicyRequestVerificationError("policy max_cost_units_per_request is malformed")
+    if (
+        isinstance(max_cost, bool)
+        or not isinstance(max_cost, int)
+        or max_cost <= 0
+    ):
+        raise PolicyRequestVerificationError(
+            "policy max_cost_units_per_request is malformed"
+        )
     if action_cost > max_cost:
-        raise PolicyRequestVerificationError("request action cost exceeds policy maximum")
+        raise PolicyRequestVerificationError(
+            "request action cost exceeds policy maximum"
+        )
 
-    actions = policy["allowed_actions"]
-    if not isinstance(actions, list):
-        raise PolicyRequestVerificationError("policy allowed_actions must be a list")
+    raw_actions = policy["allowed_actions"]
+    if not isinstance(raw_actions, list):
+        raise PolicyRequestVerificationError(
+            "policy allowed_actions must be a list"
+        )
     matches: list[Mapping[str, Any]] = []
     seen: set[tuple[str, str]] = set()
-    for index, raw in enumerate(actions):
+    for index, raw in enumerate(raw_actions):
         item = _exact_object(
             raw,
             required={"action_type", "action_version", "max_cost_units"},
@@ -246,19 +350,89 @@ def _verify_policy(
             _nonempty_text(item["action_version"], "policy action_version"),
         )
         if key in seen:
-            raise PolicyRequestVerificationError("policy contains duplicate action/version")
+            raise PolicyRequestVerificationError(
+                "policy contains duplicate action/version"
+            )
         seen.add(key)
         per_action_cost = item["max_cost_units"]
-        if isinstance(per_action_cost, bool) or not isinstance(per_action_cost, int) or per_action_cost <= 0:
-            raise PolicyRequestVerificationError("policy action max_cost_units is malformed")
+        if (
+            isinstance(per_action_cost, bool)
+            or not isinstance(per_action_cost, int)
+            or per_action_cost <= 0
+        ):
+            raise PolicyRequestVerificationError(
+                "policy action max_cost_units is malformed"
+            )
         if key == (action_type, action_version):
             matches.append(item)
     if len(matches) != 1:
-        raise PolicyRequestVerificationError("policy does not delegate exact action/version")
+        raise PolicyRequestVerificationError(
+            "policy does not delegate exact action/version"
+        )
     if action_cost > int(matches[0]["max_cost_units"]):
-        raise PolicyRequestVerificationError("request action cost exceeds delegated per-action maximum")
-    if len(policy_sha256) != 64:
-        raise PolicyRequestVerificationError("internal policy snapshot checksum is malformed")
+        raise PolicyRequestVerificationError(
+            "request action cost exceeds delegated per-action maximum"
+        )
+
+
+def _registry_input_names(contract: Mapping[str, Any]) -> tuple[str, ...]:
+    raw_inputs = contract.get("required_inputs")
+    if not isinstance(raw_inputs, list):
+        raise PolicyRequestVerificationError(
+            "execution registry required_inputs are malformed"
+        )
+    names: list[str] = []
+    for item in raw_inputs:
+        if not isinstance(item, Mapping):
+            raise PolicyRequestVerificationError(
+                "execution registry required input is malformed"
+            )
+        names.append(_nonempty_text(item.get("name"), "registry input name"))
+    return tuple(names)
+
+
+def _verify_execution_contract(
+    *,
+    selected: Mapping[str, Any],
+    authorization_contract: Mapping[str, Any],
+    execution_registry: Mapping[str, Any],
+    spec: Mapping[str, Any],
+) -> None:
+    contract = describe_action(dict(execution_registry), str(selected["action_type"]))
+    checks = {
+        "version": spec["version"],
+        "availability": "available",
+        "category": spec["category"],
+        "cost_units": spec["cost_units"],
+    }
+    for key, expected in checks.items():
+        if contract.get(key) != expected:
+            raise PolicyRequestVerificationError(
+                f"execution registry contract drifted on {key}"
+            )
+    if selected.get("availability") != "available":
+        raise PolicyRequestVerificationError(
+            "selected action is no longer available"
+        )
+    if selected.get("cost_units") != spec["cost_units"]:
+        raise PolicyRequestVerificationError("selected action cost drifted")
+    if contract.get("binding") != spec["binding"]:
+        raise PolicyRequestVerificationError(
+            "execution registry binding differs from independent safe contract"
+        )
+    if authorization_contract.get("binding") != spec["binding"]:
+        raise PolicyRequestVerificationError(
+            "authorization binding differs from independent safe contract"
+        )
+    if _registry_input_names(contract) != tuple(spec["registry_inputs"]):
+        raise PolicyRequestVerificationError(
+            "execution registry required-input contract drifted"
+        )
+    verifier_checks = contract.get("verifier_checks")
+    if not isinstance(verifier_checks, list) or not verifier_checks:
+        raise PolicyRequestVerificationError(
+            "safe machine request requires verifier checks"
+        )
 
 
 def _request_keys(spec: Mapping[str, Any]) -> set[str]:
@@ -280,39 +454,107 @@ def _verify_request_shape(
     spec: Mapping[str, Any],
     action_type: str,
     research_run: Path,
-    registry_path: Path,
+    execution_registry_path: Path,
     repository_root: Path,
-    registry_sha256: str,
+    execution_registry_sha256: str,
 ) -> dict[str, str]:
     keys = _request_keys(spec)
-    _exact_object(request, required=keys, allowed=keys, field="compiled execution request")
-    if request["schema_version"] != _EXPECTED_REQUEST_SCHEMA_VERSION:
-        raise PolicyRequestVerificationError("unsupported execution request schema_version")
+    _exact_object(
+        request,
+        required=keys,
+        allowed=keys,
+        field="compiled execution request",
+    )
+    if request["schema_version"] != _EXPECTED_EXECUTION_REQUEST_SCHEMA_VERSION:
+        raise PolicyRequestVerificationError(
+            "unsupported execution request schema_version"
+        )
     if request["action_type"] != action_type:
-        raise PolicyRequestVerificationError("compiled request action_type mismatch")
+        raise PolicyRequestVerificationError(
+            "compiled request action_type mismatch"
+        )
     if _resolve_dir(request["research_run"], "request.research_run") != research_run:
-        raise PolicyRequestVerificationError("compiled request research_run mismatch")
-    if _resolve_file(request["registry"], "request.registry") != registry_path:
-        raise PolicyRequestVerificationError("compiled request registry mismatch")
-    if _resolve_dir(request["repository_root"], "request.repository_root") != repository_root:
-        raise PolicyRequestVerificationError("compiled request repository_root mismatch")
-    if _sha256_text(request["expected_registry_sha256"], "request.expected_registry_sha256") != registry_sha256:
-        raise PolicyRequestVerificationError("compiled request expected registry checksum mismatch")
+        raise PolicyRequestVerificationError(
+            "compiled request research_run mismatch"
+        )
+    if (
+        _resolve_file(request["registry"], "request.registry")
+        != execution_registry_path
+    ):
+        raise PolicyRequestVerificationError(
+            "compiled request execution registry mismatch"
+        )
+    if (
+        _resolve_dir(request["repository_root"], "request.repository_root")
+        != repository_root
+    ):
+        raise PolicyRequestVerificationError(
+            "compiled request repository_root mismatch"
+        )
+    if (
+        _sha256_text(
+            request["expected_registry_sha256"],
+            "request.expected_registry_sha256",
+        )
+        != execution_registry_sha256
+    ):
+        raise PolicyRequestVerificationError(
+            "compiled request execution registry checksum mismatch"
+        )
     action_id = _nonempty_text(request["action_id"], "request.action_id")
-    if len(action_id) > 128 or not all(char.isalnum() or char in "._-" for char in action_id):
-        raise PolicyRequestVerificationError("compiled request action_id is not executor-safe")
+    if len(action_id) > 128 or not all(
+        char.isalnum() or char in "._-" for char in action_id
+    ):
+        raise PolicyRequestVerificationError(
+            "compiled request action_id is not executor-safe"
+        )
     return {
         name: str(_resolve_dir(request[name], f"request.{name}"))
         for name in tuple(str(item) for item in spec["request_inputs"])
     }
 
 
+def _verify_manifest_file_binding(
+    value: object,
+    *,
+    expected_path: Path,
+    expected_registry: Mapping[str, Any],
+    field: str,
+) -> str:
+    binding = _exact_object(
+        value,
+        required={"path", "registry_id", "registry_sha256", "file_sha256"},
+        allowed={"path", "registry_id", "registry_sha256", "file_sha256"},
+        field=field,
+    )
+    if _resolve_file(binding["path"], f"{field}.path") != expected_path:
+        raise PolicyRequestVerificationError(f"{field} path mismatch")
+    if binding["registry_id"] != expected_registry["registry_id"]:
+        raise PolicyRequestVerificationError(f"{field} registry_id mismatch")
+    if (
+        _sha256_text(binding["registry_sha256"], f"{field}.registry_sha256")
+        != expected_registry["registry_sha256"]
+    ):
+        raise PolicyRequestVerificationError(
+            f"{field} normalized registry checksum mismatch"
+        )
+    current_file_sha = _file_sha256(expected_path)
+    if (
+        _sha256_text(binding["file_sha256"], f"{field}.file_sha256")
+        != current_file_sha
+    ):
+        raise PolicyRequestVerificationError(f"{field} raw bytes changed")
+    return current_file_sha
+
+
 def _deterministic_action_id(
     *,
     policy_sha256: str,
     mission_sha256: str,
-    registry_sha256: str,
+    planning_registry_file_sha256: str,
+    execution_registry_file_sha256: str,
     ledger_sha256: str,
+    selected_action_sha256: str,
     action_type: str,
     action_version: str,
     action_inputs: Mapping[str, str],
@@ -321,8 +563,10 @@ def _deterministic_action_id(
         {
             "policy_sha256": policy_sha256,
             "mission_sha256": mission_sha256,
-            "registry_sha256": registry_sha256,
+            "planning_registry_file_sha256": planning_registry_file_sha256,
+            "execution_registry_file_sha256": execution_registry_file_sha256,
             "ledger_sha256": ledger_sha256,
+            "selected_action_sha256": selected_action_sha256,
             "action_type": action_type,
             "action_version": action_version,
             "action_inputs": dict(action_inputs),
@@ -348,16 +592,21 @@ def verify_policy_authorized_request(
     mission_file = _resolve_file(mission_path, "mission_path")
     policy_file = _resolve_file(delegation_policy_path, "delegation_policy_path")
     run = _resolve_dir(research_run, "research_run")
-    registry_file = _resolve_file(action_registry_path, "action_registry_path")
+    planning_registry_path = _resolve_file(
+        action_registry_path, "action_registry_path"
+    )
     request_file = _resolve_file(request_path, "request_path")
     manifest_file = _resolve_file(manifest_path, "manifest_path")
 
     mission_value, mission_raw, mission_sha = _snapshot_json(mission_file)
     mission = validate_research_mission(mission_value)
     autonomy = mission.get("autonomy_policy")
-    if not isinstance(autonomy, Mapping) or autonomy.get("typed_computational_actions") != "explicit_request":
+    if (
+        not isinstance(autonomy, Mapping)
+        or autonomy.get("typed_computational_actions") != "explicit_request"
+    ):
         raise PolicyRequestVerificationError(
-            "delegated request authorship requires mission typed_computational_actions=explicit_request"
+            "delegated request authorship requires explicit-request mission policy"
         )
     policy_value, policy_raw, policy_sha = _snapshot_json(policy_file)
     request, request_raw, request_sha = _snapshot_json(request_file)
@@ -373,10 +622,12 @@ def verify_policy_authorized_request(
             "policy_binding",
             "mission_binding",
             "research_state_binding",
-            "registry_binding",
+            "planning_registry_binding",
+            "execution_registry_binding",
             "selected_action_binding",
             "request_binding",
             "action_inputs",
+            "registry_input_aliases",
             "autonomy_boundary",
         },
         allowed={
@@ -387,20 +638,30 @@ def verify_policy_authorized_request(
             "policy_binding",
             "mission_binding",
             "research_state_binding",
-            "registry_binding",
+            "planning_registry_binding",
+            "execution_registry_binding",
             "selected_action_binding",
             "request_binding",
             "action_inputs",
+            "registry_input_aliases",
             "autonomy_boundary",
         },
         field="policy request manifest",
     )
-    if manifest["schema_version"] != _EXPECTED_REQUEST_SCHEMA_VERSION:
-        raise PolicyRequestVerificationError("unsupported policy request manifest schema_version")
+    if manifest["schema_version"] != _EXPECTED_MANIFEST_SCHEMA_VERSION:
+        raise PolicyRequestVerificationError(
+            "unsupported policy request manifest schema_version"
+        )
     if manifest["compiler_policy_version"] != _EXPECTED_COMPILER_POLICY_VERSION:
-        raise PolicyRequestVerificationError("unsupported compiler policy version")
-    if manifest["compilation_status"] != "compiled_bounded_local_request_not_executed":
-        raise PolicyRequestVerificationError("manifest compilation status is not pre-execution")
+        raise PolicyRequestVerificationError(
+            "unsupported compiler policy version"
+        )
+    if manifest["compilation_status"] != (
+        "compiled_bounded_local_request_not_executed"
+    ):
+        raise PolicyRequestVerificationError(
+            "manifest compilation status is not pre-execution"
+        )
     if manifest["adapter_id"] != adapter:
         raise PolicyRequestVerificationError("manifest adapter_id mismatch")
 
@@ -410,23 +671,40 @@ def verify_policy_authorized_request(
         allowed={"path", "sha256", "bytes"},
         field="manifest.request_binding",
     )
-    if _resolve_file(request_binding["path"], "manifest.request_binding.path") != request_file:
+    if (
+        _resolve_file(
+            request_binding["path"], "manifest.request_binding.path"
+        )
+        != request_file
+    ):
         raise PolicyRequestVerificationError("manifest request path mismatch")
-    if _sha256_text(request_binding["sha256"], "manifest.request_binding.sha256") != request_sha:
+    if (
+        _sha256_text(
+            request_binding["sha256"], "manifest.request_binding.sha256"
+        )
+        != request_sha
+    ):
         raise PolicyRequestVerificationError("manifest request checksum mismatch")
     if request_binding["bytes"] != len(request_raw):
-        raise PolicyRequestVerificationError("manifest request byte count mismatch")
+        raise PolicyRequestVerificationError(
+            "manifest request byte count mismatch"
+        )
 
     policy_binding = _exact_object(
         manifest["policy_binding"],
-        required={"path", "sha256"},
-        allowed={"path", "sha256"},
+        required={"path", "sha256", "bytes"},
+        allowed={"path", "sha256", "bytes"},
         field="manifest.policy_binding",
     )
     if _resolve_file(policy_binding["path"], "manifest.policy_binding.path") != policy_file:
         raise PolicyRequestVerificationError("manifest policy path mismatch")
-    if _sha256_text(policy_binding["sha256"], "manifest.policy_binding.sha256") != policy_sha:
+    if (
+        _sha256_text(policy_binding["sha256"], "manifest.policy_binding.sha256")
+        != policy_sha
+    ):
         raise PolicyRequestVerificationError("manifest policy checksum mismatch")
+    if policy_binding["bytes"] != len(policy_raw):
+        raise PolicyRequestVerificationError("manifest policy byte count mismatch")
 
     mission_binding = _exact_object(
         manifest["mission_binding"],
@@ -436,51 +714,118 @@ def verify_policy_authorized_request(
     )
     if _resolve_file(mission_binding["path"], "manifest.mission_binding.path") != mission_file:
         raise PolicyRequestVerificationError("manifest mission path mismatch")
-    if _sha256_text(mission_binding["sha256"], "manifest.mission_binding.sha256") != mission_sha:
+    if (
+        _sha256_text(mission_binding["sha256"], "manifest.mission_binding.sha256")
+        != mission_sha
+    ):
         raise PolicyRequestVerificationError("manifest mission checksum mismatch")
     if mission_binding["bytes"] != len(mission_raw):
         raise PolicyRequestVerificationError("manifest mission byte count mismatch")
 
-    registry = load_action_registry(registry_file, repository_root=root)
+    planning_registry = load_action_registry(
+        planning_registry_path,
+        repository_root=root,
+    )
+    planning_file_sha = _verify_manifest_file_binding(
+        manifest["planning_registry_binding"],
+        expected_path=planning_registry_path,
+        expected_registry=planning_registry,
+        field="manifest.planning_registry_binding",
+    )
+
+    state_before = load_research_state(run)
+    ledger_before = _sha256_text(
+        state_before.get("ledger_sha256"), "research_state.ledger_sha256"
+    )
     authorization = assess_current_action_authorization(
         adapter,
         repository_root=root,
         research_run=run,
-        action_registry_path=registry_file,
+        action_registry_path=planning_registry_path,
     )
-    if authorization.get("authorization_status") != "ready_for_explicit_execution_request":
-        raise PolicyRequestVerificationError("current planner/registry/budget state no longer permits the request")
+    if (
+        authorization.get("authorization_status")
+        != "ready_for_explicit_execution_request"
+    ):
+        raise PolicyRequestVerificationError(
+            "current planner/registry/budget state no longer permits the request"
+        )
     selected = authorization.get("selected_action")
-    if not isinstance(selected, Mapping):
-        raise PolicyRequestVerificationError("current authorization omitted selected action")
-    action_type = _nonempty_text(selected.get("action_type"), "selected_action.action_type")
-    action_version = _nonempty_text(selected.get("action_version"), "selected_action.action_version")
+    auth_contract = authorization.get("execution_contract")
+    if not isinstance(selected, Mapping) or not isinstance(auth_contract, Mapping):
+        raise PolicyRequestVerificationError(
+            "current authorization omitted selected execution contract"
+        )
+    action_type = _nonempty_text(
+        selected.get("action_type"), "selected_action.action_type"
+    )
+    action_version = _nonempty_text(
+        selected.get("action_version"), "selected_action.action_version"
+    )
     spec = _VERIFIED_SAFE_ACTIONS.get(action_type)
     if spec is None or action_version != spec["version"]:
-        raise PolicyRequestVerificationError("selected action/version is outside independent safe allowlist")
-    contract = describe_action(registry, action_type)
-    if contract.get("availability") != "available":
-        raise PolicyRequestVerificationError("runtime registry action is no longer available")
-    if (
-        contract.get("version") != spec["version"]
-        or contract.get("category") != spec["category"]
-        or contract.get("cost_units") != spec["cost_units"]
-    ):
-        raise PolicyRequestVerificationError("runtime registry contract differs from independent safe contract")
-    binding = contract.get("binding")
-    if not isinstance(binding, Mapping) or binding.get("kind") != "installed_command":
-        raise PolicyRequestVerificationError("safe machine request requires installed-command binding")
-    if not isinstance(contract.get("verifier_checks"), list) or not contract["verifier_checks"]:
-        raise PolicyRequestVerificationError("safe machine request requires verifier checks")
-    if selected.get("execution_registry_sha256") != registry.get("registry_sha256"):
-        raise PolicyRequestVerificationError("planner-selected registry checksum drifted")
-    if selected.get("cost_units") != spec["cost_units"]:
-        raise PolicyRequestVerificationError("planner-selected cost drifted")
+        raise PolicyRequestVerificationError(
+            "selected action/version is outside independent safe allowlist"
+        )
+
+    execution_registry_path = _resolve_repo_file(
+        auth_contract.get("registry_path"),
+        root=root,
+        field="authorization.execution_contract.registry_path",
+    )
+    selected_registry_path = _resolve_repo_file(
+        selected.get("execution_registry_path"),
+        root=root,
+        field="selected_action.execution_registry_path",
+    )
+    if execution_registry_path != selected_registry_path:
+        raise PolicyRequestVerificationError(
+            "selected action and authorization disagree on execution registry path"
+        )
+    execution_registry = load_action_registry(
+        execution_registry_path,
+        repository_root=root,
+    )
+    selected_registry_id = _nonempty_text(
+        selected.get("execution_registry_id"),
+        "selected_action.execution_registry_id",
+    )
+    selected_registry_sha = _sha256_text(
+        selected.get("execution_registry_sha256"),
+        "selected_action.execution_registry_sha256",
+    )
+    if execution_registry["registry_id"] != selected_registry_id:
+        raise PolicyRequestVerificationError(
+            "selected execution registry ID drifted"
+        )
+    if execution_registry["registry_sha256"] != selected_registry_sha:
+        raise PolicyRequestVerificationError(
+            "selected execution registry checksum drifted"
+        )
+    if auth_contract.get("registry_id") != selected_registry_id:
+        raise PolicyRequestVerificationError(
+            "authorization execution registry ID drifted"
+        )
+    if auth_contract.get("registry_sha256") != selected_registry_sha:
+        raise PolicyRequestVerificationError(
+            "authorization execution registry checksum drifted"
+        )
+    _verify_execution_contract(
+        selected=selected,
+        authorization_contract=auth_contract,
+        execution_registry=execution_registry,
+        spec=spec,
+    )
+    execution_file_sha = _verify_manifest_file_binding(
+        manifest["execution_registry_binding"],
+        expected_path=execution_registry_path,
+        expected_registry=execution_registry,
+        field="manifest.execution_registry_binding",
+    )
 
     _verify_policy(
         policy_value,
         policy_path=policy_file,
-        policy_sha256=policy_sha,
         mission_path=mission_file,
         mission_sha256=mission_sha,
         adapter_id=adapter,
@@ -493,22 +838,49 @@ def verify_policy_authorized_request(
         spec=spec,
         action_type=action_type,
         research_run=run,
-        registry_path=registry_file,
+        execution_registry_path=execution_registry_path,
         repository_root=root,
-        registry_sha256=str(registry["registry_sha256"]),
+        execution_registry_sha256=str(execution_registry["registry_sha256"]),
     )
     manifest_inputs = manifest["action_inputs"]
     if not isinstance(manifest_inputs, dict) or manifest_inputs != action_inputs:
-        raise PolicyRequestVerificationError("manifest action inputs differ from exact typed request")
+        raise PolicyRequestVerificationError(
+            "manifest action inputs differ from exact typed request"
+        )
+    if manifest["registry_input_aliases"] != spec["input_aliases"]:
+        raise PolicyRequestVerificationError(
+            "manifest registry/request input alias contract drifted"
+        )
 
+    selected_sha = _canonical_digest(dict(selected))
     selected_binding = _exact_object(
         manifest["selected_action_binding"],
-        required={"sha256", "action_type", "action_version", "category", "cost_units"},
-        allowed={"sha256", "action_type", "action_version", "category", "cost_units"},
+        required={
+            "sha256",
+            "action_type",
+            "action_version",
+            "category",
+            "cost_units",
+        },
+        allowed={
+            "sha256",
+            "action_type",
+            "action_version",
+            "category",
+            "cost_units",
+        },
         field="manifest.selected_action_binding",
     )
-    if _sha256_text(selected_binding["sha256"], "manifest.selected_action_binding.sha256") != _canonical_digest(dict(selected)):
-        raise PolicyRequestVerificationError("manifest selected-action fingerprint mismatch")
+    if (
+        _sha256_text(
+            selected_binding["sha256"],
+            "manifest.selected_action_binding.sha256",
+        )
+        != selected_sha
+    ):
+        raise PolicyRequestVerificationError(
+            "manifest selected-action fingerprint mismatch"
+        )
     expected_selected = {
         "action_type": action_type,
         "action_version": action_version,
@@ -517,54 +889,76 @@ def verify_policy_authorized_request(
     }
     for key, expected in expected_selected.items():
         if selected_binding[key] != expected:
-            raise PolicyRequestVerificationError(f"manifest selected action drifted on {key}")
+            raise PolicyRequestVerificationError(
+                f"manifest selected action drifted on {key}"
+            )
 
-    state = load_research_state(run)
-    ledger_sha = _sha256_text(state.get("ledger_sha256"), "research_state.ledger_sha256")
+    state_after = load_research_state(run)
+    ledger_after = _sha256_text(
+        state_after.get("ledger_sha256"), "research_state.ledger_sha256"
+    )
+    if ledger_after != ledger_before:
+        raise PolicyRequestVerificationError(
+            "research ledger changed during independent request verification"
+        )
     state_binding = _exact_object(
         manifest["research_state_binding"],
         required={"research_run", "ledger_sha256"},
         allowed={"research_run", "ledger_sha256"},
         field="manifest.research_state_binding",
     )
-    if _resolve_dir(state_binding["research_run"], "manifest.research_state_binding.research_run") != run:
+    if (
+        _resolve_dir(
+            state_binding["research_run"],
+            "manifest.research_state_binding.research_run",
+        )
+        != run
+    ):
         raise PolicyRequestVerificationError("manifest research_run mismatch")
-    if _sha256_text(state_binding["ledger_sha256"], "manifest.research_state_binding.ledger_sha256") != ledger_sha:
-        raise PolicyRequestVerificationError("research ledger changed after request compilation")
-
-    registry_binding = _exact_object(
-        manifest["registry_binding"],
-        required={"path", "registry_id", "registry_sha256"},
-        allowed={"path", "registry_id", "registry_sha256"},
-        field="manifest.registry_binding",
-    )
-    if _resolve_file(registry_binding["path"], "manifest.registry_binding.path") != registry_file:
-        raise PolicyRequestVerificationError("manifest registry path mismatch")
-    if registry_binding["registry_id"] != registry["registry_id"]:
-        raise PolicyRequestVerificationError("manifest registry_id mismatch")
-    if _sha256_text(registry_binding["registry_sha256"], "manifest.registry_binding.registry_sha256") != registry["registry_sha256"]:
-        raise PolicyRequestVerificationError("manifest registry checksum mismatch")
+    if (
+        _sha256_text(
+            state_binding["ledger_sha256"],
+            "manifest.research_state_binding.ledger_sha256",
+        )
+        != ledger_after
+    ):
+        raise PolicyRequestVerificationError(
+            "research ledger changed after request compilation"
+        )
 
     expected_action_id = _deterministic_action_id(
         policy_sha256=policy_sha,
         mission_sha256=mission_sha,
-        registry_sha256=str(registry["registry_sha256"]),
-        ledger_sha256=ledger_sha,
+        planning_registry_file_sha256=planning_file_sha,
+        execution_registry_file_sha256=execution_file_sha,
+        ledger_sha256=ledger_after,
+        selected_action_sha256=selected_sha,
         action_type=action_type,
         action_version=action_version,
         action_inputs=action_inputs,
     )
     if request.get("action_id") != expected_action_id:
-        raise PolicyRequestVerificationError("compiled request action_id is not deterministic for current authority state")
-    actions = state.get("actions")
+        raise PolicyRequestVerificationError(
+            "compiled request action_id is not deterministic for current authority"
+        )
+    actions = state_after.get("actions")
     if not isinstance(actions, list):
-        raise PolicyRequestVerificationError("research state actions are malformed")
-    if any(isinstance(item, Mapping) and item.get("action_id") == expected_action_id for item in actions):
-        raise PolicyRequestVerificationError("compiled action_id already exists in research ledger")
+        raise PolicyRequestVerificationError(
+            "research state actions are malformed"
+        )
+    if any(
+        isinstance(item, Mapping) and item.get("action_id") == expected_action_id
+        for item in actions
+    ):
+        raise PolicyRequestVerificationError(
+            "compiled action_id already exists in research ledger"
+        )
 
     boundary = manifest["autonomy_boundary"]
     if not isinstance(boundary, Mapping):
-        raise PolicyRequestVerificationError("manifest autonomy boundary is malformed")
+        raise PolicyRequestVerificationError(
+            "manifest autonomy boundary is malformed"
+        )
     required_false = {
         "execution_authorized_by_compiler",
         "human_acknowledgement_generated",
@@ -577,7 +971,9 @@ def verify_policy_authorized_request(
     if boundary.get("request_authorship_delegated") is not True or any(
         boundary.get(field) is not False for field in required_false
     ):
-        raise PolicyRequestVerificationError("manifest autonomy boundary is not fail-closed")
+        raise PolicyRequestVerificationError(
+            "manifest autonomy boundary is not fail-closed"
+        )
 
     return {
         "schema_version": VERIFIER_SCHEMA_VERSION,
@@ -592,14 +988,31 @@ def verify_policy_authorized_request(
             "sha256": request_sha,
             "bytes": len(request_raw),
         },
-        "policy_binding": {"path": str(policy_file), "sha256": policy_sha, "bytes": len(policy_raw)},
-        "mission_binding": {"path": str(mission_file), "sha256": mission_sha},
-        "registry_binding": {
-            "path": str(registry_file),
-            "registry_id": registry["registry_id"],
-            "registry_sha256": registry["registry_sha256"],
+        "policy_binding": {
+            "path": str(policy_file),
+            "sha256": policy_sha,
+            "bytes": len(policy_raw),
         },
-        "research_state_binding": {"research_run": str(run), "ledger_sha256": ledger_sha},
+        "mission_binding": {
+            "path": str(mission_file),
+            "sha256": mission_sha,
+        },
+        "planning_registry_binding": {
+            "path": str(planning_registry_path),
+            "registry_id": planning_registry["registry_id"],
+            "registry_sha256": planning_registry["registry_sha256"],
+            "file_sha256": planning_file_sha,
+        },
+        "execution_registry_binding": {
+            "path": str(execution_registry_path),
+            "registry_id": execution_registry["registry_id"],
+            "registry_sha256": execution_registry["registry_sha256"],
+            "file_sha256": execution_file_sha,
+        },
+        "research_state_binding": {
+            "research_run": str(run),
+            "ledger_sha256": ledger_after,
+        },
         "automatic_execution_permitted_under_delegation": True,
         "action_executed": False,
         "network_access_authorized": False,
