@@ -155,6 +155,8 @@ def _base_report(graph: Path) -> dict[str, object]:
                 "epistemic_assessment": {
                     "status": "provisionally_supported",
                     "verified_support_edges": ["support-1"],
+                    "verified_contradiction_edges": [],
+                    "verified_falsification_edges": [],
                 },
                 "critic_findings": [],
                 "methodological_alternatives": [],
