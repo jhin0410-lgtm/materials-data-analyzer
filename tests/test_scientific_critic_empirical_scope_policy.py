@@ -22,36 +22,86 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _verification(tmp_path: Path, *, inference_scope: str) -> Path:
-    return _write_json(
-        tmp_path / f"verify-{inference_scope}.json",
-        {
-            "schema_version": "1.0",
-            "decision_id": f"verify-{inference_scope}",
-            "transition_id": "transition-1",
-            "proposal_sha256": "p" * 64,
-            "base_graph_sha256": "b" * 64,
-            "result_node_id": "a1",
-            "target_node_id": "h1",
-            "relation": "supports",
-            "inference_scope": inference_scope,
-            "verifier_id": "domain-verifier",
-            "rationale": "Bound scope test decision.",
-            "limitations": [],
-            "domain_verified": True,
-        },
-    )
+def _verification(
+    tmp_path: Path,
+    *,
+    inference_scope: str,
+    omit_field: str | None = None,
+) -> Path:
+    value: dict[str, object] = {
+        "schema_version": "1.0",
+        "decision_id": f"verify-{inference_scope}",
+        "transition_id": "transition-1",
+        "proposal_sha256": "p" * 64,
+        "base_graph_sha256": "b" * 64,
+        "result_node_id": "a1",
+        "target_node_id": "h1",
+        "relation": "supports",
+        "inference_scope": inference_scope,
+        "verifier_id": "domain-verifier",
+        "rationale": "Bound scope test decision.",
+        "limitations": [],
+        "domain_verified": True,
+    }
+    if omit_field is not None:
+        value.pop(omit_field)
+    return _write_json(tmp_path / f"verify-{inference_scope}.json", value)
 
 
 def _graph(
     tmp_path: Path,
     verification: Path,
     *,
+    inference_scope: str,
     lineage_proposal_sha256: str | None = None,
+    lineage_inference_edge_id: str | None = "support-1",
 ) -> Path:
     decision = json.loads(verification.read_text(encoding="utf-8"))
-    proposal_sha = str(decision["proposal_sha256"])
-    base_graph_sha = str(decision["base_graph_sha256"])
+    proposal_sha = str(decision.get("proposal_sha256", "p" * 64))
+    base_graph_sha = str(decision.get("base_graph_sha256", "b" * 64))
+
+    if inference_scope == "empirical_direct":
+        source_node: dict[str, object] = {
+            "node_id": "a1",
+            "node_type": "experiment",
+            "statement": "Bound physical experiment result.",
+            "metadata": {
+                "result_origin": "external_physical_experiment",
+                "transition_id": "transition-1",
+                "input_evidence_bindings": [],
+            },
+        }
+    else:
+        source_node = {
+            "node_id": "a1",
+            "node_type": "analysis",
+            "statement": "Bound analysis result.",
+            "metadata": {
+                "result_origin": "authorized_local_analysis",
+                "transition_id": "transition-1",
+                "input_evidence_bindings": [
+                    {
+                        "workstream_id": "ws",
+                        "role": "unclassified_input",
+                        "sha256": "e" * 64,
+                    }
+                ],
+            },
+        }
+
+    lineage: dict[str, object] = {
+        "transition_id": "transition-1",
+        "parent_graph_id": "g0",
+        "parent_graph_sha256": base_graph_sha,
+        "proposal_sha256": (
+            proposal_sha if lineage_proposal_sha256 is None else lineage_proposal_sha256
+        ),
+        "verification_decision_sha256": _sha(verification),
+        "result_node_id": "a1",
+    }
+    if lineage_inference_edge_id is not None:
+        lineage["inference_edge_id"] = lineage_inference_edge_id
+
     return _write_json(
         tmp_path / "graph.json",
         {
@@ -65,22 +115,7 @@ def _graph(
                     "statement": "Empirical target.",
                     "metadata": {"claim_scope": "empirical"},
                 },
-                {
-                    "node_id": "a1",
-                    "node_type": "analysis",
-                    "statement": "Bound analysis result.",
-                    "metadata": {
-                        "result_origin": "authorized_local_analysis",
-                        "transition_id": "transition-1",
-                        "input_evidence_bindings": [
-                            {
-                                "workstream_id": "ws",
-                                "role": "measurement",
-                                "sha256": "e" * 64,
-                            }
-                        ],
-                    },
-                },
+                source_node,
             ],
             "edges": [
                 {
@@ -98,22 +133,7 @@ def _graph(
                     },
                 }
             ],
-            "metadata": {
-                "transition_lineage": [
-                    {
-                        "transition_id": "transition-1",
-                        "parent_graph_id": "g0",
-                        "parent_graph_sha256": base_graph_sha,
-                        "proposal_sha256": (
-                            proposal_sha
-                            if lineage_proposal_sha256 is None
-                            else lineage_proposal_sha256
-                        ),
-                        "verification_decision_sha256": _sha(verification),
-                        "result_node_id": "a1",
-                    }
-                ]
-            },
+            "metadata": {"transition_lineage": [lineage]},
         },
     )
 
@@ -159,18 +179,40 @@ def _codes(result: dict[str, object]) -> set[str]:
     return {str(item["code"]) for item in findings}
 
 
-def test_empirical_target_with_only_computational_scope_support_is_flagged(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    verification = _verification(tmp_path, inference_scope="computational")
-    graph = _graph(tmp_path, verification)
+def _run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    inference_scope: str,
+    lineage_proposal_sha256: str | None = None,
+    lineage_inference_edge_id: str | None = "support-1",
+    omit_verification_field: str | None = None,
+) -> tuple[dict[str, object], Path]:
+    verification = _verification(
+        tmp_path,
+        inference_scope=inference_scope,
+        omit_field=omit_verification_field,
+    )
+    graph = _graph(
+        tmp_path,
+        verification,
+        inference_scope=inference_scope,
+        lineage_proposal_sha256=lineage_proposal_sha256,
+        lineage_inference_edge_id=lineage_inference_edge_id,
+    )
     monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: _base_report(graph))
-
     result = module.build_policy_hardened_scientific_critic_report(
         graph,
         program_state=_program(),
         artifact_root=tmp_path,
     )
+    return result, verification
+
+
+def test_empirical_target_with_only_computational_scope_support_is_flagged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, _ = _run(tmp_path, monkeypatch, inference_scope="computational")
 
     assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" in _codes(result)
     report = result["target_reports"][0]
@@ -182,35 +224,81 @@ def test_empirical_target_with_only_computational_scope_support_is_flagged(
     assert action["action_class"] == "manual_review"
     assert action["execution_mode"] == "plan_only"
     assert action["automatic_execution_authorized"] is False
+    assert action["availability_asserted"] is False
     assert report["epistemic_assessment"]["status"] == "provisionally_supported"
     boundary = result["autonomy_boundary"]
     assert boundary["empirical_support_scope_inferred_from_source_node_type"] is False
     assert boundary["empirical_support_scope_accepted_without_transition_lineage"] is False
+    assert boundary["empirical_support_scope_accepted_without_exact_inference_edge_identity"] is False
 
 
-def test_bound_empirical_derived_scope_satisfies_empirical_scope_obligation(
+def test_empirical_derived_scope_remains_unestablished_without_empirical_input_classification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    verification = _verification(tmp_path, inference_scope="empirical_derived")
-    graph = _graph(tmp_path, verification)
-    monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: _base_report(graph))
+    result, _ = _run(tmp_path, monkeypatch, inference_scope="empirical_derived")
 
-    result = module.build_policy_hardened_scientific_critic_report(
-        graph,
-        program_state=_program(),
-        artifact_root=tmp_path,
-    )
+    assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" in _codes(result)
+    assert result["autonomy_boundary"][
+        "empirical_derived_scope_inferred_from_unclassified_input_bindings"
+    ] is False
+
+
+def test_empirical_direct_scope_can_be_established_when_exact_edge_identity_is_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, _ = _run(tmp_path, monkeypatch, inference_scope="empirical_direct")
 
     assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" not in _codes(result)
     report = result["target_reports"][0]
     assert report["epistemic_assessment"]["status"] == "provisionally_supported"
 
 
+def test_missing_inference_edge_identity_leaves_empirical_scope_unestablished(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, _ = _run(
+        tmp_path,
+        monkeypatch,
+        inference_scope="empirical_direct",
+        lineage_inference_edge_id=None,
+    )
+
+    assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" in _codes(result)
+
+
+def test_wrong_inference_edge_identity_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(ScientificCriticError, match="exact inference edge identity"):
+        _run(
+            tmp_path,
+            monkeypatch,
+            inference_scope="empirical_direct",
+            lineage_inference_edge_id="different-edge",
+        )
+
+
+def test_malformed_verification_decision_schema_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(ScientificCriticError, match="missing required keys: verifier_id"):
+        _run(
+            tmp_path,
+            monkeypatch,
+            inference_scope="empirical_direct",
+            omit_verification_field="verifier_id",
+        )
+
+
 def test_bound_verification_decision_checksum_drift_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     verification = _verification(tmp_path, inference_scope="computational")
-    graph = _graph(tmp_path, verification)
+    graph = _graph(
+        tmp_path,
+        verification,
+        inference_scope="computational",
+    )
     base = _base_report(graph)
     verification.write_text('{"tampered":true}\n', encoding="utf-8")
     monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: base)
@@ -226,13 +314,10 @@ def test_bound_verification_decision_checksum_drift_fails_closed(
 def test_mismatched_proposal_lineage_cannot_supply_empirical_scope(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    verification = _verification(tmp_path, inference_scope="empirical_derived")
-    graph = _graph(tmp_path, verification, lineage_proposal_sha256="q" * 64)
-    monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: _base_report(graph))
-
     with pytest.raises(ScientificCriticError, match="proposal_sha256 does not match"):
-        module.build_policy_hardened_scientific_critic_report(
-            graph,
-            program_state=_program(),
-            artifact_root=tmp_path,
+        _run(
+            tmp_path,
+            monkeypatch,
+            inference_scope="empirical_direct",
+            lineage_proposal_sha256="q" * 64,
         )
