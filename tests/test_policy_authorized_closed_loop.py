@@ -69,18 +69,58 @@ def _record(
     }
 
 
+def _ledger_state(
+    report: Path,
+    *,
+    action_id: str = "a1",
+    ledger_sha: str = "ledger-1",
+    artifact_sha: str | None = None,
+    artifact_bytes: int | None = None,
+) -> dict[str, object]:
+    return {
+        "ledger_sha256": ledger_sha,
+        "actions": [
+            {
+                "action_id": action_id,
+                "artifacts": [
+                    {
+                        "path": str(report.resolve()),
+                        "sha256": artifact_sha or _sha(report),
+                        "bytes": report.stat().st_size
+                        if artifact_bytes is None
+                        else artifact_bytes,
+                    }
+                ],
+            }
+        ],
+    }
+
+
 def test_record_only_transition_appends_result_without_directional_inference(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch
 ) -> None:
     graph = _base_graph(tmp_path / "graph.json")
     report = _write_json(tmp_path / "action_result.json", {"status": "complete"})
     request_path = _write_json(tmp_path / "request.json", {"action_id": "a1"})
-    request = {"request_id": "q1", "path": str(request_path), "sha256": _sha(request_path)}
+    plan_path = _write_json(tmp_path / "record-plan.json", {"plan": "stable"})
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setattr(
+        module,
+        "load_research_state",
+        lambda *_: _ledger_state(report),
+    )
+    request = {
+        "request_id": "q1",
+        "path": str(request_path),
+        "sha256": _sha(request_path),
+    }
     execution = {
         "action_type": "target_reference_sensitivity",
         "action_version": "1.0",
         "ledger_action_id": "a1",
         "action_report": str(report),
+        "verified_report": {"ledger_sha256": "ledger-1"},
         "request_binding": {
             "path": str(request_path),
             "sha256": request["sha256"],
@@ -95,6 +135,8 @@ def test_record_only_transition_appends_result_without_directional_inference(
         program_state=_program_state(),
         artifact_root=tmp_path,
         output_dir=tmp_path / "out",
+        research_run=run,
+        record_plan_binding={"path": str(plan_path), "sha256": _sha(plan_path)},
         record=_record(),
         request=request,
         execution=execution,
@@ -111,7 +153,70 @@ def test_record_only_transition_appends_result_without_directional_inference(
     assert result["target_after"]["status"] == "inconclusive"
     assert result["directional_inference_generated"] is False
     assert result["domain_verification_generated"] is False
+    assert result["verified_ledger_binding"]["action_report_sha256"] == _sha(report)
+    assert result["result_record_plan_binding"]["sha256"] == _sha(plan_path)
     assert result["autonomy_boundary"]["scientific_status_upgraded"] is False
+
+
+def test_record_only_transition_rejects_report_no_longer_bound_by_verified_ledger(
+    tmp_path: Path, monkeypatch
+) -> None:
+    graph = _base_graph(tmp_path / "graph.json")
+    report = _write_json(tmp_path / "action_result.json", {"status": "verified"})
+    verified_sha = _sha(report)
+    verified_bytes = report.stat().st_size
+    request_path = _write_json(tmp_path / "request.json", {"action_id": "a1"})
+    plan_path = _write_json(tmp_path / "record-plan.json", {"plan": "stable"})
+    run = tmp_path / "run"
+    run.mkdir()
+
+    report.write_text('{"status":"mutated-after-verification"}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        module,
+        "load_research_state",
+        lambda *_: _ledger_state(
+            report,
+            artifact_sha=verified_sha,
+            artifact_bytes=verified_bytes,
+        ),
+    )
+    request = {
+        "request_id": "q1",
+        "path": str(request_path),
+        "sha256": _sha(request_path),
+    }
+    execution = {
+        "action_type": "target_reference_sensitivity",
+        "action_version": "1.0",
+        "ledger_action_id": "a1",
+        "action_report": str(report),
+        "verified_report": {"ledger_sha256": "ledger-1"},
+        "request_binding": {
+            "path": str(request_path),
+            "sha256": request["sha256"],
+            "size_bytes": request_path.stat().st_size,
+        },
+        "scientific_evidence_upgraded_by_orchestrator": False,
+        "network_access_initiated_by_orchestrator": False,
+    }
+
+    with pytest.raises(
+        module.PolicyAuthorizedClosedLoopError,
+        match="no longer checksum-bound by the verified ledger",
+    ):
+        module.apply_record_only_action_result(
+            base_graph_path=graph,
+            program_state=_program_state(),
+            artifact_root=tmp_path,
+            output_dir=tmp_path / "out",
+            research_run=run,
+            record_plan_binding={"path": str(plan_path), "sha256": _sha(plan_path)},
+            record=_record(),
+            request=request,
+            execution=execution,
+        )
+
+    assert not (tmp_path / "out").exists()
 
 
 def test_result_record_plan_rejects_external_or_physical_result_semantics(
@@ -298,6 +403,7 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
                 "action_version": "1.0",
                 "ledger_action_id": f"a{index + 1}",
                 "action_report": str(reports[index]),
+                "verified_report": {"ledger_sha256": f"ledger-{index + 1}"},
                 "request_binding": {
                     "path": str(request_path),
                     "sha256": request_sha,
@@ -310,7 +416,17 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
             "after_transition": after_transition,
         }
 
+    def current_ledger(*_):
+        index = state["cycle"] - 1
+        report = reports[index]
+        return _ledger_state(
+            report,
+            action_id=f"a{index + 1}",
+            ledger_sha=f"ledger-{index + 1}",
+        )
+
     monkeypatch.setattr(module, "run_research_cycle", research_cycle)
+    monkeypatch.setattr(module, "load_research_state", current_ledger)
 
     result = module.run_policy_authorized_closed_loop(
         "nasa-battery",
@@ -343,6 +459,9 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
         "result-2",
     ]
     assert [edge["relation"] for edge in final_graph["edges"][-2:]] == ["tests", "tests"]
+    assert final_graph["metadata"]["record_only_transition_lineage"][-1][
+        "verified_ledger_sha256"
+    ] == "ledger-2"
     assert result["autonomy_boundary"][
         "automatic_directional_inference_generation_available"
     ] is False

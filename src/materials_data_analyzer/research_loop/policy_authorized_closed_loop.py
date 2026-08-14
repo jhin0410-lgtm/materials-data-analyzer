@@ -20,7 +20,7 @@ from typing import Any, Mapping, Sequence
 
 from .epistemic_gate import evaluate_epistemic_gate
 from .epistemic_graph import evaluate_epistemic_graph, validate_epistemic_graph
-from .kernel import ResearchLoopError
+from .kernel import ResearchLoopError, load_research_state
 from .multicycle import load_request_queue
 from .research_cycle import run_research_cycle
 from .research_program import build_research_program
@@ -360,12 +360,80 @@ def _assessment_for(evaluation: Mapping[str, Any], node_id: str) -> dict[str, An
     return dict(matches[0])
 
 
+def _verify_action_report_still_ledger_bound(
+    *,
+    research_run: str | Path,
+    report_path: Path,
+    report_sha256: str,
+    action_id: str,
+    execution: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Recheck report bytes against the current ledger after typed verification."""
+    run = _resolved_dir(research_run, "research_run")
+    state = load_research_state(run)
+    verified_report = execution.get("verified_report")
+    if not isinstance(verified_report, Mapping):
+        raise PolicyAuthorizedClosedLoopError(
+            "execution result omitted the pinned verifier result"
+        )
+    verified_ledger_sha = _nonempty_text(
+        verified_report.get("ledger_sha256"),
+        "execution.verified_report.ledger_sha256",
+    )
+    current_ledger_sha = _nonempty_text(
+        state.get("ledger_sha256"), "research_state.ledger_sha256"
+    )
+    if current_ledger_sha != verified_ledger_sha:
+        raise PolicyAuthorizedClosedLoopError(
+            "research ledger changed after typed result verification"
+        )
+    actions = state.get("actions")
+    if not isinstance(actions, list):
+        raise PolicyAuthorizedClosedLoopError("research action ledger is malformed")
+    matches = [
+        item
+        for item in actions
+        if isinstance(item, Mapping) and item.get("action_id") == action_id
+    ]
+    if len(matches) != 1:
+        raise PolicyAuthorizedClosedLoopError(
+            "research ledger must contain exactly one recorded action for the result"
+        )
+    artifacts = matches[0].get("artifacts")
+    if not isinstance(artifacts, list):
+        raise PolicyAuthorizedClosedLoopError(
+            "ledger action artifact binding is malformed"
+        )
+    report_size = report_path.stat().st_size
+    report_matches = [
+        item
+        for item in artifacts
+        if isinstance(item, Mapping)
+        and item.get("path") == str(report_path)
+        and item.get("sha256") == report_sha256
+        and item.get("bytes") == report_size
+    ]
+    if len(report_matches) != 1:
+        raise PolicyAuthorizedClosedLoopError(
+            "current action report bytes are no longer checksum-bound by the verified ledger"
+        )
+    return {
+        "research_run": str(run),
+        "ledger_sha256": current_ledger_sha,
+        "action_id": action_id,
+        "action_report_sha256": report_sha256,
+        "action_report_bytes": report_size,
+    }
+
+
 def apply_record_only_action_result(
     *,
     base_graph_path: str | Path,
     program_state: Mapping[str, Any],
     artifact_root: str | Path,
     output_dir: str | Path,
+    research_run: str | Path,
+    record_plan_binding: Mapping[str, Any],
     record: Mapping[str, Any],
     request: Mapping[str, Any],
     execution: Mapping[str, Any],
@@ -409,6 +477,24 @@ def apply_record_only_action_result(
         "execution.action_report",
     )
     report_sha = _sha256_file(report_path)
+    ledger_binding = _verify_action_report_still_ledger_bound(
+        research_run=research_run,
+        report_path=report_path,
+        report_sha256=report_sha,
+        action_id=action_id,
+        execution=execution,
+    )
+    plan_path = _resolved_file(
+        _nonempty_text(record_plan_binding.get("path"), "record_plan_binding.path"),
+        "record_plan_binding.path",
+    )
+    plan_sha = _nonempty_text(
+        record_plan_binding.get("sha256"), "record_plan_binding.sha256"
+    )
+    if _sha256_file(plan_path) != plan_sha:
+        raise PolicyAuthorizedClosedLoopError(
+            "result-record plan changed after it was validated"
+        )
     request_binding = execution.get("request_binding")
     if not isinstance(request_binding, Mapping):
         raise PolicyAuthorizedClosedLoopError(
@@ -481,6 +567,11 @@ def apply_record_only_action_result(
             "result_origin": result_origin,
             "record_only_transition": True,
             "record_id": record["record_id"],
+            "record_plan_binding": {
+                "path": str(plan_path),
+                "sha256": plan_sha,
+            },
+            "verified_ledger_binding": ledger_binding,
             "source_action": {
                 "action_id": action_id,
                 "action_type": execution["action_type"],
@@ -526,6 +617,8 @@ def apply_record_only_action_result(
             "parent_graph_sha256": base_sha,
             "request_id": request_id,
             "request_sha256": request["sha256"],
+            "record_plan_sha256": plan_sha,
+            "verified_ledger_sha256": ledger_binding["ledger_sha256"],
             "action_id": action_id,
             "action_report_sha256": report_sha,
             "result_node_id": result_node_id,
@@ -571,6 +664,11 @@ def apply_record_only_action_result(
             "path": request.get("path"),
             "sha256": request.get("sha256"),
         },
+        "result_record_plan_binding": {
+            "path": str(plan_path),
+            "sha256": plan_sha,
+        },
+        "verified_ledger_binding": ledger_binding,
         "action_binding": {
             "action_id": action_id,
             "action_type": execution["action_type"],
@@ -942,6 +1040,8 @@ def run_policy_authorized_closed_loop(
             program_state=program_state,
             artifact_root=artifacts,
             output_dir=cycle_output,
+            research_run=research_run,
+            record_plan_binding=record_plan["plan_binding"],
             record=record,
             request=request,
             execution=execution,
