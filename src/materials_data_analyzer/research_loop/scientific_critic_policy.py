@@ -18,7 +18,7 @@ from .scientific_critic import (
     _build_structural_scientific_critic_report as _build_base_report,
 )
 
-SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.6"
+SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.7"
 
 _EMPIRICAL_TARGET_SCOPES = {"empirical", "mixed"}
 _INFERENCE_SCOPES = {"structural", "computational", "empirical_derived", "empirical_direct"}
@@ -38,6 +38,16 @@ _VERIFICATION_DECISION_KEYS = {
     "rationale",
     "limitations",
     "domain_verified",
+}
+_NEGATIVE_AUTHORITY_FINDING_CODES = {
+    "VERIFIED_FALSIFICATION_PRESENT",
+    "VERIFIED_CONTRADICTION_PRESENT",
+    "VERIFIED_EVIDENCE_CONFLICT",
+}
+_NEGATIVE_AUTHORITY_ACTION_SUFFIXES = {
+    ":reframe-falsified-scope",
+    ":reassess-contradicted-scope",
+    ":resolve-verified-conflict",
 }
 
 
@@ -194,10 +204,10 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
                     "data or an external experiment actually exists, test replication under that contract."
                 ),
                 "rationale": (
-                    "The critic cannot infer independence or local replication availability from "
-                    "distinct artifacts alone."
+                    "The critic cannot infer independence, suitable data, or local replication capability "
+                    "from distinct artifacts alone."
                 ),
-                "execution_mode": "explicit_authorization_required",
+                "execution_mode": "plan_only",
                 "information_gain_priority": "high",
                 "information_gain_is_calibrated_probability": False,
                 "expected_discrimination": (
@@ -396,22 +406,21 @@ def _validate_empirical_source_shape(*, scope: str, source_node: Mapping[str, An
         )
 
 
-def _bound_domain_verification_scope(
+def _validate_current_verifier_provenance(
     edge: Mapping[str, Any],
     *,
     artifact_root: Path,
     nodes_by_id: Mapping[str, Mapping[str, Any]],
     lineage_by_id: Mapping[str, Mapping[str, Any]],
 ) -> str | None:
-    """Validate currently available verifier provenance and return only safe scope authority.
+    """Validate the current verifier contract without granting exact-edge authority.
 
-    Current transition provenance v1.0 does not retain a checksum-authenticated exact
-    `proposed_inference.inference_edge_id`. Graph metadata is intentionally extensible and
-    therefore a caller can insert an `inference_edge_id` field without proving that it came
-    from the checksum-bound transition proposal. Consequently **no empirical inference
-    scope is accepted as authority under the current contract**, even if such an opaque
-    metadata field is present. A later transition contract must bind exact edge identity to
-    the proposal/verifier bytes before this policy can be relaxed.
+    Transition provenance v1.0 does not checksum-authenticate the exact proposed
+    `inference_edge_id`. Graph metadata is extensible, so a manually inserted edge ID is
+    not authoritative. This function validates everything that the current contract can
+    prove and returns the verifier's declared scope for diagnostics only. The caller must
+    not treat the return value as proof that this exact graph edge was independently
+    verified.
     """
     binding = edge.get("verification_artifact")
     if not isinstance(binding, Mapping) or binding.get("role") != "domain_verification_decision":
@@ -444,7 +453,7 @@ def _bound_domain_verification_scope(
 
     source_node_id = edge.get("source_node_id")
     if not isinstance(source_node_id, str) or source_node_id not in nodes_by_id:
-        raise ScientificCriticError("verified support source node is absent from the bound graph")
+        raise ScientificCriticError("verified directional source node is absent from the bound graph")
     source_node = nodes_by_id[source_node_id]
     source_metadata = source_node.get("metadata")
     if not isinstance(source_metadata, Mapping):
@@ -479,31 +488,114 @@ def _bound_domain_verification_scope(
             )
 
     _validate_empirical_source_shape(scope=scope, source_node=source_node)
-    if scope in _EMPIRICAL_INFERENCE_SCOPES:
-        return None
     return scope
 
 
-def _add_empirical_support_scope_obligation(
+def _remove_negative_authority_claims(raw: dict[str, Any], *, target_id: str) -> None:
+    findings = raw.get("critic_findings")
+    actions = raw.get("discriminating_actions")
+    if not isinstance(findings, list) or not isinstance(actions, list):
+        raise ScientificCriticError("critic target proposal collections are malformed")
+
+    findings[:] = [
+        item
+        for item in findings
+        if not (
+            isinstance(item, Mapping)
+            and item.get("code") in _NEGATIVE_AUTHORITY_FINDING_CODES
+        )
+    ]
+    actions[:] = [
+        item
+        for item in actions
+        if not (
+            isinstance(item, Mapping)
+            and any(
+                str(item.get("action_id", "")).endswith(suffix)
+                for suffix in _NEGATIVE_AUTHORITY_ACTION_SUFFIXES
+            )
+        )
+    ]
+    findings.append(
+        {
+            "finding_id": f"critic:{target_id}:negative-directional-provenance-unproven",
+            "code": "NEGATIVE_DIRECTIONAL_PROVENANCE_NOT_ESTABLISHED",
+            "severity": "high",
+            "statement": (
+                "The evaluator reports one or more usable verified negative directional relations, "
+                "but the critic cannot authenticate the exact inference-edge identity under the current "
+                "transition-v1 provenance contract."
+            ),
+            "rationale": (
+                "A contradiction or falsification must not drive critic stop/reframe authority when a verifier "
+                "could be reused across same-source/target/relation edges and exact edge identity is not "
+                "checksum-authenticated. The evaluator assessment is preserved unchanged; only critic authority "
+                "is withheld pending stronger provenance."
+            ),
+            "edge_ids": [],
+            "node_ids": [],
+            "scientific_status_changed": False,
+        }
+    )
+    actions.append(
+        {
+            "action_id": f"critic:{target_id}:verify-negative-directional-provenance",
+            "action_class": "manual_review",
+            "description": (
+                "Verify the negative directional relation against a checksum-authenticated exact inference-edge "
+                "contract before using it to stop, narrow, or reframe the scientific target."
+            ),
+            "rationale": (
+                "Current transition-v1 provenance cannot prove which exact inference edge the verifier authorized."
+            ),
+            "execution_mode": "plan_only",
+            "information_gain_priority": "high",
+            "information_gain_is_calibrated_probability": False,
+            "expected_discrimination": (
+                "Separates authenticated negative scientific evidence from a reused or ambiguously bound verifier."
+            ),
+            "automatic_execution_authorized": False,
+            "availability_asserted": False,
+        }
+    )
+    raw["stop_recommendation"] = {
+        "recommendation": "verify_directional_provenance_before_scientific_reframe",
+        "rationale": (
+            "The evaluator's negative status is preserved, but critic-level stop/reframe authority is withheld "
+            "until exact directional provenance is authenticated."
+        ),
+        "automatic_stop_authorized": False,
+        "positive_scientific_closeout_granted": False,
+    }
+
+
+def _apply_directional_provenance_policy(
     report: dict[str, Any], *, artifact_root: str | Path
 ) -> None:
     target_reports = report.get("target_reports")
     if not isinstance(target_reports, list):
         raise ScientificCriticError("critic report target_reports are malformed")
-    relevant: list[tuple[dict[str, Any], list[str]]] = []
+
+    relevant: list[dict[str, Any]] = []
     for raw in target_reports:
         if not isinstance(raw, dict):
             raise ScientificCriticError("critic target report is malformed")
-        if raw.get("claim_scope") not in _EMPIRICAL_TARGET_SCOPES:
-            continue
         assessment = raw.get("epistemic_assessment")
         if not isinstance(assessment, Mapping):
             raise ScientificCriticError("critic target assessment is malformed")
-        support_edges = assessment.get("verified_support_edges")
-        if not isinstance(support_edges, list):
-            raise ScientificCriticError("verified_support_edges must be a list")
-        if support_edges:
-            relevant.append((raw, [str(item) for item in support_edges]))
+        for field in (
+            "verified_support_edges",
+            "verified_contradiction_edges",
+            "verified_falsification_edges",
+        ):
+            if not isinstance(assessment.get(field), list):
+                raise ScientificCriticError(f"{field} must be a list")
+        if (
+            assessment.get("verified_support_edges")
+            or assessment.get("verified_contradiction_edges")
+            or assessment.get("verified_falsification_edges")
+        ):
+            relevant.append(raw)
     if not relevant:
         return
 
@@ -528,83 +620,85 @@ def _add_empirical_support_scope_obligation(
     if not artifacts.is_dir():
         raise ScientificCriticError(f"artifact_root must be a directory: {artifacts}")
 
-    for raw, support_edge_ids in relevant:
-        scopes: list[str] = []
-        unresolved: list[str] = []
-        source_node_ids: list[str] = []
-        for edge_id in support_edge_ids:
+    for raw in relevant:
+        assessment = raw["epistemic_assessment"]
+        target_id = str(raw.get("target_node_id"))
+        support_ids = [str(item) for item in assessment["verified_support_edges"]]
+        contradiction_ids = [str(item) for item in assessment["verified_contradiction_edges"]]
+        falsification_ids = [str(item) for item in assessment["verified_falsification_edges"]]
+        directional_ids = support_ids + contradiction_ids + falsification_ids
+        declared_scopes: dict[str, str | None] = {}
+        for edge_id in directional_ids:
             edge = edges_by_id.get(edge_id)
             if not isinstance(edge, Mapping):
                 raise ScientificCriticError(
-                    f"verified support edge is absent from the exact bound graph: {edge_id}"
+                    f"verified directional edge is absent from the exact bound graph: {edge_id}"
                 )
-            source_node_id = edge.get("source_node_id")
-            if isinstance(source_node_id, str) and source_node_id not in source_node_ids:
-                source_node_ids.append(source_node_id)
-            scope = _bound_domain_verification_scope(
+            declared_scopes[edge_id] = _validate_current_verifier_provenance(
                 edge,
                 artifact_root=artifacts,
                 nodes_by_id=nodes_by_id,
                 lineage_by_id=lineage_by_id,
             )
-            if scope is None:
-                unresolved.append(edge_id)
-            else:
-                scopes.append(scope)
 
-        if any(scope in _EMPIRICAL_INFERENCE_SCOPES for scope in scopes):
-            continue
+        if contradiction_ids or falsification_ids:
+            _remove_negative_authority_claims(raw, target_id=target_id)
+            negative_finding = raw["critic_findings"][-1]
+            negative_finding["edge_ids"] = contradiction_ids + falsification_ids
 
-        findings = raw.get("critic_findings")
-        actions = raw.get("discriminating_actions")
-        if not isinstance(findings, list) or not isinstance(actions, list):
-            raise ScientificCriticError("critic target proposal collections are malformed")
-        target_id = str(raw.get("target_node_id"))
-        findings.append(
-            {
-                "finding_id": f"critic:{target_id}:empirical-support-scope-unproven",
-                "code": "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED",
-                "severity": "high",
-                "statement": (
-                    "The target is empirical or mixed in scope, but the current provenance contract "
-                    "does not establish empirical authority for its positive support."
-                ),
-                "rationale": (
-                    "The critic validates the verifier bytes and current transition lineage but cannot "
-                    "authenticate exact inference-edge identity from transition provenance v1.0. Generic "
-                    "input bindings also do not classify empirical origin for empirical_derived scope. "
-                    f"Non-empirical established scopes: {', '.join(sorted(set(scopes))) if scopes else 'none'}; "
-                    f"unresolved support edges: {', '.join(unresolved) if unresolved else 'none'}."
-                ),
-                "edge_ids": list(support_edge_ids),
-                "node_ids": source_node_ids,
-                "scientific_status_changed": False,
-            }
-        )
-        actions.append(
-            {
-                "action_id": f"critic:{target_id}:bind-empirical-support-scope",
-                "action_class": "manual_review",
-                "description": (
-                    "Strengthen transition/verifier provenance with checksum-authenticated exact inference-edge "
-                    "identity and first-class empirical input-origin classification where applicable; if no "
-                    "empirical support exists, plan independent empirical validation."
-                ),
-                "rationale": (
-                    "The critic must not infer empirical authority from source labels, opaque graph metadata, "
-                    "or generic input evidence bindings."
-                ),
-                "execution_mode": "plan_only",
-                "information_gain_priority": "high",
-                "information_gain_is_calibrated_probability": False,
-                "expected_discrimination": (
-                    "Determines whether positive support has provenance sufficient for empirical scope without "
-                    "changing existing scientific status automatically."
-                ),
-                "automatic_execution_authorized": False,
-                "availability_asserted": False,
-            }
-        )
+        if raw.get("claim_scope") in _EMPIRICAL_TARGET_SCOPES and support_ids:
+            findings = raw.get("critic_findings")
+            actions = raw.get("discriminating_actions")
+            if not isinstance(findings, list) or not isinstance(actions, list):
+                raise ScientificCriticError("critic target proposal collections are malformed")
+            scopes = [
+                declared_scopes[edge_id]
+                for edge_id in support_ids
+                if declared_scopes.get(edge_id) is not None
+            ]
+            findings.append(
+                {
+                    "finding_id": f"critic:{target_id}:empirical-support-scope-unproven",
+                    "code": "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED",
+                    "severity": "high",
+                    "statement": (
+                        "The target is empirical or mixed in scope, but the current provenance contract "
+                        "does not establish empirical authority for its positive support."
+                    ),
+                    "rationale": (
+                        "The critic validates current verifier bytes and lineage but transition-v1 cannot "
+                        "checksum-authenticate exact inference-edge identity. Generic input bindings also do "
+                        "not classify empirical origin for empirical_derived scope. Declared verifier scopes "
+                        f"observed after current-contract validation: {', '.join(sorted(set(scopes))) if scopes else 'none'}."
+                    ),
+                    "edge_ids": list(support_ids),
+                    "node_ids": [],
+                    "scientific_status_changed": False,
+                }
+            )
+            actions.append(
+                {
+                    "action_id": f"critic:{target_id}:bind-empirical-support-scope",
+                    "action_class": "manual_review",
+                    "description": (
+                        "Strengthen transition/verifier provenance with checksum-authenticated exact inference-edge "
+                        "identity and first-class empirical input-origin classification where applicable."
+                    ),
+                    "rationale": (
+                        "The critic must not infer empirical authority from source labels, opaque graph metadata, "
+                        "or generic input evidence bindings."
+                    ),
+                    "execution_mode": "plan_only",
+                    "information_gain_priority": "high",
+                    "information_gain_is_calibrated_probability": False,
+                    "expected_discrimination": (
+                        "Determines whether positive support has provenance sufficient for empirical scope without "
+                        "changing existing scientific status automatically."
+                    ),
+                    "automatic_execution_authorized": False,
+                    "availability_asserted": False,
+                }
+            )
 
 
 def build_policy_hardened_scientific_critic_report(
@@ -623,7 +717,7 @@ def build_policy_hardened_scientific_critic_report(
     )
     report = copy.deepcopy(base)
     _replace_independence_assumption(report)
-    _add_empirical_support_scope_obligation(report, artifact_root=artifact_root)
+    _apply_directional_provenance_policy(report, artifact_root=artifact_root)
     _mark_action_availability_unproven(report)
     gaps = _program_evidence_gaps(program_state)
     report["critic_policy_version"] = (
@@ -631,6 +725,7 @@ def build_policy_hardened_scientific_critic_report(
         f"{SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION}"
     )
     report["program_evidence_gaps"] = gaps
+
     target_reports = report.get("target_reports")
     summary = report.get("summary")
     if not isinstance(target_reports, list) or not isinstance(summary, dict):
@@ -651,6 +746,7 @@ def build_policy_hardened_scientific_critic_report(
         if isinstance(item, Mapping)
     )
     summary["program_evidence_gaps"] = len(gaps)
+
     boundary = report.get("autonomy_boundary")
     if not isinstance(boundary, dict):
         raise ScientificCriticError("critic report autonomy boundary is malformed")
@@ -661,6 +757,7 @@ def build_policy_hardened_scientific_critic_report(
             "empirical_support_scope_accepted_without_transition_lineage": False,
             "empirical_support_scope_accepted_without_authenticated_inference_edge_identity": False,
             "empirical_derived_scope_inferred_from_unclassified_input_bindings": False,
+            "negative_directional_authority_accepted_without_authenticated_inference_edge_identity": False,
             "opaque_graph_metadata_treated_as_scientific_authority": False,
             "action_availability_inferred": False,
             "program_evidence_requirements_target_attributed_without_mapping": False,
