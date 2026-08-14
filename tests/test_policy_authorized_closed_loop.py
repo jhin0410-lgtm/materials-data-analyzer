@@ -493,16 +493,18 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
     gated_graphs: list[Path] = []
 
     def gate(**kwargs):
+        mission_path = Path(kwargs["mission_path"]).resolve()
+        context_path = Path(kwargs["runtime_context_path"]).resolve()
         graph_path = Path(kwargs["graph_path"]).resolve()
         gated_graphs.append(graph_path)
         return {
             "mission_binding": {
-                "path": str(mission.resolve()),
-                "sha256": _sha(mission),
+                "path": str(mission_path),
+                "sha256": _sha(mission_path),
             },
             "runtime_context_binding": {
-                "path": str(context.resolve()),
-                "sha256": _sha(context),
+                "path": str(context_path),
+                "sha256": _sha(context_path),
             },
             "graph_binding": {
                 "path": str(graph_path),
@@ -514,12 +516,15 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
             },
         }
 
+    def program(mission_path, *, repository_root, runtime_context_path=None):
+        del repository_root
+        return _program_state(
+            mission=Path(mission_path),
+            context=(Path(runtime_context_path) if runtime_context_path is not None else None),
+        )
+
     monkeypatch.setattr(module, "evaluate_epistemic_gate", gate)
-    monkeypatch.setattr(
-        module,
-        "build_research_program",
-        lambda *args, **kwargs: _program_state(mission=mission, context=context),
-    )
+    monkeypatch.setattr(module, "build_research_program", program)
     state = {"cycle": 0}
 
     def planning_state(selected_type: str | None, marker: int) -> dict[str, object]:
@@ -538,23 +543,30 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
         }
 
     def research_cycle(*args, **kwargs):
+        del args
+        assert kwargs["request_path"] is None
         index = state["cycle"]
-        if kwargs["request_path"] is None:
-            action_type = action_types[index]
-            return {
-                "cycle_status": "explicit_request_required",
-                "authorization": {
-                    "selected_action": {
-                        "action_type": action_type,
-                        "action_version": "1.0",
-                    }
-                },
-                "before_planning_state": planning_state(action_type, index),
-                "before_transition": {"transition_type": "action_pending_authorization"},
-            }
+        action_type = action_types[index]
+        return {
+            "cycle_status": "explicit_request_required",
+            "authorization": {
+                "selected_action": {
+                    "action_type": action_type,
+                    "action_version": "1.0",
+                }
+            },
+            "before_planning_state": planning_state(action_type, index),
+            "before_transition": {"transition_type": "action_pending_authorization"},
+        }
+
+    def pinned_cycle(*args, **kwargs):
+        del args
+        index = state["cycle"]
         action_type = action_types[index]
         request_path = Path(kwargs["request_path"]).resolve()
         assert request_path == request_paths[index].resolve()
+        assert hashlib.sha256(kwargs["request_bytes"]).hexdigest() == _sha(request_paths[index])
+        assert kwargs["expected_request_sha256"] == _sha(request_paths[index])
         next_type = action_types[index + 1] if index + 1 < len(action_types) else None
         state["cycle"] += 1
         return {
@@ -583,7 +595,9 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
         )
 
     monkeypatch.setattr(module, "run_research_cycle", research_cycle)
+    monkeypatch.setattr(module, "run_pinned_research_cycle", pinned_cycle)
     monkeypatch.setattr(module, "load_research_state", current_ledger)
+    output = tmp_path / "closed-loop-output"
     result = module.run_policy_authorized_closed_loop(
         "nasa-battery",
         repository_root=repo,
@@ -598,33 +612,37 @@ def test_closed_loop_uses_successor_graph_for_next_gate_and_records_each_action(
         request_queue_path=queue,
         request_root=tmp_path,
         result_record_plan_path=plan,
-        output_root=tmp_path / "closed-loop-output",
+        output_root=output,
         max_cycles=4,
     )
 
     assert result["program_status"] == "stopped_current_scope"
     assert result["actions_executed"] == 2
     assert len(gated_graphs) == 2
-    assert gated_graphs[0] == graph.resolve()
-    assert gated_graphs[1] == (
-        tmp_path / "closed-loop-output" / "cycle_001" / "epistemic_graph.json"
-    ).resolve()
+    assert gated_graphs[0] == (output / "_authority" / "cycle_001" / "base_graph.json").resolve()
+    assert gated_graphs[1] == (output / "_authority" / "cycle_002" / "base_graph.json").resolve()
+    assert gated_graphs[0].read_bytes() == graph.read_bytes()
+    assert gated_graphs[1].read_bytes() == (output / "cycle_001" / "epistemic_graph.json").read_bytes()
     final_graph = json.loads(Path(result["final_graph_binding"]["path"]).read_text("utf-8"))
     assert [node["node_id"] for node in final_graph["nodes"][-2:]] == [
         "result-1",
         "result-2",
     ]
     assert [edge["relation"] for edge in final_graph["edges"][-2:]] == ["tests", "tests"]
-    assert result["autonomy_boundary"]["request_bytes_revalidated_immediately_before_execution"]
-    assert result["autonomy_boundary"]["mission_graph_runtime_bindings_rechecked_before_execution"]
+    boundary = result["autonomy_boundary"]
+    assert boundary["request_bytes_pinned_in_memory_before_side_effects"]
+    assert boundary["request_path_reopened_for_content_during_execution"] is False
+    assert boundary["mission_runtime_graph_authority_snapshotted_per_cycle"]
+    assert boundary["successor_ingestion_uses_exact_gated_base_value"]
 
 
-def test_request_mutation_after_queue_load_is_rejected_before_execution(
+def test_request_mutation_after_authority_pinning_cannot_change_executed_bytes(
     tmp_path: Path, monkeypatch
 ) -> None:
     repo, run, registry, context, mission, graph = _closed_loop_fixture(tmp_path)
     request = _write_json(tmp_path / "request.json", {"action_id": "a1", "x": 1})
-    original_sha = _sha(request)
+    original_bytes = request.read_bytes()
+    original_sha = hashlib.sha256(original_bytes).hexdigest()
     queue = _write_json(
         tmp_path / "queue.json",
         {
@@ -653,10 +671,12 @@ def test_request_mutation_after_queue_load_is_rejected_before_execution(
     )
 
     def gate(**kwargs):
+        mission_path = Path(kwargs["mission_path"]).resolve()
+        context_path = Path(kwargs["runtime_context_path"]).resolve()
         graph_path = Path(kwargs["graph_path"]).resolve()
         return {
-            "mission_binding": {"path": str(mission.resolve()), "sha256": _sha(mission)},
-            "runtime_context_binding": {"path": str(context.resolve()), "sha256": _sha(context)},
+            "mission_binding": {"path": str(mission_path), "sha256": _sha(mission_path)},
+            "runtime_context_binding": {"path": str(context_path), "sha256": _sha(context_path)},
             "graph_binding": {"path": str(graph_path), "sha256": _sha(graph_path)},
             "directive": {
                 "directive": "continue_discriminating_research",
@@ -664,82 +684,117 @@ def test_request_mutation_after_queue_load_is_rejected_before_execution(
             },
         }
 
+    def program(mission_path, *, repository_root, runtime_context_path=None):
+        del repository_root
+        return _program_state(
+            mission=Path(mission_path),
+            context=(Path(runtime_context_path) if runtime_context_path is not None else None),
+        )
+
     execution_called = {"value": False}
 
     def research_cycle(*args, **kwargs):
-        if kwargs["request_path"] is None:
-            request.write_text('{"action_id":"a1","x":2}\n', encoding="utf-8")
-            return {
-                "cycle_status": "explicit_request_required",
-                "authorization": {
-                    "selected_action": {
-                        "action_type": "target_reference_sensitivity",
-                        "action_version": "1.0",
-                    }
+        del args
+        assert kwargs["request_path"] is None
+        request.write_text('{"action_id":"a1","x":2}\n', encoding="utf-8")
+        return {
+            "cycle_status": "explicit_request_required",
+            "authorization": {
+                "selected_action": {
+                    "action_type": "target_reference_sensitivity",
+                    "action_version": "1.0",
+                }
+            },
+            "before_planning_state": {
+                "adapter_id": "nasa-battery",
+                "current_blocker": {},
+                "evidence_gap": {},
+                "selected_action": {
+                    "action_type": "target_reference_sensitivity",
+                    "action_version": "1.0",
                 },
-                "before_planning_state": {
-                    "adapter_id": "nasa-battery",
-                    "current_blocker": {},
-                    "evidence_gap": {},
-                    "selected_action": {
-                        "action_type": "target_reference_sensitivity",
-                        "action_version": "1.0",
-                    },
-                    "stop_state": {},
-                    "budget": {},
-                    "evidence_bindings": [],
-                },
-            }
+                "stop_state": {},
+                "budget": {},
+                "evidence_bindings": [],
+            },
+        }
+
+    def pinned_cycle(*args, **kwargs):
+        del args
         execution_called["value"] = True
-        raise AssertionError("mutated request must not reach executor")
+        assert request.read_bytes() != original_bytes
+        assert kwargs["request_bytes"] == original_bytes
+        assert hashlib.sha256(kwargs["request_bytes"]).hexdigest() == original_sha
+        assert kwargs["expected_request_sha256"] == original_sha
+        return {"cycle_status": "authorization_denied"}
 
     monkeypatch.setattr(module, "evaluate_epistemic_gate", gate)
+    monkeypatch.setattr(module, "build_research_program", program)
     monkeypatch.setattr(module, "run_research_cycle", research_cycle)
-    with pytest.raises(
-        module.PolicyAuthorizedClosedLoopError,
-        match="queued request bytes changed",
-    ):
-        module.run_policy_authorized_closed_loop(
-            "nasa-battery",
-            repository_root=repo,
-            mission_path=mission,
-            initial_graph_path=graph,
-            epistemic_workstream_id="nasa-battery",
-            epistemic_target_node_ids=["h1"],
-            runtime_context_path=context,
-            artifact_root=tmp_path,
-            research_run=run,
-            action_registry_path=registry,
-            request_queue_path=queue,
-            request_root=tmp_path,
-            result_record_plan_path=plan,
-            output_root=tmp_path / "out",
-            max_cycles=1,
-        )
-    assert execution_called["value"] is False
+    monkeypatch.setattr(module, "run_pinned_research_cycle", pinned_cycle)
+    result = module.run_policy_authorized_closed_loop(
+        "nasa-battery",
+        repository_root=repo,
+        mission_path=mission,
+        initial_graph_path=graph,
+        epistemic_workstream_id="nasa-battery",
+        epistemic_target_node_ids=["h1"],
+        runtime_context_path=context,
+        artifact_root=tmp_path,
+        research_run=run,
+        action_registry_path=registry,
+        request_queue_path=queue,
+        request_root=tmp_path,
+        result_record_plan_path=plan,
+        output_root=tmp_path / "out",
+        max_cycles=1,
+    )
+    assert execution_called["value"] is True
+    assert result["program_status"] == "execution_cycle_not_completed"
+    assert _sha(request) != original_sha
 
 
-def test_gate_graph_mutation_is_rejected_before_execution(tmp_path: Path) -> None:
-    repo, run, registry, context, mission, graph = _closed_loop_fixture(tmp_path)
-    gate = {
-        "mission_binding": {"path": str(mission.resolve()), "sha256": _sha(mission)},
-        "runtime_context_binding": {"path": str(context.resolve()), "sha256": _sha(context)},
-        "graph_binding": {"path": str(graph.resolve()), "sha256": _sha(graph)},
+def test_gate_snapshot_binding_is_exact_and_independent_of_mutable_source(tmp_path: Path) -> None:
+    _, _, _, context, mission, graph = _closed_loop_fixture(tmp_path)
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    mission_snapshot = authority / "mission.json"
+    context_snapshot = authority / "context.json"
+    graph_snapshot = authority / "graph.json"
+    mission_snapshot.write_bytes(mission.read_bytes())
+    context_snapshot.write_bytes(context.read_bytes())
+    graph_snapshot.write_bytes(graph.read_bytes())
+    snapshots = {
+        "mission": {"path": str(mission_snapshot.resolve()), "sha256": _sha(mission_snapshot)},
+        "runtime_context": {
+            "path": str(context_snapshot.resolve()),
+            "sha256": _sha(context_snapshot),
+        },
+        "graph": {"path": str(graph_snapshot.resolve()), "sha256": _sha(graph_snapshot)},
     }
+    gate = {
+        "mission_binding": dict(snapshots["mission"]),
+        "runtime_context_binding": dict(snapshots["runtime_context"]),
+        "graph_binding": dict(snapshots["graph"]),
+    }
+
     graph.write_text(graph.read_text("utf-8") + "\n", encoding="utf-8")
+    assert _sha(graph) != snapshots["graph"]["sha256"]
+    assert module._verify_gate_snapshot_bindings(gate, snapshots=snapshots) == {
+        "mission_binding": snapshots["mission"],
+        "runtime_context_binding": snapshots["runtime_context"],
+        "graph_binding": snapshots["graph"],
+    }
+
+    gate["graph_binding"] = {
+        "path": str(graph_snapshot.resolve()),
+        "sha256": "0" * 64,
+    }
     with pytest.raises(
         module.PolicyAuthorizedClosedLoopError,
-        match="graph_binding bytes changed",
+        match="exact authority snapshot",
     ):
-        module._verify_gate_execution_bindings(
-            gate,
-            mission_path=mission,
-            graph_path=graph,
-            runtime_context_path=context,
-            workstream_id="nasa-battery",
-            research_run=run,
-            action_registry_path=registry,
-        )
+        module._verify_gate_snapshot_bindings(gate, snapshots=snapshots)
 
 
 def test_nonempty_output_root_is_rejected_before_execution(tmp_path: Path) -> None:
