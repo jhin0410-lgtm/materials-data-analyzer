@@ -8,8 +8,10 @@ import pytest
 
 from materials_data_analyzer.research_loop.scientific_critic import (
     ScientificCriticError,
-    build_scientific_critic_report,
+    _build_structural_scientific_critic_report,
 )
+
+build_scientific_critic_report = _build_structural_scientific_critic_report
 
 
 def _write(path: Path, data: bytes) -> Path:
@@ -198,6 +200,7 @@ def test_no_counterevidence_creates_counterexample_search_not_support(tmp_path: 
     external = next(item for item in actions if item["action_class"] == "external_evidence_search")
     assert external["execution_mode"] == "explicit_authorization_required"
     assert external["automatic_execution_authorized"] is False
+    assert external["availability_asserted"] is False
     assert result["autonomy_boundary"]["scientific_status_changed"] is False
     assert report["epistemic_assessment"]["status"] == "provisionally_supported"
 
@@ -226,7 +229,9 @@ def test_verified_conflict_is_not_collapsed_to_scalar_confidence(tmp_path: Path)
         item for item in _actions(report) if item["action_id"].endswith("resolve-verified-conflict")
     )
     assert stratify["action_class"] == "existing_data_reanalysis"
+    assert stratify["execution_mode"] == "plan_only"
     assert stratify["automatic_execution_authorized"] is False
+    assert stratify["availability_asserted"] is False
 
 
 def test_verified_falsification_requires_stop_and_reframe(tmp_path: Path) -> None:
@@ -272,6 +277,7 @@ def test_empirical_target_with_only_simulation_support_requests_empirical_valida
     assert action["action_class"] == "physical_experiment_design"
     assert action["execution_mode"] == "plan_only"
     assert action["automatic_execution_authorized"] is False
+    assert action["availability_asserted"] is False
     assert result["autonomy_boundary"]["physical_experiment_execution_authorized"] is False
 
 
@@ -312,6 +318,7 @@ def test_all_critic_actions_remain_non_authoritative(tmp_path: Path) -> None:
     report = _target_report(result)
     assert _actions(report)
     assert all(item["automatic_execution_authorized"] is False for item in _actions(report))
+    assert all(item["availability_asserted"] is False for item in _actions(report))
     assert all(
         item["information_gain_is_calibrated_probability"] is False for item in _actions(report)
     )
