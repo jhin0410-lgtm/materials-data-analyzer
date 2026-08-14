@@ -23,17 +23,19 @@ A critic report binds:
 
 The mission must explicitly permit `reasoning_proposals: schema_validated`.
 
-## Verified relations use evaluator authority
+## Evaluator status and critic authority are separate
 
-The critic does not treat `assessment_level: domain_verified` as sufficient by itself. It consumes the usable verified edge IDs produced by `evaluate_epistemic_graph`.
+The structural critic does not treat `assessment_level: domain_verified` as sufficient by itself. It consumes the usable verified edge IDs produced by `evaluate_epistemic_graph`.
 
 This preserves the evaluator's source-usability boundary:
 
 - planned or failed analysis/simulation/experiment nodes do not become verified evidence;
 - unsupported evidence nodes do not affect verified target status;
-- only usable verified relations drive critic support, contradiction, conflict, and falsification findings.
+- only evaluator-usable verified relations enter structural support, contradiction, conflict, and falsification analysis.
 
-A standalone usable verified contradiction produces `VERIFIED_CONTRADICTION_PRESENT` and a `reassess_or_reframe_contradicted_target` recommendation. It cannot fall through to positive-closeout language.
+The hardened facade adds a second boundary: **an evaluator status is preserved, but the critic does not automatically gain authority to act on a directional relation whose exact inference-edge provenance is not authenticated.**
+
+For example, a target may remain `contradicted_within_verified_scope` or `falsified_within_verified_scope` in its embedded evaluator assessment while the hardened critic withholds a stop/reframe recommendation until the exact directional verifier provenance is stronger.
 
 ## Recorded tests require completed execution
 
@@ -55,11 +57,11 @@ The hardened critic therefore emits `SUPPORT_INDEPENDENCE_NOT_ESTABLISHED` for v
 
 It never calls multiple artifacts independent replication merely because their direct identifiers differ.
 
-## Empirical support authority is intentionally blocked under the current transition-v1 contract
+The corresponding replication proposal remains `plan_only` with `availability_asserted: false` until a separate verified planning/action layer establishes suitable disjoint evidence and execution capability.
 
-An `analysis` node can be computational or empirically derived. Source-node type therefore cannot establish empirical support for an empirical/mixed target.
+## Current verifier provenance checks
 
-Before even considering verifier scope, the critic re-reads the exact checksum-bound `domain_verification_decision` and validates the complete v1.0 decision contract. Required fields include:
+When an edge carries a recognized `domain_verification_decision`, the critic re-reads the exact checksum-bound bytes and validates the complete v1.0 decision contract. Required fields include:
 
 - `schema_version`;
 - `decision_id`;
@@ -77,7 +79,7 @@ Before even considering verifier scope, the critic re-reads the exact checksum-b
 
 Missing or unknown fields, duplicate JSON keys, invalid enums, malformed required values, or checksum drift fail closed.
 
-The critic also cross-checks current provenance:
+The critic also cross-checks everything the current transition-v1 lineage can authenticate:
 
 - verifier artifact SHA-256 and graph edge binding;
 - verifier source/result node, target node, and relation against the graph edge;
@@ -87,19 +89,44 @@ The critic also cross-checks current provenance:
 - verifier artifact SHA-256 against lineage `verification_decision_sha256`;
 - source result node against lineage `result_node_id`.
 
-These checks are necessary, but under the current merged contract they are **not sufficient to grant empirical authority**.
+These checks reject malformed or inconsistent provenance. They still do not prove the exact inference-edge identity under the currently merged transition-v1 contract.
 
-### Why exact inference-edge identity is still unproven
+## Exact inference-edge identity is not authenticated by transition-v1
 
-Transition provenance v1.0 binds the proposal SHA but does not checksum-authenticate the exact `proposed_inference.inference_edge_id` as an independently validated lineage field.
+Transition provenance v1.0 binds the proposal SHA but does not separately checksum-authenticate the exact `proposed_inference.inference_edge_id` as a validated lineage field.
 
-Graph `metadata` is intentionally extensible. Consequently, a caller could manually insert an `inference_edge_id` into `metadata.transition_lineage`. The field's presence or apparent match to the current edge would not prove that it came from the checksum-bound transition proposal.
+Graph `metadata` is intentionally extensible. A caller can therefore insert an `inference_edge_id` into `metadata.transition_lineage`; the field's presence or apparent match to the current edge does not prove that it came from the checksum-bound transition proposal.
 
-Therefore the critic does **not** accept any `empirical_direct` or `empirical_derived` verifier scope as empirical authority under the current transition-v1 contract, even when opaque graph metadata contains a matching `inference_edge_id`.
+The critic consequently treats opaque metadata as non-authoritative. Merely adding a matching `inference_edge_id` key to graph metadata cannot upgrade scientific authority.
 
-A future provenance change must bind exact inference-edge identity through an authenticated transition/proposal/verifier contract and validate that contract before the critic can consume it. Merely adding another opaque metadata key is insufficient.
+A future provenance contract must authenticate exact inference-edge identity through the transition/proposal/verifier chain and validate that contract independently before the critic may consume it as authority.
 
-### Why `empirical_derived` is also unproven
+## Negative directional relations are provenance-gated
+
+The exact-edge problem applies to negative evidence as well as positive empirical support.
+
+For evaluator-verified `contradicts` or `falsifies` relations, the hardened critic validates all provenance that the current contract can prove. If a recognized current-format verifier is malformed or inconsistent, the report fails closed.
+
+Even when the available verifier and lineage checks pass, transition-v1 still cannot authenticate the exact inference edge. Therefore the hardened critic does **not** let that negative relation directly drive critic-level stop/reframe authority.
+
+Instead it:
+
+- preserves the evaluator assessment status unchanged;
+- removes structural-core authority findings such as `VERIFIED_CONTRADICTION_PRESENT`, `VERIFIED_FALSIFICATION_PRESENT`, or `VERIFIED_EVIDENCE_CONFLICT` from the hardened output when they depend on unauthenticated exact-edge provenance;
+- emits `NEGATIVE_DIRECTIONAL_PROVENANCE_NOT_ESTABLISHED`;
+- proposes a `plan_only` manual provenance review;
+- uses `verify_directional_provenance_before_scientific_reframe` rather than stopping, narrowing, or reframing the target automatically;
+- keeps `automatic_stop_authorized: false` and `positive_scientific_closeout_granted: false`.
+
+This is deliberately conservative: the critic does not downgrade the evaluator's scientific state, but it also does not compound an unresolved provenance ambiguity into a stronger research-control decision.
+
+## Empirical support authority is intentionally blocked under transition-v1
+
+An `analysis` node can be computational or empirically derived. Source-node type therefore cannot establish empirical support for an empirical/mixed target.
+
+For positive support of an empirical/mixed target, the hardened critic validates the current verifier bytes and lineage as described above but still emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED`, because exact inference-edge identity is not authenticated.
+
+### `empirical_derived` has an additional input-origin gap
 
 Current `input_evidence_bindings` prove only:
 
@@ -111,11 +138,13 @@ They do not provenance-classify the bound input as empirical measurement data ve
 
 The critic therefore does not infer `empirical_derived` authority from a non-empty binding list, role name, workstream name, filename, or action label.
 
+### `empirical_direct` is also withheld under the current contract
+
+Even a source compatible with an external physical experiment does not receive critic-level empirical authority until exact inference-edge identity is authenticated. A matching field injected into opaque graph metadata is not sufficient.
+
 ### Resulting behavior
 
-For an empirical/mixed target with positive verified support, the critic emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED` whenever the current provenance contract cannot independently establish empirical authority.
-
-This finding does **not** downgrade the evaluator's existing verified relation. It records a stronger provenance obligation required before the critic may describe that support as empirical evidence.
+`EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED` does **not** downgrade the evaluator's existing verified relation. It records a stronger provenance obligation required before the critic may describe that support as authenticated empirical evidence.
 
 The corresponding action is plan-only: strengthen provenance contracts or, if no empirical support exists, plan independent empirical validation. The critic does not authorize or execute validation.
 
@@ -144,7 +173,7 @@ It may propose next work such as:
 - stratified conflict reanalysis;
 - provenance-disjoint replication planning;
 - counterexample-oriented external evidence search;
-- empirical-provenance review;
+- directional/empirical provenance review;
 - manual interpretation of completed tests.
 
 Every proposed action carries:
@@ -154,7 +183,7 @@ Every proposed action carries:
 
 An `execution_mode` describes only the proposed control boundary. It does not prove that a suitable request, registry entry, dataset, instrument, or execution resource exists.
 
-Sensitivity analysis, conflict reanalysis, and replication therefore remain plan-only unless a separate verified planning/action layer establishes the required data and capability. External evidence search requires explicit authorization. Physical validation remains plan-only.
+Sensitivity analysis, conflict reanalysis, and replication remain plan-only unless a separate verified planning/action layer establishes the required data and capability. External evidence search requires explicit authorization. Physical validation remains plan-only.
 
 ## Public API boundary
 
@@ -165,7 +194,7 @@ Direct module imports therefore cannot bypass:
 - evaluator source-usability semantics;
 - completed-test semantics;
 - independence hardening;
-- empirical provenance restrictions;
+- directional verifier/provenance restrictions;
 - workstream evidence-gap scoping;
 - action-availability conservatism.
 
@@ -183,6 +212,7 @@ The critic never:
 - infers empirical authority from source-node type;
 - trusts malformed verifier decisions;
 - trusts opaque graph metadata as scientific authority;
+- lets unauthenticated exact-edge negative provenance drive stop/reframe authority;
 - accepts empirical scope without an authenticated exact inference-edge contract;
 - infers empirical-derived origin from unclassified input bindings;
 - attributes workstream evidence requirements to targets without explicit provenance;
@@ -213,7 +243,7 @@ The next safe provenance work is separate from the critic itself:
 
 1. strengthen transition/verifier provenance so exact `proposed_inference.inference_edge_id` is checksum-authenticated and independently validated rather than copied into opaque metadata;
 2. add first-class provenance-bound evidence-origin classification so `empirical_derived` can distinguish empirical measurement inputs from computational/simulation inputs;
-3. only then relax the critic's current fail-closed empirical-scope boundary with dedicated regression tests.
+3. only then relax the critic's current fail-closed directional/empirical authority boundary with dedicated regression tests.
 
 The intended research loop remains:
 
