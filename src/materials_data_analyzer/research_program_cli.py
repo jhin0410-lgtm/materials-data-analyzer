@@ -21,6 +21,9 @@ from materials_data_analyzer.research_loop.epistemic_transition import (
 from materials_data_analyzer.research_loop.policy_authorized_closed_loop import (
     run_policy_authorized_closed_loop,
 )
+from materials_data_analyzer.research_loop.scientific_critic import (
+    build_scientific_critic_report,
+)
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -77,10 +80,10 @@ def build_parser() -> argparse.ArgumentParser:
         prog="mda-research-program",
         description=(
             "Build a provenance-aware mission-level research agenda, validate evidence-bound "
-            "scientific reasoning proposals, evaluate checksum-bound epistemic graphs, create "
-            "immutable result-to-graph transitions, and run a finite policy-authorized local "
-            "execute-record-regate loop. This command does not initiate network access or "
-            "physical experiments."
+            "scientific reasoning proposals, evaluate and critique checksum-bound epistemic "
+            "graphs, create immutable result-to-graph transitions, and run a finite "
+            "policy-authorized local execute-record-regate loop. This command does not initiate "
+            "network access or physical experiments."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -120,6 +123,31 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Root for relative verifier/result artifact paths. Defaults to --repository-root."
         ),
+    )
+
+    critic = subparsers.add_parser(
+        "criticize-graph",
+        help=(
+            "Run the deterministic scientific critic over a checksum-bound graph. It proposes "
+            "counterevidence, robustness, replication, and discriminating next-work items but "
+            "does not change scientific status or authorize execution."
+        ),
+    )
+    _add_program_arguments(critic)
+    critic.add_argument("--graph", required=True, type=Path)
+    critic.add_argument(
+        "--target",
+        action="append",
+        dest="critic_targets",
+        help=(
+            "Optional hypothesis/claim/conclusion node ID to critique. Repeat for multiple "
+            "targets. When omitted, all assessed targets are reviewed."
+        ),
+    )
+    critic.add_argument(
+        "--artifact-root",
+        type=Path,
+        help="Root for graph result/verifier artifacts. Defaults to --repository-root.",
     )
 
     transition = subparsers.add_parser(
@@ -224,6 +252,14 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
                 "sha256": graph_sha256,
             },
         }
+    if args.command == "criticize-graph":
+        artifact_root = args.artifact_root or args.repository_root
+        return build_scientific_critic_report(
+            args.graph,
+            program_state=program,
+            artifact_root=artifact_root,
+            target_node_ids=args.critic_targets,
+        )
     if args.command == "apply-graph-transition":
         artifact_root = args.artifact_root or args.repository_root
         return apply_epistemic_transition_files(
