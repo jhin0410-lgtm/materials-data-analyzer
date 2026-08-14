@@ -43,14 +43,45 @@ def _verification(tmp_path: Path, *, inference_scope: str) -> Path:
     )
 
 
-def _graph(tmp_path: Path, verification: Path) -> Path:
+def _graph(
+    tmp_path: Path,
+    verification: Path,
+    *,
+    lineage_proposal_sha256: str | None = None,
+) -> Path:
+    decision = json.loads(verification.read_text(encoding="utf-8"))
+    proposal_sha = str(decision["proposal_sha256"])
+    base_graph_sha = str(decision["base_graph_sha256"])
     return _write_json(
         tmp_path / "graph.json",
         {
             "schema_version": "1.0",
             "graph_id": "g1",
             "research_scope": "critic empirical-scope policy test",
-            "nodes": [],
+            "nodes": [
+                {
+                    "node_id": "h1",
+                    "node_type": "hypothesis",
+                    "statement": "Empirical target.",
+                    "metadata": {"claim_scope": "empirical"},
+                },
+                {
+                    "node_id": "a1",
+                    "node_type": "analysis",
+                    "statement": "Bound analysis result.",
+                    "metadata": {
+                        "result_origin": "authorized_local_analysis",
+                        "transition_id": "transition-1",
+                        "input_evidence_bindings": [
+                            {
+                                "workstream_id": "ws",
+                                "role": "measurement",
+                                "sha256": "e" * 64,
+                            }
+                        ],
+                    },
+                },
+            ],
             "edges": [
                 {
                     "edge_id": "support-1",
@@ -67,6 +98,22 @@ def _graph(tmp_path: Path, verification: Path) -> Path:
                     },
                 }
             ],
+            "metadata": {
+                "transition_lineage": [
+                    {
+                        "transition_id": "transition-1",
+                        "parent_graph_id": "g0",
+                        "parent_graph_sha256": base_graph_sha,
+                        "proposal_sha256": (
+                            proposal_sha
+                            if lineage_proposal_sha256 is None
+                            else lineage_proposal_sha256
+                        ),
+                        "verification_decision_sha256": _sha(verification),
+                        "result_node_id": "a1",
+                    }
+                ]
+            },
         },
     )
 
@@ -136,7 +183,9 @@ def test_empirical_target_with_only_computational_scope_support_is_flagged(
     assert action["execution_mode"] == "plan_only"
     assert action["automatic_execution_authorized"] is False
     assert report["epistemic_assessment"]["status"] == "provisionally_supported"
-    assert result["autonomy_boundary"]["empirical_support_scope_inferred_from_source_node_type"] is False
+    boundary = result["autonomy_boundary"]
+    assert boundary["empirical_support_scope_inferred_from_source_node_type"] is False
+    assert boundary["empirical_support_scope_accepted_without_transition_lineage"] is False
 
 
 def test_bound_empirical_derived_scope_satisfies_empirical_scope_obligation(
@@ -167,6 +216,21 @@ def test_bound_verification_decision_checksum_drift_fails_closed(
     monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: base)
 
     with pytest.raises(ScientificCriticError, match="changed after graph verification"):
+        module.build_policy_hardened_scientific_critic_report(
+            graph,
+            program_state=_program(),
+            artifact_root=tmp_path,
+        )
+
+
+def test_mismatched_proposal_lineage_cannot_supply_empirical_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    verification = _verification(tmp_path, inference_scope="empirical_derived")
+    graph = _graph(tmp_path, verification, lineage_proposal_sha256="q" * 64)
+    monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: _base_report(graph))
+
+    with pytest.raises(ScientificCriticError, match="proposal_sha256 does not match"):
         module.build_policy_hardened_scientific_critic_report(
             graph,
             program_state=_program(),
