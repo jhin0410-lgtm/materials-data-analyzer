@@ -126,12 +126,17 @@ from .scientific_critic import (
     SCIENTIFIC_CRITIC_POLICY_VERSION,
     SCIENTIFIC_CRITIC_SCHEMA_VERSION,
     ScientificCriticError,
-    build_scientific_critic_report,
+)
+from .scientific_critic_policy import (
+    SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION,
+    build_policy_hardened_scientific_critic_report,
 )
 from .target_reference_sensitivity import (
     TargetReferenceSensitivityError,
     build_target_reference_sensitivity,
 )
+
+build_scientific_critic_report = build_policy_hardened_scientific_critic_report
 
 __all__ = [
     "ACTION_REGISTRY_SCHEMA_VERSION",
@@ -158,6 +163,7 @@ __all__ = [
     "PROGRAM_POLICY_VERSION",
     "PROGRAM_SCHEMA_VERSION",
     "REASONING_PROPOSAL_SCHEMA_VERSION",
+    "SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION",
     "SCIENTIFIC_CRITIC_POLICY_VERSION",
     "SCIENTIFIC_CRITIC_SCHEMA_VERSION",
     "STATE_FILENAME",
