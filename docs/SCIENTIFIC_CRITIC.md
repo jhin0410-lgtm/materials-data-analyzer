@@ -28,6 +28,7 @@ The mission must explicitly permit `reasoning_proposals: schema_validated`.
 The policy-hardened critic can detect:
 
 - domain-verified falsification already present;
+- standalone usable domain-verified contradiction;
 - conflicting verified support and contradiction/falsification;
 - absence of represented domain-verified counterevidence;
 - **positive-support independence not established by the current graph contract**;
@@ -35,9 +36,33 @@ The policy-hardened critic can detect:
 - **empirical/mixed-scope positive support whose empirical inference scope is not established by exact verifier and transition provenance**;
 - proposal/diagnostic directional relations that are not domain verified;
 - completed `tests` results that still lack a directional scientific interpretation;
-- targets that have no recorded discriminating test.
+- targets that have no completed recorded discriminating test or usable verified directional relation.
 
 These are methodological graph findings, not new scientific evidence.
+
+## Verified means usable in the evaluator, not merely labeled
+
+The critic does not reconstruct verified scientific authority from `assessment_level: domain_verified` alone. It consumes the exact verified support/contradiction/falsification edge IDs produced by `evaluate_epistemic_graph`.
+
+This preserves the evaluator's source-usability gate. In particular:
+
+- planned or failed analysis/simulation/experiment nodes do not become verified evidence merely because an attached edge is labeled `domain_verified`;
+- unsupported evidence nodes likewise cannot affect verified target status;
+- only the evaluator-authorized usable verified relations drive critic findings such as support, conflict, contradiction, or falsification.
+
+A standalone usable verified contradiction is emitted as `VERIFIED_CONTRADICTION_PRESENT` and receives `reassess_or_reframe_contradicted_target`. It cannot fall through to a positive closeout-style recommendation.
+
+## Recorded tests require completed execution
+
+A `tests` edge is counted as a recorded discriminating test only when its executable source has `execution_status: completed`.
+
+A planned or failed analysis/simulation/experiment therefore:
+
+- does not trigger `COMPLETED_TESTS_WITHOUT_DIRECTIONAL_INTERPRETATION`;
+- does not suppress `NO_RECORDED_DISCRIMINATING_TEST`;
+- cannot satisfy a scientific testing obligation merely because the edge was created before execution completed.
+
+This preserves the distinction between a test plan, execution success, and scientific interpretation.
 
 ## Independence is not inferred from artifact identity
 
@@ -49,7 +74,7 @@ A proposed replication action:
 
 - has `automatic_execution_authorized: false`;
 - has `availability_asserted: false`;
-- uses `explicit_authorization_required` until suitable provenance-disjoint evidence or an external experiment is actually available.
+- requires separate evidence/capability establishment before execution can be considered.
 
 ## Empirical support scope is not inferred from source-node type
 
@@ -118,17 +143,37 @@ The critic may propose bounded next work such as:
 - plan-only empirical provenance/validation review;
 - manual interpretation of completed test artifacts.
 
-An information-gain priority is qualitative only. It is **not** a calibrated probability or expected-value estimate. Likewise, an `execution_mode` describes the class of a proposed next step; it does not prove that a corresponding request, registry entry, dataset, instrument, or other execution resource is currently available.
+An information-gain priority is qualitative only. It is **not** a calibrated probability or expected-value estimate.
 
-Every proposed action carries `automatic_execution_authorized: false`.
+Every proposed action carries:
+
+- `automatic_execution_authorized: false`;
+- `availability_asserted: false`.
+
+An `execution_mode` describes only the control boundary of a proposed next step. It never proves that a corresponding request, registry entry, dataset, instrument, or other execution resource exists. In particular, sensitivity analysis, conflict reanalysis, and replication remain `plan_only` unless a separate verified planning/action layer establishes the required data and capability.
 
 External evidence search requires explicit authorization. Physical validation remains plan-only. The critic has no generic command, network, laboratory, or execution surface.
+
+## Public API boundary
+
+The structural critic builder is an internal implementation layer. The public `build_scientific_critic_report` entry point in `materials_data_analyzer.research_loop.scientific_critic` delegates to the same policy-hardened facade used by the package and installed CLI.
+
+Therefore importing the function directly from the module does not bypass:
+
+- independence hardening;
+- empirical-scope verifier/transition-lineage checks;
+- workstream evidence-gap scoping;
+- action-availability conservatism.
+
+The private structural builder exists only so the policy overlay can compose deterministic structural findings without an import cycle.
 
 ## Falsification-first behavior
 
 A target already `falsified_within_verified_scope` receives a `stop_and_reframe_current_target` recommendation. The negative result is preserved rather than silently averaged away or rescued by seeking additional positive results.
 
-Even this recommendation has `automatic_stop_authorized: false`; mission/domain control remains external to the critic.
+A target that is `contradicted_within_verified_scope` receives `reassess_or_reframe_contradicted_target`, preserving the standalone verified objection even when no positive support exists.
+
+Neither recommendation grants an automatic stop or scientific closeout; mission/domain control remains external to the critic.
 
 ## Scientific boundary
 
@@ -138,6 +183,8 @@ The critic never:
 - creates `supports`, `contradicts`, or `falsifies` edges;
 - changes target epistemic status;
 - assigns scientific confidence scores or probabilities;
+- counts unusable sources as verified scientific relations;
+- counts planned/failed test executions as completed scientific tests;
 - infers independence from artifact multiplicity;
 - infers empirical support scope from source-node type;
 - accepts empirical verifier scope without matching transition lineage;
