@@ -1,13 +1,9 @@
 """Epistemic-graph-gated bounded multi-cycle research orchestration.
 
-This is a strict composition layer over the existing one-action research cycle and
-request-queue contract. Before every possible execution it rebuilds the current mission
-state, revalidates the selected epistemic graph and verifier artifacts, and refuses to
-consume another request when the targeted hypothesis/claim is falsified, contradicted,
-contested, or awaiting positive domain closeout.
-
-It does not generate requests, mutate the graph, invent hypotheses, perform network
-searches, or execute physical experiments.
+This composition layer revalidates selected epistemic targets before every possible
+execution and then delegates to the existing one-action research cycle. It never
+generates requests, mutates the epistemic graph, invents hypotheses, performs network
+searches, or executes physical experiments.
 """
 
 from __future__ import annotations
@@ -51,6 +47,131 @@ def _positive_int(value: object, field: str, *, maximum: int) -> int:
             f"{field} must be an integer from 1 to {maximum}"
         )
     return value
+
+
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise EpistemicMultiCycleError(f"duplicate JSON key is not allowed: {key}")
+        result[key] = value
+    return result
+
+
+def _load_json_snapshot(path: Path) -> tuple[dict[str, Any], str]:
+    raw = path.read_bytes()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise EpistemicMultiCycleError(f"invalid UTF-8 in {path}: {exc}") from exc
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
+    except json.JSONDecodeError as exc:
+        raise EpistemicMultiCycleError(f"invalid JSON in {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise EpistemicMultiCycleError(f"JSON root must be an object: {path}")
+    return value, hashlib.sha256(raw).hexdigest()
+
+
+def _resolved_path(value: str | Path, field: str) -> Path:
+    try:
+        return Path(value).expanduser().resolve(strict=True)
+    except (FileNotFoundError, NotADirectoryError, OSError) as exc:
+        raise EpistemicMultiCycleError(f"{field} does not resolve: {value}") from exc
+
+
+def _verify_gate_execution_context(
+    gate: Mapping[str, Any],
+    *,
+    runtime_context_path: str | Path | None,
+    workstream_id: str,
+    research_run: str | Path | None,
+    action_registry_path: str | Path | None,
+) -> dict[str, Any] | None:
+    """Bind execution paths to the exact runtime-context bytes revalidated by the gate."""
+    raw_binding = gate.get("runtime_context_binding")
+    if raw_binding is None:
+        if runtime_context_path is not None:
+            raise EpistemicMultiCycleError(
+                "epistemic gate omitted runtime_context_binding for the supplied runtime context"
+            )
+        return None
+    if not isinstance(raw_binding, Mapping):
+        raise EpistemicMultiCycleError("epistemic gate runtime_context_binding is malformed")
+    if runtime_context_path is None:
+        raise EpistemicMultiCycleError(
+            "epistemic gate used runtime context but execution received no runtime_context_path"
+        )
+
+    context_path = _resolved_path(runtime_context_path, "runtime_context_path")
+    expected_binding_path = _nonempty_text(
+        raw_binding.get("path"), "runtime_context_binding.path"
+    )
+    if context_path != _resolved_path(expected_binding_path, "runtime_context_binding.path"):
+        raise EpistemicMultiCycleError(
+            "execution runtime context path differs from the context revalidated by the epistemic gate"
+        )
+    context, context_sha256 = _load_json_snapshot(context_path)
+    expected_sha256 = _nonempty_text(
+        raw_binding.get("sha256"), "runtime_context_binding.sha256"
+    )
+    if context_sha256 != expected_sha256:
+        raise EpistemicMultiCycleError(
+            "runtime context changed after epistemic gate evaluation"
+        )
+    if context.get("schema_version") != "1.0":
+        raise EpistemicMultiCycleError("unsupported runtime context schema_version")
+    raw_workstreams = context.get("workstreams")
+    if not isinstance(raw_workstreams, Mapping):
+        raise EpistemicMultiCycleError("runtime context workstreams must be an object")
+    raw_selected = raw_workstreams.get(workstream_id, {})
+    if not isinstance(raw_selected, Mapping):
+        raise EpistemicMultiCycleError(
+            f"runtime context workstream must be an object: {workstream_id}"
+        )
+    unknown = sorted(set(raw_selected) - {"research_run", "action_registry_path"})
+    if unknown:
+        raise EpistemicMultiCycleError(
+            "runtime context selected workstream has unknown keys: " + ", ".join(unknown)
+        )
+
+    supplied = {
+        "research_run": research_run,
+        "action_registry_path": action_registry_path,
+    }
+    resolved_bindings: dict[str, str] = {}
+    for key, supplied_value in supplied.items():
+        expected_value = raw_selected.get(key)
+        if expected_value is None:
+            if supplied_value is not None:
+                raise EpistemicMultiCycleError(
+                    f"execution {key} was not validated by the selected epistemic runtime context"
+                )
+            continue
+        expected_text = _nonempty_text(
+            expected_value, f"runtime context {workstream_id}.{key}"
+        )
+        if supplied_value is None:
+            raise EpistemicMultiCycleError(
+                f"execution omitted {key} required by the selected epistemic runtime context"
+            )
+        expected_path = _resolved_path(
+            expected_text, f"runtime context {workstream_id}.{key}"
+        )
+        actual_path = _resolved_path(supplied_value, f"execution {key}")
+        if actual_path != expected_path:
+            raise EpistemicMultiCycleError(
+                "execution context does not match the epistemic-gate runtime context: "
+                f"{key} expected {expected_path}, got {actual_path}"
+            )
+        resolved_bindings[key] = str(actual_path)
+
+    return {
+        "runtime_context_path": str(context_path),
+        "runtime_context_sha256": context_sha256,
+        "workstream_id": workstream_id,
+        **resolved_bindings,
+    }
 
 
 def _selected_action(authorization: object) -> dict[str, Any] | None:
@@ -109,6 +230,7 @@ def _execution_record(
     *,
     cycle_index: int,
     gate: Mapping[str, Any],
+    execution_context_binding: Mapping[str, Any] | None,
     probe: Mapping[str, Any] | None,
     request: Mapping[str, Any] | None,
     execution_cycle: Mapping[str, Any] | None,
@@ -121,6 +243,11 @@ def _execution_record(
     return {
         "cycle_index": cycle_index,
         "epistemic_gate": dict(gate),
+        "execution_context_binding": (
+            dict(execution_context_binding)
+            if isinstance(execution_context_binding, Mapping)
+            else None
+        ),
         "probe_status": probe.get("cycle_status") if isinstance(probe, Mapping) else None,
         "probe_before_transition": (
             probe.get("before_transition") if isinstance(probe, Mapping) else None
@@ -220,12 +347,22 @@ def run_epistemically_bounded_multicycle(
             runtime_context_path=runtime_context_path,
             artifact_root=artifact_root,
         )
+        context_binding = _verify_gate_execution_context(
+            gate,
+            runtime_context_path=runtime_context_path,
+            workstream_id=epistemic_workstream_id,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
         directive = gate["directive"]
+        if not isinstance(directive, Mapping):
+            raise EpistemicMultiCycleError("epistemic gate directive is malformed")
         if directive.get("automatic_execution_permitted") is not True:
             cycles.append(
                 _execution_record(
                     cycle_index=cycle_index,
                     gate=gate,
+                    execution_context_binding=context_binding,
                     probe=None,
                     request=None,
                     execution_cycle=None,
@@ -251,17 +388,13 @@ def run_epistemically_bounded_multicycle(
                 _execution_record(
                     cycle_index=cycle_index,
                     gate=gate,
+                    execution_context_binding=context_binding,
                     probe=probe,
                     request=None,
                     execution_cycle=None,
                 )
             )
-            program_status = {
-                "stopped_current_scope": "stopped_current_scope",
-                "manual_review_required": "manual_review_required",
-                "blocked": "blocked",
-                "authorization_denied": "authorization_denied",
-            }[str(probe_status)]
+            program_status = str(probe_status)
             stop_reason = "Current verified planning state does not permit another execution."
             break
         if probe_status != "explicit_request_required":
@@ -278,6 +411,7 @@ def run_epistemically_bounded_multicycle(
                 _execution_record(
                     cycle_index=cycle_index,
                     gate=gate,
+                    execution_context_binding=context_binding,
                     probe=probe,
                     request=None,
                     execution_cycle=None,
@@ -302,6 +436,7 @@ def run_epistemically_bounded_multicycle(
         record = _execution_record(
             cycle_index=cycle_index,
             gate=gate,
+            execution_context_binding=context_binding,
             probe=probe,
             request=request,
             execution_cycle=execution_cycle,
@@ -382,6 +517,7 @@ def run_epistemically_bounded_multicycle(
         "cycles": cycles,
         "autonomy_boundary": {
             "epistemic_gate_revalidated_before_every_possible_execution": True,
+            "gate_runtime_context_bound_to_execution_paths": True,
             "automatic_request_generation_available": False,
             "only_predeclared_checksum_bound_requests_consumed": True,
             "one_action_per_cycle_enforced_by_delegate": True,
