@@ -10,7 +10,8 @@ justify:
    provenance mapping;
 3. an empirical or mixed target is not assumed to have empirical support merely because
    a supporting source node is something other than a simulation. Empirical inference
-   scope must be recoverable from the exact bound domain-verification decision.
+   scope must be recoverable from the exact bound domain-verification decision and its
+   transition lineage.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from .scientific_critic import (
     build_scientific_critic_report as _build_base_report,
 )
 
-SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.2"
+SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.3"
 
 _EMPIRICAL_TARGET_SCOPES = {"empirical", "mixed"}
 _INFERENCE_SCOPES = {"structural", "computational", "empirical_derived", "empirical_direct"}
@@ -109,9 +110,6 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
         ):
             raise ScientificCriticError("critic target proposal collections are malformed")
 
-        # Direct artifact identity is useful provenance, but it is not an independence
-        # certificate. Remove the narrower concentration-only finding/action and replace
-        # it with the conservative statement that independence is not established.
         findings[:] = [
             item
             for item in findings
@@ -214,6 +212,20 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _read_json_snapshot(path: Path, *, field: str) -> tuple[dict[str, Any], bytes, str]:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ScientificCriticError(f"could not read {field}: {path}") from exc
+    try:
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ScientificCriticError(f"{field} must be valid UTF-8 JSON") from exc
+    if not isinstance(value, dict):
+        raise ScientificCriticError(f"{field} root must be an object")
+    return value, raw, hashlib.sha256(raw).hexdigest()
+
+
 def _load_bound_graph(report: Mapping[str, Any]) -> dict[str, Any]:
     binding = report.get("graph_binding")
     if not isinstance(binding, Mapping):
@@ -224,24 +236,109 @@ def _load_bound_graph(report: Mapping[str, Any]) -> dict[str, Any]:
         raise ScientificCriticError("critic report graph_binding.path is malformed")
     if not isinstance(expected_sha, str) or not expected_sha.strip():
         raise ScientificCriticError("critic report graph_binding.sha256 is malformed")
-    path = Path(path_value).expanduser().resolve(strict=True)
-    raw = path.read_bytes()
-    actual_sha = hashlib.sha256(raw).hexdigest()
+    try:
+        path = Path(path_value).expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise ScientificCriticError("bound epistemic graph is no longer readable") from exc
+    value, _, actual_sha = _read_json_snapshot(path, field="bound epistemic graph")
     if actual_sha != expected_sha:
         raise ScientificCriticError(
             "epistemic graph changed after the base critic bound its exact bytes"
         )
-    try:
-        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ScientificCriticError("bound epistemic graph is not valid UTF-8 JSON") from exc
-    if not isinstance(value, dict):
-        raise ScientificCriticError("bound epistemic graph root must be an object")
     return value
 
 
+def _graph_nodes_by_id(graph: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    raw_nodes = graph.get("nodes")
+    if not isinstance(raw_nodes, list):
+        raise ScientificCriticError("bound epistemic graph nodes must be a list")
+    result: dict[str, Mapping[str, Any]] = {}
+    for raw in raw_nodes:
+        if not isinstance(raw, Mapping) or not isinstance(raw.get("node_id"), str):
+            continue
+        node_id = str(raw["node_id"])
+        if node_id in result:
+            raise ScientificCriticError(f"duplicate epistemic node ID: {node_id}")
+        result[node_id] = raw
+    return result
+
+
+def _transition_lineage_by_id(graph: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    metadata = graph.get("metadata")
+    if metadata is None:
+        return {}
+    if not isinstance(metadata, Mapping):
+        raise ScientificCriticError("bound epistemic graph metadata must be an object")
+    lineage = metadata.get("transition_lineage")
+    if lineage is None:
+        return {}
+    if not isinstance(lineage, list):
+        raise ScientificCriticError("bound graph metadata.transition_lineage must be a list")
+    result: dict[str, Mapping[str, Any]] = {}
+    for index, raw in enumerate(lineage):
+        if not isinstance(raw, Mapping):
+            raise ScientificCriticError(
+                f"bound graph transition_lineage[{index}] must be an object"
+            )
+        transition_id = raw.get("transition_id")
+        if not isinstance(transition_id, str) or not transition_id.strip():
+            raise ScientificCriticError(
+                f"bound graph transition_lineage[{index}].transition_id is malformed"
+            )
+        if transition_id in result:
+            raise ScientificCriticError(f"duplicate transition lineage ID: {transition_id}")
+        result[transition_id] = raw
+    return result
+
+
+def _validate_empirical_scope_source(
+    *, scope: str, source_node: Mapping[str, Any]
+) -> None:
+    if scope not in _EMPIRICAL_INFERENCE_SCOPES:
+        return
+    node_type = source_node.get("node_type")
+    metadata = source_node.get("metadata")
+    if not isinstance(metadata, Mapping):
+        raise ScientificCriticError(
+            "empirical verifier scope requires transition metadata on its source node"
+        )
+    result_origin = metadata.get("result_origin")
+    input_evidence = metadata.get("input_evidence_bindings")
+    if scope == "empirical_direct":
+        if node_type != "experiment" or result_origin != "external_physical_experiment":
+            raise ScientificCriticError(
+                "empirical_direct verifier scope is incompatible with its source-node provenance"
+            )
+        return
+    if not isinstance(input_evidence, list) or not input_evidence:
+        raise ScientificCriticError(
+            "empirical_derived verifier scope requires bound input evidence on its source node"
+        )
+    if node_type == "simulation":
+        raise ScientificCriticError("simulation source cannot carry empirical_derived verifier scope")
+    if node_type == "experiment" and result_origin != "data_experiment":
+        raise ScientificCriticError(
+            "empirical_derived experiment scope requires data_experiment provenance"
+        )
+    if node_type == "analysis" and result_origin not in {
+        "authorized_local_analysis",
+        "external_analysis",
+    }:
+        raise ScientificCriticError(
+            "empirical_derived analysis scope has incompatible result_origin provenance"
+        )
+    if node_type not in {"analysis", "experiment"}:
+        raise ScientificCriticError(
+            "empirical_derived verifier scope requires analysis or data-experiment provenance"
+        )
+
+
 def _bound_domain_verification_scope(
-    edge: Mapping[str, Any], *, artifact_root: Path
+    edge: Mapping[str, Any],
+    *,
+    artifact_root: Path,
+    nodes_by_id: Mapping[str, Mapping[str, Any]],
+    lineage_by_id: Mapping[str, Mapping[str, Any]],
 ) -> str | None:
     binding = edge.get("verification_artifact")
     if not isinstance(binding, Mapping):
@@ -257,21 +354,18 @@ def _bound_domain_verification_scope(
     path = Path(path_value).expanduser()
     if not path.is_absolute():
         path = artifact_root / path
-    path = path.resolve(strict=True)
-    raw = path.read_bytes()
-    actual_sha = hashlib.sha256(raw).hexdigest()
+    try:
+        path = path.resolve(strict=True)
+    except OSError as exc:
+        raise ScientificCriticError("domain verification decision is no longer readable") from exc
+    decision, _, actual_sha = _read_json_snapshot(
+        path, field="domain verification decision"
+    )
     if actual_sha != expected_sha:
         raise ScientificCriticError(
             "domain verification decision changed after graph verification"
         )
-    try:
-        decision = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ScientificCriticError(
-            "domain verification decision must be valid UTF-8 JSON"
-        ) from exc
-    if not isinstance(decision, Mapping):
-        raise ScientificCriticError("domain verification decision root must be an object")
+
     expected_pairs = {
         "result_node_id": edge.get("source_node_id"),
         "target_node_id": edge.get("target_node_id"),
@@ -284,9 +378,48 @@ def _bound_domain_verification_scope(
             raise ScientificCriticError(
                 f"domain verification decision {field} does not match its graph edge"
             )
+
+    source_node_id = edge.get("source_node_id")
+    if not isinstance(source_node_id, str) or source_node_id not in nodes_by_id:
+        raise ScientificCriticError("verified support source node is absent from the bound graph")
+    source_node = nodes_by_id[source_node_id]
+    source_metadata = source_node.get("metadata")
+    if not isinstance(source_metadata, Mapping):
+        raise ScientificCriticError(
+            "domain verification decision source node lacks transition metadata"
+        )
+    transition_id = decision.get("transition_id")
+    if not isinstance(transition_id, str) or not transition_id.strip():
+        raise ScientificCriticError("domain verification decision transition_id is malformed")
+    if source_metadata.get("transition_id") != transition_id:
+        raise ScientificCriticError(
+            "domain verification decision transition_id does not match source-node provenance"
+        )
+    lineage = lineage_by_id.get(transition_id)
+    if not isinstance(lineage, Mapping):
+        raise ScientificCriticError(
+            "domain verification decision is not bound by graph transition_lineage"
+        )
+    lineage_pairs = {
+        "result_node_id": source_node_id,
+        "proposal_sha256": decision.get("proposal_sha256"),
+        "parent_graph_sha256": decision.get("base_graph_sha256"),
+        "verification_decision_sha256": expected_sha,
+    }
+    for field, expected in lineage_pairs.items():
+        if not isinstance(expected, str) or not expected:
+            raise ScientificCriticError(
+                f"domain verification decision {field} provenance is malformed"
+            )
+        if lineage.get(field) != expected:
+            raise ScientificCriticError(
+                f"domain verification decision {field} does not match graph transition_lineage"
+            )
+
     scope = decision.get("inference_scope")
     if not isinstance(scope, str) or scope not in _INFERENCE_SCOPES:
         raise ScientificCriticError("domain verification decision inference_scope is unsupported")
+    _validate_empirical_scope_source(scope=scope, source_node=source_node)
     return scope
 
 
@@ -327,8 +460,13 @@ def _add_empirical_support_scope_obligation(
         if edge_id in edges_by_id:
             raise ScientificCriticError(f"duplicate epistemic edge ID: {edge_id}")
         edges_by_id[edge_id] = edge
+    nodes_by_id = _graph_nodes_by_id(graph)
+    lineage_by_id = _transition_lineage_by_id(graph)
 
-    artifacts = Path(artifact_root).expanduser().resolve(strict=True)
+    try:
+        artifacts = Path(artifact_root).expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise ScientificCriticError("artifact_root is no longer readable") from exc
     if not artifacts.is_dir():
         raise ScientificCriticError(f"artifact_root must be a directory: {artifacts}")
 
@@ -345,7 +483,12 @@ def _add_empirical_support_scope_obligation(
             source_node_id = edge.get("source_node_id")
             if isinstance(source_node_id, str) and source_node_id not in source_node_ids:
                 source_node_ids.append(source_node_id)
-            scope = _bound_domain_verification_scope(edge, artifact_root=artifacts)
+            scope = _bound_domain_verification_scope(
+                edge,
+                artifact_root=artifacts,
+                nodes_by_id=nodes_by_id,
+                lineage_by_id=lineage_by_id,
+            )
             if scope is None:
                 unscoped_edge_ids.append(edge_id)
             else:
@@ -368,14 +511,15 @@ def _add_empirical_support_scope_obligation(
                 "severity": "high",
                 "statement": (
                     "The target is empirical or mixed in scope, but the exact bound positive-support "
-                    "verification decisions do not establish any empirical_derived or empirical_direct "
+                    "verification provenance does not establish any empirical_derived or empirical_direct "
                     "inference scope."
                 ),
                 "rationale": (
                     "A domain-verified support edge remains domain verified, but node type alone cannot "
                     "show whether an analysis is computational or empirically derived. The critic therefore "
-                    f"does not infer empirical evidence from source type. Observed bound scopes: {observed_scope_text}; "
-                    f"support edges without a recognized domain-verification-decision scope: {unresolved_text}."
+                    "requires the verifier decision, source transition metadata, and graph transition lineage "
+                    f"to agree. Observed bound scopes: {observed_scope_text}; support edges without a recognized "
+                    f"lineage-bound empirical scope: {unresolved_text}."
                 ),
                 "edge_ids": list(support_edge_ids),
                 "node_ids": source_node_ids,
@@ -393,7 +537,7 @@ def _add_empirical_support_scope_obligation(
                 ),
                 "rationale": (
                     "The critic must distinguish computational support from empirical evidence using "
-                    "checksum-bound verifier provenance rather than source-node labels."
+                    "checksum- and transition-lineage-bound verifier provenance rather than source-node labels."
                 ),
                 "execution_mode": "plan_only",
                 "information_gain_priority": "high",
@@ -460,6 +604,7 @@ def build_policy_hardened_scientific_critic_report(
         {
             "support_independence_inferred_from_artifact_identity": False,
             "empirical_support_scope_inferred_from_source_node_type": False,
+            "empirical_support_scope_accepted_without_transition_lineage": False,
             "program_evidence_requirements_target_attributed_without_mapping": False,
             "program_evidence_acquisition_authorized": False,
         }
