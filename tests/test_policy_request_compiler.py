@@ -437,7 +437,7 @@ def test_verifier_rejects_selected_execution_registry_drift(
     )
     with pytest.raises(
         verifier.PolicyRequestVerificationError,
-        match="manifest execution_registry_binding path mismatch|manifest selected-action fingerprint mismatch",
+        match=r"manifest\.execution_registry_binding path mismatch|manifest selected-action fingerprint mismatch",
     ):
         _verify(policy, run, output)
 
