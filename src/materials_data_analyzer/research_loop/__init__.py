@@ -122,6 +122,12 @@ from .research_program import (
     validate_reasoning_proposal_file,
     validate_research_mission,
 )
+from .scientific_critic import (
+    SCIENTIFIC_CRITIC_POLICY_VERSION,
+    SCIENTIFIC_CRITIC_SCHEMA_VERSION,
+    ScientificCriticError,
+    build_scientific_critic_report,
+)
 from .target_reference_sensitivity import (
     TargetReferenceSensitivityError,
     build_target_reference_sensitivity,
@@ -152,6 +158,8 @@ __all__ = [
     "PROGRAM_POLICY_VERSION",
     "PROGRAM_SCHEMA_VERSION",
     "REASONING_PROPOSAL_SCHEMA_VERSION",
+    "SCIENTIFIC_CRITIC_POLICY_VERSION",
+    "SCIENTIFIC_CRITIC_SCHEMA_VERSION",
     "STATE_FILENAME",
     "TRANSITION_POLICY_VERSION",
     "TRANSITION_SCHEMA_VERSION",
@@ -171,6 +179,7 @@ __all__ = [
     "ResearchCycleError",
     "ResearchLoopError",
     "ResearchProgramError",
+    "ScientificCriticError",
     "TargetReferenceSensitivityError",
     "action_summaries",
     "append_action",
@@ -185,6 +194,7 @@ __all__ = [
     "build_reopen_evidence_review",
     "build_research_planning_state",
     "build_research_program",
+    "build_scientific_critic_report",
     "build_target_reference_sensitivity",
     "derive_epistemic_directive",
     "describe_action",
