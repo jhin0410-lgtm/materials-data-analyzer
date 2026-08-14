@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 
 import pytest
@@ -59,11 +58,18 @@ def _edge(edge_id: str, source: str, target: str, relation: str) -> dict[str, ob
     }
 
 
+def _touch_required_paths(tmp_path: Path) -> tuple[Path, Path]:
+    mission_path = tmp_path / "mission.json"
+    graph_path = tmp_path / "graph.json"
+    mission_path.write_text("{}", encoding="utf-8")
+    graph_path.write_text("{}", encoding="utf-8")
+    return mission_path, graph_path
+
+
 def test_gate_rejects_target_with_only_other_workstream_provenance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    graph_path = tmp_path / "graph.json"
-    graph_path.write_text("{}", encoding="utf-8")
+    mission_path, graph_path = _touch_required_paths(tmp_path)
     evaluation = {
         "graph_id": "g",
         "graph_policy_version": "1.0",
@@ -95,7 +101,7 @@ def test_gate_rejects_target_with_only_other_workstream_provenance(
             adapter_id="nasa-battery",
             workstream_id="nasa-battery",
             target_node_ids=["target"],
-            mission_path=tmp_path / "mission.json",
+            mission_path=mission_path,
             graph_path=graph_path,
             repository_root=tmp_path,
         )
@@ -104,8 +110,7 @@ def test_gate_rejects_target_with_only_other_workstream_provenance(
 def test_gate_ignores_other_workstream_verified_falsification_for_selected_directive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    graph_path = tmp_path / "graph.json"
-    graph_path.write_text("{}", encoding="utf-8")
+    mission_path, graph_path = _touch_required_paths(tmp_path)
     evaluation = {
         "graph_id": "g",
         "graph_policy_version": "1.0",
@@ -140,7 +145,7 @@ def test_gate_ignores_other_workstream_verified_falsification_for_selected_direc
         adapter_id="nasa-battery",
         workstream_id="nasa-battery",
         target_node_ids=["target"],
-        mission_path=tmp_path / "mission.json",
+        mission_path=mission_path,
         graph_path=graph_path,
         repository_root=tmp_path,
     )
