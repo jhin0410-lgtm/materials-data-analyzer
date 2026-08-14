@@ -1169,6 +1169,7 @@ def run_policy_authorized_closed_loop(
     current_graph_value, current_graph_raw, current_graph_sha = _read_json_snapshot(
         current_graph_source
     )
+    initial_graph_sha = current_graph_sha
 
     queue = load_request_queue(request_queue_path, request_root=request_root)
     if queue.get("adapter_id") != adapter:
@@ -1508,7 +1509,10 @@ def run_policy_authorized_closed_loop(
         "requests_consumed": request_index,
         "request_queue_binding": authority["queue_binding"],
         "result_record_plan_binding": authority["plan_binding"],
-        "initial_graph_binding": {"path": str(current_graph_source), "sha256": _sha256_bytes(_read_json_snapshot(current_graph_source)[1]) if current_graph_source.exists() else None},
+        "initial_graph_binding": {
+            "path": str(current_graph_source),
+            "sha256": initial_graph_sha,
+        },
         "final_graph_binding": {"path": str(final_graph_path), "sha256": current_graph_sha},
         "cycles": cycles,
         "autonomy_boundary": {
