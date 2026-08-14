@@ -15,6 +15,9 @@ from materials_data_analyzer.research_loop import (
     validate_reasoning_proposal_file,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import evaluate_epistemic_graph
+from materials_data_analyzer.research_loop.epistemic_transition import (
+    apply_epistemic_transition_files,
+)
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -28,11 +31,18 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def _load_json_object(path: Path) -> tuple[dict[str, Any], Path, str]:
     resolved = path.expanduser().resolve(strict=True)
-    with resolved.open("r", encoding="utf-8") as handle:
-        value = json.load(handle, object_pairs_hook=_reject_duplicate_pairs)
+    raw = resolved.read_bytes()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ResearchLoopError(f"invalid UTF-8 in {resolved}: {exc}") from exc
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
+    except json.JSONDecodeError as exc:
+        raise ResearchLoopError(f"invalid JSON in {resolved}: {exc}") from exc
     if not isinstance(value, dict):
         raise ResearchLoopError(f"JSON root must be an object: {resolved}")
-    digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    digest = hashlib.sha256(raw).hexdigest()
     return value, resolved, digest
 
 
@@ -64,8 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="mda-research-program",
         description=(
             "Build a provenance-aware mission-level research agenda, validate evidence-bound "
-            "scientific reasoning proposals, and evaluate checksum-bound epistemic graphs. "
-            "This command does not execute actions, access the network, or run physical experiments."
+            "scientific reasoning proposals, evaluate checksum-bound epistemic graphs, and "
+            "create immutable result-to-graph transitions. This command does not access the "
+            "network or execute physical experiments."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -106,6 +117,24 @@ def build_parser() -> argparse.ArgumentParser:
             "Root for relative verifier/result artifact paths. Defaults to --repository-root."
         ),
     )
+
+    transition = subparsers.add_parser(
+        "apply-graph-transition",
+        help=(
+            "Append one completed result to an epistemic graph and optionally apply a separate "
+            "checksum-bound domain-verification decision. The base graph is never mutated."
+        ),
+    )
+    _add_program_arguments(transition)
+    transition.add_argument("--base-graph", required=True, type=Path)
+    transition.add_argument("--transition-proposal", required=True, type=Path)
+    transition.add_argument("--verification-decision", type=Path)
+    transition.add_argument("--output", required=True, type=Path)
+    transition.add_argument(
+        "--artifact-root",
+        type=Path,
+        help="Root for relative result/verifier artifact paths. Defaults to --repository-root.",
+    )
     return parser
 
 
@@ -138,6 +167,16 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
                 "sha256": graph_sha256,
             },
         }
+    if args.command == "apply-graph-transition":
+        artifact_root = args.artifact_root or args.repository_root
+        return apply_epistemic_transition_files(
+            base_graph_path=args.base_graph,
+            proposal_path=args.transition_proposal,
+            verification_decision_path=args.verification_decision,
+            program_state=program,
+            artifact_root=artifact_root,
+            output_dir=args.output,
+        )
     raise AssertionError(f"unhandled command: {args.command}")
 
 
