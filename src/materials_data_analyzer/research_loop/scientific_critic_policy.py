@@ -25,10 +25,10 @@ from typing import Any, Mapping, Sequence
 from .scientific_critic import (
     SCIENTIFIC_CRITIC_POLICY_VERSION,
     ScientificCriticError,
-    build_scientific_critic_report as _build_base_report,
+    _build_structural_scientific_critic_report as _build_base_report,
 )
 
-SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.3"
+SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.4"
 
 _EMPIRICAL_TARGET_SCOPES = {"empirical", "mixed"}
 _INFERENCE_SCOPES = {"structural", "computational", "empirical_derived", "empirical_direct"}
@@ -201,6 +201,22 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
                 "availability_asserted": False,
             }
         )
+
+
+def _mark_action_availability_unproven(report: dict[str, Any]) -> None:
+    target_reports = report.get("target_reports")
+    if not isinstance(target_reports, list):
+        raise ScientificCriticError("critic report target_reports are malformed")
+    for raw in target_reports:
+        if not isinstance(raw, Mapping):
+            raise ScientificCriticError("critic target report is malformed")
+        actions = raw.get("discriminating_actions")
+        if not isinstance(actions, list):
+            raise ScientificCriticError("critic target discriminating_actions are malformed")
+        for action in actions:
+            if not isinstance(action, dict):
+                raise ScientificCriticError("critic discriminating action is malformed")
+            action["availability_asserted"] = False
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -569,6 +585,7 @@ def build_policy_hardened_scientific_critic_report(
     report = copy.deepcopy(base)
     _replace_independence_assumption(report)
     _add_empirical_support_scope_obligation(report, artifact_root=artifact_root)
+    _mark_action_availability_unproven(report)
     gaps = _program_evidence_gaps(program_state)
     report["critic_policy_version"] = (
         f"{SCIENTIFIC_CRITIC_POLICY_VERSION}+hardening-"
@@ -605,6 +622,7 @@ def build_policy_hardened_scientific_critic_report(
             "support_independence_inferred_from_artifact_identity": False,
             "empirical_support_scope_inferred_from_source_node_type": False,
             "empirical_support_scope_accepted_without_transition_lineage": False,
+            "action_availability_inferred": False,
             "program_evidence_requirements_target_attributed_without_mapping": False,
             "program_evidence_acquisition_authorized": False,
         }
