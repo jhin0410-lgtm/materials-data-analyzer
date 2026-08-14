@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "mission_id": "autonomous-materials-research-v1",
+  "mission": "Continuously investigate materials and process questions by generating bounded research goals from verified evidence gaps, proposing falsifiable hypotheses, selecting the next defensible data, analysis, simulation, replication, or experiment-design action, and iterating until the evidence supports a bounded conclusion or a declared stop condition is reached.",
+  "success_criteria": [
+    "Research goals are generated from verified blockers or evidence gaps rather than from unsupported speculation.",
+    "Every scientific hypothesis is falsifiable and traceable to checksum-bound evidence before it can influence a claim.",
+    "Second- and later-stage analyses preserve data independence, negative results, uncertainty, and alternative explanations.",
+    "At least one benchmark workstream reaches a reproducible scientific closeout without silently upgrading software validation into scientific validation.",
+    "Physical experiments remain proposed designs until an external laboratory or authorized execution system supplies real measurements with provenance."
+  ],
+  "constraints": [
+    "Never fabricate missing measurements, calibration, sample identity, acquisition identity, metadata, or provenance.",
+    "Do not treat passing software tests, checksums, or workflow execution as proof of scientific truth.",
+    "Do not relabel mission priority scores as expected information gain.",
+    "Do not tune a model, preprocessing rule, threshold, or scientific protocol on a frozen external evaluation set.",
+    "Do not infer causal, mechanistic, phase, chemical-state, or engineering-readiness claims beyond the verified evidence boundary.",
+    "Network evidence acquisition requires a separately authorized path and physical experiment execution remains external to this program."
+  ],
+  "stop_rules": [
+    "Stop the current scope when no verified positive-value action remains under the bounded domain planner.",
+    "Stop and require manual review when evidence semantics, source independence, or a failed action cannot be resolved deterministically.",
+    "Stop or reopen under a new versioned objective when materially new evidence changes a previously recorded stop reason.",
+    "Do not continue analysis merely to obtain a preferred result after the predeclared hypothesis has been falsified."
+  ],
+  "autonomy_policy": {
+    "goal_generation": "bounded_autonomous",
+    "reasoning_proposals": "schema_validated",
+    "typed_computational_actions": "explicit_request",
+    "network_evidence_search": "explicit_authorization",
+    "physical_experiment_execution": "external_only"
+  },
+  "workstreams": [
+    {
+      "workstream_id": "nist-ambench",
+      "adapter_id": "nist-ambench-process-characterization",
+      "priority": 100,
+      "role": "Experimental-design and process-characterization benchmark for autonomous next-experiment reasoning.",
+      "enabled": true
+    },
+    {
+      "workstream_id": "nasa-battery",
+      "adapter_id": "nasa-battery",
+      "priority": 95,
+      "role": "Longitudinal degradation benchmark for repeated diagnostics, hypothesis discrimination, modeling, and external-evidence requirements.",
+      "enabled": true
+    },
+    {
+      "workstream_id": "tm-fe-si-characterization",
+      "adapter_id": "tm-fe-si-descriptive",
+      "priority": 90,
+      "role": "Cross-repository characterization-consumer benchmark for bounded multimodal evidence integration.",
+      "enabled": true
+    },
+    {
+      "workstream_id": "materials-project-external-source",
+      "adapter_id": "materials-project-external-source",
+      "priority": 85,
+      "role": "Independent external-source search benchmark for evidence-gap and reopen reasoning.",
+      "enabled": true
+    }
+  ],
+  "metadata": {
+    "intended_system": "provenance-aware autonomous materials research system",
+    "autonomy_scope": "goal generation and planning from verified state; execution remains bounded by existing authorization contracts",
+    "created_for": "research-program control-plane benchmark"
+  }
+}
