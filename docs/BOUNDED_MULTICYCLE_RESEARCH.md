@@ -88,7 +88,7 @@ The multi-cycle runner stops when any of the following occurs:
 - a previously observed post-execution fingerprint repeats;
 - the configured cycle limit is reached.
 
-The library hard-caps a single invocation at 32 cycles even if a larger value is requested.
+A requested cycle limit above 32 is rejected rather than silently reduced.
 
 ## No-progress protection
 
