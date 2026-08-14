@@ -34,6 +34,8 @@ def _base_report(*, supports: bool = True) -> dict[str, object]:
                 "epistemic_assessment": {
                     "status": "provisionally_supported" if supports else "inconclusive",
                     "verified_support_edges": support_edges,
+                    "verified_contradiction_edges": [],
+                    "verified_falsification_edges": [],
                 },
                 "critic_findings": findings,
                 "methodological_alternatives": alternatives,
@@ -79,6 +81,11 @@ def test_positive_support_never_implies_independence_from_distinct_edges(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: _base_report())
+    monkeypatch.setattr(
+        module,
+        "_apply_directional_provenance_policy",
+        lambda *args, **kwargs: None,
+    )
     result = module.build_policy_hardened_scientific_critic_report(
         tmp_path / "unused.json",
         program_state=_program(),
@@ -93,7 +100,7 @@ def test_positive_support_never_implies_independence_from_distinct_edges(
         for item in report["discriminating_actions"]
         if item["action_id"].endswith("establish-support-independence")
     )
-    assert action["execution_mode"] == "explicit_authorization_required"
+    assert action["execution_mode"] == "plan_only"
     assert action["automatic_execution_authorized"] is False
     assert action["availability_asserted"] is False
     assert (
