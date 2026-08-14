@@ -18,6 +18,9 @@ from materials_data_analyzer.research_loop.epistemic_graph import evaluate_epist
 from materials_data_analyzer.research_loop.epistemic_transition import (
     apply_epistemic_transition_files,
 )
+from materials_data_analyzer.research_loop.policy_authorized_closed_loop import (
+    run_policy_authorized_closed_loop,
+)
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -74,9 +77,10 @@ def build_parser() -> argparse.ArgumentParser:
         prog="mda-research-program",
         description=(
             "Build a provenance-aware mission-level research agenda, validate evidence-bound "
-            "scientific reasoning proposals, evaluate checksum-bound epistemic graphs, and "
-            "create immutable result-to-graph transitions. This command does not access the "
-            "network or execute physical experiments."
+            "scientific reasoning proposals, evaluate checksum-bound epistemic graphs, create "
+            "immutable result-to-graph transitions, and run a finite policy-authorized local "
+            "execute-record-regate loop. This command does not initiate network access or "
+            "physical experiments."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -135,6 +139,37 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Root for relative result/verifier artifact paths. Defaults to --repository-root.",
     )
+
+    closed = subparsers.add_parser(
+        "run-closed-loop",
+        help=(
+            "Consume a finite checksum-bound request queue, execute only currently authorized "
+            "typed local actions, record each verified action report into an immutable successor "
+            "graph without directional inference, and re-gate/replan from that successor."
+        ),
+    )
+    _add_program_arguments(closed)
+    closed.add_argument("--base-graph", required=True, type=Path)
+    closed.add_argument("--epistemic-workstream", required=True)
+    closed.add_argument(
+        "--epistemic-target",
+        required=True,
+        action="append",
+        dest="epistemic_targets",
+        help="Target hypothesis/claim/conclusion node ID. Repeat for multiple targets.",
+    )
+    closed.add_argument("--research-run", required=True, type=Path)
+    closed.add_argument("--action-registry", required=True, type=Path)
+    closed.add_argument("--request-queue", required=True, type=Path)
+    closed.add_argument("--request-root", type=Path)
+    closed.add_argument("--result-record-plan", required=True, type=Path)
+    closed.add_argument("--output", required=True, type=Path)
+    closed.add_argument("--max-cycles", type=int, default=8)
+    closed.add_argument(
+        "--artifact-root",
+        type=Path,
+        help="Root for verifier/result artifacts. Defaults to --repository-root.",
+    )
     return parser
 
 
@@ -147,6 +182,28 @@ def _build_program(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _run(args: argparse.Namespace) -> dict[str, object]:
+    if args.command == "run-closed-loop":
+        if args.context is None:
+            raise ResearchLoopError("run-closed-loop requires --context")
+        artifact_root = args.artifact_root or args.repository_root
+        return run_policy_authorized_closed_loop(
+            "nasa-battery",
+            repository_root=args.repository_root,
+            mission_path=args.mission,
+            initial_graph_path=args.base_graph,
+            epistemic_workstream_id=args.epistemic_workstream,
+            epistemic_target_node_ids=args.epistemic_targets,
+            runtime_context_path=args.context,
+            artifact_root=artifact_root,
+            research_run=args.research_run,
+            action_registry_path=args.action_registry,
+            request_queue_path=args.request_queue,
+            request_root=args.request_root,
+            result_record_plan_path=args.result_record_plan,
+            output_root=args.output,
+            max_cycles=args.max_cycles,
+        )
+
     program = _build_program(args)
     if args.command == "show":
         return program
