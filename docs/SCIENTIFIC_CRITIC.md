@@ -2,214 +2,196 @@
 
 ## Purpose
 
-The scientific critic is the next non-authoritative layer above the immutable epistemic graph and the policy-authorized local execution loop.
+The Scientific Critic is a deterministic, non-authoritative layer above the epistemic graph and the policy-authorized local research loop.
 
-It answers a deliberately narrower question than a scientific conclusion:
+It asks:
 
 > **What could still make the current interpretation wrong, and what evidence would discriminate those alternatives most directly?**
 
-The critic does not invent domain mechanisms. It deterministically audits the structure already present in the checksum-bound epistemic graph.
+It does not create scientific evidence, invent domain mechanisms, grant positive closeout, or execute proposed work.
 
-## Inputs
+## Inputs and bindings
 
-`mda-research-program criticize-graph` first rebuilds the current mission-level research program and then evaluates the supplied graph against that exact program state and artifact root.
+`mda-research-program criticize-graph` rebuilds the current mission-level research program and evaluates the supplied graph against that exact program state and artifact root.
 
-The critic binds:
+A critic report binds:
 
 - exact graph path, SHA-256, and byte count;
-- a canonical SHA-256 of the rebuilt program state;
-- mission and runtime-context bindings when present;
-- selected target hypothesis/claim/conclusion nodes.
+- canonical SHA-256 of the rebuilt program state;
+- mission/runtime-context bindings when present;
+- selected hypothesis/claim/conclusion targets.
 
 The mission must explicitly permit `reasoning_proposals: schema_validated`.
 
-## Findings
+## Verified relations use evaluator authority
 
-The policy-hardened critic can detect:
+The critic does not treat `assessment_level: domain_verified` as sufficient by itself. It consumes the usable verified edge IDs produced by `evaluate_epistemic_graph`.
 
-- domain-verified falsification already present;
-- standalone usable domain-verified contradiction;
-- conflicting verified support and contradiction/falsification;
-- absence of represented domain-verified counterevidence;
-- **positive-support independence not established by the current graph contract**;
-- empirical/mixed-scope claims supported only by simulations;
-- **empirical/mixed-scope positive support whose empirical inference scope is not established by complete verifier and transition provenance**;
-- proposal/diagnostic directional relations that are not domain verified;
-- completed `tests` results that still lack a directional scientific interpretation;
-- targets that have no completed recorded discriminating test or usable verified directional relation.
+This preserves the evaluator's source-usability boundary:
 
-These are methodological graph findings, not new scientific evidence.
+- planned or failed analysis/simulation/experiment nodes do not become verified evidence;
+- unsupported evidence nodes do not affect verified target status;
+- only usable verified relations drive critic support, contradiction, conflict, and falsification findings.
 
-## Verified means usable in the evaluator, not merely labeled
-
-The critic does not reconstruct verified scientific authority from `assessment_level: domain_verified` alone. It consumes the exact verified support/contradiction/falsification edge IDs produced by `evaluate_epistemic_graph`.
-
-This preserves the evaluator's source-usability gate. In particular:
-
-- planned or failed analysis/simulation/experiment nodes do not become verified evidence merely because an attached edge is labeled `domain_verified`;
-- unsupported evidence nodes likewise cannot affect verified target status;
-- only the evaluator-authorized usable verified relations drive critic findings such as support, conflict, contradiction, or falsification.
-
-A standalone usable verified contradiction is emitted as `VERIFIED_CONTRADICTION_PRESENT` and receives `reassess_or_reframe_contradicted_target`. It cannot fall through to a positive closeout-style recommendation.
+A standalone usable verified contradiction produces `VERIFIED_CONTRADICTION_PRESENT` and a `reassess_or_reframe_contradicted_target` recommendation. It cannot fall through to positive-closeout language.
 
 ## Recorded tests require completed execution
 
-A `tests` edge is counted as a recorded discriminating test only when its executable source has `execution_status: completed`.
+A `tests` edge counts as a recorded discriminating test only when its executable source has `execution_status: completed`.
 
-A planned or failed analysis/simulation/experiment therefore:
+Planned or failed test sources therefore:
 
-- does not trigger `COMPLETED_TESTS_WITHOUT_DIRECTIONAL_INTERPRETATION`;
-- does not suppress `NO_RECORDED_DISCRIMINATING_TEST`;
-- cannot satisfy a scientific testing obligation merely because the edge was created before execution completed.
+- do not trigger `COMPLETED_TESTS_WITHOUT_DIRECTIONAL_INTERPRETATION`;
+- do not suppress `NO_RECORDED_DISCRIMINATING_TEST`;
+- do not satisfy a testing obligation merely because a test edge was created.
 
-This preserves the distinction between a test plan, execution success, and scientific interpretation.
+Execution success and scientific interpretation remain separate states.
 
-## Independence is not inferred from artifact identity
+## Independence is not inferred from artifact multiplicity
 
-Distinct node IDs, filenames, checksums, instruments, or derivative analyses do not by themselves prove statistical or experimental independence. Two apparently separate results may still share a parent sample, source dataset, acquisition session, preprocessing lineage, or another dependence.
+Distinct node IDs, filenames, checksums, instruments, or derivative analyses do not prove statistical or experimental independence. They may still share a parent sample, source dataset, acquisition session, preprocessing lineage, or another dependence.
 
-Therefore any verified positive support receives `SUPPORT_INDEPENDENCE_NOT_ESTABLISHED` unless a future first-class provenance/independence contract can prove the required disjointness dimensions. The critic does **not** call multiple artifacts independent replication merely because their direct identifiers differ.
+The hardened critic therefore emits `SUPPORT_INDEPENDENCE_NOT_ESTABLISHED` for verified positive support unless a future first-class provenance/independence contract proves the required disjointness dimensions.
 
-A proposed replication action:
+It never calls multiple artifacts independent replication merely because their direct identifiers differ.
 
-- has `automatic_execution_authorized: false`;
-- has `availability_asserted: false`;
-- requires separate evidence/capability establishment before execution can be considered.
+## Empirical support authority is intentionally blocked under the current transition-v1 contract
 
-## Empirical support requires complete provenance
+An `analysis` node can be computational or empirically derived. Source-node type therefore cannot establish empirical support for an empirical/mixed target.
 
-An `analysis` node may represent a computational analysis or an empirically derived analysis. Therefore the critic does **not** treat “not a simulation” as proof that an empirical or mixed-scope target has empirical support.
+Before even considering verifier scope, the critic re-reads the exact checksum-bound `domain_verification_decision` and validates the complete v1.0 decision contract. Required fields include:
 
-Before consuming any `domain_verification_decision.inference_scope`, the policy overlay re-reads the exact checksum-bound verifier bytes and validates the complete v1.0 decision contract. Required fields include the decision/verifier identities, transition/proposal/base-graph bindings, result and target identities, relation, inference scope, rationale, limitations, and explicit `domain_verified: true`. Missing/unknown fields, duplicate JSON keys, invalid enums, empty required text, or checksum drift fail closed.
+- `schema_version`;
+- `decision_id`;
+- `transition_id`;
+- `proposal_sha256`;
+- `base_graph_sha256`;
+- `result_node_id`;
+- `target_node_id`;
+- `relation`;
+- `inference_scope`;
+- `verifier_id`;
+- `rationale`;
+- `limitations`;
+- `domain_verified`.
 
-The verifier is then cross-checked against graph provenance:
+Missing or unknown fields, duplicate JSON keys, invalid enums, malformed required values, or checksum drift fail closed.
 
-- verifier artifact SHA-256 and the graph edge binding;
-- verifier `result_node_id`, `target_node_id`, and relation and the graph edge;
-- verifier `transition_id` and the source result node metadata;
-- verifier `proposal_sha256` and the matching graph `transition_lineage` record;
-- verifier `base_graph_sha256` and lineage `parent_graph_sha256`;
-- verifier artifact SHA-256 and lineage `verification_decision_sha256`;
-- source result node ID and lineage `result_node_id`.
+The critic also cross-checks current provenance:
 
-### Exact inference-edge identity is currently a blocking provenance gap
+- verifier artifact SHA-256 and graph edge binding;
+- verifier source/result node, target node, and relation against the graph edge;
+- verifier `transition_id` against source-node transition metadata;
+- verifier `proposal_sha256` against graph transition lineage;
+- verifier `base_graph_sha256` against lineage `parent_graph_sha256`;
+- verifier artifact SHA-256 against lineage `verification_decision_sha256`;
+- source result node against lineage `result_node_id`.
 
-The transition-lineage v1.0 contract currently records the proposal SHA but not the proposal's `proposed_inference.inference_edge_id`. That means a verifier for one edge could not be distinguished solely from another edge with the same source, target, and relation after only the graph/lineage artifacts are available.
+These checks are necessary, but under the current merged contract they are **not sufficient to grant empirical authority**.
 
-The critic therefore **does not accept any verifier inference scope as empirical authority when exact `inference_edge_id` is absent from the bound transition lineage**. If a future strengthened lineage contract records that field, it must exactly equal the graph edge ID; a mismatch fails closed.
+### Why exact inference-edge identity is still unproven
 
-This intentionally leaves current transition-v1 empirical support scope unestablished rather than guessing the intended edge. A follow-up transition-provenance hardening must add a first-class exact inference-edge binding before the critic can rely on it.
+Transition provenance v1.0 binds the proposal SHA but does not checksum-authenticate the exact `proposed_inference.inference_edge_id` as an independently validated lineage field.
 
-### `empirical_derived` is also blocked by unclassified input provenance
+Graph `metadata` is intentionally extensible. Consequently, a caller could manually insert an `inference_edge_id` into `metadata.transition_lineage`. The field's presence or apparent match to the current edge would not prove that it came from the checksum-bound transition proposal.
 
-Current `input_evidence_bindings` contain only `workstream_id`, `role`, and checksum. They prove identity and membership in the verified program state, but they do **not** classify whether the bound input is empirical measurement data, simulation output, computational derivation, or another origin.
+Therefore the critic does **not** accept any `empirical_direct` or `empirical_derived` verifier scope as empirical authority under the current transition-v1 contract, even when opaque graph metadata contains a matching `inference_edge_id`.
 
-Therefore a non-empty input binding list is not sufficient evidence for `empirical_derived`. The critic keeps `empirical_derived` unestablished until a provenance-bound evidence-origin classification contract exists. It will not infer empirical origin from a role name, workstream name, filename, or action label.
+A future provenance change must bind exact inference-edge identity through an authenticated transition/proposal/verifier contract and validate that contract before the critic can consume it. Merely adding another opaque metadata key is insufficient.
 
-`empirical_direct` can only be considered after exact inference-edge identity is available and the source is provenance-compatible with an external physical experiment.
+### Why `empirical_derived` is also unproven
 
-If empirical scope cannot be established, the critic emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED`. This does **not** downgrade or remove the evaluator's existing usable `domain_verified` relation. It records that the critic cannot independently establish the stronger empirical-scope provenance needed for an empirical/mixed claim.
+Current `input_evidence_bindings` prove only:
 
-The corresponding next action is `plan_only`: strengthen provenance contracts or, if no empirical support exists, plan independent empirical validation. The critic does not authorize or execute that validation.
+- `workstream_id`;
+- `role`;
+- checksum identity.
 
-## Program evidence gaps remain workstream-scoped
+They do not provenance-classify the bound input as empirical measurement data versus simulation output, computational derivation, or another origin.
 
-The rebuilt mission program may already contain exact `evidence_requirements` for NIST-, NASA-, characterization-, or other workstreams. The critic preserves those requirements verbatim in `program_evidence_gaps` when their goals remain open.
+The critic therefore does not infer `empirical_derived` authority from a non-empty binding list, role name, workstream name, filename, or action label.
 
-However, the critic does **not** silently attach a workstream requirement to a particular hypothesis/claim merely because the topics appear related. Every copied requirement has:
+### Resulting behavior
 
-- its original `goal_id`;
-- its original `workstream_id`;
+For an empirical/mixed target with positive verified support, the critic emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED` whenever the current provenance contract cannot independently establish empirical authority.
+
+This finding does **not** downgrade the evaluator's existing verified relation. It records a stronger provenance obligation required before the critic may describe that support as empirical evidence.
+
+The corresponding action is plan-only: strengthen provenance contracts or, if no empirical support exists, plan independent empirical validation. The critic does not authorize or execute validation.
+
+## Workstream evidence gaps remain workstream-scoped
+
+Mission-program goals may contain exact `evidence_requirements`. The critic preserves open requirements in `program_evidence_gaps` with their original `goal_id` and `workstream_id`.
+
+It does not silently attach a workstream requirement to a hypothesis/claim merely because the topics appear related. Each copied requirement carries:
+
 - `target_attribution: not_inferred`;
 - `automatic_acquisition_authorized: false`.
 
-A future target↔workstream mapping must itself be provenance-bound before target-specific evidence-gap attribution is permitted. This prevents cross-workstream evidence leakage and avoids inventing domain requirements.
+Target-specific attribution requires a separate provenance-bound target↔workstream mapping.
 
-## Alternative explanations
+## Proposed alternatives and actions are non-authoritative
 
-Alternatives are intentionally generic and methodological, for example:
+The critic may propose methodological alternatives such as:
 
-- shared or dependent provenance rather than independent replication;
-- measurement/preprocessing/selection artifacts;
-- protocol-, sample-, condition-, or scope-dependent heterogeneity.
+- shared/dependent provenance;
+- measurement, preprocessing, or selection artifacts;
+- protocol/sample/condition/scope heterogeneity.
 
-Every alternative is marked:
+It may propose next work such as:
 
-- `alternative_type: methodological_not_domain_mechanism`;
-- `proposal_status: proposed_not_evidence_upgraded`;
-- `scientific_mechanism_claim: false`.
-
-Domain-specific mechanisms still require a separate evidence-bound reasoning proposal and appropriate domain verification.
-
-## Discriminating next actions
-
-The critic may propose bounded next work such as:
-
-- prespecified sensitivity analysis;
-- stratified reanalysis of conflicting evidence;
-- establishing an explicit provenance-disjointness contract and replication plan;
-- independent counterexample-oriented evidence search;
-- plan-only empirical provenance/validation review;
-- manual interpretation of completed test artifacts.
-
-An information-gain priority is qualitative only. It is **not** a calibrated probability or expected-value estimate.
+- sensitivity analysis;
+- stratified conflict reanalysis;
+- provenance-disjoint replication planning;
+- counterexample-oriented external evidence search;
+- empirical-provenance review;
+- manual interpretation of completed tests.
 
 Every proposed action carries:
 
 - `automatic_execution_authorized: false`;
 - `availability_asserted: false`.
 
-An `execution_mode` describes only the control boundary of a proposed next step. It never proves that a corresponding request, registry entry, dataset, instrument, or other execution resource exists. In particular, sensitivity analysis, conflict reanalysis, and replication remain `plan_only` unless a separate verified planning/action layer establishes the required data and capability.
+An `execution_mode` describes only the proposed control boundary. It does not prove that a suitable request, registry entry, dataset, instrument, or execution resource exists.
 
-External evidence search requires explicit authorization. Physical validation remains plan-only. The critic has no generic command, network, laboratory, or execution surface.
+Sensitivity analysis, conflict reanalysis, and replication therefore remain plan-only unless a separate verified planning/action layer establishes the required data and capability. External evidence search requires explicit authorization. Physical validation remains plan-only.
 
 ## Public API boundary
 
-The structural critic builder is an internal implementation layer. The public `build_scientific_critic_report` entry point in `materials_data_analyzer.research_loop.scientific_critic` delegates to the same policy-hardened facade used by the package and installed CLI.
+The structural critic builder is internal. The public `materials_data_analyzer.research_loop.scientific_critic.build_scientific_critic_report` delegates through the same policy-hardened facade used by the package and installed CLI.
 
-Therefore importing the function directly from the module does not bypass:
+Direct module imports therefore cannot bypass:
 
-- usable-source filtering;
+- evaluator source-usability semantics;
 - completed-test semantics;
 - independence hardening;
-- empirical verifier/provenance checks;
+- empirical provenance restrictions;
 - workstream evidence-gap scoping;
 - action-availability conservatism.
-
-The private structural builder exists only so the policy overlay can compose deterministic structural findings without an import cycle.
-
-## Falsification-first behavior
-
-A target already `falsified_within_verified_scope` receives a `stop_and_reframe_current_target` recommendation. The negative result is preserved rather than silently averaged away or rescued by seeking additional positive results.
-
-A target that is `contradicted_within_verified_scope` receives `reassess_or_reframe_contradicted_target`, preserving the standalone verified objection even when no positive support exists.
-
-Neither recommendation grants an automatic stop or scientific closeout; mission/domain control remains external to the critic.
 
 ## Scientific boundary
 
 The critic never:
 
 - creates or upgrades evidence;
-- creates `supports`, `contradicts`, or `falsifies` edges;
+- creates `supports`, `contradicts`, or `falsifies` relations;
 - changes target epistemic status;
 - assigns scientific confidence scores or probabilities;
-- counts unusable sources as verified scientific relations;
-- counts planned/failed test executions as completed scientific tests;
+- counts unusable sources as verified evidence;
+- counts planned/failed executions as completed tests;
 - infers independence from artifact multiplicity;
-- infers empirical support scope from source-node type;
-- accepts verifier scope from an incomplete verifier-decision schema;
-- accepts empirical scope without exact inference-edge identity;
-- infers `empirical_derived` origin from unclassified input bindings;
-- attributes workstream evidence requirements to targets without an explicit mapping;
-- treats an action proposal as execution authorization or proof of resource availability;
+- infers empirical authority from source-node type;
+- trusts malformed verifier decisions;
+- trusts opaque graph metadata as scientific authority;
+- accepts empirical scope without an authenticated exact inference-edge contract;
+- infers empirical-derived origin from unclassified input bindings;
+- attributes workstream evidence requirements to targets without explicit provenance;
+- treats action proposals as execution authorization or resource availability;
 - grants positive scientific closeout;
-- executes a typed action;
-- starts network acquisition;
-- executes a physical experiment;
+- executes typed/network/physical actions;
 - claims material identity, phase identity, mechanism, causality, prediction, or engineering readiness.
 
-A critic report is therefore a **research-planning proposal**, not a scientific result.
+A critic report is therefore a **research-planning proposal, not a scientific result**.
 
 ## CLI
 
@@ -225,21 +207,25 @@ mda-research-program criticize-graph `
 
 `--target` may be repeated. When omitted, every assessed hypothesis/claim/conclusion is reviewed.
 
-## Intended next integration
+## Required follow-up provenance work
 
-The safe next composition is:
+The next safe provenance work is separate from the critic itself:
+
+1. strengthen transition/verifier provenance so exact `proposed_inference.inference_edge_id` is checksum-authenticated and independently validated rather than copied into opaque metadata;
+2. add first-class provenance-bound evidence-origin classification so `empirical_derived` can distinguish empirical measurement inputs from computational/simulation inputs;
+3. only then relax the critic's current fail-closed empirical-scope boundary with dedicated regression tests.
+
+The intended research loop remains:
 
 ```text
 verified Research State
 → deterministic critic report
 → evidence-bound reasoning proposal
-→ separately authorized discriminating analysis / evidence acquisition / experiment plan
+→ separately authorized discriminating work
 → immutable result ingestion
 → independent directional/domain verification
 → successor epistemic graph
 → critic again
 ```
 
-Before the critic can accept empirical scope from transition-generated support, the transition provenance contract must additionally bind exact inference-edge identity and, for `empirical_derived`, first-class empirical input origin.
-
-This preserves the central invariant: **research can become more autonomous without making scientific authority self-granting.**
+The governing invariant is: **research may become more autonomous without making scientific authority self-granting.**
