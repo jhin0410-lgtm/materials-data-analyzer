@@ -1,8 +1,8 @@
 """Append-only epistemic graph transitions for verified research results.
 
 A completed action result may be recorded in the epistemic graph without gaining
-scientific authority.  Only a separate, checksum-bound domain-verification decision
-may promote the proposed inference edge to ``domain_verified``.  The transition also
+scientific authority. Only a separate, checksum-bound domain-verification decision
+may promote the proposed inference edge to ``domain_verified``. The transition also
 prevents simulations or computational analyses from silently validating empirical
 claims.
 """
@@ -200,10 +200,10 @@ def _validate_result_artifacts(
     value: object,
     *,
     artifact_root: Path,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, str]]:
     if not isinstance(value, list) or not value:
         raise EpistemicTransitionError("result_node.artifact_bindings must be a non-empty list")
-    normalized: list[dict[str, Any]] = []
+    normalized: list[dict[str, str]] = []
     roles: set[str] = set()
     for index, raw in enumerate(value):
         item = _exact_object(
@@ -227,9 +227,7 @@ def _validate_result_artifacts(
             raise EpistemicTransitionError(
                 f"result artifact checksum mismatch for {role}: expected {expected}, got {actual}"
             )
-        normalized.append(
-            {"role": role, "path": str(path), "sha256": actual, "bytes": path.stat().st_size}
-        )
+        normalized.append({"role": role, "path": str(path), "sha256": actual})
     return normalized
 
 
@@ -595,7 +593,7 @@ def apply_epistemic_transition_files(
         artifact_root=artifacts,
     )
     before_eval = evaluate_epistemic_graph(
-        base_validated,
+        base_raw,
         program_state=program_state,
         artifact_root=artifacts,
     )
@@ -657,7 +655,7 @@ def apply_epistemic_transition_files(
             "sha256": verification_sha,
         }
 
-    metadata = dict(base_validated.get("metadata", {}))
+    metadata = dict(base_raw.get("metadata", {}))
     lineage = metadata.get("transition_lineage", [])
     if not isinstance(lineage, list):
         raise EpistemicTransitionError("base graph metadata.transition_lineage must be a list")
@@ -674,11 +672,11 @@ def apply_epistemic_transition_files(
     ]
 
     successor = {
-        "schema_version": base_validated["schema_version"],
+        "schema_version": base_raw["schema_version"],
         "graph_id": proposal["new_graph_id"],
-        "research_scope": base_validated["research_scope"],
-        "nodes": [*base_validated["nodes"], result_node],
-        "edges": [*base_validated["edges"], tests_edge, inference_edge],
+        "research_scope": base_raw["research_scope"],
+        "nodes": [*base_raw["nodes"], result_node],
+        "edges": [*base_raw["edges"], tests_edge, inference_edge],
         "metadata": metadata,
     }
     after_eval = evaluate_epistemic_graph(
