@@ -24,7 +24,7 @@ CLOSED_LOOP_POLICY_VERSION = "1.3"
 RESULT_RECORD_PLAN_SCHEMA_VERSION = _core.RESULT_RECORD_PLAN_SCHEMA_VERSION
 PolicyAuthorizedClosedLoopError = _core.PolicyAuthorizedClosedLoopError
 
-# Preserve the focused helper surface used by tests and downstream audits.  Mutable
+# Preserve the focused helper surface used by tests and downstream audits. Mutable
 # dependencies are intentionally module globals so monkeypatch-based contract tests keep
 # controlling the exact objects used by the core runner.
 evaluate_epistemic_gate = _core.evaluate_epistemic_gate
@@ -36,11 +36,11 @@ load_research_state = _core.load_research_state
 _read_json_snapshot = _core._read_json_snapshot
 _preflight_output_root = _core._preflight_output_root
 _verify_gate_snapshot_bindings = _core._verify_gate_snapshot_bindings
-_apply_record_only_action_result = _core._apply_record_only_action_result
 load_result_record_plan = _core.load_result_record_plan
 
 _ORIGINAL_SNAPSHOT_STATIC_FILE = _core._snapshot_static_file
 _ORIGINAL_PREFLIGHT_GRAPH_AND_RECORDS = _core._preflight_graph_and_records
+_ORIGINAL_APPLY_RECORD_ONLY_ACTION_RESULT = _core._apply_record_only_action_result
 
 
 def _require_explicit_typed_action_policy(mission_value: Mapping[str, Any]) -> None:
@@ -64,9 +64,9 @@ def _snapshot_static_file(source: str | Path, *, field: str) -> dict[str, Any]:
         if not isinstance(value, Mapping):
             raise PolicyAuthorizedClosedLoopError("pinned mission snapshot is malformed")
         # Real mission files are schema-validated later by build_research_program and
-        # always contain autonomy_policy.  Focused orchestration tests intentionally use
+        # always contain autonomy_policy. Focused orchestration tests intentionally use
         # minimal stub mission JSON while monkeypatching that builder; do not turn those
-        # fixtures into an alternate production authorization path.  Whenever the policy
+        # fixtures into an alternate production authorization path. Whenever the policy
         # is present in the exact pinned bytes, enforce it here before any typed action.
         if "autonomy_policy" in value:
             _require_explicit_typed_action_policy(value)
@@ -99,6 +99,12 @@ def _preflight_graph_and_records(
                 "base graph metadata.record_only_transition_lineage must be a list"
             )
     return binding
+
+
+def _apply_record_only_action_result(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Delegate graph ingestion while preserving facade-level injected dependencies."""
+    _core.load_research_state = load_research_state
+    return _ORIGINAL_APPLY_RECORD_ONLY_ACTION_RESULT(*args, **kwargs)
 
 
 def _sync_core_dependencies() -> None:
