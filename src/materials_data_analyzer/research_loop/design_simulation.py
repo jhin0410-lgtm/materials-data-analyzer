@@ -44,10 +44,13 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _load_json(path: Path) -> dict[str, Any]:
+def _parse_json_bytes(raw_bytes: bytes, path: Path) -> dict[str, Any]:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            value = json.load(handle, object_pairs_hook=_reject_duplicate_pairs)
+        text = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise DesignSimulationError(f"invalid UTF-8 in {path}: {exc}") from exc
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
     except json.JSONDecodeError as exc:
         raise DesignSimulationError(f"invalid JSON in {path}: {exc}") from exc
     if not isinstance(value, dict):
@@ -55,12 +58,14 @@ def _load_json(path: Path) -> dict[str, Any]:
     return value
 
 
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _load_json(path: Path) -> dict[str, Any]:
+    return _parse_json_bytes(path.read_bytes(), path)
+
+
+def _load_json_snapshot(path: Path) -> tuple[dict[str, Any], str]:
+    """Read one immutable byte snapshot and derive both JSON and SHA-256 from it."""
+    raw_bytes = path.read_bytes()
+    return _parse_json_bytes(raw_bytes, path), hashlib.sha256(raw_bytes).hexdigest()
 
 
 def _exact_object(
@@ -90,7 +95,10 @@ def _nonempty_text(value: object, field: str) -> str:
 def _finite_number(value: object, field: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise DesignSimulationError(f"{field} must be a finite numeric value")
-    numeric = float(value)
+    try:
+        numeric = float(value)
+    except (OverflowError, ValueError) as exc:
+        raise DesignSimulationError(f"{field} must be representable as a finite float") from exc
     if not math.isfinite(numeric):
         raise DesignSimulationError(f"{field} must be finite")
     return numeric
@@ -292,20 +300,27 @@ def validate_design_simulation_config(value: object) -> dict[str, Any]:
     return normalized
 
 
-def _expanded_rows(
+def _unique_cell_rows(
     cells: list[Mapping[str, Any]], factor_names: tuple[str, str]
 ) -> np.ndarray:
-    rows: list[list[float]] = []
-    for cell in cells:
-        values = cell["factor_values"]
-        for _ in range(int(cell["replicates"])):
-            rows.append([float(values[factor_names[0]]), float(values[factor_names[1]])])
+    """Return one row per unique process cell; replicate multiplicity cannot change rank."""
+    rows = [
+        [
+            float(cell["factor_values"][factor_names[0]]),
+            float(cell["factor_values"][factor_names[1]]),
+        ]
+        for cell in cells
+    ]
     return np.asarray(rows, dtype=float)
+
+
+def _total_replicates(cells: list[Mapping[str, Any]]) -> int:
+    return sum(int(cell["replicates"]) for cell in cells)
 
 
 def _standardized_factors(rows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if rows.ndim != 2 or rows.shape[1] != 2 or rows.shape[0] == 0:
-        raise DesignSimulationError("expanded design rows must have shape n x 2")
+        raise DesignSimulationError("design cell rows must have shape n x 2")
     standardized: list[np.ndarray] = []
     for column_index in range(2):
         column = rows[:, column_index]
@@ -332,17 +347,22 @@ def _design_matrix(rows: np.ndarray, model: str) -> np.ndarray:
     raise DesignSimulationError(f"unsupported model: {model}")
 
 
-def _model_summary(rows: np.ndarray, model: str) -> dict[str, Any]:
+def _model_summary(
+    rows: np.ndarray,
+    model: str,
+    *,
+    total_replicates: int,
+) -> dict[str, Any]:
     matrix = _design_matrix(rows, model)
     rank = int(np.linalg.matrix_rank(matrix))
     parameters = _PARAMETER_COUNTS[model]
     return {
         "model": model,
-        "n_rows": int(rows.shape[0]),
+        "n_rows": total_replicates,
         "parameter_count": parameters,
         "matrix_rank": rank,
         "full_column_rank": rank == parameters,
-        "residual_degrees_of_freedom": int(rows.shape[0] - rank),
+        "residual_degrees_of_freedom": total_replicates - rank,
     }
 
 
@@ -369,7 +389,7 @@ def _grid_summary(
             {factor_names[0]: values[0], factor_names[1]: values[1]}
             for values in missing
         ],
-        "total_replicates": sum(int(cell["replicates"]) for cell in cells),
+        "total_replicates": _total_replicates(cells),
     }
 
 
@@ -382,10 +402,10 @@ def simulate_design_structure(config: object) -> dict[str, Any]:
     )
     observed_cells = validated["observed_cells"]
     proposed_cells = validated["proposed_cells"]
-    after_cells = [*observed_cells, *proposed_cells]
 
     # A proposed cell that duplicates an observed coordinate is a replication-only addition.
-    # Merge by coordinate before expanding rows so duplicate coordinates remain one design cell.
+    # Merge by coordinate so duplicate coordinates remain one structural design cell while
+    # replicate multiplicity contributes only to residual degrees of freedom.
     merged: dict[tuple[float, float], dict[str, Any]] = {}
     for source, cells in (("observed", observed_cells), ("proposed", proposed_cells)):
         for cell in cells:
@@ -404,13 +424,25 @@ def simulate_design_structure(config: object) -> dict[str, Any]:
                 merged[coordinate]["sources"].append(source)
     after_merged = list(merged.values())
 
-    before_rows = _expanded_rows(observed_cells, factor_names)
-    after_rows = _expanded_rows(after_merged, factor_names)
+    before_rows = _unique_cell_rows(observed_cells, factor_names)
+    after_rows = _unique_cell_rows(after_merged, factor_names)
+    before_total_replicates = _total_replicates(observed_cells)
+    after_total_replicates = _total_replicates(after_merged)
     before_models = {
-        model: _model_summary(before_rows, model) for model in validated["models"]
+        model: _model_summary(
+            before_rows,
+            model,
+            total_replicates=before_total_replicates,
+        )
+        for model in validated["models"]
     }
     after_models = {
-        model: _model_summary(after_rows, model) for model in validated["models"]
+        model: _model_summary(
+            after_rows,
+            model,
+            total_replicates=after_total_replicates,
+        )
+        for model in validated["models"]
     }
     comparisons: list[dict[str, Any]] = []
     for model in validated["models"]:
@@ -461,7 +493,7 @@ def simulate_design_structure(config: object) -> dict[str, Any]:
         "comparison": {
             "new_unique_cell_count": len(new_coords),
             "replication_only_cell_count": len(overlap_coords),
-            "new_replicate_count": sum(int(cell["replicates"]) for cell in proposed_cells),
+            "new_replicate_count": _total_replicates(proposed_cells),
             "model_changes": comparisons,
         },
         "expected_information_gain": {
@@ -489,12 +521,13 @@ def simulate_design_structure(config: object) -> dict[str, Any]:
 def simulate_design_structure_file(path: str | Path) -> dict[str, Any]:
     """Load one strict JSON design and bind the exact specification bytes."""
     resolved = Path(path).expanduser().resolve(strict=True)
-    result = simulate_design_structure(_load_json(resolved))
+    config, snapshot_sha256 = _load_json_snapshot(resolved)
+    result = simulate_design_structure(config)
     return {
         **result,
         "simulation_spec_binding": {
             "path": str(resolved),
-            "sha256": _sha256_file(resolved),
+            "sha256": snapshot_sha256,
         },
     }
 
