@@ -9,6 +9,8 @@ A relation may affect derived scientific status only when it is marked
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 from pathlib import Path
 from typing import Any, Mapping
@@ -177,6 +179,44 @@ def _validate_artifact_binding(
     }
 
 
+def _validate_failed_action_report_snapshot(value: object, *, field: str) -> dict[str, Any]:
+    """Validate self-contained failed-result bytes without making them evidence artifacts."""
+    item = _exact_object(
+        value,
+        required={"encoding", "sha256", "size_bytes", "data"},
+        allowed={"encoding", "sha256", "size_bytes", "data"},
+        field=field,
+    )
+    if item["encoding"] != "base64":
+        raise EpistemicGraphError(f"{field}.encoding must be 'base64'")
+    digest = _nonempty_text(item["sha256"], f"{field}.sha256")
+    if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+        raise EpistemicGraphError(f"{field}.sha256 must be a lowercase SHA-256 hex digest")
+    size = item["size_bytes"]
+    if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+        raise EpistemicGraphError(f"{field}.size_bytes must be a non-negative integer")
+    data_text = _nonempty_text(item["data"], f"{field}.data")
+    try:
+        raw = base64.b64decode(data_text, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise EpistemicGraphError(f"{field}.data must be valid base64") from exc
+    if len(raw) != size:
+        raise EpistemicGraphError(
+            f"{field} byte count mismatch: expected {size}, got {len(raw)}"
+        )
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != digest:
+        raise EpistemicGraphError(
+            f"{field} checksum mismatch: expected {digest}, got {actual}"
+        )
+    return {
+        "encoding": "base64",
+        "sha256": digest,
+        "size_bytes": size,
+        "data": data_text,
+    }
+
+
 def _validate_node(
     value: object,
     *,
@@ -259,7 +299,18 @@ def _validate_node(
     if "metadata" in node:
         if not isinstance(node["metadata"], dict):
             raise EpistemicGraphError(f"{field}.metadata must be an object")
-        normalized["metadata"] = node["metadata"]
+        metadata = dict(node["metadata"])
+        failed_snapshot = metadata.get("failed_action_report_snapshot")
+        if failed_snapshot is not None:
+            if node_type not in _EXECUTABLE_NODE_TYPES or normalized.get("execution_status") != "failed":
+                raise EpistemicGraphError(
+                    f"{field}.metadata.failed_action_report_snapshot is valid only for failed executable nodes"
+                )
+            metadata["failed_action_report_snapshot"] = _validate_failed_action_report_snapshot(
+                failed_snapshot,
+                field=f"{field}.metadata.failed_action_report_snapshot",
+            )
+        normalized["metadata"] = metadata
     return normalized
 
 
