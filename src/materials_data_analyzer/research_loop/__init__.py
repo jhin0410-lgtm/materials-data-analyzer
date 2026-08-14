@@ -29,12 +29,29 @@ from .authorized_execution import (
     AuthorizedExecutionError,
     execute_authorized_action,
 )
+from .epistemic_control import (
+    EPISTEMIC_CONTROL_POLICY_VERSION,
+    EPISTEMIC_CONTROL_SCHEMA_VERSION,
+    EpistemicControlError,
+    derive_epistemic_directive,
+)
+from .epistemic_gate import (
+    EPISTEMIC_GATE_SCHEMA_VERSION,
+    EpistemicGateError,
+    evaluate_epistemic_gate,
+)
 from .epistemic_graph import (
     GRAPH_POLICY_VERSION,
     GRAPH_SCHEMA_VERSION,
     EpistemicGraphError,
     evaluate_epistemic_graph,
     validate_epistemic_graph,
+)
+from .epistemic_multicycle import (
+    EPISTEMIC_MULTICYCLE_POLICY_VERSION,
+    EPISTEMIC_MULTICYCLE_SCHEMA_VERSION,
+    EpistemicMultiCycleError,
+    run_epistemically_bounded_multicycle,
 )
 from .kernel import (
     LEDGER_FILENAME,
@@ -117,6 +134,11 @@ __all__ = [
     "AUTHORIZATION_SCHEMA_VERSION",
     "CYCLE_POLICY_VERSION",
     "CYCLE_SCHEMA_VERSION",
+    "EPISTEMIC_CONTROL_POLICY_VERSION",
+    "EPISTEMIC_CONTROL_SCHEMA_VERSION",
+    "EPISTEMIC_GATE_SCHEMA_VERSION",
+    "EPISTEMIC_MULTICYCLE_POLICY_VERSION",
+    "EPISTEMIC_MULTICYCLE_SCHEMA_VERSION",
     "EXECUTION_POLICY_VERSION",
     "EXECUTION_SCHEMA_VERSION",
     "GRAPH_POLICY_VERSION",
@@ -135,7 +157,10 @@ __all__ = [
     "TRANSITION_SCHEMA_VERSION",
     "ActionAuthorizationError",
     "AuthorizedExecutionError",
+    "EpistemicControlError",
+    "EpistemicGateError",
     "EpistemicGraphError",
+    "EpistemicMultiCycleError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
@@ -161,8 +186,10 @@ __all__ = [
     "build_research_planning_state",
     "build_research_program",
     "build_target_reference_sensitivity",
+    "derive_epistemic_directive",
     "describe_action",
     "determine_research_transition",
+    "evaluate_epistemic_gate",
     "evaluate_epistemic_graph",
     "execute_authorized_action",
     "execute_nasa_audit_action",
@@ -174,6 +201,7 @@ __all__ = [
     "plan_nasa_next_action",
     "plan_research_next_action",
     "prepare_reopen_evidence_review",
+    "run_epistemically_bounded_multicycle",
     "run_research_cycle",
     "validate_action_registry",
     "validate_epistemic_graph",
