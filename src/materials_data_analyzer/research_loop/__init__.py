@@ -1,9 +1,11 @@
 """Deterministic contracts for bounded autonomous materials research loops.
 
-The package deliberately contains no language model, unconstrained code
-generation, model fitting, or automatic scientific conclusion logic. It provides
-immutable state, strict action registries, typed deterministic action execution,
-and deterministic planning, transition, authorization, execution, and cycle gates.
+The package deliberately contains no unconstrained code generation or automatic
+scientific truth promotion. It provides immutable state, strict action registries,
+typed deterministic execution, domain planning gates, and a mission-level control
+plane that can generate bounded goals from verified evidence gaps. Domain-specific
+scientific reasoning proposals remain schema-validated, evidence-bound planning
+inputs until a separate authorized action executes them.
 """
 
 from .action_authorization import (
@@ -84,6 +86,17 @@ from .research_cycle import (
     ResearchCycleError,
     run_research_cycle,
 )
+from .research_program import (
+    MISSION_SCHEMA_VERSION,
+    PROGRAM_POLICY_VERSION,
+    PROGRAM_SCHEMA_VERSION,
+    REASONING_PROPOSAL_SCHEMA_VERSION,
+    ResearchProgramError,
+    build_research_program,
+    validate_reasoning_proposal,
+    validate_reasoning_proposal_file,
+    validate_research_mission,
+)
 from .target_reference_sensitivity import (
     TargetReferenceSensitivityError,
     build_target_reference_sensitivity,
@@ -99,10 +112,14 @@ __all__ = [
     "EXECUTION_POLICY_VERSION",
     "EXECUTION_SCHEMA_VERSION",
     "LEDGER_FILENAME",
+    "MISSION_SCHEMA_VERSION",
     "PLANNING_ADAPTER_VERSION",
     "PLANNING_DECISION_SCHEMA_VERSION",
     "PLANNING_STATE_SCHEMA_VERSION",
     "PLANNING_STATE_VERSION",
+    "PROGRAM_POLICY_VERSION",
+    "PROGRAM_SCHEMA_VERSION",
+    "REASONING_PROPOSAL_SCHEMA_VERSION",
     "STATE_FILENAME",
     "TRANSITION_POLICY_VERSION",
     "TRANSITION_SCHEMA_VERSION",
@@ -117,6 +134,7 @@ __all__ = [
     "PlanningTransitionError",
     "ResearchCycleError",
     "ResearchLoopError",
+    "ResearchProgramError",
     "TargetReferenceSensitivityError",
     "action_summaries",
     "append_action",
@@ -130,6 +148,7 @@ __all__ = [
     "build_protocol_stratification",
     "build_reopen_evidence_review",
     "build_research_planning_state",
+    "build_research_program",
     "build_target_reference_sensitivity",
     "describe_action",
     "determine_research_transition",
@@ -145,6 +164,9 @@ __all__ = [
     "prepare_reopen_evidence_review",
     "run_research_cycle",
     "validate_action_registry",
+    "validate_reasoning_proposal",
+    "validate_reasoning_proposal_file",
+    "validate_research_mission",
     "verify_nasa_audit_action_report",
     "verify_nasa_protocol_stratification_report",
     "verify_nasa_target_reference_report",
