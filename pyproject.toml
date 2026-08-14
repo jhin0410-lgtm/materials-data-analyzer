@@ -65,6 +65,7 @@ mda-nasa-battery-import = "materials_data_analyzer.nasa_battery_cli:main"
 mda-characterization-import = "materials_data_analyzer.characterization_import_cli:main"
 mda-research-loop = "materials_data_analyzer.research_loop_cli:main"
 mda-research-program = "materials_data_analyzer.research_program_cli:main"
+mda-research-multicycle = "materials_data_analyzer.research_multicycle_cli:main"
 
 [project.urls]
 Repository = "https://github.com/jhin0410-lgtm/materials-data-analyzer"
