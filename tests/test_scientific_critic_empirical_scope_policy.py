@@ -54,7 +54,7 @@ def _graph(
     *,
     inference_scope: str,
     lineage_proposal_sha256: str | None = None,
-    lineage_inference_edge_id: str | None = "support-1",
+    injected_inference_edge_id: str | None = None,
 ) -> Path:
     decision = json.loads(verification.read_text(encoding="utf-8"))
     proposal_sha = str(decision.get("proposal_sha256", "p" * 64))
@@ -99,8 +99,10 @@ def _graph(
         "verification_decision_sha256": _sha(verification),
         "result_node_id": "a1",
     }
-    if lineage_inference_edge_id is not None:
-        lineage["inference_edge_id"] = lineage_inference_edge_id
+    if injected_inference_edge_id is not None:
+        # Graph metadata is opaque in schema v1.0. This field is intentionally injected
+        # to prove that its mere presence cannot grant scientific authority.
+        lineage["inference_edge_id"] = injected_inference_edge_id
 
     return _write_json(
         tmp_path / "graph.json",
@@ -185,7 +187,7 @@ def _run(
     *,
     inference_scope: str,
     lineage_proposal_sha256: str | None = None,
-    lineage_inference_edge_id: str | None = "support-1",
+    injected_inference_edge_id: str | None = None,
     omit_verification_field: str | None = None,
 ) -> tuple[dict[str, object], Path]:
     verification = _verification(
@@ -198,7 +200,7 @@ def _run(
         verification,
         inference_scope=inference_scope,
         lineage_proposal_sha256=lineage_proposal_sha256,
-        lineage_inference_edge_id=lineage_inference_edge_id,
+        injected_inference_edge_id=injected_inference_edge_id,
     )
     monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: _base_report(graph))
     result = module.build_policy_hardened_scientific_critic_report(
@@ -209,7 +211,7 @@ def _run(
     return result, verification
 
 
-def test_empirical_target_with_only_computational_scope_support_is_flagged(
+def test_computational_scope_does_not_satisfy_empirical_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     result, _ = _run(tmp_path, monkeypatch, inference_scope="computational")
@@ -226,56 +228,55 @@ def test_empirical_target_with_only_computational_scope_support_is_flagged(
     assert action["automatic_execution_authorized"] is False
     assert action["availability_asserted"] is False
     assert report["epistemic_assessment"]["status"] == "provisionally_supported"
-    boundary = result["autonomy_boundary"]
-    assert boundary["empirical_support_scope_inferred_from_source_node_type"] is False
-    assert boundary["empirical_support_scope_accepted_without_transition_lineage"] is False
-    assert boundary["empirical_support_scope_accepted_without_exact_inference_edge_identity"] is False
 
 
-def test_empirical_derived_scope_remains_unestablished_without_empirical_input_classification(
+def test_empirical_derived_remains_unestablished_with_unclassified_inputs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     result, _ = _run(tmp_path, monkeypatch, inference_scope="empirical_derived")
 
     assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" in _codes(result)
-    assert result["autonomy_boundary"][
-        "empirical_derived_scope_inferred_from_unclassified_input_bindings"
-    ] is False
+    boundary = result["autonomy_boundary"]
+    assert boundary["empirical_derived_scope_inferred_from_unclassified_input_bindings"] is False
 
 
-def test_empirical_direct_scope_can_be_established_when_exact_edge_identity_is_bound(
+def test_empirical_direct_remains_unestablished_under_transition_v1_lineage(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     result, _ = _run(tmp_path, monkeypatch, inference_scope="empirical_direct")
 
-    assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" not in _codes(result)
-    report = result["target_reports"][0]
-    assert report["epistemic_assessment"]["status"] == "provisionally_supported"
+    assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" in _codes(result)
+    boundary = result["autonomy_boundary"]
+    assert boundary[
+        "empirical_support_scope_accepted_without_authenticated_inference_edge_identity"
+    ] is False
 
 
-def test_missing_inference_edge_identity_leaves_empirical_scope_unestablished(
+def test_injected_opaque_inference_edge_id_cannot_grant_empirical_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     result, _ = _run(
         tmp_path,
         monkeypatch,
         inference_scope="empirical_direct",
-        lineage_inference_edge_id=None,
+        injected_inference_edge_id="support-1",
     )
 
     assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" in _codes(result)
+    assert result["autonomy_boundary"]["opaque_graph_metadata_treated_as_scientific_authority"] is False
 
 
-def test_wrong_inference_edge_identity_fails_closed(
+def test_even_wrong_injected_edge_id_is_not_consumed_as_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    with pytest.raises(ScientificCriticError, match="exact inference edge identity"):
-        _run(
-            tmp_path,
-            monkeypatch,
-            inference_scope="empirical_direct",
-            lineage_inference_edge_id="different-edge",
-        )
+    result, _ = _run(
+        tmp_path,
+        monkeypatch,
+        inference_scope="empirical_direct",
+        injected_inference_edge_id="different-edge",
+    )
+
+    assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" in _codes(result)
 
 
 def test_malformed_verification_decision_schema_fails_closed(
@@ -294,11 +295,7 @@ def test_bound_verification_decision_checksum_drift_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     verification = _verification(tmp_path, inference_scope="computational")
-    graph = _graph(
-        tmp_path,
-        verification,
-        inference_scope="computational",
-    )
+    graph = _graph(tmp_path, verification, inference_scope="computational")
     base = _base_report(graph)
     verification.write_text('{"tampered":true}\n', encoding="utf-8")
     monkeypatch.setattr(module, "_build_base_report", lambda *args, **kwargs: base)
@@ -311,7 +308,7 @@ def test_bound_verification_decision_checksum_drift_fails_closed(
         )
 
 
-def test_mismatched_proposal_lineage_cannot_supply_empirical_scope(
+def test_mismatched_proposal_lineage_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     with pytest.raises(ScientificCriticError, match="proposal_sha256 does not match"):
