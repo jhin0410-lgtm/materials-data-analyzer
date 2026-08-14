@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "simulation_id": "nist-ambench-2018-02-stage1-structural-design-v1",
+  "research_question": "Does the predeclared Stage 1 augmentation make the two-level power by three-level speed interaction structurally estimable, and what structural model limitations remain afterward?",
+  "factors": [
+    {
+      "name": "actual_laser_power_w",
+      "unit": "W"
+    },
+    {
+      "name": "scan_speed_mm_s",
+      "unit": "mm/s"
+    }
+  ],
+  "observed_cells": [
+    {
+      "cell_id": "A",
+      "factor_values": {
+        "actual_laser_power_w": 137.9,
+        "scan_speed_mm_s": 400.0
+      },
+      "replicates": 3
+    },
+    {
+      "cell_id": "B",
+      "factor_values": {
+        "actual_laser_power_w": 179.2,
+        "scan_speed_mm_s": 800.0
+      },
+      "replicates": 3
+    },
+    {
+      "cell_id": "C",
+      "factor_values": {
+        "actual_laser_power_w": 179.2,
+        "scan_speed_mm_s": 1200.0
+      },
+      "replicates": 4
+    }
+  ],
+  "proposed_cells": [
+    {
+      "cell_id": "stage1-A-matched-speed-800",
+      "factor_values": {
+        "actual_laser_power_w": 137.9,
+        "scan_speed_mm_s": 800.0
+      },
+      "replicates": 3
+    },
+    {
+      "cell_id": "stage1-A-matched-speed-1200",
+      "factor_values": {
+        "actual_laser_power_w": 137.9,
+        "scan_speed_mm_s": 1200.0
+      },
+      "replicates": 3
+    },
+    {
+      "cell_id": "stage1-B-matched-speed-400",
+      "factor_values": {
+        "actual_laser_power_w": 179.2,
+        "scan_speed_mm_s": 400.0
+      },
+      "replicates": 3
+    }
+  ],
+  "models": [
+    "intercept",
+    "main_effects",
+    "interaction",
+    "quadratic"
+  ],
+  "scientific_boundary": {
+    "response_values_allowed": false,
+    "coefficient_estimation_allowed": false,
+    "effect_size_estimation_allowed": false,
+    "predictive_modeling_allowed": false,
+    "causal_inference_allowed": false,
+    "optimization_allowed": false,
+    "engineering_decision_allowed": false
+  },
+  "metadata": {
+    "benchmark": "NIST AM-Bench 2018-02 IN625 AMMT representative process-characterization case",
+    "observed_case_contract_source": "scripts/build_nist_ambench_2018_02_case_study.py::EXPECTED_CASES",
+    "stage1_plan_source": "scripts/plan_nist_ambench_2018_02_design_augmentation.py",
+    "interpretation": "Structural estimability only; no response is simulated."
+  }
+}
