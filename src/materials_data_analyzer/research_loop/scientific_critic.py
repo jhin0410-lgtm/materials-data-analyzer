@@ -201,6 +201,7 @@ def _action(
         "information_gain_is_calibrated_probability": False,
         "expected_discrimination": expected_discrimination,
         "automatic_execution_authorized": False,
+        "availability_asserted": False,
     }
 
 
@@ -217,11 +218,26 @@ def _criticize_target(
         for edge in edges
         if edge.get("active") is True and edge.get("target_node_id") == target_id
     ]
+
+    # Reuse the evaluator's exact usable-source decision rather than reconstructing
+    # domain-verified authority from the raw edge label. A planned/failed executable
+    # result or unsupported evidence node may carry a syntactically domain-verified
+    # edge, but evaluate_epistemic_graph intentionally excludes it from verified status.
+    verified_edge_ids = {
+        str(edge_id)
+        for field in (
+            "verified_support_edges",
+            "verified_contradiction_edges",
+            "verified_falsification_edges",
+        )
+        for edge_id in assessment.get(field, [])
+        if isinstance(edge_id, str)
+    }
     verified_directional = [
         edge
         for edge in incoming
-        if edge.get("relation") in _DIRECTIONAL_RELATIONS
-        and edge.get("assessment_level") == "domain_verified"
+        if isinstance(edge.get("edge_id"), str)
+        and str(edge["edge_id"]) in verified_edge_ids
     ]
     diagnostic_directional = [
         edge
@@ -229,7 +245,19 @@ def _criticize_target(
         if edge.get("relation") in _DIRECTIONAL_RELATIONS
         and edge.get("assessment_level") != "domain_verified"
     ]
-    tests = [edge for edge in incoming if edge.get("relation") == "tests"]
+
+    # A tests edge is only a recorded scientific test after its executable source
+    # actually completed. Planned/failed executions must not suppress the absence of a
+    # discriminating test or masquerade as completed-but-uninterpreted evidence.
+    tests = [
+        edge
+        for edge in incoming
+        if edge.get("relation") == "tests"
+        and isinstance(edge.get("source_node_id"), str)
+        and str(edge["source_node_id"]) in nodes_by_id
+        and nodes_by_id[str(edge["source_node_id"])].get("node_type") in _EXECUTABLE_TYPES
+        and nodes_by_id[str(edge["source_node_id"])].get("execution_status") == "completed"
+    ]
 
     supports = [edge for edge in verified_directional if edge.get("relation") == "supports"]
     contradicts = [
@@ -290,6 +318,34 @@ def _criticize_target(
             )
         )
 
+    if contradicts and not supports and not falsifies:
+        findings.append(
+            _finding(
+                finding_id=f"critic:{target_id}:verified-contradiction",
+                code="VERIFIED_CONTRADICTION_PRESENT",
+                severity="high",
+                statement="The target is contradicted within at least one domain-verified scope.",
+                rationale=(
+                    "Usable domain-verified negative evidence exists without verified positive support. "
+                    "The target must not fall through to a positive closeout-style review merely because "
+                    "the negative relation is contradiction rather than falsification."
+                ),
+                edge_ids=[str(edge["edge_id"]) for edge in contradicts],
+            )
+        )
+        actions.append(
+            _action(
+                target_id,
+                "reassess-contradicted-scope",
+                action_class="manual_review",
+                description="Reassess, narrow, or reframe the contradicted target before positive-claim continuation.",
+                rationale="The standalone verified contradiction is a scientific objection that must remain explicit.",
+                execution_mode="plan_only",
+                priority="high",
+                expected_discrimination="Separates justified scope revision from unsupported continuation of the contradicted claim.",
+            )
+        )
+
     if supports and (contradicts or falsifies):
         conflict_edges = supports + contradicts + falsifies
         findings.append(
@@ -325,11 +381,14 @@ def _criticize_target(
                 target_id,
                 "resolve-verified-conflict",
                 action_class="existing_data_reanalysis",
-                description="Stratify the conflicting verified evidence by declared scope and protocol variables.",
-                rationale="A conflict should be localized before any stronger claim is attempted.",
-                execution_mode="typed_local_action",
+                description="Plan a stratification of the conflicting verified evidence by declared scope and protocol variables.",
+                rationale=(
+                    "A conflict should be localized before any stronger claim is attempted, but the critic "
+                    "has not established that suitable data or a registered local action is available."
+                ),
+                execution_mode="plan_only",
                 priority="high",
-                expected_discrimination="Tests whether the conflict is reproducibly associated with declared strata.",
+                expected_discrimination="Tests whether the conflict is reproducibly associated with declared strata if the required data and capability are later established.",
             )
         )
 
@@ -367,11 +426,14 @@ def _criticize_target(
                     target_id,
                     "robustness-sensitivity",
                     action_class="sensitivity_analysis",
-                    description="Run prespecified sensitivity checks over defensible preprocessing and inclusion choices.",
-                    rationale="This directly tests a generic artifact/selection alternative without asserting a domain mechanism.",
-                    execution_mode="typed_local_action",
+                    description="Plan prespecified sensitivity checks over defensible preprocessing and inclusion choices.",
+                    rationale=(
+                        "This directly tests a generic artifact/selection alternative without asserting a domain "
+                        "mechanism, but the critic has not established suitable local data or action capability."
+                    ),
+                    execution_mode="plan_only",
                     priority="high" if supports else "medium",
-                    expected_discrimination="Determines whether the observed direction is robust to defensible analytic choices.",
+                    expected_discrimination="Determines whether the observed direction is robust to defensible analytic choices if the required evidence and capability are later established.",
                 ),
                 _action(
                     target_id,
@@ -420,11 +482,14 @@ def _criticize_target(
                 target_id,
                 "independent-replication",
                 action_class="replication",
-                description="Prioritize a provenance-disjoint replication of the positive result.",
-                rationale="Independent replication is more discriminating than another derivative analysis of the same source.",
-                execution_mode="typed_local_action",
+                description="Plan a provenance-disjoint replication of the positive result.",
+                rationale=(
+                    "Independent replication is more discriminating than another derivative analysis of the same "
+                    "source, but no disjoint dataset or execution capability is inferred by the critic."
+                ),
+                execution_mode="plan_only",
                 priority="high",
-                expected_discrimination="Distinguishes reproducible support from shared-source dependence when a local disjoint dataset is already registered.",
+                expected_discrimination="Distinguishes reproducible support from shared-source dependence once genuinely disjoint evidence becomes available.",
             )
         )
 
@@ -474,7 +539,7 @@ def _criticize_target(
                 finding_id=f"critic:{target_id}:uninterpreted-tests",
                 code="COMPLETED_TESTS_WITHOUT_DIRECTIONAL_INTERPRETATION",
                 severity="medium",
-                statement="One or more recorded tests have no active directional inference relation to the target.",
+                statement="One or more completed recorded tests have no active directional inference relation to the target.",
                 rationale=(
                     "Execution success is not scientific interpretation. These results require a separate, "
                     "evidence-bound interpretation proposal and domain verification where applicable."
@@ -487,7 +552,7 @@ def _criticize_target(
                 target_id,
                 "interpret-recorded-tests",
                 action_class="manual_review",
-                description="Review the recorded test artifacts and prepare a separate evidence-bound directional interpretation proposal if justified.",
+                description="Review the completed test artifacts and prepare a separate evidence-bound directional interpretation proposal if justified.",
                 rationale="The graph intentionally separates executed tests from scientific support/contradiction/falsification.",
                 execution_mode="plan_only",
                 priority="high",
@@ -501,7 +566,7 @@ def _criticize_target(
                 finding_id=f"critic:{target_id}:no-discriminating-test",
                 code="NO_RECORDED_DISCRIMINATING_TEST",
                 severity="high",
-                statement="The target has neither a recorded test edge nor a domain-verified directional relation.",
+                statement="The target has neither a completed recorded test edge nor a usable domain-verified directional relation.",
                 rationale="The target is presently a question/hypothesis state rather than an evidence-tested scientific claim.",
             )
         )
@@ -520,6 +585,12 @@ def _criticize_target(
         stop_rationale = (
             "The target is falsified within a verified scope; the critic recommends preserving "
             "that negative result and reframing before additional positive-claim work."
+        )
+    elif status == "contradicted_within_verified_scope":
+        recommendation = "reassess_or_reframe_contradicted_target"
+        stop_rationale = (
+            "The target is contradicted within a verified scope; the negative result must remain an "
+            "explicit scientific objection before positive-claim continuation."
         )
     elif findings:
         recommendation = "continue_discriminating_research"
@@ -551,14 +622,14 @@ def _criticize_target(
     }
 
 
-def build_scientific_critic_report(
+def _build_structural_scientific_critic_report(
     graph_path: str | Path,
     *,
     program_state: Mapping[str, Any],
     artifact_root: str | Path,
     target_node_ids: Sequence[object] | None = None,
 ) -> dict[str, Any]:
-    """Audit verified graph structure and emit non-authoritative critic proposals."""
+    """Audit graph structure before applying the public conservative policy overlay."""
     _require_reasoning_policy(program_state)
     graph_file = Path(graph_path).expanduser().resolve(strict=True)
     if not graph_file.is_file():
@@ -647,6 +718,29 @@ def build_scientific_critic_report(
             "positive_scientific_closeout_granted": False,
         },
     }
+
+
+def build_scientific_critic_report(
+    graph_path: str | Path,
+    *,
+    program_state: Mapping[str, Any],
+    artifact_root: str | Path,
+    target_node_ids: Sequence[object] | None = None,
+) -> dict[str, Any]:
+    """Build the public policy-hardened scientific-critic report.
+
+    The import is intentionally lazy so the conservative overlay can use the private
+    structural builder without a module-import cycle. Direct imports from this module
+    therefore preserve the same policy boundary as the package and installed CLI.
+    """
+    from .scientific_critic_policy import build_policy_hardened_scientific_critic_report
+
+    return build_policy_hardened_scientific_critic_report(
+        graph_path,
+        program_state=program_state,
+        artifact_root=artifact_root,
+        target_node_ids=target_node_ids,
+    )
 
 
 __all__ = [
