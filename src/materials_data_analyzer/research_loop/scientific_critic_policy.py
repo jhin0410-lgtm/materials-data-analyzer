@@ -13,6 +13,7 @@ justify:
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .scientific_critic import (
@@ -55,9 +56,7 @@ def _program_evidence_gaps(program_state: Mapping[str, Any]) -> list[dict[str, A
             text = requirement.strip()
             if text not in normalized:
                 normalized.append(text)
-        if not normalized:
-            continue
-        if status == "scope_exhausted":
+        if not normalized or status == "scope_exhausted":
             continue
         gaps.append(
             {
@@ -94,7 +93,11 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
         findings = raw.get("critic_findings")
         alternatives = raw.get("methodological_alternatives")
         actions = raw.get("discriminating_actions")
-        if not isinstance(findings, list) or not isinstance(alternatives, list) or not isinstance(actions, list):
+        if (
+            not isinstance(findings, list)
+            or not isinstance(alternatives, list)
+            or not isinstance(actions, list)
+        ):
             raise ScientificCriticError("critic target proposal collections are malformed")
 
         # Direct artifact identity is useful provenance, but it is not an independence
@@ -103,7 +106,10 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
         findings[:] = [
             item
             for item in findings
-            if not (isinstance(item, Mapping) and item.get("code") == "SUPPORT_SOURCE_CONCENTRATION")
+            if not (
+                isinstance(item, Mapping)
+                and item.get("code") == "SUPPORT_SOURCE_CONCENTRATION"
+            )
         ]
         alternatives[:] = [
             item
@@ -170,7 +176,8 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
                 "action_class": "replication",
                 "description": (
                     "Establish an explicit provenance-disjointness contract and, when suitable "
-                    "data or an external experiment actually exists, test replication under that contract."
+                    "data or an external experiment actually exists, test replication under that "
+                    "contract."
                 ),
                 "rationale": (
                     "The critic cannot infer independence or local replication availability from "
@@ -180,7 +187,8 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
                 "information_gain_priority": "high",
                 "information_gain_is_calibrated_probability": False,
                 "expected_discrimination": (
-                    "Separates genuinely independent replication from repeated analysis of shared provenance."
+                    "Separates genuinely independent replication from repeated analysis of "
+                    "shared provenance."
                 ),
                 "automatic_execution_authorized": False,
                 "availability_asserted": False,
@@ -189,10 +197,10 @@ def _replace_independence_assumption(report: dict[str, Any]) -> None:
 
 
 def build_policy_hardened_scientific_critic_report(
-    graph_path: str | Any,
+    graph_path: str | Path,
     *,
     program_state: Mapping[str, Any],
-    artifact_root: str | Any,
+    artifact_root: str | Path,
     target_node_ids: Sequence[object] | None = None,
 ) -> dict[str, Any]:
     """Build the critic report with conservative independence/evidence-gap policy."""
@@ -206,7 +214,8 @@ def build_policy_hardened_scientific_critic_report(
     _replace_independence_assumption(report)
     gaps = _program_evidence_gaps(program_state)
     report["critic_policy_version"] = (
-        f"{SCIENTIFIC_CRITIC_POLICY_VERSION}+hardening-{SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION}"
+        f"{SCIENTIFIC_CRITIC_POLICY_VERSION}+hardening-"
+        f"{SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION}"
     )
     report["program_evidence_gaps"] = gaps
     summary = report.get("summary")
