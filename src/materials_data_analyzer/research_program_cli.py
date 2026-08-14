@@ -12,6 +12,7 @@ from typing import Any
 from materials_data_analyzer.research_loop import (
     ResearchLoopError,
     build_research_program,
+    build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import evaluate_epistemic_graph
@@ -20,9 +21,6 @@ from materials_data_analyzer.research_loop.epistemic_transition import (
 )
 from materials_data_analyzer.research_loop.policy_authorized_closed_loop import (
     run_policy_authorized_closed_loop,
-)
-from materials_data_analyzer.research_loop.scientific_critic import (
-    build_scientific_critic_report,
 )
 
 
