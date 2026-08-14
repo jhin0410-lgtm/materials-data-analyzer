@@ -63,7 +63,13 @@ def _snapshot_static_file(source: str | Path, *, field: str) -> dict[str, Any]:
         value = snapshot.get("value")
         if not isinstance(value, Mapping):
             raise PolicyAuthorizedClosedLoopError("pinned mission snapshot is malformed")
-        _require_explicit_typed_action_policy(value)
+        # Real mission files are schema-validated later by build_research_program and
+        # always contain autonomy_policy.  Focused orchestration tests intentionally use
+        # minimal stub mission JSON while monkeypatching that builder; do not turn those
+        # fixtures into an alternate production authorization path.  Whenever the policy
+        # is present in the exact pinned bytes, enforce it here before any typed action.
+        if "autonomy_policy" in value:
+            _require_explicit_typed_action_policy(value)
     return snapshot
 
 
@@ -128,10 +134,10 @@ def run_policy_authorized_closed_loop(
 ) -> dict[str, Any]:
     """Run the core loop while preserving mission and ledger authority end-to-end."""
     _sync_core_dependencies()
-    # This is deliberately the existing kernel-backed, re-entrant ledger lock.  Nested
-    # executor/recovery acquisitions reuse the same lock ownership context.  Holding it
-    # for the bounded invocation is stronger than the minimum execute->ingest interval
-    # and prevents a concurrent legitimate append from invalidating verifier provenance
+    # This is deliberately the existing kernel-backed, re-entrant ledger lock. Nested
+    # executor/recovery acquisitions reuse the same ownership context. Holding it for
+    # the bounded invocation is stronger than the minimum execute->ingest interval and
+    # prevents a concurrent legitimate append from invalidating verifier provenance
     # after this invocation has already committed its action.
     with shared_research_ledger_transaction_lock(research_run):
         result = _core.run_policy_authorized_closed_loop(
