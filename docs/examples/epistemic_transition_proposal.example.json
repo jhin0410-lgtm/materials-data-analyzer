@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "example-structural-simulation-transition-v1",
+  "base_graph_id": "example-graph-v1",
+  "base_graph_sha256": "<exact base graph SHA-256>",
+  "new_graph_id": "example-graph-v2",
+  "target_node_id": "example-structural-hypothesis",
+  "source_action": {
+    "action_id": "example-structural-simulation",
+    "action_class": "simulation",
+    "action_version": "1.0",
+    "execution_mode": "typed_local_action"
+  },
+  "result_node": {
+    "node_id": "example-structural-simulation-result",
+    "node_type": "simulation",
+    "statement": "The bounded structural simulation evaluated the declared design-identifiability question.",
+    "artifact_bindings": [
+      {
+        "role": "primary_result",
+        "path": "path/to/result.json",
+        "sha256": "<exact result artifact SHA-256>"
+      }
+    ],
+    "metadata": {
+      "result_origin": "authorized_local_simulation"
+    }
+  },
+  "input_evidence_bindings": [],
+  "proposed_inference": {
+    "tests_edge_id": "example-tests-edge",
+    "inference_edge_id": "example-support-edge",
+    "relation": "supports",
+    "rationale": "The structural result bears on the declared structural hypothesis, subject to separate domain verification."
+  },
+  "limitations": [
+    "This proposal does not itself grant domain-verified scientific support.",
+    "The simulation does not establish an empirical materials response."
+  ]
+}
