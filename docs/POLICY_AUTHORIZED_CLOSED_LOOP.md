@@ -6,13 +6,15 @@ This layer closes the first bounded autonomous execution loop without granting t
 orchestrator scientific interpretation authority:
 
 ```text
-epistemic graph
-→ epistemic gate
+caller inputs
+→ immutable authority snapshots
+→ epistemic gate over exact mission/runtime/base-graph bytes
 → current planner and authorization
-→ one exact predeclared typed-local request
+→ one exact predeclared typed-local request, pinned in memory
+→ typed execution from the pinned request bytes
 → pinned action-result verification
-→ independent report↔ledger recheck
-→ record-only immutable successor graph
+→ independent report↔ledger recheck and frozen report copy
+→ record-only immutable successor graph from the exact gated base value
 → gate and replan from the successor
 ```
 
@@ -36,11 +38,43 @@ Every result-record entry must bind:
 - neutral statement and limitations.
 
 The plan must cover every queued request exactly once. The runner never invents a
-request or extra recording semantics. A changed request file, queue file, or record-plan
-file is rejected before execution.
+request or extra recording semantics. Queue, plan, mission, runtime context, initial
+graph, and every queued request are read and checksum-validated before executable
+authority is created.
 
 `action_class` is descriptive plan metadata only. It cannot authorize execution,
 change planner selection, or upgrade epistemic status.
+
+## Immutable authority snapshots
+
+After preflight, the invocation creates an authority tree beneath the otherwise-empty
+output directory:
+
+```text
+<output>/_authority/
+  mission.json
+  runtime_context.json
+  request_queue.json
+  result_record_plan.json
+  requests/
+    <request-id>.json
+  cycle_001/
+    mission.json
+    runtime_context.json
+    base_graph.json
+  cycle_002/
+    ...
+```
+
+Each copy is written from the exact byte snapshot whose SHA-256 was already validated,
+and the written bytes are re-read to confirm byte-for-byte identity. The epistemic gate
+receives the per-cycle snapshot paths and must return bindings to those exact paths and
+checksums.
+
+This means a later mutation of the caller's original mission, runtime-context, graph,
+queue, plan, or request pathname cannot change the bytes that authorize or execute the
+current invocation. The original graph SHA reported by the run is captured at invocation
+start and is never recomputed from the live caller pathname after execution.
 
 ## Full preflight before side effects
 
@@ -50,14 +84,18 @@ The runner rejects incompatibilities that can be known before an action commits:
 - record target is outside the exact target set whose epistemic gate is used;
 - predeclared result-node ID already exists;
 - generated `tests` edge ID already exists;
-- output root is non-empty or the next cycle directory already exists;
-- the queue/plan bytes changed;
-- the request bytes changed;
-- the mission, current graph, or runtime-context bytes changed after gate evaluation;
-- runtime-context run/registry paths differ from the actual execution paths.
+- output root is non-empty or a preflight/authority path collides;
+- queue, plan, or request bytes do not match their declared checksums at authority pinning;
+- runtime-context run/registry paths differ from the actual execution paths;
+- an evidence node attempts to use mutable orchestration state as durable provenance.
 
-The mission, graph, and runtime-context bindings are rechecked immediately before the
-typed executor is delegated the request.
+Per-cycle mission/runtime/graph snapshots are then used consistently by the epistemic
+gate and research-program rebuild. The side-effecting typed executor receives the
+request bytes retained in memory from invocation preflight. It does **not** reopen the
+caller's mutable request pathname for request content.
+
+The request pathname remains provenance and relative-path context only; it is not the
+source of executable request content after pinning.
 
 ## Mutable orchestration state is not durable scientific provenance
 
@@ -71,29 +109,45 @@ node uses either mutable role as its durable program evidence binding:
 - `research_state`
 - `research_ledger`
 
+Role and node-type strings are normalized before this check, so surrounding whitespace
+cannot bypass it.
+
 Closed-loop graphs must instead use an immutable program evidence role or a deliberately
 frozen snapshot contract. This restriction can be relaxed later only by adding a
 first-class historical-snapshot registry; it is not bypassed by replacing checksums in
 place.
 
+## Pinned execution boundary
+
+`run_pinned_research_cycle` parses and executes the exact request byte string supplied by
+the closed-loop authority layer. It checks the expected request SHA-256 before parsing,
+rejects duplicate JSON keys, and reuses the existing authorization, transaction,
+hardcoded typed-dispatch, recovery, budget, ledger, and pinned-verifier contracts.
+
+There is no generic command or dynamic callable execution surface. A live request-file
+replacement after authority pinning cannot change which bytes the typed executor sees.
+
 ## Verifier-to-graph TOCTOU closure
 
-The existing typed verifier proves the action report against the request, action inputs,
+The typed verifier proves the action report against the pinned request, action inputs,
 outputs, and research ledger. Graph ingestion independently checks that proof is still
 valid immediately before creating the successor:
 
-1. hash the current action-report bytes;
+1. read the current action-report bytes once and hash that exact snapshot;
 2. reload the current research ledger;
 3. require the current ledger SHA-256 to equal the SHA returned by the pinned verifier;
 4. find exactly one matching action ID;
 5. require ledger action status to equal verified execution status;
-6. require exactly one ledger artifact with the current absolute report path, SHA-256,
-   and byte count.
+6. require exactly one ledger artifact with the report path, SHA-256, and byte count;
+7. freeze those verified report bytes into the cycle output before graph binding.
 
 A report modified after typed verification therefore cannot become epistemic provenance.
+The successor references the frozen verified copy rather than trusting a later live read.
 
 The exact result-record-plan SHA is persisted in result metadata, graph lineage, and
-the per-cycle transition manifest.
+the per-cycle transition manifest. Successor construction also receives the parsed
+base-graph value and SHA that the gate actually evaluated, so post-execution mutation of
+the caller's graph cannot replace the baseline epistemic state.
 
 ## Completed versus failed actions
 
@@ -102,17 +156,20 @@ These states are not conflated.
 
 For a completed action the successor adds:
 
-- one completed `analysis` or `simulation` node with the verified report as an artifact;
+- one completed `analysis` or `simulation` node with the frozen verified report artifact;
 - one proposal-level `tests` edge to the selected target.
 
 For a failed action the successor adds:
 
 - one `analysis` or `simulation` node with `execution_status: failed`;
-- the exact failed-report checksum only in failure provenance metadata/manifest;
-- **no `tests` edge and no completed result artifact binding**.
+- a self-contained base64 snapshot of the verified failure report with SHA-256 and byte
+  count in failure provenance metadata;
+- the frozen report locator for audit convenience;
+- **no `tests` edge and no completed scientific-result artifact binding**.
 
-This preserves the failed attempt without making it usable as a completed scientific
-result.
+The embedded snapshot prevents later deletion or replacement of the external failed
+report from erasing what exact bytes were recorded, while keeping the failed attempt
+unusable as a completed scientific result.
 
 ## Record-only epistemic transition
 
@@ -137,6 +194,7 @@ Each successfully recorded attempt gets its own directory:
 
 ```text
 <output>/cycle_001/
+  verified_action_report.json
   epistemic_graph.json
   record_only_transition_manifest.json
 ```
@@ -148,10 +206,12 @@ The parent graph is not rewritten. Lineage includes:
 - exact result-record-plan SHA-256;
 - verified research-ledger SHA-256;
 - action ID and execution status;
-- action-report SHA-256;
+- verified action-report SHA-256;
 - result node ID.
 
-The next cycle gates the successor graph, not the invocation's original graph.
+The next cycle copies the successor bytes into a new `_authority/cycle_NNN/base_graph.json`
+and gates that exact snapshot. It does not silently return to the invocation's original
+graph or re-read a mutable predecessor pathname as scientific authority.
 
 ## Execution boundary
 
@@ -169,8 +229,8 @@ Descriptive local action classes are limited to:
 - `replication`
 
 Actual execution still has to pass the existing planner, action registry, budget,
-request-byte snapshot, ledger transaction, hardcoded typed dispatch, and pinned result
-verifier on every cycle.
+pinned-request authorization, ledger transaction, hardcoded typed dispatch, and pinned
+result verifier on every cycle.
 
 The runner cannot execute arbitrary commands, initiate network evidence acquisition, or
 execute a physical laboratory experiment. A local action that merely writes an external
@@ -201,18 +261,19 @@ mda-research-program run-closed-loop `
 
 ## Scientific boundary and next layer
 
-This proves a provenance-aware **execute → observe → update state → replan** mechanism.
-It does not prove autonomous scientific truth discovery.
+This proves a provenance-aware **execute → observe → update state → replan** mechanism
+under finite, predeclared action authority. It does not prove autonomous scientific
+truth discovery, and it still does not synthesize new execution requests.
 
-The next layer should be a Scientific Critic that consumes the immutable graph and
-produces only evidence-bound **proposals** for:
+The next layers should remain separated:
 
-- favored and alternative hypotheses;
-- counterevidence and strongest counterexamples;
-- confounders, leakage, dependence and non-independence;
-- robustness/falsification checks;
-- discriminating next evidence or experiment;
-- explicit claim boundaries.
+1. a Scientific Critic that consumes the immutable graph and produces evidence-bound
+   proposals for favored/alternative hypotheses, counterevidence, confounders,
+   robustness/falsification checks, and discriminating next evidence;
+2. a bounded request synthesizer that may materialize only explicitly safe, registry-
+   backed local computational actions and must still pass the existing independent
+   authorization boundary;
+3. separate authorization/planning for network acquisition and physical experiments.
 
-Those proposals must remain non-authoritative until the appropriate domain verifier
+Scientific proposals remain non-authoritative until the appropriate domain verifier
 accepts the exact evidence and inference contract.
