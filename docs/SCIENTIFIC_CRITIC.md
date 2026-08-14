@@ -25,12 +25,12 @@ The mission must explicitly permit `reasoning_proposals: schema_validated`.
 
 ## Findings
 
-The first policy version can detect:
+The policy-hardened critic can detect:
 
 - domain-verified falsification already present;
 - conflicting verified support and contradiction/falsification;
 - absence of represented domain-verified counterevidence;
-- concentration of positive support in one direct provenance identity;
+- **positive-support independence not established by the current graph contract**;
 - empirical/mixed-scope claims supported only by simulations;
 - proposal/diagnostic directional relations that are not domain verified;
 - completed `tests` results that still lack a directional scientific interpretation;
@@ -38,11 +38,36 @@ The first policy version can detect:
 
 These are methodological graph findings, not new scientific evidence.
 
+## Independence is not inferred from artifact identity
+
+Distinct node IDs, filenames, checksums, instruments, or derivative analyses do not by themselves prove statistical or experimental independence. Two apparently separate results may still share a parent sample, source dataset, acquisition session, preprocessing lineage, or another dependence.
+
+Therefore any verified positive support receives `SUPPORT_INDEPENDENCE_NOT_ESTABLISHED` unless a future first-class provenance/independence contract can prove the required disjointness dimensions. The critic does **not** call multiple artifacts independent replication merely because their direct identifiers differ.
+
+A proposed replication action:
+
+- has `automatic_execution_authorized: false`;
+- has `availability_asserted: false`;
+- uses `explicit_authorization_required` until suitable provenance-disjoint evidence or an external experiment is actually available.
+
+## Program evidence gaps remain workstream-scoped
+
+The rebuilt mission program may already contain exact `evidence_requirements` for NIST-, NASA-, characterization-, or other workstreams. The critic preserves those requirements verbatim in `program_evidence_gaps` when their goals remain open.
+
+However, the critic does **not** silently attach a workstream requirement to a particular hypothesis/claim merely because the topics appear related. Every copied requirement has:
+
+- its original `goal_id`;
+- its original `workstream_id`;
+- `target_attribution: not_inferred`;
+- `automatic_acquisition_authorized: false`.
+
+A future target↔workstream mapping must itself be provenance-bound before target-specific evidence-gap attribution is permitted. This prevents cross-workstream evidence leakage and avoids inventing domain requirements.
+
 ## Alternative explanations
 
 Alternatives are intentionally generic and methodological, for example:
 
-- shared provenance rather than independent replication;
+- shared or dependent provenance rather than independent replication;
 - measurement/preprocessing/selection artifacts;
 - protocol-, sample-, condition-, or scope-dependent heterogeneity.
 
@@ -60,7 +85,7 @@ The critic may propose bounded next work such as:
 
 - prespecified sensitivity analysis;
 - stratified reanalysis of conflicting evidence;
-- provenance-disjoint replication;
+- establishing an explicit provenance-disjointness contract and replication plan;
 - independent counterexample-oriented evidence search;
 - plan-only empirical validation design;
 - manual interpretation of completed test artifacts.
@@ -85,6 +110,8 @@ The critic never:
 - creates `supports`, `contradicts`, or `falsifies` edges;
 - changes target epistemic status;
 - assigns scientific confidence scores or probabilities;
+- infers independence from artifact multiplicity;
+- attributes workstream evidence requirements to targets without an explicit mapping;
 - grants positive scientific closeout;
 - executes a typed action;
 - starts network acquisition;
