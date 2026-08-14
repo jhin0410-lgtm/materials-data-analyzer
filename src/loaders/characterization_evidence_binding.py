@@ -293,7 +293,7 @@ def _normalized_text_series(series: pd.Series, label: str) -> pd.Series:
 
 def _csv_roundtrip(table: pd.DataFrame) -> pd.DataFrame:
     buffer = StringIO()
-    table.to_csv(buffer, index=False)
+    table.to_csv(buffer, index=False, lineterminator="\n")
     buffer.seek(0)
     return pd.read_csv(buffer)
 
@@ -316,39 +316,45 @@ def _normalized_feature_rows(table: pd.DataFrame) -> list[tuple[object, ...]]:
 def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
     """Collect digests only from records that are structurally source-scoped.
 
-    A generic checksum in audit/expected/output metadata is not evidence that a
-    feature's source bytes are represented by the source manifest.  Explicit
-    source digest fields are accepted directly.  Generic ``sha256`` is accepted
-    only on a record reached through a recognized source key/container (or on a
-    root record with a source identity field).
+    Generic or explicit-looking checksums in audit/expected/output metadata are not
+    evidence that a feature's source bytes are represented by the source manifest.
+    Digests are accepted only on a recognized source record.  At the source-manifest
+    root, an explicit source digest is allowed directly, while a generic ``sha256``
+    still requires an independent source-identity field such as ``source`` or path.
     """
     digests: set[str] = set()
 
-    def visit(value: object, *, source_scoped: bool, record_key: str | None) -> None:
+    def visit(
+        value: object,
+        *,
+        source_scoped: bool,
+        record_key: str | None,
+        is_root: bool,
+    ) -> None:
         if isinstance(value, Mapping):
             keys = {str(key).strip().lower() for key in value}
             current_scoped = source_scoped or (
                 record_key in _SOURCE_RECORD_KEYS
                 or record_key in _SOURCE_RECORD_CONTAINER_KEYS
             )
+            source_record = (
+                current_scoped
+                or bool(keys & _SOURCE_IDENTITY_FIELDS)
+                or (is_root and "source" in keys)
+            )
             for key, item in value.items():
                 key_text = str(key).strip().lower()
+                valid_digest = (
+                    isinstance(item, str)
+                    and _SHA256.fullmatch(item.strip()) is not None
+                )
                 if (
                     key_text in _EXPLICIT_SOURCE_DIGEST_KEYS
-                    and isinstance(item, str)
-                    and _SHA256.fullmatch(item.strip())
+                    and valid_digest
+                    and (source_record or is_root)
                 ):
                     digests.add(item.strip().lower())
-                elif (
-                    key_text == "sha256"
-                    and isinstance(item, str)
-                    and _SHA256.fullmatch(item.strip())
-                    and (
-                        current_scoped
-                        or record_key in _SOURCE_RECORD_KEYS
-                        or bool(keys & _SOURCE_IDENTITY_FIELDS)
-                    )
-                ):
+                elif key_text == "sha256" and valid_digest and source_record:
                     digests.add(item.strip().lower())
 
                 child_scoped = current_scoped or key_text in _SOURCE_RECORD_CONTAINER_KEYS
@@ -357,12 +363,18 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
                     item,
                     source_scoped=child_scoped,
                     record_key=child_record_key,
+                    is_root=False,
                 )
         elif isinstance(value, list):
             for item in value:
-                visit(item, source_scoped=source_scoped, record_key=record_key)
+                visit(
+                    item,
+                    source_scoped=source_scoped,
+                    record_key=record_key,
+                    is_root=False,
+                )
 
-    visit(source, source_scoped=False, record_key=None)
+    visit(source, source_scoped=False, record_key=None, is_root=True)
     return digests
 
 
