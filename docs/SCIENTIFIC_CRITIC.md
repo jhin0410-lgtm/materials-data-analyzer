@@ -33,7 +33,7 @@ The policy-hardened critic can detect:
 - absence of represented domain-verified counterevidence;
 - **positive-support independence not established by the current graph contract**;
 - empirical/mixed-scope claims supported only by simulations;
-- **empirical/mixed-scope positive support whose empirical inference scope is not established by exact verifier and transition provenance**;
+- **empirical/mixed-scope positive support whose empirical inference scope is not established by complete verifier and transition provenance**;
 - proposal/diagnostic directional relations that are not domain verified;
 - completed `tests` results that still lack a directional scientific interpretation;
 - targets that have no completed recorded discriminating test or usable verified directional relation.
@@ -76,32 +76,41 @@ A proposed replication action:
 - has `availability_asserted: false`;
 - requires separate evidence/capability establishment before execution can be considered.
 
-## Empirical support scope is not inferred from source-node type
+## Empirical support requires complete provenance
 
 An `analysis` node may represent a computational analysis or an empirically derived analysis. Therefore the critic does **not** treat “not a simulation” as proof that an empirical or mixed-scope target has empirical support.
 
-For positive support of an empirical/mixed target, the policy overlay inspects the exact checksum-bound `domain_verification_decision` associated with each verified support edge. An empirical-support obligation is satisfied only when at least one recognized verifier records:
+Before consuming any `domain_verification_decision.inference_scope`, the policy overlay re-reads the exact checksum-bound verifier bytes and validates the complete v1.0 decision contract. Required fields include the decision/verifier identities, transition/proposal/base-graph bindings, result and target identities, relation, inference scope, rationale, limitations, and explicit `domain_verified: true`. Missing/unknown fields, duplicate JSON keys, invalid enums, empty required text, or checksum drift fail closed.
 
-- `inference_scope: empirical_derived`, or
-- `inference_scope: empirical_direct`.
-
-That scope is accepted only when the verifier remains consistent with the transition provenance already embedded in the exact graph. The critic requires all of the following to agree:
+The verifier is then cross-checked against graph provenance:
 
 - verifier artifact SHA-256 and the graph edge binding;
 - verifier `result_node_id`, `target_node_id`, and relation and the graph edge;
 - verifier `transition_id` and the source result node metadata;
 - verifier `proposal_sha256` and the matching graph `transition_lineage` record;
-- verifier `base_graph_sha256` and the lineage `parent_graph_sha256`;
+- verifier `base_graph_sha256` and lineage `parent_graph_sha256`;
 - verifier artifact SHA-256 and lineage `verification_decision_sha256`;
 - source result node ID and lineage `result_node_id`.
 
-The source provenance must also be compatible with the claimed empirical scope. `empirical_direct` requires an external physical-experiment result. `empirical_derived` requires bound input evidence and a compatible analysis or data-experiment result origin; simulation provenance cannot satisfy it.
+### Exact inference-edge identity is currently a blocking provenance gap
 
-If no lineage-bound empirical scope is recoverable, the critic emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED`. This does **not** downgrade or remove the existing `domain_verified` relation. It means only that the critic cannot independently establish empirical support provenance from node labels or incomplete verifier bindings.
+The transition-lineage v1.0 contract currently records the proposal SHA but not the proposal's `proposed_inference.inference_edge_id`. That means a verifier for one edge could not be distinguished solely from another edge with the same source, target, and relation after only the graph/lineage artifacts are available.
 
-If verifier bytes drift, edge identity is inconsistent, transition lineage does not match, or an empirical scope conflicts with source provenance, the critic fails closed instead of interpreting that scope. This prevents a misplaced or reused verifier from hiding an empirical-evidence gap.
+The critic therefore **does not accept any verifier inference scope as empirical authority when exact `inference_edge_id` is absent from the bound transition lineage**. If a future strengthened lineage contract records that field, it must exactly equal the graph edge ID; a mismatch fails closed.
 
-The corresponding next action is `plan_only` manual provenance review. If reconstruction shows that no empirical-scope support exists, empirical validation may then be planned separately. The critic does not authorize or execute that validation.
+This intentionally leaves current transition-v1 empirical support scope unestablished rather than guessing the intended edge. A follow-up transition-provenance hardening must add a first-class exact inference-edge binding before the critic can rely on it.
+
+### `empirical_derived` is also blocked by unclassified input provenance
+
+Current `input_evidence_bindings` contain only `workstream_id`, `role`, and checksum. They prove identity and membership in the verified program state, but they do **not** classify whether the bound input is empirical measurement data, simulation output, computational derivation, or another origin.
+
+Therefore a non-empty input binding list is not sufficient evidence for `empirical_derived`. The critic keeps `empirical_derived` unestablished until a provenance-bound evidence-origin classification contract exists. It will not infer empirical origin from a role name, workstream name, filename, or action label.
+
+`empirical_direct` can only be considered after exact inference-edge identity is available and the source is provenance-compatible with an external physical experiment.
+
+If empirical scope cannot be established, the critic emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED`. This does **not** downgrade or remove the evaluator's existing usable `domain_verified` relation. It records that the critic cannot independently establish the stronger empirical-scope provenance needed for an empirical/mixed claim.
+
+The corresponding next action is `plan_only`: strengthen provenance contracts or, if no empirical support exists, plan independent empirical validation. The critic does not authorize or execute that validation.
 
 ## Program evidence gaps remain workstream-scoped
 
@@ -160,8 +169,10 @@ The structural critic builder is an internal implementation layer. The public `b
 
 Therefore importing the function directly from the module does not bypass:
 
+- usable-source filtering;
+- completed-test semantics;
 - independence hardening;
-- empirical-scope verifier/transition-lineage checks;
+- empirical verifier/provenance checks;
 - workstream evidence-gap scoping;
 - action-availability conservatism.
 
@@ -187,7 +198,9 @@ The critic never:
 - counts planned/failed test executions as completed scientific tests;
 - infers independence from artifact multiplicity;
 - infers empirical support scope from source-node type;
-- accepts empirical verifier scope without matching transition lineage;
+- accepts verifier scope from an incomplete verifier-decision schema;
+- accepts empirical scope without exact inference-edge identity;
+- infers `empirical_derived` origin from unclassified input bindings;
 - attributes workstream evidence requirements to targets without an explicit mapping;
 - treats an action proposal as execution authorization or proof of resource availability;
 - grants positive scientific closeout;
@@ -226,5 +239,7 @@ verified Research State
 → successor epistemic graph
 → critic again
 ```
+
+Before the critic can accept empirical scope from transition-generated support, the transition provenance contract must additionally bind exact inference-edge identity and, for `empirical_derived`, first-class empirical input origin.
 
 This preserves the central invariant: **research can become more autonomous without making scientific authority self-granting.**
