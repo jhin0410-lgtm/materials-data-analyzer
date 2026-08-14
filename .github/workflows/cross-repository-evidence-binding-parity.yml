@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MCA_COMMIT: d4d9035c4d87b47983cea7df4d0a205d240c3b43
+  MCA_COMMIT: aca5fb14e37f01d35044696f5f7448180e8cb01b
 
 jobs:
   validate-latest-producer-consumer-parity:
@@ -65,7 +65,8 @@ jobs:
             tests/test_handoff_evidence_binding_parity.py \
             tests/test_handoff_evidence_binding_source_context.py \
             tests/test_handoff_evidence_binding_workbook_source.py \
-            tests/test_handoff_evidence_binding_nested_scope.py
+            tests/test_handoff_evidence_binding_nested_scope.py \
+            tests/test_handoff_evidence_binding_root_scope.py
 
       - name: Run consumer evidence-binding parity regressions
         working-directory: materials-data-analyzer
@@ -75,7 +76,8 @@ jobs:
             tests/test_characterization_evidence_binding_source_context.py \
             tests/test_characterization_evidence_binding_source_scope.py \
             tests/test_characterization_evidence_binding_workbook_source.py \
-            tests/test_characterization_evidence_binding_nested_scope.py
+            tests/test_characterization_evidence_binding_nested_scope.py \
+            tests/test_characterization_evidence_binding_root_scope.py
 
       - name: Build hardened producer bundle with config-checksum trap
         shell: bash
