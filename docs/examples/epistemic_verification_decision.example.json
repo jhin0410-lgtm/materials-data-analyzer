@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "decision_id": "example-structural-verification-v1",
+  "transition_id": "example-structural-simulation-transition-v1",
+  "proposal_sha256": "<exact transition proposal SHA-256>",
+  "base_graph_sha256": "<exact base graph SHA-256>",
+  "result_node_id": "example-structural-simulation-result",
+  "target_node_id": "example-structural-hypothesis",
+  "relation": "supports",
+  "inference_scope": "structural",
+  "verifier_id": "example-structural-domain-verifier-v1",
+  "rationale": "The exact simulation artifact satisfies the predeclared structural-rank verification rule for this target scope.",
+  "limitations": [
+    "Structural estimability is not empirical effect evidence.",
+    "Positive support remains provisional and requires domain closeout."
+  ],
+  "domain_verified": true
+}
