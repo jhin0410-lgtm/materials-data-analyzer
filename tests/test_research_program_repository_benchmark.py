@@ -50,11 +50,20 @@ def test_tracked_autonomous_mission_projects_real_repository_workstreams() -> No
     assert goals["nasa-battery"]["scientific_hypothesis_generation_status"] == (
         "blocked_by_missing_runtime_context"
     )
+    assert goals["nist-ambench"]["status"] == "scope_exhausted"
+    assert goals["nist-ambench"]["evidence_requirements"]
     assert goals["nist-ambench"]["expected_information_gain"]["status"] == (
         "not_quantified"
     )
-    assert all(goal["epistemic_hypothesis"]["scientific_mechanism_claim"] is False for goal in goals.values())
+    assert all(
+        goal["epistemic_hypothesis"]["scientific_mechanism_claim"] is False
+        for goal in goals.values()
+    )
 
+    # The mission priority of a scientifically closed scope must not force it back
+    # into execution. With no NASA runtime context supplied, restoring that verified
+    # context is the highest-priority active step.
     next_step = program["next_program_step"]
-    assert next_step["workstream_id"] == "nist-ambench"
+    assert next_step["workstream_id"] == "nasa-battery"
+    assert next_step["mode"] == "supply_runtime_context"
     assert next_step["automatic_execution_authorized"] is False
