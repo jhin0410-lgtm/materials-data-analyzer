@@ -259,6 +259,25 @@ mda-research-program run-closed-loop `
 `--context` is mandatory for this subcommand. One invocation is hard-bounded to at most
 32 cycles.
 
+## Validation expectations
+
+Focused regressions must prove, at minimum, that:
+
+- result-record plans bind the exact request checksum;
+- request pathname mutation after authority pinning cannot alter the bytes executed;
+- cycle gates bind exact mission/runtime/base-graph snapshots;
+- cycle 2 gates the exact successor bytes produced by cycle 1;
+- completed results create only proposal-level `tests` relations;
+- failed actions remain failed and carry self-contained failure provenance;
+- report mutation after verification is rejected before graph creation;
+- mutable `research_state`/`research_ledger` evidence roles are rejected even with
+  surrounding whitespace;
+- target, node, edge, and output collisions fail before side effects;
+- external/physical result semantics are not accepted as local automatic results.
+
+Full CI, package smoke tests, source-distribution self-tests, lint/type checks, dependency
+audit, and release-evidence workflows remain authoritative for the exact PR head.
+
 ## Scientific boundary and next layer
 
 This proves a provenance-aware **execute → observe → update state → replan** mechanism
