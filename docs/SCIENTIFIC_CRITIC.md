@@ -32,7 +32,7 @@ The policy-hardened critic can detect:
 - absence of represented domain-verified counterevidence;
 - **positive-support independence not established by the current graph contract**;
 - empirical/mixed-scope claims supported only by simulations;
-- **empirical/mixed-scope positive support whose empirical inference scope is not established by the exact bound verification decisions**;
+- **empirical/mixed-scope positive support whose empirical inference scope is not established by exact verifier and transition provenance**;
 - proposal/diagnostic directional relations that are not domain verified;
 - completed `tests` results that still lack a directional scientific interpretation;
 - targets that have no recorded discriminating test.
@@ -55,16 +55,28 @@ A proposed replication action:
 
 An `analysis` node may represent a computational analysis or an empirically derived analysis. Therefore the critic does **not** treat “not a simulation” as proof that an empirical or mixed-scope target has empirical support.
 
-For positive support of an empirical/mixed target, the policy overlay inspects the exact checksum-bound `domain_verification_decision` artifact associated with each verified support edge. An empirical-support obligation is satisfied only when at least one recognized bound decision explicitly records:
+For positive support of an empirical/mixed target, the policy overlay inspects the exact checksum-bound `domain_verification_decision` associated with each verified support edge. An empirical-support obligation is satisfied only when at least one recognized verifier records:
 
 - `inference_scope: empirical_derived`, or
 - `inference_scope: empirical_direct`.
 
-If no such bound scope is recoverable, the critic emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED`. This does **not** downgrade or remove the existing `domain_verified` relation. It means only that the critic cannot independently establish empirical support provenance from node labels or incomplete verifier bindings.
+That scope is accepted only when the verifier remains consistent with the transition provenance already embedded in the exact graph. The critic requires all of the following to agree:
+
+- verifier artifact SHA-256 and the graph edge binding;
+- verifier `result_node_id`, `target_node_id`, and relation and the graph edge;
+- verifier `transition_id` and the source result node metadata;
+- verifier `proposal_sha256` and the matching graph `transition_lineage` record;
+- verifier `base_graph_sha256` and the lineage `parent_graph_sha256`;
+- verifier artifact SHA-256 and lineage `verification_decision_sha256`;
+- source result node ID and lineage `result_node_id`.
+
+The source provenance must also be compatible with the claimed empirical scope. `empirical_direct` requires an external physical-experiment result. `empirical_derived` requires bound input evidence and a compatible analysis or data-experiment result origin; simulation provenance cannot satisfy it.
+
+If no lineage-bound empirical scope is recoverable, the critic emits `EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED`. This does **not** downgrade or remove the existing `domain_verified` relation. It means only that the critic cannot independently establish empirical support provenance from node labels or incomplete verifier bindings.
+
+If verifier bytes drift, edge identity is inconsistent, transition lineage does not match, or an empirical scope conflicts with source provenance, the critic fails closed instead of interpreting that scope. This prevents a misplaced or reused verifier from hiding an empirical-evidence gap.
 
 The corresponding next action is `plan_only` manual provenance review. If reconstruction shows that no empirical-scope support exists, empirical validation may then be planned separately. The critic does not authorize or execute that validation.
-
-The policy also rechecks the verifier artifact SHA-256 when reading its scope. If those bytes drift after graph verification, the critic fails closed rather than interpreting mutable verifier content.
 
 ## Program evidence gaps remain workstream-scoped
 
@@ -106,7 +118,7 @@ The critic may propose bounded next work such as:
 - plan-only empirical provenance/validation review;
 - manual interpretation of completed test artifacts.
 
-An information-gain priority is qualitative only. It is **not** a calibrated probability or expected-value estimate.
+An information-gain priority is qualitative only. It is **not** a calibrated probability or expected-value estimate. Likewise, an `execution_mode` describes the class of a proposed next step; it does not prove that a corresponding request, registry entry, dataset, instrument, or other execution resource is currently available.
 
 Every proposed action carries `automatic_execution_authorized: false`.
 
@@ -128,7 +140,9 @@ The critic never:
 - assigns scientific confidence scores or probabilities;
 - infers independence from artifact multiplicity;
 - infers empirical support scope from source-node type;
+- accepts empirical verifier scope without matching transition lineage;
 - attributes workstream evidence requirements to targets without an explicit mapping;
+- treats an action proposal as execution authorization or proof of resource availability;
 - grants positive scientific closeout;
 - executes a typed action;
 - starts network acquisition;
