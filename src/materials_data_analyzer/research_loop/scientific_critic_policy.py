@@ -18,7 +18,7 @@ from .scientific_critic import (
     _build_structural_scientific_critic_report as _build_base_report,
 )
 
-SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.7"
+SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION = "1.8"
 
 _EMPIRICAL_TARGET_SCOPES = {"empirical", "mixed"}
 _INFERENCE_SCOPES = {"structural", "computational", "empirical_derived", "empirical_direct"}
@@ -48,6 +48,9 @@ _NEGATIVE_AUTHORITY_ACTION_SUFFIXES = {
     ":reframe-falsified-scope",
     ":reassess-contradicted-scope",
     ":resolve-verified-conflict",
+}
+_NEGATIVE_AUTHORITY_ALTERNATIVE_SUFFIXES = {
+    ":scope-heterogeneity",
 }
 
 
@@ -493,8 +496,13 @@ def _validate_current_verifier_provenance(
 
 def _remove_negative_authority_claims(raw: dict[str, Any], *, target_id: str) -> None:
     findings = raw.get("critic_findings")
+    alternatives = raw.get("methodological_alternatives")
     actions = raw.get("discriminating_actions")
-    if not isinstance(findings, list) or not isinstance(actions, list):
+    if (
+        not isinstance(findings, list)
+        or not isinstance(alternatives, list)
+        or not isinstance(actions, list)
+    ):
         raise ScientificCriticError("critic target proposal collections are malformed")
 
     findings[:] = [
@@ -503,6 +511,17 @@ def _remove_negative_authority_claims(raw: dict[str, Any], *, target_id: str) ->
         if not (
             isinstance(item, Mapping)
             and item.get("code") in _NEGATIVE_AUTHORITY_FINDING_CODES
+        )
+    ]
+    alternatives[:] = [
+        item
+        for item in alternatives
+        if not (
+            isinstance(item, Mapping)
+            and any(
+                str(item.get("alternative_id", "")).endswith(suffix)
+                for suffix in _NEGATIVE_AUTHORITY_ALTERNATIVE_SUFFIXES
+            )
         )
     ]
     actions[:] = [
@@ -527,10 +546,10 @@ def _remove_negative_authority_claims(raw: dict[str, Any], *, target_id: str) ->
                 "transition-v1 provenance contract."
             ),
             "rationale": (
-                "A contradiction or falsification must not drive critic stop/reframe authority when a verifier "
-                "could be reused across same-source/target/relation edges and exact edge identity is not "
-                "checksum-authenticated. The evaluator assessment is preserved unchanged; only critic authority "
-                "is withheld pending stronger provenance."
+                "A contradiction or falsification must not drive critic stop/reframe authority or derived "
+                "conflict interpretation when a verifier could be reused across same-source/target/relation "
+                "edges and exact edge identity is not checksum-authenticated. The evaluator assessment is "
+                "preserved unchanged; only critic authority is withheld pending stronger provenance."
             ),
             "edge_ids": [],
             "node_ids": [],
@@ -543,7 +562,7 @@ def _remove_negative_authority_claims(raw: dict[str, Any], *, target_id: str) ->
             "action_class": "manual_review",
             "description": (
                 "Verify the negative directional relation against a checksum-authenticated exact inference-edge "
-                "contract before using it to stop, narrow, or reframe the scientific target."
+                "contract before using it to stop, narrow, reframe, or interpret a verified conflict."
             ),
             "rationale": (
                 "Current transition-v1 provenance cannot prove which exact inference edge the verifier authorized."
