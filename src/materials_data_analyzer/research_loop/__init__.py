@@ -2,10 +2,11 @@
 
 The package deliberately contains no unconstrained code generation or automatic
 scientific truth promotion. It provides immutable state, strict action registries,
-typed deterministic execution, domain planning gates, and a mission-level control
-plane that can generate bounded goals from verified evidence gaps. Domain-specific
-scientific reasoning proposals remain schema-validated, evidence-bound planning
-inputs until a separate authorized action executes them.
+typed deterministic execution, domain planning gates, a mission-level control plane,
+and a provenance-aware epistemic graph that keeps support, contradiction, and
+falsification explicit. Domain-specific scientific reasoning proposals remain
+schema-validated, evidence-bound planning inputs until a separate authorized action
+executes them.
 """
 
 from .action_authorization import (
@@ -27,6 +28,13 @@ from .authorized_execution import (
     EXECUTION_SCHEMA_VERSION,
     AuthorizedExecutionError,
     execute_authorized_action,
+)
+from .epistemic_graph import (
+    GRAPH_POLICY_VERSION,
+    GRAPH_SCHEMA_VERSION,
+    EpistemicGraphError,
+    evaluate_epistemic_graph,
+    validate_epistemic_graph,
 )
 from .kernel import (
     LEDGER_FILENAME,
@@ -111,6 +119,8 @@ __all__ = [
     "CYCLE_SCHEMA_VERSION",
     "EXECUTION_POLICY_VERSION",
     "EXECUTION_SCHEMA_VERSION",
+    "GRAPH_POLICY_VERSION",
+    "GRAPH_SCHEMA_VERSION",
     "LEDGER_FILENAME",
     "MISSION_SCHEMA_VERSION",
     "PLANNING_ADAPTER_VERSION",
@@ -125,6 +135,7 @@ __all__ = [
     "TRANSITION_SCHEMA_VERSION",
     "ActionAuthorizationError",
     "AuthorizedExecutionError",
+    "EpistemicGraphError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
@@ -152,6 +163,7 @@ __all__ = [
     "build_target_reference_sensitivity",
     "describe_action",
     "determine_research_transition",
+    "evaluate_epistemic_graph",
     "execute_authorized_action",
     "execute_nasa_audit_action",
     "execute_nasa_protocol_stratification_action",
@@ -164,6 +176,7 @@ __all__ = [
     "prepare_reopen_evidence_review",
     "run_research_cycle",
     "validate_action_registry",
+    "validate_epistemic_graph",
     "validate_reasoning_proposal",
     "validate_reasoning_proposal_file",
     "validate_research_mission",
