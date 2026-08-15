@@ -23,14 +23,13 @@ from .evidence_origin_binding import (
     EvidenceOriginBindingError,
     authenticate_evidence_origin_binding,
 )
-from .input_evidence_origin_pack import (
-    INPUT_EVIDENCE_ORIGIN_PACK_POLICY_VERSION,
-    INPUT_EVIDENCE_ORIGIN_PACK_SCHEMA_VERSION,
-)
 from .kernel import ResearchLoopError
 
 INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_SCHEMA_VERSION = "1.0"
 INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_POLICY_VERSION = "1.0"
+_EXPECTED_PACK_SCHEMA_VERSION = "1.0"
+_EXPECTED_PACK_POLICY_VERSION = "1.0"
+_EXPECTED_PUBLICATION_PLATFORMS = ("windows", "linux")
 _MANIFEST_NAME = "input_evidence_origin_pack_manifest.json"
 _REQUEST_PATH = "request.json"
 _MANIFEST_KEYS = {
@@ -346,10 +345,21 @@ def authenticate_input_evidence_origin_pack(pack_root: str | Path) -> dict[str, 
         expected=set(_MANIFEST_KEYS),
         field="pack manifest",
     )
-    if manifest["schema_version"] != INPUT_EVIDENCE_ORIGIN_PACK_SCHEMA_VERSION:
+    if manifest["schema_version"] != _EXPECTED_PACK_SCHEMA_VERSION:
         raise InputEvidenceOriginPackConsumerError("unsupported pack schema_version")
-    if manifest["pack_policy_version"] != INPUT_EVIDENCE_ORIGIN_PACK_POLICY_VERSION:
+    if manifest["pack_policy_version"] != _EXPECTED_PACK_POLICY_VERSION:
         raise InputEvidenceOriginPackConsumerError("unsupported pack policy version")
+    publication_platform = manifest["publication_platform"]
+    if publication_platform not in _EXPECTED_PUBLICATION_PLATFORMS:
+        raise InputEvidenceOriginPackConsumerError(
+            "pack publication_platform is outside the supported producer contract"
+        )
+    if manifest["supported_publication_platforms"] != list(
+        _EXPECTED_PUBLICATION_PLATFORMS
+    ):
+        raise InputEvidenceOriginPackConsumerError(
+            "pack supported_publication_platforms diverge from the expected producer contract"
+        )
     if manifest["request_source_path_authoritative"] is not False:
         raise InputEvidenceOriginPackConsumerError(
             "pack must keep request source paths non-authoritative"
@@ -426,6 +436,23 @@ def authenticate_input_evidence_origin_pack(pack_root: str | Path) -> dict[str, 
             field=f"pack manifest items[{index}].origin_verification_decision_artifact",
             expected_role="origin_verification_decision",
         )
+        expected_root = f"items/{index:04d}"
+        expected_paths = {
+            "evidence": f"{expected_root}/evidence.bin",
+            "origin_declaration": f"{expected_root}/origin_declaration.json",
+            "origin_verification_decision": (
+                f"{expected_root}/origin_verification_decision.json"
+            ),
+        }
+        actual_paths = {
+            "evidence": evidence_binding["path"],
+            "origin_declaration": declaration_binding["path"],
+            "origin_verification_decision": verification_binding["path"],
+        }
+        if actual_paths != expected_paths:
+            raise InputEvidenceOriginPackConsumerError(
+                "pack item snapshot paths do not match the deterministic producer shape"
+            )
         for artifact in (
             evidence_binding,
             declaration_binding,
@@ -498,8 +525,8 @@ def authenticate_input_evidence_origin_pack(pack_root: str | Path) -> dict[str, 
     return {
         "schema_version": INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_SCHEMA_VERSION,
         "consumer_policy_version": INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_POLICY_VERSION,
-        "pack_schema_version": INPUT_EVIDENCE_ORIGIN_PACK_SCHEMA_VERSION,
-        "pack_policy_version": INPUT_EVIDENCE_ORIGIN_PACK_POLICY_VERSION,
+        "pack_schema_version": _EXPECTED_PACK_SCHEMA_VERSION,
+        "pack_policy_version": _EXPECTED_PACK_POLICY_VERSION,
         "pack_manifest_sha256": manifest_sha,
         "request_sha256": request_binding["sha256"],
         "items": results,
@@ -515,6 +542,8 @@ def authenticate_input_evidence_origin_pack(pack_root: str | Path) -> dict[str, 
         "scientific_status_changed": False,
         "execution_authorized": False,
         "positive_closeout_granted": False,
+        "pack_immutability_after_return_authenticated": False,
+        "hostile_concurrent_writer_resistance_authenticated": False,
     }
 
 
