@@ -231,7 +231,10 @@ def test_rejects_one_path_reused_for_multiple_origin_roles(tmp_path: Path) -> No
     declaration["sha256"] = evidence["sha256"]
     declaration["size_bytes"] = evidence["size_bytes"]
     _write_manifest(pack, manifest)
-    with pytest.raises(InputEvidenceOriginPackConsumerError, match="reuses one snapshot path"):
+    with pytest.raises(
+        InputEvidenceOriginPackConsumerError,
+        match="(reuses one snapshot path|deterministic producer shape)",
+    ):
         authenticate_input_evidence_origin_pack(pack)
 
 
@@ -259,3 +262,41 @@ def test_rejects_nonportable_pack_paths(tmp_path: Path, bad_path: str) -> None:
     _write_manifest(pack, manifest)
     with pytest.raises(InputEvidenceOriginPackConsumerError):
         authenticate_input_evidence_origin_pack(pack)
+
+
+def test_consumer_does_not_import_pack_publisher_module_for_schema_authority() -> None:
+    source = Path(
+        "src/materials_data_analyzer/research_loop/input_evidence_origin_pack_consumer.py"
+    ).read_text(encoding="utf-8")
+    assert "from .input_evidence_origin_pack import" not in source
+    assert '_EXPECTED_PACK_SCHEMA_VERSION = "1.0"' in source
+    assert '_EXPECTED_PACK_POLICY_VERSION = "1.0"' in source
+
+
+def test_rejects_self_consistent_alternate_snapshot_path_shape(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    old_path = pack / "items/0000/evidence.bin"
+    new_path = pack / "items/0000/renamed-evidence.bin"
+    old_path.rename(new_path)
+    manifest = _manifest(pack)
+    manifest["items"][0]["evidence_artifact"]["path"] = (
+        "items/0000/renamed-evidence.bin"
+    )
+    _write_manifest(pack, manifest)
+    with pytest.raises(InputEvidenceOriginPackConsumerError, match="deterministic producer shape"):
+        authenticate_input_evidence_origin_pack(pack)
+
+
+def test_rejects_publication_platform_contract_drift(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    manifest = _manifest(pack)
+    manifest["publication_platform"] = "darwin"
+    _write_manifest(pack, manifest)
+    with pytest.raises(InputEvidenceOriginPackConsumerError, match="publication_platform"):
+        authenticate_input_evidence_origin_pack(pack)
+
+
+def test_reports_post_return_mutability_boundary(tmp_path: Path) -> None:
+    report = authenticate_input_evidence_origin_pack(_pack(tmp_path))
+    assert report["pack_immutability_after_return_authenticated"] is False
+    assert report["hostile_concurrent_writer_resistance_authenticated"] is False
