@@ -169,11 +169,14 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
     assert binding["base_graph_sha256"] == base_sha
     assert binding["proposal_sha256"] == proposal_sha
     assert binding["verification_decision_sha256"] == verification_sha
-    assert result["autonomy_boundary"]["exact_inference_edge_identity_authenticated"] is True
-    assert result["autonomy_boundary"]["source_file_toctou_changes_transition_bytes"] is False
-    assert result["autonomy_boundary"]["provenance_snapshots_self_contained"] is True
-    assert result["autonomy_boundary"]["execution_authorized_by_authentication"] is False
-    assert result["autonomy_boundary"]["positive_closeout_granted_by_authentication"] is False
+    boundary = result["autonomy_boundary"]
+    assert boundary["exact_inference_edge_identity_authenticated"] is True
+    assert boundary["source_file_toctou_changes_transition_bytes"] is False
+    assert boundary["provenance_snapshots_self_contained"] is True
+    assert boundary["temporary_transition_staging_used"] is False
+    assert boundary["verifier_identity_or_credential_authenticated"] is False
+    assert boundary["execution_authorized_by_authentication"] is False
+    assert boundary["positive_closeout_granted_by_authentication"] is False
 
     base_snapshot = output / "provenance" / "base_graph.json"
     proposal_snapshot = output / "provenance" / "proposal.json"
@@ -193,8 +196,10 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
     lineage = graph["metadata"]["authenticated_transition_lineage"][-1]
     assert lineage["base_graph_artifact"]["path"] == str(base_snapshot.resolve())
     assert lineage["base_graph_artifact"]["source_path"] == str(base_file.resolve())
+    assert lineage["base_graph_artifact"]["source_path_authoritative"] is False
     assert lineage["proposal_artifact"]["path"] == str(proposal_snapshot.resolve())
     assert lineage["proposal_artifact"]["source_path"] == str(proposal_file.resolve())
+    assert lineage["proposal_artifact"]["source_path_authoritative"] is False
     assert lineage["proposal_artifact"]["sha256"] == proposal_sha
     assert lineage["verification_decision_artifact"]["path"] == str(
         verification_snapshot.resolve()
@@ -202,9 +207,8 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
     assert lineage["verification_decision_artifact"]["source_path"] == str(
         verification_file.resolve()
     )
+    assert lineage["verification_decision_artifact"]["source_path_authoritative"] is False
     assert lineage["authenticated_inference_binding"] == binding
-    assert "mda-auth-transition-" not in json.dumps(result)
-    assert "mda-auth-transition-" not in json.dumps(graph)
 
 
 def test_v10_verifier_cannot_enter_authenticated_transition_path(tmp_path: Path) -> None:
@@ -262,7 +266,7 @@ def test_same_triple_wrong_edge_id_fails_before_output(tmp_path: Path) -> None:
     assert not (tmp_path / "out").exists()
 
 
-def test_source_mutation_during_staging_does_not_change_authenticated_bytes(
+def test_source_mutation_after_validation_does_not_change_authenticated_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base_file, proposal_file, verification_file, base_sha, proposal_sha, verification_sha = (
@@ -271,15 +275,16 @@ def test_source_mutation_during_staging_does_not_change_authenticated_bytes(
     initial_base = base_file.read_bytes()
     initial_proposal = proposal_file.read_bytes()
     initial_verification = verification_file.read_bytes()
-    real_apply = module.apply_epistemic_transition_files
+    real_validate = module.validate_transition_proposal
 
-    def mutating_stage_apply(**kwargs: object) -> dict[str, object]:
+    def mutating_validate(*args: object, **kwargs: object) -> dict[str, object]:
+        validated = real_validate(*args, **kwargs)
         base_file.write_text('{"tampered":"base"}\n', encoding="utf-8")
         proposal_file.write_text('{"tampered":"proposal"}\n', encoding="utf-8")
         verification_file.write_text('{"tampered":"verification"}\n', encoding="utf-8")
-        return real_apply(**kwargs)
+        return validated
 
-    monkeypatch.setattr(module, "apply_epistemic_transition_files", mutating_stage_apply)
+    monkeypatch.setattr(module, "validate_transition_proposal", mutating_validate)
     output = tmp_path / "out"
     result = apply_authenticated_epistemic_transition_files(
         base_graph_path=base_file,
@@ -301,7 +306,7 @@ def test_source_mutation_during_staging_does_not_change_authenticated_bytes(
     assert result["verification_decision_binding"]["sha256"] == verification_sha
 
 
-def test_verifier_checksum_is_bound_to_final_snapshot_not_staging_artifact(
+def test_verifier_checksum_is_bound_to_final_snapshot_not_source_file(
     tmp_path: Path,
 ) -> None:
     base_file, proposal_file, verification_file, _, _, verification_sha = _fixture_files(
