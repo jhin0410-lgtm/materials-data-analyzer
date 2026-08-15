@@ -1,0 +1,435 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+SOURCE = Path("src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py")
+TESTS = Path("tests/test_authenticated_epistemic_transition_final_review_regressions.py")
+
+
+def replace_once(text: str, old: str, new: str, *, label: str) -> str:
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{label} patch anchor count={count}")
+    return text.replace(old, new, 1)
+
+
+def main() -> None:
+    text = SOURCE.read_text(encoding="utf-8")
+
+    text = replace_once(
+        text,
+        '''            bindings = node.get("artifact_bindings")
+            if not isinstance(bindings, list):
+                continue
+            for artifact_index, binding in enumerate(bindings):
+                if not isinstance(binding, Mapping):
+                    continue
+                _lineage_sha256(
+                    binding,
+                    "sha256",
+                )
+                _lineage_identity(binding, "role")
+''',
+        '''            bindings = node.get("artifact_bindings")
+            if not isinstance(bindings, list):
+                continue
+            roles: set[str] = set()
+            for artifact_index, binding in enumerate(bindings):
+                if not isinstance(binding, Mapping):
+                    continue
+                _lineage_sha256(
+                    binding,
+                    "sha256",
+                )
+                role = _lineage_identity(binding, "role")
+                if role in roles:
+                    raise AuthenticatedEpistemicTransitionError(
+                        f"base.nodes[{node_index}].artifact_bindings contains duplicate normalized role: {role}"
+                    )
+                roles.add(role)
+''',
+        label="duplicate-role",
+    )
+
+    marker = "\ndef _assert_authenticated_lineage_chain(\n"
+    if text.count(marker) != 1:
+        raise SystemExit(f"metadata helper insertion anchor count={text.count(marker)}")
+    helper = r'''
+
+def _lineage_artifact_metadata_identity(
+    value: object, *, field: str
+) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise AuthenticatedEpistemicTransitionError(f"{field} must be an object")
+    result: dict[str, Any] = {"sha256": _lineage_sha256(value, "sha256")}
+    if "role" in value:
+        result["role"] = _lineage_identity(value, "role")
+    authoritative = value.get("source_path_authoritative")
+    if authoritative is not None:
+        if authoritative is not False:
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field}.source_path_authoritative must remain false"
+            )
+        result["source_path_authoritative"] = False
+    size_bytes = value.get("size_bytes")
+    if size_bytes is not None:
+        if not isinstance(size_bytes, int) or isinstance(size_bytes, bool) or size_bytes < 0:
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field}.size_bytes must be a non-negative integer"
+            )
+        result["size_bytes"] = size_bytes
+    return result
+
+
+def _authenticated_lineage_metadata_identity(
+    value: object, *, field: str
+) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise AuthenticatedEpistemicTransitionError(f"{field} must be an object")
+    if set(value) != _AUTHENTICATED_TRANSITION_LINEAGE_KEYS:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} must use the exact authenticated lineage key set"
+        )
+    if value.get("schema_version") != AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field}.schema_version must be {AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION}"
+        )
+    binding = value.get("authenticated_inference_binding")
+    if not isinstance(binding, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field}.authenticated_inference_binding must be an object"
+        )
+    snapshots = value.get("result_artifact_snapshots")
+    if not isinstance(snapshots, list):
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field}.result_artifact_snapshots must be a list"
+        )
+    return {
+        "schema_version": value["schema_version"],
+        "transition_id": _lineage_identity(value, "transition_id"),
+        "base_graph_artifact": _lineage_artifact_metadata_identity(
+            value.get("base_graph_artifact"), field=f"{field}.base_graph_artifact"
+        ),
+        "proposal_artifact": _lineage_artifact_metadata_identity(
+            value.get("proposal_artifact"), field=f"{field}.proposal_artifact"
+        ),
+        "verification_decision_artifact": _lineage_artifact_metadata_identity(
+            value.get("verification_decision_artifact"),
+            field=f"{field}.verification_decision_artifact",
+        ),
+        "result_artifact_snapshots": [
+            _lineage_artifact_metadata_identity(
+                item, field=f"{field}.result_artifact_snapshots[{index}]"
+            )
+            for index, item in enumerate(snapshots)
+        ],
+        "authenticated_inference_binding": dict(binding),
+        "scientific_authority_applied": value.get("scientific_authority_applied"),
+    }
+
+
+def _assert_transition_metadata_append_only(
+    *,
+    base_graph: Mapping[str, Any],
+    successor_graph: Mapping[str, Any],
+    authenticated_record: Mapping[str, Any],
+    proposal: Mapping[str, Any],
+    base_graph_sha256: str,
+    field: str,
+) -> None:
+    raw_base_metadata = base_graph.get("metadata")
+    raw_successor_metadata = successor_graph.get("metadata")
+    base_metadata: Mapping[str, Any]
+    successor_metadata: Mapping[str, Any]
+    if raw_base_metadata is None:
+        base_metadata = {}
+    elif isinstance(raw_base_metadata, Mapping):
+        base_metadata = raw_base_metadata
+    else:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field}.base metadata must be an object"
+        )
+    if not isinstance(raw_successor_metadata, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field}.successor metadata must be an object"
+        )
+    successor_metadata = raw_successor_metadata
+
+    lineage_keys = {"transition_lineage", "authenticated_transition_lineage"}
+    base_other = {
+        key: copy.deepcopy(value)
+        for key, value in base_metadata.items()
+        if key not in lineage_keys
+    }
+    successor_other = {
+        key: copy.deepcopy(value)
+        for key, value in successor_metadata.items()
+        if key not in lineage_keys
+    }
+    if successor_other != base_other:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} successor rewrites graph-level metadata outside transition lineage"
+        )
+
+    base_legacy = _lineage_records(base_metadata, field="transition_lineage")
+    successor_legacy = _lineage_records(successor_metadata, field="transition_lineage")
+    if len(successor_legacy) != len(base_legacy) + 1 or successor_legacy[:-1] != base_legacy:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} successor must preserve legacy transition lineage and append exactly one record"
+        )
+    proposal_artifact = authenticated_record.get("proposal_artifact")
+    verifier_artifact = authenticated_record.get("verification_decision_artifact")
+    result_node = proposal.get("result_node")
+    if not isinstance(proposal_artifact, Mapping) or not isinstance(verifier_artifact, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} authenticated record lacks proposal/verifier artifacts"
+        )
+    if not isinstance(result_node, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} proposal result_node must be an object"
+        )
+    expected_legacy = {
+        "transition_id": _lineage_identity(authenticated_record, "transition_id"),
+        "parent_graph_id": _lineage_identity(base_graph, "graph_id"),
+        "parent_graph_sha256": _lineage_sha256(
+            {"sha256": base_graph_sha256}, "sha256"
+        ),
+        "proposal_sha256": _lineage_sha256(proposal_artifact, "sha256"),
+        "verification_decision_sha256": _lineage_sha256(
+            verifier_artifact, "sha256"
+        ),
+        "result_node_id": _lineage_identity(result_node, "node_id"),
+    }
+    if dict(successor_legacy[-1]) != expected_legacy:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} successor legacy lineage append does not match the authenticated transition"
+        )
+
+    base_authenticated = _lineage_records(
+        base_metadata, field="authenticated_transition_lineage"
+    )
+    successor_authenticated = _lineage_records(
+        successor_metadata, field="authenticated_transition_lineage"
+    )
+    if len(successor_authenticated) != len(base_authenticated) + 1:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} successor must append exactly one authenticated lineage record"
+        )
+    for index, base_record in enumerate(base_authenticated):
+        if _authenticated_lineage_metadata_identity(
+            base_record, field=f"{field}.base_authenticated[{index}]"
+        ) != _authenticated_lineage_metadata_identity(
+            successor_authenticated[index],
+            field=f"{field}.successor_authenticated[{index}]",
+        ):
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field} successor rewrites inherited authenticated lineage metadata"
+            )
+    if _authenticated_lineage_metadata_identity(
+        successor_authenticated[-1], field=f"{field}.successor_authenticated[-1]"
+    ) != _authenticated_lineage_metadata_identity(
+        authenticated_record, field=f"{field}.authenticated_record"
+    ):
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} successor authenticated lineage append does not match the transition"
+        )
+'''
+    text = text.replace(marker, helper + marker, 1)
+
+    text = replace_once(
+        text,
+        '''        if successor_node_ids != expected_node_ids or successor_edge_ids != expected_edge_ids:
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field} successor graph contains structure outside the authenticated transition"
+            )
+''',
+        '''        if successor_node_ids != expected_node_ids or successor_edge_ids != expected_edge_ids:
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field} successor graph contains structure outside the authenticated transition"
+            )
+        _assert_transition_metadata_append_only(
+            base_graph=base_graph,
+            successor_graph=successor,
+            authenticated_record=record,
+            proposal=proposal,
+            base_graph_sha256=entry["base_sha256"],
+            field=f"{field}.chain_metadata",
+        )
+''',
+        label="metadata-integration",
+    )
+
+    text = replace_once(
+        text,
+        '''        if node.get("node_type") == "evidence":
+            raise AuthenticatedEpistemicTransitionError(
+''',
+        '''        if _lineage_identity(node, "node_type") == "evidence":
+            raise AuthenticatedEpistemicTransitionError(
+''',
+        label="evidence-normalization",
+    )
+
+    text = replace_once(
+        text,
+        '''def _inherited_domain_verified_relation_count(base_graph: Mapping[str, Any]) -> int:
+    edges = base_graph.get("edges")
+    if not isinstance(edges, list):
+        return 0
+    return sum(
+        1
+        for edge in edges
+        if isinstance(edge, Mapping)
+        and edge.get("active") is True
+        and edge.get("assessment_level") == "domain_verified"
+        and edge.get("relation") in {"supports", "contradicts", "falsifies"}
+    )
+''',
+        '''def _inherited_domain_verified_relation_count(base_graph: Mapping[str, Any]) -> int:
+    edges = base_graph.get("edges")
+    if not isinstance(edges, list):
+        return 0
+    count = 0
+    for edge in edges:
+        if not isinstance(edge, Mapping) or edge.get("active") is not True:
+            continue
+        assessment_level = edge.get("assessment_level")
+        relation = edge.get("relation")
+        if (
+            isinstance(assessment_level, str)
+            and assessment_level.strip() == "domain_verified"
+            and isinstance(relation, str)
+            and relation.strip() in {"supports", "contradicts", "falsifies"}
+        ):
+            count += 1
+    return count
+''',
+        label="authority-count",
+    )
+
+    text = replace_once(
+        text,
+        "    inherited_domain_verified_count = _inherited_domain_verified_relation_count(base_raw)\n",
+        "    inherited_domain_verified_count = _inherited_domain_verified_relation_count(base_validated)\n",
+        label="validated-authority-count",
+    )
+
+    SOURCE.write_text(text, encoding="utf-8")
+
+    TESTS.write_text(
+        '''from __future__ import annotations
+
+import hashlib
+import json
+
+import pytest
+
+from materials_data_analyzer.research_loop import authenticated_epistemic_transition as module
+from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
+    AuthenticatedEpistemicTransitionError,
+)
+
+
+def test_current_base_duplicate_normalized_artifact_roles_fail_closed() -> None:
+    base = {
+        "nodes": [
+            {
+                "node_id": "result-1",
+                "artifact_bindings": [
+                    {"role": " primary_result ", "sha256": "a" * 64},
+                    {"role": "primary_result", "sha256": "b" * 64},
+                ],
+            }
+        ],
+        "edges": [],
+    }
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="duplicate normalized role: primary_result",
+    ):
+        module._assert_current_base_artifact_hashes_canonical(base)
+
+
+def test_padded_inherited_evidence_node_type_still_fails_closed(tmp_path) -> None:
+    base = {
+        "schema_version": "1.0",
+        "graph_id": "graph-1",
+        "research_scope": "evidence provenance boundary",
+        "nodes": [
+            {
+                "node_id": "evidence-1",
+                "node_type": " evidence ",
+                "statement": "Hash-only evidence remains unresolved.",
+            }
+        ],
+        "edges": [],
+    }
+    raw = (json.dumps(base, sort_keys=True) + "\\n").encode("utf-8")
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="does not yet accept inherited evidence nodes",
+    ):
+        module._remap_base_graph_artifacts(
+            base,
+            enclosing_graph_bytes=raw,
+            enclosing_graph_sha256=hashlib.sha256(raw).hexdigest(),
+            program_state={"workstreams": []},
+            artifact_root=tmp_path,
+            payloads={},
+        )
+
+
+def test_domain_verified_authority_count_normalizes_accepted_enum_text() -> None:
+    base = {
+        "edges": [
+            {
+                "active": True,
+                "assessment_level": " domain_verified ",
+                "relation": " supports ",
+            },
+            {
+                "active": True,
+                "assessment_level": "diagnostic",
+                "relation": "contradicts",
+            },
+        ]
+    }
+    assert module._inherited_domain_verified_relation_count(base) == 1
+
+
+def test_authenticated_hop_rejects_graph_level_metadata_rewrite() -> None:
+    base = {
+        "graph_id": "graph-v1",
+        "metadata": {
+            "audit_context": {"owner": "original", "sequence": 1},
+            "transition_lineage": [],
+            "authenticated_transition_lineage": [],
+        },
+    }
+    successor = {
+        "graph_id": "graph-v2",
+        "metadata": {
+            "audit_context": {"owner": "grafted", "sequence": 1},
+            "transition_lineage": [],
+            "authenticated_transition_lineage": [],
+        },
+    }
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="rewrites graph-level metadata outside transition lineage",
+    ):
+        module._assert_transition_metadata_append_only(
+            base_graph=base,
+            successor_graph=successor,
+            authenticated_record={},
+            proposal={},
+            base_graph_sha256="a" * 64,
+            field="regression",
+        )
+''',
+        encoding="utf-8",
+    )
+
+
+if __name__ == "__main__":
+    main()
