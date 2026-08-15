@@ -20,13 +20,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - name: Apply consumer-boundary hardening
+      - name: Apply advisory precision hardening
         run: |
-          if grep -q '^def _validate_consumer_authority_boundary' src/materials_data_analyzer/research_loop/scientific_critic_authenticated_policy.py; then
-            echo 'Boundary hardening already applied.'
-          else
-            python scripts/tmp_pr129_consumer_boundary.py
-          fi
+          python scripts/tmp_pr129_advisory_precision.py
           git diff --check
       - name: Install dependencies
         run: |
@@ -55,10 +51,7 @@ jobs:
           git add \
             src/materials_data_analyzer/research_loop/scientific_critic_authenticated_policy.py \
             tests/test_scientific_critic_authenticated_policy.py
-          if git diff --cached --quiet; then
-            exit 0
-          fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -m 'Harden authenticated Scientific Critic advisory boundary'
+          git commit -m 'Tighten authenticated Scientific Critic advisory boundary'
           git push origin HEAD:agent/scientific-critic-authenticated-adapter-20260815
