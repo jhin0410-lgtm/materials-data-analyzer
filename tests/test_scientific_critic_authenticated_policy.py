@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from materials_data_analyzer.research_loop import scientific_critic_authenticated_policy as module
+from materials_data_analyzer.research_loop import (
+    scientific_critic_authenticated_policy as module,
+)
 
 
 def _consumer(*, relation: str = "contradicts", scope: str = "structural") -> dict[str, object]:

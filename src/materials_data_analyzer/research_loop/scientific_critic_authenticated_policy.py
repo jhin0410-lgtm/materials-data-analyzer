@@ -8,8 +8,9 @@ or the evaluator assessment embedded in the base critic report.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from .authenticated_transition_consumer import authenticate_transition_bundle
 from .scientific_critic import ScientificCriticError
