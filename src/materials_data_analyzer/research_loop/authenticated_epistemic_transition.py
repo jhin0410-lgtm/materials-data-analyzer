@@ -30,7 +30,7 @@ from .epistemic_transition import (
     validate_verification_decision,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "1.2"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "1.3"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 
 
@@ -88,6 +88,53 @@ def _snapshot_binding(
         "source_path_authoritative": False,
         "sha256": sha256,
     }
+
+
+def _lineage_records(
+    metadata: Mapping[str, Any], *, field: str
+) -> list[Mapping[str, Any]]:
+    raw = metadata.get(field, [])
+    if not isinstance(raw, list):
+        raise AuthenticatedEpistemicTransitionError(
+            f"base graph metadata.{field} must be a list"
+        )
+    result: list[Mapping[str, Any]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(raw):
+        if not isinstance(item, Mapping):
+            raise AuthenticatedEpistemicTransitionError(
+                f"base graph metadata.{field}[{index}] must be an object"
+            )
+        transition_id = item.get("transition_id")
+        if not isinstance(transition_id, str) or not transition_id.strip():
+            raise AuthenticatedEpistemicTransitionError(
+                f"base graph metadata.{field}[{index}].transition_id must be non-empty text"
+            )
+        if transition_id in seen:
+            raise AuthenticatedEpistemicTransitionError(
+                f"base graph metadata.{field} contains duplicate transition_id: {transition_id}"
+            )
+        seen.add(transition_id)
+        result.append(item)
+    return result
+
+
+def _reject_transition_id_reuse(
+    metadata: Mapping[str, Any], *, transition_id: str
+) -> tuple[list[Mapping[str, Any]], list[Mapping[str, Any]]]:
+    legacy = _lineage_records(metadata, field="transition_lineage")
+    authenticated = _lineage_records(
+        metadata, field="authenticated_transition_lineage"
+    )
+    if any(item.get("transition_id") == transition_id for item in legacy):
+        raise AuthenticatedEpistemicTransitionError(
+            f"transition_id already exists in base transition_lineage: {transition_id}"
+        )
+    if any(item.get("transition_id") == transition_id for item in authenticated):
+        raise AuthenticatedEpistemicTransitionError(
+            f"transition_id already exists in base authenticated_transition_lineage: {transition_id}"
+        )
+    return legacy, authenticated
 
 
 def _proposal_result_and_edges(
@@ -236,6 +283,12 @@ def apply_authenticated_epistemic_transition_files(
             "authenticated verifier scope diverged from transition scope validation"
         )
 
+    metadata = dict(base_raw.get("metadata", {}))
+    transition_id = str(proposal["transition_id"])
+    legacy_lineage, authenticated_lineage = _reject_transition_id_reuse(
+        metadata, transition_id=transition_id
+    )
+
     provenance_dir = output / "provenance"
     base_snapshot = provenance_dir / "base_graph.json"
     proposal_snapshot = provenance_dir / "proposal.json"
@@ -263,16 +316,10 @@ def apply_authenticated_epistemic_transition_files(
             "constructed inference edge does not match authenticated inference edge ID"
         )
 
-    metadata = dict(base_raw.get("metadata", {}))
-    legacy_lineage = metadata.get("transition_lineage", [])
-    if not isinstance(legacy_lineage, list):
-        raise AuthenticatedEpistemicTransitionError(
-            "base graph metadata.transition_lineage must be a list"
-        )
     metadata["transition_lineage"] = [
         *legacy_lineage,
         {
-            "transition_id": proposal["transition_id"],
+            "transition_id": transition_id,
             "parent_graph_id": base_validated["graph_id"],
             "parent_graph_sha256": base_sha,
             "proposal_sha256": proposal_sha,
@@ -280,16 +327,11 @@ def apply_authenticated_epistemic_transition_files(
             "result_node_id": result_node["node_id"],
         },
     ]
-    authenticated_lineage = metadata.get("authenticated_transition_lineage", [])
-    if not isinstance(authenticated_lineage, list):
-        raise AuthenticatedEpistemicTransitionError(
-            "base graph metadata.authenticated_transition_lineage must be a list"
-        )
     metadata["authenticated_transition_lineage"] = [
         *authenticated_lineage,
         {
             "schema_version": AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION,
-            "transition_id": proposal["transition_id"],
+            "transition_id": transition_id,
             "base_graph_artifact": base_binding,
             "proposal_artifact": proposal_binding,
             "verification_decision_artifact": verification_binding,
@@ -334,7 +376,7 @@ def apply_authenticated_epistemic_transition_files(
             "schema_version": TRANSITION_SCHEMA_VERSION,
             "transition_policy_version": TRANSITION_POLICY_VERSION,
             "authenticated_transition_policy_version": AUTHENTICATED_TRANSITION_POLICY_VERSION,
-            "transition_id": proposal["transition_id"],
+            "transition_id": transition_id,
             "base_graph_binding": base_binding,
             "proposal_binding": proposal_binding,
             "verification_decision_binding": verification_binding,
@@ -365,6 +407,8 @@ def apply_authenticated_epistemic_transition_files(
                 "simulation_may_directly_verify_empirical_claim": False,
                 "positive_support_grants_final_truth": False,
                 "exact_inference_edge_identity_authenticated": True,
+                "transition_id_reuse_allowed": False,
+                "duplicate_transition_lineage_allowed": False,
                 "source_file_toctou_changes_transition_bytes": False,
                 "provenance_snapshots_self_contained": True,
                 "temporary_transition_staging_used": False,
