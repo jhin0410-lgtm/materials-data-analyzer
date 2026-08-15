@@ -295,9 +295,13 @@ def authenticate_acquisition_record_binding(
             field=f"manifest claim {claim['claim']!r}",
         )
         expected = claim["expected_value"]
-        if isinstance(actual, (dict, list, float)) or actual != expected:
+        if (
+            isinstance(actual, (dict, list, float))
+            or type(actual) is not type(expected)
+            or actual != expected
+        ):
             raise AcquisitionRecordBindingError(
-                f"manifest claim {claim['claim']!r} does not equal its exact declared value"
+                f"manifest claim {claim['claim']!r} does not equal its exact declared value/type"
             )
         authenticated_claims.append(dict(claim))
 
