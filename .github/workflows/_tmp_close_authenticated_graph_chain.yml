@@ -25,11 +25,13 @@ jobs:
       - name: Apply authenticated graph-chain closure
         run: |
           python scripts/_tmp_close_authenticated_graph_chain.py
+          python scripts/_tmp_fix_authenticated_graph_chain_gate.py
           python - <<'PY'
           from pathlib import Path
           for name in (
               'tests/test_authenticated_epistemic_transition.py',
               'tests/test_authenticated_epistemic_transition_merge_gate.py',
+              'tests/test_authenticated_epistemic_transition_inherited_portability.py',
           ):
               path = Path(name)
               path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
@@ -37,6 +39,7 @@ jobs:
           python -m py_compile src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
           python -m py_compile tests/test_authenticated_epistemic_transition.py
           python -m py_compile tests/test_authenticated_epistemic_transition_merge_gate.py
+          python -m py_compile tests/test_authenticated_epistemic_transition_inherited_portability.py
           git diff --check
       - name: Run focused graph-chain gate
         run: |
@@ -44,7 +47,8 @@ jobs:
           python -m ruff check --fix \
             src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
             tests/test_authenticated_epistemic_transition.py \
-            tests/test_authenticated_epistemic_transition_merge_gate.py
+            tests/test_authenticated_epistemic_transition_merge_gate.py \
+            tests/test_authenticated_epistemic_transition_inherited_portability.py
           python -m pytest -q \
             tests/test_authenticated_inference_binding.py \
             tests/test_authenticated_epistemic_transition.py \
@@ -56,7 +60,8 @@ jobs:
           python -m ruff check \
             src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
             tests/test_authenticated_epistemic_transition.py \
-            tests/test_authenticated_epistemic_transition_merge_gate.py
+            tests/test_authenticated_epistemic_transition_merge_gate.py \
+            tests/test_authenticated_epistemic_transition_inherited_portability.py
           git diff --check
       - name: Commit graph-chain closure
         run: |
@@ -66,6 +71,7 @@ jobs:
             src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
             tests/test_authenticated_epistemic_transition.py \
             tests/test_authenticated_epistemic_transition_merge_gate.py \
+            tests/test_authenticated_epistemic_transition_inherited_portability.py \
             docs/AUTHENTICATED_EPISTEMIC_TRANSITION.md
           git diff --cached --quiet && exit 1
           git commit -m 'Close authenticated graph replay chain'
