@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 env:
-  GRAPH_CHAIN_GATE_ATTEMPT: "4"
+  GRAPH_CHAIN_GATE_ATTEMPT: "5"
 
 jobs:
   patch:
