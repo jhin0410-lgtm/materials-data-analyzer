@@ -25,6 +25,11 @@ jobs:
       - name: Apply current result identity closure
         run: |
           python scripts/_tmp_require_current_result_identity.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_authenticated_epistemic_transition.py')
+          path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
+          PY
           python -m py_compile src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
           python -m py_compile tests/test_authenticated_epistemic_transition.py
           git diff --check
