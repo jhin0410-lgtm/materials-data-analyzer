@@ -2,13 +2,13 @@
 
 This is an additive hardened producer above the legacy transition-v1 path. It requires a
 v1.1 domain-verification decision that binds the exact inference edge ID and preserves
-both the proposal and verifier artifacts in graph provenance so downstream consumers can
-independently re-authenticate the same bytes.
+self-contained snapshots of the exact base/proposal/verifier bytes used by the transition.
 """
 
 from __future__ import annotations
 
 import hashlib
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping
@@ -30,7 +30,7 @@ from .epistemic_transition import (
     validate_verification_decision,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "1.0"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "1.1"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 
 
@@ -39,7 +39,7 @@ class AuthenticatedEpistemicTransitionError(EpistemicTransitionError):
 
 
 def _legacy_scope_decision(value: Mapping[str, Any]) -> dict[str, Any]:
-    """Project v1.1 identity into the legacy scope validator without changing bytes."""
+    """Project v1.1 identity into the legacy scope validator without changing source bytes."""
     legacy = dict(value)
     legacy.pop("inference_edge_id", None)
     legacy["schema_version"] = LEGACY_VERIFICATION_SCHEMA_VERSION
@@ -106,6 +106,19 @@ def _find_exact_edge(
     return normalized, match_index, match
 
 
+def _snapshot_binding(
+    *,
+    source: Path,
+    snapshot: Path,
+    sha256: str,
+) -> dict[str, str]:
+    return {
+        "path": str(snapshot),
+        "source_path": str(source),
+        "sha256": sha256,
+    }
+
+
 def apply_authenticated_epistemic_transition_files(
     *,
     base_graph_path: str | Path,
@@ -117,10 +130,9 @@ def apply_authenticated_epistemic_transition_files(
 ) -> dict[str, Any]:
     """Create a successor graph carrying re-checkable exact-edge authentication.
 
-    The legacy transition engine is used only to stage the already-validated append-only
-    result/test structure without directional verification. The final directional upgrade
-    is then applied to the exact authenticated edge and bound to the original v1.1
-    proposal/verifier artifacts. No staging path is exposed as scientific provenance.
+    Authentication and scope validation occur before ``output_dir`` is created. The exact
+    bytes read at the start are then used for both staging and final provenance snapshots,
+    preventing source-file TOCTOU from changing the transition after authentication.
     """
     base_path = Path(base_graph_path).expanduser().resolve(strict=True)
     proposal_file = Path(proposal_path).expanduser().resolve(strict=True)
@@ -136,7 +148,7 @@ def apply_authenticated_epistemic_transition_files(
             f"artifact_root must be a directory: {artifacts}"
         )
 
-    base_raw, _, base_sha = _read_json_snapshot(base_path)
+    base_raw, base_bytes, base_sha = _read_json_snapshot(base_path)
     proposal_raw, proposal_bytes, proposal_sha = _read_json_snapshot(proposal_file)
     verification_raw, verification_bytes, verification_sha = _read_json_snapshot(
         verification_file
@@ -187,10 +199,15 @@ def apply_authenticated_epistemic_transition_files(
     with tempfile.TemporaryDirectory(
         prefix="mda-auth-transition-", dir=str(output.parent)
     ) as staging_root:
-        staged_output = Path(staging_root) / "staged"
+        staging = Path(staging_root)
+        staged_base = staging / "base_graph.snapshot.json"
+        staged_proposal = staging / "proposal.snapshot.json"
+        staged_base.write_bytes(base_bytes)
+        staged_proposal.write_bytes(proposal_bytes)
+        staged_output = staging / "staged"
         staged = apply_epistemic_transition_files(
-            base_graph_path=base_path,
-            proposal_path=proposal_file,
+            base_graph_path=staged_base,
+            proposal_path=staged_proposal,
             program_state=program_state,
             artifact_root=artifacts,
             output_dir=staged_output,
@@ -218,10 +235,26 @@ def apply_authenticated_epistemic_transition_files(
                 "staged inference edge must remain proposal-level before authenticated upgrade"
             )
 
+        provenance_dir = output / "provenance"
+        base_snapshot = provenance_dir / "base_graph.json"
+        proposal_snapshot = provenance_dir / "proposal.json"
+        verification_snapshot = provenance_dir / "verification_decision.json"
+        base_binding = _snapshot_binding(
+            source=base_path, snapshot=base_snapshot, sha256=base_sha
+        )
+        proposal_binding = _snapshot_binding(
+            source=proposal_file, snapshot=proposal_snapshot, sha256=proposal_sha
+        )
+        verification_binding = _snapshot_binding(
+            source=verification_file,
+            snapshot=verification_snapshot,
+            sha256=verification_sha,
+        )
+
         inference_edge["assessment_level"] = "domain_verified"
         inference_edge["verification_artifact"] = {
             "role": "domain_verification_decision",
-            "path": str(verification_file),
+            "path": str(verification_snapshot),
             "sha256": verification_sha,
         }
         edges[edge_index] = inference_edge
@@ -235,14 +268,9 @@ def apply_authenticated_epistemic_transition_files(
         lineage_record = {
             "schema_version": AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION,
             "transition_id": proposal["transition_id"],
-            "proposal_artifact": {
-                "path": str(proposal_file),
-                "sha256": proposal_sha,
-            },
-            "verification_decision_artifact": {
-                "path": str(verification_file),
-                "sha256": verification_sha,
-            },
+            "base_graph_artifact": base_binding,
+            "proposal_artifact": proposal_binding,
+            "verification_decision_artifact": verification_binding,
             "authenticated_inference_binding": dict(authenticated_binding),
         }
         metadata["authenticated_transition_lineage"] = [
@@ -255,61 +283,73 @@ def apply_authenticated_epistemic_transition_files(
             "edges": edges,
             "metadata": metadata,
         }
-        after_eval = evaluate_epistemic_graph(
-            successor,
-            program_state=program_state,
-            artifact_root=artifacts,
-        )
-        target_id = str(proposal["target_node_id"])
-        target_after = _target_assessment(after_eval, target_id)
-        if edge_id not in _verified_directional_edge_ids(target_after):
-            raise AuthenticatedEpistemicTransitionError(
-                "authenticated inference edge did not become a usable verified relation"
+
+        output_created = False
+        try:
+            output.mkdir(parents=True, exist_ok=False)
+            output_created = True
+            provenance_dir.mkdir(parents=False, exist_ok=False)
+            base_snapshot.write_bytes(base_bytes)
+            proposal_snapshot.write_bytes(proposal_bytes)
+            verification_snapshot.write_bytes(verification_bytes)
+
+            after_eval = evaluate_epistemic_graph(
+                successor,
+                program_state=program_state,
+                artifact_root=artifacts,
             )
+            target_id = str(proposal["target_node_id"])
+            target_after = _target_assessment(after_eval, target_id)
+            if edge_id not in _verified_directional_edge_ids(target_after):
+                raise AuthenticatedEpistemicTransitionError(
+                    "authenticated inference edge did not become a usable verified relation"
+                )
 
-        graph_bytes = _canonical_json_bytes(successor)
-        graph_sha = hashlib.sha256(graph_bytes).hexdigest()
-        manifest = {
-            **{
-                key: value
-                for key, value in staged.items()
-                if key != "successor_graph_evaluation"
-            },
-            "authenticated_transition_policy_version": AUTHENTICATED_TRANSITION_POLICY_VERSION,
-            "proposal_binding": {"path": str(proposal_file), "sha256": proposal_sha},
-            "verification_decision_binding": {
-                "path": str(verification_file),
-                "sha256": verification_sha,
-            },
-            "authenticated_inference_binding": dict(authenticated_binding),
-            "successor_graph": {
-                "graph_id": successor["graph_id"],
-                "path": str(output / "epistemic_graph.json"),
-                "sha256": graph_sha,
-            },
-            "target_after": target_after,
-            "inference_assessment_level": "domain_verified",
-            "domain_verification_applied": True,
-            "verification": {
-                **scope_validation,
-                "schema_version": DOMAIN_VERIFICATION_DECISION_SCHEMA_VERSION,
-                "inference_edge_id": edge_id,
-                "verification_sha256": verification_sha,
-            },
-            "autonomy_boundary": {
-                **dict(staged.get("autonomy_boundary", {})),
-                "exact_inference_edge_identity_authenticated": True,
-                "opaque_graph_metadata_used_as_authority": False,
-                "legacy_v10_verifier_used_as_authenticated_authority": False,
-                "execution_authorized_by_authentication": False,
-                "positive_closeout_granted_by_authentication": False,
-            },
-        }
-        manifest_bytes = _canonical_json_bytes(manifest)
-
-        output.mkdir(parents=True, exist_ok=False)
-        (output / "epistemic_graph.json").write_bytes(graph_bytes)
-        (output / "epistemic_transition_manifest.json").write_bytes(manifest_bytes)
+            graph_bytes = _canonical_json_bytes(successor)
+            graph_sha = hashlib.sha256(graph_bytes).hexdigest()
+            manifest = {
+                **{
+                    key: value
+                    for key, value in staged.items()
+                    if key != "successor_graph_evaluation"
+                },
+                "authenticated_transition_policy_version": AUTHENTICATED_TRANSITION_POLICY_VERSION,
+                "base_graph_binding": base_binding,
+                "proposal_binding": proposal_binding,
+                "verification_decision_binding": verification_binding,
+                "authenticated_inference_binding": dict(authenticated_binding),
+                "successor_graph": {
+                    "graph_id": successor["graph_id"],
+                    "path": str(output / "epistemic_graph.json"),
+                    "sha256": graph_sha,
+                },
+                "target_after": target_after,
+                "inference_assessment_level": "domain_verified",
+                "domain_verification_applied": True,
+                "verification": {
+                    **scope_validation,
+                    "schema_version": DOMAIN_VERIFICATION_DECISION_SCHEMA_VERSION,
+                    "inference_edge_id": edge_id,
+                    "verification_sha256": verification_sha,
+                },
+                "autonomy_boundary": {
+                    **dict(staged.get("autonomy_boundary", {})),
+                    "exact_inference_edge_identity_authenticated": True,
+                    "source_file_toctou_changes_transition_bytes": False,
+                    "provenance_snapshots_self_contained": True,
+                    "opaque_graph_metadata_used_as_authority": False,
+                    "legacy_v10_verifier_used_as_authenticated_authority": False,
+                    "execution_authorized_by_authentication": False,
+                    "positive_closeout_granted_by_authentication": False,
+                },
+            }
+            manifest_bytes = _canonical_json_bytes(manifest)
+            (output / "epistemic_graph.json").write_bytes(graph_bytes)
+            (output / "epistemic_transition_manifest.json").write_bytes(manifest_bytes)
+        except Exception:
+            if output_created:
+                shutil.rmtree(output, ignore_errors=True)
+            raise
 
     return {
         **manifest,
