@@ -12,8 +12,9 @@ import hashlib
 import json
 import os
 import stat
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Mapping
+from typing import Any
 
 from .authenticated_inference_binding import (
     AuthenticatedInferenceBindingError,
@@ -762,7 +763,10 @@ def _verify_graph_realization(
         "target_node_id": proposal["target_node_id"],
         "relation": "tests",
         "assessment_level": "proposal",
-        "rationale": "The completed result tests the target proposition without itself granting scientific authority.",
+        "rationale": (
+            "The completed result was introduced to test this target; execution success alone "
+            "does not establish scientific support, contradiction, or falsification."
+        ),
         "active": True,
     }
     if tests_edge is None or dict(tests_edge) != expected_tests:

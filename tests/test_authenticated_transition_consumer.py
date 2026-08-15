@@ -241,7 +241,7 @@ def test_consumer_rejects_result_snapshot_drift(tmp_path: Path) -> None:
 
     with pytest.raises(
         AuthenticatedTransitionConsumerError,
-        match="result_artifact_snapshots\[0\] checksum",
+        match=r"result_artifact_snapshots\[0\] checksum",
     ):
         authenticate_transition_bundle(bundle)
 
