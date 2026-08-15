@@ -384,3 +384,32 @@ def test_source_mutation_after_validation_does_not_change_authenticated_bytes(
     assert result["base_graph_binding"]["sha256"] == base_sha
     assert result["proposal_binding"]["sha256"] == proposal_sha
     assert result["verification_decision_binding"]["sha256"] == verification_sha
+
+def test_current_proposal_result_sha_must_be_canonical_for_replay(tmp_path: Path) -> None:
+    result_file = tmp_path / "result.json"
+    result_sha = _write_json(result_file, {"rank_before": 3, "rank_after": 4})
+    base_file = tmp_path / "base_graph.json"
+    base_sha = _write_json(base_file, _base_graph())
+    proposal = _proposal(base_sha=base_sha, result_sha=f" {result_sha} ")
+    proposal_file = tmp_path / "proposal.json"
+    proposal_sha = _write_json(proposal_file, proposal)
+    verification_file = tmp_path / "verification.json"
+    _write_json(
+        verification_file,
+        _verification(proposal_sha=proposal_sha, base_sha=base_sha),
+    )
+    output = tmp_path / "out"
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="sha256 must be canonical lowercase SHA-256 text",
+    ):
+        apply_authenticated_epistemic_transition_files(
+            base_graph_path=base_file,
+            proposal_path=proposal_file,
+            verification_decision_path=verification_file,
+            program_state=_program_state(),
+            artifact_root=tmp_path,
+            output_dir=output,
+        )
+    assert not output.exists()

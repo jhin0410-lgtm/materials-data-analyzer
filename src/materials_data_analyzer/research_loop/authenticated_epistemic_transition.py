@@ -52,7 +52,7 @@ from .epistemic_transition import (
     VERIFICATION_SCHEMA_VERSION as LEGACY_VERIFICATION_SCHEMA_VERSION,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.7"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.8"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE = "authenticated_domain_verification_decision"
 AUTHENTICATED_TRANSITION_SUPPORTED_PUBLICATION_PLATFORMS = ("linux", "windows")
@@ -1527,6 +1527,7 @@ def apply_authenticated_epistemic_transition_files(
         program_state=program_state,
         artifact_root=artifacts,
     )
+    exact_current_result_identity = _proposal_result_artifact_identity(proposal_bytes)
     if authenticated_binding["transition_id"] != proposal["transition_id"]:
         raise AuthenticatedEpistemicTransitionError(
             "authenticated verifier transition_id does not match validated proposal"
@@ -1607,6 +1608,14 @@ def apply_authenticated_epistemic_transition_files(
         proposal,
         payloads=payloads,
     )
+    published_current_result_identity = {
+        _lineage_identity(binding, "role"): _lineage_sha256(binding, "sha256")
+        for binding in result_bindings
+    }
+    if published_current_result_identity != exact_current_result_identity:
+        raise AuthenticatedEpistemicTransitionError(
+            "current result snapshots do not match the exact proposal result artifact identity"
+        )
     result_node, tests_edge, inference_edge = _proposal_result_and_edges(
         proposal,
         result_artifact_bindings=result_bindings,
