@@ -14,6 +14,23 @@ def replace_once(text: str, old: str, new: str, *, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def replace_once_after(
+    text: str,
+    marker: str,
+    old: str,
+    new: str,
+    *,
+    label: str,
+) -> str:
+    marker_index = text.index(marker)
+    prefix = text[:marker_index]
+    suffix = text[marker_index:]
+    count = suffix.count(old)
+    if count != 1:
+        raise RuntimeError(f"{label}: expected exactly one match after marker, found {count}")
+    return prefix + suffix.replace(old, new, 1)
+
+
 def patch_source() -> None:
     text = SOURCE.read_text(encoding="utf-8")
     text = replace_once(
@@ -39,32 +56,36 @@ def patch_portability() -> None:
         '''            {\n                "node_id": "hypothesis-1",\n                "node_type": "hypothesis",\n                "statement": "The bounded structural target holds.",\n                "metadata": {"claim_scope": "structural"},\n            },\n            {\n                "node_id": "legacy-result-node",\n                "node_type": "analysis",\n                "statement": "A legacy verified analysis remains inherited authority.",\n                "execution_status": "completed",\n                "artifact_bindings": [\n                    {\n                        "role": "primary_result",\n                        "path": str(legacy_result),\n                        "sha256": legacy_result_sha,\n                    }\n                ],\n                "metadata": {"result_origin": "authorized_local_analysis"},\n            },\n        ],\n        "edges": [\n            {\n                "edge_id": "legacy-support",\n                "source_node_id": "legacy-result-node",\n                "target_node_id": "hypothesis-1",\n                "relation": "supports",\n                "assessment_level": "domain_verified",\n                "rationale": "Legacy v1.0-era verified structural support.",\n                "active": True,\n                "verification_artifact": {\n                    "role": "domain_verification_decision",\n                    "path": str(legacy_verifier),\n                    "sha256": legacy_verifier_sha,\n                },\n            }\n        ],\n''',
         label="legacy authority belongs to historical parent graph",
     )
-    text = replace_once(
+    text = replace_once_after(
         text,
+        "    base_graph = {",
         '            old_parent_graph["nodes"][0],\n',
         '            *old_parent_graph["nodes"],\n',
         label="inherit all historical parent nodes",
     )
     duplicate_legacy_node = '''            {\n                "node_id": "legacy-result-node",\n                "node_type": "analysis",\n                "statement": "A legacy verified analysis remains inherited authority.",\n                "execution_status": "completed",\n                "artifact_bindings": [\n                    {\n                        "role": "primary_result",\n                        "path": str(legacy_result),\n                        "sha256": legacy_result_sha,\n                    }\n                ],\n                "metadata": {"result_origin": "authorized_local_analysis"},\n            },\n'''
-    if text.count(duplicate_legacy_node) != 1:
-        raise RuntimeError(
-            "expected exactly one duplicate legacy node in successor fixture, "
-            f"found {text.count(duplicate_legacy_node)}"
-        )
-    text = text.replace(duplicate_legacy_node, "", 1)
-    text = replace_once(
+    text = replace_once_after(
         text,
+        "    base_graph = {",
+        duplicate_legacy_node,
+        "",
+        label="remove successor duplicate legacy node",
+    )
+    text = replace_once_after(
+        text,
+        "    base_graph = {",
         '''        "edges": [\n            {\n                "edge_id": "old-tests",\n''',
         '''        "edges": [\n            *old_parent_graph["edges"],\n            {\n                "edge_id": "old-tests",\n''',
         label="inherit all historical parent edges",
     )
     duplicate_legacy_edge = '''            {\n                "edge_id": "legacy-support",\n                "source_node_id": "legacy-result-node",\n                "target_node_id": "hypothesis-1",\n                "relation": "supports",\n                "assessment_level": "domain_verified",\n                "rationale": "Legacy v1.0-era verified structural support.",\n                "active": True,\n                "verification_artifact": {\n                    "role": "domain_verification_decision",\n                    "path": str(legacy_verifier),\n                    "sha256": legacy_verifier_sha,\n                },\n            },\n'''
-    if text.count(duplicate_legacy_edge) != 1:
-        raise RuntimeError(
-            "expected exactly one duplicate legacy edge in successor fixture, "
-            f"found {text.count(duplicate_legacy_edge)}"
-        )
-    text = text.replace(duplicate_legacy_edge, "", 1)
+    text = replace_once_after(
+        text,
+        "    base_graph = {",
+        duplicate_legacy_edge,
+        "",
+        label="remove successor duplicate legacy edge",
+    )
     PORTABILITY.write_text(text, encoding="utf-8")
 
 
