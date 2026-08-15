@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from materials_data_analyzer.research_loop import (
+    authenticated_transition_consumer as module,
+)
 from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
     apply_authenticated_epistemic_transition_files,
 )
@@ -352,3 +355,115 @@ def test_consumer_rejects_current_legacy_lineage_identity_drift(tmp_path: Path) 
         match="current legacy lineage does not identify the same exact transition",
     ):
         authenticate_transition_bundle(bundle)
+
+
+
+def test_consumer_rejects_extra_domain_verified_edge_not_in_bound_base(tmp_path: Path) -> None:
+    bundle = _make_bundle(tmp_path)
+    graph = _load_json(bundle / "epistemic_graph.json")
+    edges = graph["edges"]
+    assert isinstance(edges, list)
+    edges.append(
+        {
+            "edge_id": "grafted-verified-support",
+            "source_node_id": "result-1",
+            "target_node_id": "hypothesis-1",
+            "relation": "supports",
+            "assessment_level": "domain_verified",
+            "rationale": "Grafted authority must not survive independent authentication.",
+            "active": True,
+        }
+    )
+    _rewrite_graph_and_sync_manifest(bundle, graph)
+    with pytest.raises(
+        AuthenticatedTransitionConsumerError,
+        match="successor edge set is not the exact bound base",
+    ):
+        authenticate_transition_bundle(bundle)
+
+
+def test_consumer_rejects_deleted_inherited_base_edge(tmp_path: Path) -> None:
+    bundle = _make_bundle(tmp_path)
+    graph = _load_json(bundle / "epistemic_graph.json")
+    edges = graph["edges"]
+    assert isinstance(edges, list)
+    graph["edges"] = [
+        item
+        for item in edges
+        if not (isinstance(item, dict) and item.get("edge_id") == "motivation-1")
+    ]
+    _rewrite_graph_and_sync_manifest(bundle, graph)
+    with pytest.raises(
+        AuthenticatedTransitionConsumerError,
+        match="successor edge set is not the exact bound base",
+    ):
+        authenticate_transition_bundle(bundle)
+
+
+def test_consumer_keeps_empirical_direct_closed_without_origin_artifact() -> None:
+    proposal = _proposal(base_sha="a" * 64, result_sha="b" * 64)
+    result_node = proposal["result_node"]
+    assert isinstance(result_node, dict)
+    result_node["node_type"] = "experiment"
+    metadata = result_node["metadata"]
+    assert isinstance(metadata, dict)
+    metadata["result_origin"] = "external_physical_experiment"
+    source_action = proposal["source_action"]
+    assert isinstance(source_action, dict)
+    source_action["execution_mode"] = "external_result_ingest"
+    normalized = module._normalize_proposal(proposal)
+    with pytest.raises(
+        AuthenticatedTransitionConsumerError,
+        match="evidence-origin provenance",
+    ):
+        module._validate_inference_scope(
+            proposal=normalized,
+            inference_scope="empirical_direct",
+            target_claim_scope="empirical",
+        )
+
+
+def test_consumer_enforces_producer_action_result_origin_compatibility() -> None:
+    proposal = _proposal(base_sha="a" * 64, result_sha="b" * 64)
+    result_node = proposal["result_node"]
+    assert isinstance(result_node, dict)
+    metadata = result_node["metadata"]
+    assert isinstance(metadata, dict)
+    metadata["result_origin"] = "external_physical_experiment"
+    with pytest.raises(
+        AuthenticatedTransitionConsumerError,
+        match="external physical/analysis results require execution_mode=external_result_ingest",
+    ):
+        module._normalize_proposal(proposal)
+
+
+def test_consumer_preserves_producer_supported_opaque_result_metadata() -> None:
+    proposal = _proposal(base_sha="a" * 64, result_sha="b" * 64)
+    result_node = proposal["result_node"]
+    assert isinstance(result_node, dict)
+    metadata = result_node["metadata"]
+    assert isinstance(metadata, dict)
+    metadata["notes"] = {"structured": [1, 2, 3]}
+    metadata["claim_scope"] = {"opaque": "producer-preserved"}
+    normalized = module._normalize_proposal(proposal)
+    normalized_metadata = normalized["result_node"]["metadata"]
+    assert normalized_metadata["notes"] == {"structured": [1, 2, 3]}
+    assert normalized_metadata["claim_scope"] == {"opaque": "producer-preserved"}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "provenance/file:payload.json",
+        "provenance/CON/file.json",
+        "provenance/trailing./file.json",
+        "provenance/trailing /file.json",
+        "provenance/a?b/file.json",
+    ],
+)
+def test_consumer_rejects_windows_nonportable_bundle_components(value: str) -> None:
+    with pytest.raises(
+        AuthenticatedTransitionConsumerError,
+        match="Windows-(?:nonportable|reserved)",
+    ):
+        module._relative_bundle_parts(value, "binding.path")
