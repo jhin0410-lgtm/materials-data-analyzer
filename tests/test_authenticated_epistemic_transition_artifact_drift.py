@@ -136,7 +136,7 @@ def test_result_drift_before_snapshot_fails_before_output(
 
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
-        match="result artifact changed after transition proposal validation",
+        match="checksum mismatch",
     ):
         apply_authenticated_epistemic_transition_files(
             base_graph_path=base_file,
@@ -156,7 +156,7 @@ def test_result_source_drift_after_snapshot_cannot_change_published_evidence(
     base_file, proposal_file, verification_file, result_file, original_result = _fixture(
         tmp_path
     )
-    real_prepare = module._prepare_result_artifact_snapshots
+    real_prepare = module._prepare_current_result_snapshots
 
     def mutate_result_after_snapshot(*args: object, **kwargs: object):
         prepared = real_prepare(*args, **kwargs)
@@ -165,7 +165,7 @@ def test_result_source_drift_after_snapshot_cannot_change_published_evidence(
 
     monkeypatch.setattr(
         module,
-        "_prepare_result_artifact_snapshots",
+        "_prepare_current_result_snapshots",
         mutate_result_after_snapshot,
     )
     output = tmp_path / "out"
@@ -179,12 +179,13 @@ def test_result_source_drift_after_snapshot_cannot_change_published_evidence(
         output_dir=output,
     )
 
-    snapshot = output / "provenance" / "result_artifacts" / "result-000.json"
+    snapshot = output / result["result_artifact_bindings"][0]["path"]
     assert result_file.read_bytes() != original_result
     assert snapshot.read_bytes() == original_result
     graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
     result_node = next(item for item in graph["nodes"] if item["node_id"] == "result-1")
-    assert result_node["artifact_bindings"][0]["path"] == str(snapshot.resolve())
-    assert result["autonomy_boundary"][
-        "result_artifact_source_drift_changes_published_evidence"
-    ] is False
+    assert result_node["artifact_bindings"][0]["path"] == result[
+        "result_artifact_bindings"
+    ][0]["path"]
+    assert result["autonomy_boundary"]["bundle_published_atomically"] is True
+    assert result["autonomy_boundary"]["scientific_relation_promoted_by_producer"] is False
