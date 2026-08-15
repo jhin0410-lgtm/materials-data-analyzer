@@ -1,0 +1,54 @@
+name: Temporary authenticated transition boundary finalizer
+
+on:
+  push:
+    branches:
+      - agent/authenticated-inference-provenance-20260815
+    paths:
+      - .github/workflows/_tmp_finalize_authenticated_transition_boundary.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/authenticated-inference-provenance-20260815
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply bounded trust-model patch
+        run: |
+          python scripts/_tmp_finalize_authenticated_transition_boundary.py
+          python -m py_compile src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
+          python -m py_compile tests/test_authenticated_epistemic_transition.py
+          python -m py_compile tests/test_authenticated_epistemic_transition_merge_gate.py
+          git diff --check
+      - name: Run focused contract tests
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m pytest -q \
+            tests/test_authenticated_inference_binding.py \
+            tests/test_authenticated_epistemic_transition_merge_gate.py \
+            tests/test_authenticated_epistemic_transition.py \
+            tests/test_authenticated_transition_legacy_critic_compatibility.py
+          python -m ruff check \
+            src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition_merge_gate.py
+      - name: Commit final boundary patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition_merge_gate.py
+          git diff --cached --quiet && exit 1
+          git commit -m 'Define authenticated staging trust boundary'
+          git push origin HEAD:agent/authenticated-inference-provenance-20260815
