@@ -109,11 +109,14 @@ def test_negative_authenticated_advisory_preserves_evaluator_assessment(
     assert advisory["relation"] == "contradicts"
     assert advisory["persistent_graph_or_evaluator_status_changed"] is False
     assert advisory["scientific_status_promotion_authorized"] is False
-    assert target["stop_recommendation"]["recommendation"] == (
+    assert target["stop_recommendation"]["recommendation"] == "continue_bounded_research"
+    advisory_stop = target["authenticated_stop_advisory"]
+    assert advisory_stop["recommendation"] == (
         "reassess_or_narrow_authenticated_contradicted_scope"
     )
-    assert target["stop_recommendation"]["automatic_stop_authorized"] is False
-    assert target["stop_recommendation"]["positive_scientific_closeout_granted"] is False
+    assert advisory_stop["base_critic_stop_recommendation_preserved"] is True
+    assert advisory_stop["automatic_stop_authorized"] is False
+    assert advisory_stop["positive_scientific_closeout_granted"] is False
     codes = {item["code"] for item in target["critic_findings"]}
     assert "AUTHENTICATED_DIRECTIONAL_CONTRADICTION_PRESENT" in codes
     assert (
@@ -137,7 +140,8 @@ def test_authenticated_falsification_allows_manual_reframe_only(
     )
     assert observed == [tmp_path / "bundle"]
     target = result["target_reports"][0]
-    assert target["stop_recommendation"]["recommendation"] == (
+    assert target["stop_recommendation"]["recommendation"] == "continue_bounded_research"
+    assert target["authenticated_stop_advisory"]["recommendation"] == (
         "reframe_or_narrow_authenticated_falsified_scope"
     )
     action = next(
@@ -307,3 +311,29 @@ def test_adapter_rejects_consumer_scientific_status_escalation(
         module.build_authenticated_scientific_critic_report(
             tmp_path / "bundle", program_state={"generated_goals": []}
         )
+
+
+def test_authenticated_advisory_never_downgrades_existing_base_stop_recommendation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = _base_report()
+    target = base["target_reports"][0]
+    target["stop_recommendation"] = {
+        "recommendation": "stop_and_reframe_current_target",
+        "rationale": "Existing verified falsification elsewhere in the graph.",
+        "automatic_stop_authorized": False,
+        "positive_scientific_closeout_granted": False,
+    }
+    _wire(
+        monkeypatch,
+        consumer=_consumer(relation="contradicts"),
+        base=base,
+    )
+    result = module.build_authenticated_scientific_critic_report(
+        tmp_path / "bundle", program_state={"generated_goals": []}
+    )
+    target_result = result["target_reports"][0]
+    assert target_result["stop_recommendation"] == target["stop_recommendation"]
+    assert target_result["authenticated_stop_advisory"]["recommendation"] == (
+        "reassess_or_narrow_authenticated_contradicted_scope"
+    )

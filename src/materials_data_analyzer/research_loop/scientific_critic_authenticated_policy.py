@@ -184,12 +184,13 @@ def _apply_authenticated_directional_advisory(
         },
         key="action_id",
     )
-    target["stop_recommendation"] = {
+    target["authenticated_stop_advisory"] = {
         "recommendation": recommendation,
         "rationale": (
             "Exact current-transition negative directional provenance is independently authenticated. "
-            "The recommendation is advisory/manual only and does not mutate evaluator status."
+            "This is a separate advisory and does not replace the base critic stop recommendation."
         ),
+        "base_critic_stop_recommendation_preserved": True,
         "automatic_stop_authorized": False,
         "positive_scientific_closeout_granted": False,
     }
