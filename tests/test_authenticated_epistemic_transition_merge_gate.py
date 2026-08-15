@@ -84,14 +84,14 @@ def test_staged_symlink_is_rejected_even_when_target_bytes_match(tmp_path: Path)
         _read_staged_regular_file(stage, "payload.bin", field="payload")
 
 
-def test_atomic_publication_never_replaces_newly_appeared_target(tmp_path: Path) -> None:
+def test_atomic_publication_never_replaces_newly_appeared_empty_target(
+    tmp_path: Path,
+) -> None:
     source = tmp_path / "staged"
     source.mkdir()
     (source / "payload.txt").write_text("candidate\n", encoding="utf-8")
     destination = tmp_path / "published"
     destination.mkdir()
-    marker = destination / "owner.txt"
-    marker.write_text("other-process\n", encoding="utf-8")
 
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
@@ -100,7 +100,8 @@ def test_atomic_publication_never_replaces_newly_appeared_target(tmp_path: Path)
         _atomic_publish_directory_no_replace(source, destination)
 
     assert source.is_dir()
-    assert marker.read_text(encoding="utf-8") == "other-process\n"
+    assert destination.is_dir()
+    assert list(destination.iterdir()) == []
 
 
 def _program_state_with_evidence() -> dict[str, object]:
