@@ -14,25 +14,27 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 
 
 text = SOURCE.read_text(encoding="utf-8")
-text = replace_once(
-    text,
-    '''from .input_evidence_origin_pack import (
+if "from .input_evidence_origin_pack import" in text:
+    text = replace_once(
+        text,
+        '''from .input_evidence_origin_pack import (
     INPUT_EVIDENCE_ORIGIN_PACK_POLICY_VERSION,
     INPUT_EVIDENCE_ORIGIN_PACK_SCHEMA_VERSION,
 )
 ''',
-    '',
-    "remove-producer-constant-import",
-)
-text = replace_once(
-    text,
-    'INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_POLICY_VERSION = "1.0"\n',
-    'INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_POLICY_VERSION = "1.0"\n'
-    '_EXPECTED_PACK_SCHEMA_VERSION = "1.0"\n'
-    '_EXPECTED_PACK_POLICY_VERSION = "1.0"\n'
-    '_EXPECTED_PUBLICATION_PLATFORMS = ("windows", "linux")\n',
-    "local-pack-contract",
-)
+        '',
+        "remove-producer-constant-import",
+    )
+if '_EXPECTED_PACK_SCHEMA_VERSION = "1.0"' not in text:
+    text = replace_once(
+        text,
+        'INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_POLICY_VERSION = "1.0"\n',
+        'INPUT_EVIDENCE_ORIGIN_PACK_CONSUMER_POLICY_VERSION = "1.0"\n'
+        '_EXPECTED_PACK_SCHEMA_VERSION = "1.0"\n'
+        '_EXPECTED_PACK_POLICY_VERSION = "1.0"\n'
+        '_EXPECTED_PUBLICATION_PLATFORMS = ("windows", "linux")\n',
+        "local-pack-contract",
+    )
 text = text.replace(
     'INPUT_EVIDENCE_ORIGIN_PACK_SCHEMA_VERSION',
     '_EXPECTED_PACK_SCHEMA_VERSION',
@@ -41,12 +43,13 @@ text = text.replace(
     'INPUT_EVIDENCE_ORIGIN_PACK_POLICY_VERSION',
     '_EXPECTED_PACK_POLICY_VERSION',
 )
-old = '''    if manifest["request_source_path_authoritative"] is not False:
+if "pack publication_platform is outside the supported producer contract" not in text:
+    old = '''    if manifest["request_source_path_authoritative"] is not False:
         raise InputEvidenceOriginPackConsumerError(
             "pack must keep request source paths non-authoritative"
         )
 '''
-new = '''    publication_platform = manifest["publication_platform"]
+    new = '''    publication_platform = manifest["publication_platform"]
     if publication_platform not in _EXPECTED_PUBLICATION_PLATFORMS:
         raise InputEvidenceOriginPackConsumerError(
             "pack publication_platform is outside the supported producer contract"
@@ -62,14 +65,15 @@ new = '''    publication_platform = manifest["publication_platform"]
             "pack must keep request source paths non-authoritative"
         )
 '''
-text = replace_once(text, old, new, "platform-contract")
-old = '''        for artifact in (
+    text = replace_once(text, old, new, "platform-contract")
+if "pack item snapshot paths do not match the deterministic producer shape" not in text:
+    old = '''        for artifact in (
             evidence_binding,
             declaration_binding,
             verification_binding,
         ):
 '''
-new = '''        expected_root = f"items/{index:04d}"
+    new = '''        expected_root = f"items/{index:04d}"
         expected_paths = {
             "evidence": f"{expected_root}/evidence.bin",
             "origin_declaration": f"{expected_root}/origin_declaration.json",
@@ -92,20 +96,22 @@ new = '''        expected_root = f"items/{index:04d}"
             verification_binding,
         ):
 '''
-text = replace_once(text, old, new, "deterministic-paths")
-old = '''        "positive_closeout_granted": False,
+    text = replace_once(text, old, new, "deterministic-paths")
+if "pack_immutability_after_return_authenticated" not in text:
+    old = '''        "positive_closeout_granted": False,
     }
 '''
-new = '''        "positive_closeout_granted": False,
+    new = '''        "positive_closeout_granted": False,
         "pack_immutability_after_return_authenticated": False,
         "hostile_concurrent_writer_resistance_authenticated": False,
     }
 '''
-text = replace_once(text, old, new, "post-return-boundary")
+    text = replace_once(text, old, new, "post-return-boundary")
 SOURCE.write_text(text, encoding="utf-8")
 
 tests = TESTS.read_text(encoding="utf-8")
-tests += r'''
+if "def test_consumer_does_not_import_pack_publisher_module_for_schema_authority" not in tests:
+    tests += r'''
 
 
 def test_consumer_does_not_import_pack_publisher_module_for_schema_authority() -> None:
