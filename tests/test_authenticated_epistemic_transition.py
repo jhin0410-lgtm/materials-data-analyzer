@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from materials_data_analyzer.research_loop import authenticated_epistemic_transition as module
+from materials_data_analyzer.research_loop import (
+    authenticated_epistemic_transition as module,
+)
 from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
     AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
     AuthenticatedEpistemicTransitionError,
@@ -182,6 +184,9 @@ def test_authenticated_transition_publishes_diagnostic_self_contained_bundle(
     assert boundary["bundle_published_atomically"] is True
     assert boundary["bundle_relative_artifact_paths"] is True
     assert boundary["inherited_artifacts_snapshotted"] is True
+    assert boundary["exclusive_staging_write_ownership_assumed"] is True
+    assert boundary["hostile_same_os_identity_staging_tamper_resistance_claimed"] is False
+    assert boundary["same_identity_concurrent_staging_tamper_outside_trust_boundary"] is True
     assert boundary["authenticated_v11_verifier_consumed_by_legacy_critic"] is False
     assert boundary["verifier_identity_or_credential_authenticated"] is False
     assert boundary["execution_authorized_by_authentication"] is False

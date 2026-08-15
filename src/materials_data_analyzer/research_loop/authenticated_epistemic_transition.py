@@ -3,6 +3,12 @@
 The producer authenticates exact proposal/verifier bytes and exact inference-edge identity,
 but deliberately publishes the directional edge as *diagnostic*. Scientific authority is
 left to a later consumer that independently re-authenticates the published bundle.
+
+Filesystem trust boundary: atomic publication and staged integrity checks assume this process
+has exclusive write ownership of its private staging tree from creation through publication.
+The producer is not a sandbox against a hostile process sharing the same OS identity and write
+access to that staging parent. No provenance or security claim should be read as resisting such
+a same-identity attacker.
 """
 
 from __future__ import annotations
@@ -16,8 +22,9 @@ import shutil
 import stat
 import sys
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from .authenticated_inference_binding import (
     DOMAIN_VERIFICATION_DECISION_SCHEMA_VERSION,
@@ -28,7 +35,6 @@ from .epistemic_graph import evaluate_epistemic_graph, validate_epistemic_graph
 from .epistemic_transition import (
     TRANSITION_POLICY_VERSION,
     TRANSITION_SCHEMA_VERSION,
-    VERIFICATION_SCHEMA_VERSION as LEGACY_VERIFICATION_SCHEMA_VERSION,
     EpistemicTransitionError,
     _assessment_for,
     _canonical_json_bytes,
@@ -36,8 +42,11 @@ from .epistemic_transition import (
     validate_transition_proposal,
     validate_verification_decision,
 )
+from .epistemic_transition import (
+    VERIFICATION_SCHEMA_VERSION as LEGACY_VERIFICATION_SCHEMA_VERSION,
+)
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.3"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.4"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE = "authenticated_domain_verification_decision"
 
@@ -207,6 +216,20 @@ def _lineage_identity(record: Mapping[str, Any], field: str) -> str:
     return value.strip()
 
 
+def _lineage_sha256(record: Mapping[str, Any], field: str) -> str:
+    value = record.get(field)
+    if (
+        not isinstance(value, str)
+        or value != value.strip()
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise AuthenticatedEpistemicTransitionError(
+            f"lineage coherence field {field} must be canonical lowercase SHA-256 text"
+        )
+    return value
+
+
 def _assert_cross_lineage_coherence(
     legacy: list[Mapping[str, Any]], authenticated: list[Mapping[str, Any]]
 ) -> None:
@@ -236,14 +259,23 @@ def _assert_cross_lineage_coherence(
         assert isinstance(verifier_artifact, Mapping)
         assert isinstance(binding, Mapping)
         expected_pairs = (
-            (legacy_record.get("parent_graph_sha256"), base_artifact.get("sha256")),
-            (legacy_record.get("proposal_sha256"), proposal_artifact.get("sha256")),
             (
-                legacy_record.get("verification_decision_sha256"),
-                verifier_artifact.get("sha256"),
+                _lineage_sha256(legacy_record, "parent_graph_sha256"),
+                _lineage_sha256(base_artifact, "sha256"),
             ),
-            (legacy_record.get("result_node_id"), binding.get("result_node_id")),
-            (transition_id, str(binding.get("transition_id", "")).strip()),
+            (
+                _lineage_sha256(legacy_record, "proposal_sha256"),
+                _lineage_sha256(proposal_artifact, "sha256"),
+            ),
+            (
+                _lineage_sha256(legacy_record, "verification_decision_sha256"),
+                _lineage_sha256(verifier_artifact, "sha256"),
+            ),
+            (
+                _lineage_identity(legacy_record, "result_node_id"),
+                _lineage_identity(binding, "result_node_id"),
+            ),
+            (transition_id, _lineage_identity(binding, "transition_id")),
         )
         if any(left != right for left, right in expected_pairs):
             raise AuthenticatedEpistemicTransitionError(
@@ -364,7 +396,7 @@ def _remap_authenticated_lineage_artifacts(
                 "must be an object"
             )
         record_transition_id = _lineage_identity(record, "transition_id")
-        if str(binding.get("transition_id", "")).strip() != record_transition_id:
+        if _lineage_identity(binding, "transition_id") != record_transition_id:
             raise AuthenticatedEpistemicTransitionError(
                 f"authenticated_transition_lineage[{index}] transition identity is inconsistent"
             )
@@ -924,7 +956,11 @@ def apply_authenticated_epistemic_transition_files(
     artifact_root: str | Path,
     output_dir: str | Path,
 ) -> dict[str, Any]:
-    """Produce an atomic self-contained bundle with authenticated diagnostic inference."""
+    """Produce an authenticated diagnostic bundle under exclusive staging ownership.
+
+    The filesystem integrity boundary assumes no hostile same-OS-identity process can write
+    into or replace this function's private staging tree while it is being assembled.
+    """
     base_path = Path(base_graph_path).expanduser().resolve(strict=True)
     proposal_file = Path(proposal_path).expanduser().resolve(strict=True)
     verification_file = Path(verification_decision_path).expanduser().resolve(strict=True)
@@ -1173,6 +1209,9 @@ def apply_authenticated_epistemic_transition_files(
                 "provenance_snapshots_self_contained": True,
                 "temporary_transition_staging_used": True,
                 "staged_symlinks_accepted": False,
+                "exclusive_staging_write_ownership_assumed": True,
+                "hostile_same_os_identity_staging_tamper_resistance_claimed": False,
+                "same_identity_concurrent_staging_tamper_outside_trust_boundary": True,
                 "empirical_derived_without_resolvable_input_snapshots_allowed": False,
                 "opaque_graph_metadata_used_as_authority": False,
                 "legacy_v10_verifier_used_as_authenticated_authority": False,

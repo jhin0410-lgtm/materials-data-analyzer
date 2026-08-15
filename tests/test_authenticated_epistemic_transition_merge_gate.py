@@ -98,6 +98,35 @@ def test_malformed_inherited_authenticated_lineage_fails_closed(tmp_path: Path) 
         )
 
 
+def test_cross_lineage_binding_transition_id_must_remain_text() -> None:
+    legacy = _legacy_record(transition_id="1")
+    authenticated = _authenticated_record(transition_id="1")
+    binding = authenticated["authenticated_inference_binding"]
+    assert isinstance(binding, dict)
+    binding["transition_id"] = 1
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="transition_id must be non-empty text",
+    ):
+        _assert_cross_lineage_coherence([legacy], [authenticated])
+
+
+def test_cross_lineage_hashes_must_use_canonical_sha256_text() -> None:
+    legacy = _legacy_record()
+    authenticated = _authenticated_record()
+    legacy["proposal_sha256"] = f" {'b' * 64} "
+    proposal_artifact = authenticated["proposal_artifact"]
+    assert isinstance(proposal_artifact, dict)
+    proposal_artifact["sha256"] = f" {'b' * 64} "
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="proposal_sha256 must be canonical lowercase SHA-256 text",
+    ):
+        _assert_cross_lineage_coherence([legacy], [authenticated])
+
+
 def test_staged_symlink_is_rejected_even_when_target_bytes_match(tmp_path: Path) -> None:
     stage = tmp_path / "stage"
     stage.mkdir()
