@@ -38,6 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m ruff check --fix tests/test_authenticated_epistemic_transition_final_review_regressions.py
           python -m pytest -q \
             tests/test_authenticated_epistemic_transition_final_review_regressions.py \
             tests/test_authenticated_epistemic_transition.py \
