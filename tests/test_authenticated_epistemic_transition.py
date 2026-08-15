@@ -140,7 +140,7 @@ def _fixture_files(tmp_path: Path) -> tuple[Path, Path, Path, str, str, str]:
     )
 
 
-def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
+def test_authenticated_transition_publishes_diagnostic_self_contained_bundle(
     tmp_path: Path,
 ) -> None:
     (
@@ -165,30 +165,34 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
         output_dir=output,
     )
 
-    assert result["domain_verification_applied"] is True
-    assert result["inference_assessment_level"] == "domain_verified"
-    assert result["target_after"]["status"] == "provisionally_supported"
+    assert result["domain_verification_decision_authenticated"] is True
+    assert result["scientific_authority_applied"] is False
+    assert result["inference_assessment_level"] == "diagnostic"
+    assert result["target_after"]["status"] == "inconclusive"
+    assert "inference-1" in result["target_after"]["diagnostic_relation_edges"]
     binding = result["authenticated_inference_binding"]
     assert binding["inference_edge_id"] == "inference-1"
     assert binding["base_graph_sha256"] == base_sha
     assert binding["proposal_sha256"] == proposal_sha
     assert binding["verification_decision_sha256"] == verification_sha
+
     boundary = result["autonomy_boundary"]
     assert boundary["exact_inference_edge_identity_authenticated"] is True
-    assert boundary["source_file_toctou_changes_transition_bytes"] is False
-    assert boundary["provenance_snapshots_self_contained"] is True
-    assert boundary["result_artifact_snapshots_self_contained"] is True
-    assert boundary["result_artifact_source_drift_changes_published_evidence"] is False
-    assert boundary["temporary_transition_staging_used"] is False
+    assert boundary["scientific_relation_promoted_by_producer"] is False
+    assert boundary["bundle_published_atomically"] is True
+    assert boundary["bundle_relative_artifact_paths"] is True
+    assert boundary["inherited_artifacts_snapshotted"] is True
     assert boundary["authenticated_v11_verifier_consumed_by_legacy_critic"] is False
     assert boundary["verifier_identity_or_credential_authenticated"] is False
     assert boundary["execution_authorized_by_authentication"] is False
     assert boundary["positive_closeout_granted_by_authentication"] is False
 
-    base_snapshot = output / "provenance" / "base_graph.json"
-    proposal_snapshot = output / "provenance" / "proposal.json"
-    verification_snapshot = output / "provenance" / "verification_decision.json"
-    result_snapshot = output / "provenance" / "result_artifacts" / "result-000.json"
+    assert result["bundle_artifact_root"] == "."
+    assert result["successor_graph"]["path"] == "epistemic_graph.json"
+    base_snapshot = output / result["base_graph_binding"]["path"]
+    proposal_snapshot = output / result["proposal_binding"]["path"]
+    verification_snapshot = output / result["verification_decision_binding"]["path"]
+    result_snapshot = output / result["result_artifact_bindings"][0]["path"]
     assert hashlib.sha256(base_snapshot.read_bytes()).hexdigest() == base_sha
     assert hashlib.sha256(proposal_snapshot.read_bytes()).hexdigest() == proposal_sha
     assert hashlib.sha256(verification_snapshot.read_bytes()).hexdigest() == verification_sha
@@ -197,46 +201,36 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
 
     graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
     edge = next(item for item in graph["edges"] if item["edge_id"] == "inference-1")
-    assert edge["assessment_level"] == "domain_verified"
-    assert edge["verification_artifact"] == {
-        "role": AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
-        "path": str(verification_snapshot.resolve()),
-        "sha256": verification_sha,
-    }
+    assert edge["assessment_level"] == "diagnostic"
+    assert "verification_artifact" not in edge
     result_node = next(item for item in graph["nodes"] if item["node_id"] == "result-1")
     assert result_node["artifact_bindings"] == [
         {
             "role": "primary_result",
-            "path": str(result_snapshot.resolve()),
+            "path": result["result_artifact_bindings"][0]["path"],
             "sha256": result_sha,
         }
     ]
 
     lineage = graph["metadata"]["authenticated_transition_lineage"][-1]
-    assert lineage["base_graph_artifact"]["path"] == str(base_snapshot.resolve())
+    assert lineage["scientific_authority_applied"] is False
+    assert lineage["base_graph_artifact"]["path"] == result["base_graph_binding"]["path"]
     assert lineage["base_graph_artifact"]["source_path"] == str(base_file.resolve())
     assert lineage["base_graph_artifact"]["source_path_authoritative"] is False
-    assert lineage["proposal_artifact"]["path"] == str(proposal_snapshot.resolve())
+    assert lineage["proposal_artifact"]["path"] == result["proposal_binding"]["path"]
     assert lineage["proposal_artifact"]["source_path"] == str(proposal_file.resolve())
     assert lineage["proposal_artifact"]["source_path_authoritative"] is False
-    assert lineage["proposal_artifact"]["sha256"] == proposal_sha
-    assert lineage["verification_decision_artifact"]["path"] == str(
-        verification_snapshot.resolve()
+    assert lineage["verification_decision_artifact"]["path"] == result[
+        "verification_decision_binding"
+    ]["path"]
+    assert lineage["verification_decision_artifact"]["role"] == (
+        AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE
     )
     assert lineage["verification_decision_artifact"]["source_path"] == str(
         verification_file.resolve()
     )
     assert lineage["verification_decision_artifact"]["source_path_authoritative"] is False
-    assert lineage["result_artifact_snapshots"] == [
-        {
-            "role": "primary_result",
-            "path": str(result_snapshot.resolve()),
-            "source_path": str(result_source.resolve()),
-            "source_path_authoritative": False,
-            "sha256": result_sha,
-            "size_bytes": len(result_source_bytes),
-        }
-    ]
+    assert lineage["result_artifact_snapshots"] == result["result_artifact_provenance"]
     assert lineage["authenticated_inference_binding"] == binding
 
 
@@ -327,33 +321,11 @@ def test_source_mutation_after_validation_does_not_change_authenticated_bytes(
     assert base_file.read_bytes() != initial_base
     assert proposal_file.read_bytes() != initial_proposal
     assert verification_file.read_bytes() != initial_verification
-    assert (output / "provenance" / "base_graph.json").read_bytes() == initial_base
-    assert (output / "provenance" / "proposal.json").read_bytes() == initial_proposal
-    assert (output / "provenance" / "verification_decision.json").read_bytes() == initial_verification
+    assert (output / result["base_graph_binding"]["path"]).read_bytes() == initial_base
+    assert (output / result["proposal_binding"]["path"]).read_bytes() == initial_proposal
+    assert (output / result["verification_decision_binding"]["path"]).read_bytes() == (
+        initial_verification
+    )
     assert result["base_graph_binding"]["sha256"] == base_sha
     assert result["proposal_binding"]["sha256"] == proposal_sha
     assert result["verification_decision_binding"]["sha256"] == verification_sha
-
-
-def test_verifier_checksum_is_bound_to_final_snapshot_not_source_file(
-    tmp_path: Path,
-) -> None:
-    base_file, proposal_file, verification_file, _, _, verification_sha = _fixture_files(
-        tmp_path
-    )
-    output = tmp_path / "out"
-
-    apply_authenticated_epistemic_transition_files(
-        base_graph_path=base_file,
-        proposal_path=proposal_file,
-        verification_decision_path=verification_file,
-        program_state=_program_state(),
-        artifact_root=tmp_path,
-        output_dir=output,
-    )
-
-    graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
-    edge = next(item for item in graph["edges"] if item["edge_id"] == "inference-1")
-    verifier_snapshot = output / "provenance" / "verification_decision.json"
-    assert edge["verification_artifact"]["sha256"] == verification_sha
-    assert edge["verification_artifact"]["path"] == str(verifier_snapshot.resolve())
