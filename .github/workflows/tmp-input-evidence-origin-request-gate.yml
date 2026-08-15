@@ -5,11 +5,18 @@ on:
     branches:
       - agent/input-evidence-origin-request-dev-20260815
 
+permissions:
+  contents: write
+
 jobs:
   focused-request:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: agent/input-evidence-origin-request-dev-20260815
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -33,3 +40,17 @@ jobs:
           python -m ruff check \
             src/materials_data_analyzer/research_loop/input_evidence_origin_request.py \
             tests/test_input_evidence_origin_request.py
+      - name: Commit verified request contract
+        run: |
+          set -euo pipefail
+          git add \
+            src/materials_data_analyzer/research_loop/input_evidence_origin_request.py \
+            tests/test_input_evidence_origin_request.py
+          if git diff --cached --quiet; then
+            echo 'No formatting delta to commit.'
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'Normalize input evidence origin request contract'
+          git push origin HEAD:agent/input-evidence-origin-request-dev-20260815
