@@ -26,6 +26,7 @@ jobs:
             echo 'Closure already applied.'
           else
             python scripts/tmp_pr127_final_review_closure.py
+            python scripts/tmp_pr127_fix_metadata_identity.py
           fi
           git diff --check
       - name: Install dependencies
