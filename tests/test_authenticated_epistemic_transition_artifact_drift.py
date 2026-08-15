@@ -19,7 +19,7 @@ def _write_json(path: Path, value: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def test_result_artifact_drift_after_staging_fails_and_cleans_output(
+def test_result_artifact_drift_after_validation_fails_and_cleans_output(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     result_file = tmp_path / "result.json"
@@ -110,14 +110,20 @@ def test_result_artifact_drift_after_staging_fails_and_cleans_output(
     verification_file = tmp_path / "verification.json"
     _write_json(verification_file, verification)
 
-    real_stage = module.apply_epistemic_transition_files
+    real_scope_validate = module.validate_verification_decision
 
-    def mutate_result_after_stage(**kwargs: object) -> dict[str, object]:
-        staged = real_stage(**kwargs)
+    def mutate_result_after_scope_validation(
+        *args: object, **kwargs: object
+    ) -> dict[str, object]:
+        validated = real_scope_validate(*args, **kwargs)
         result_file.write_text('{"tampered":true}\n', encoding="utf-8")
-        return staged
+        return validated
 
-    monkeypatch.setattr(module, "apply_epistemic_transition_files", mutate_result_after_stage)
+    monkeypatch.setattr(
+        module,
+        "validate_verification_decision",
+        mutate_result_after_scope_validation,
+    )
     output = tmp_path / "out"
 
     with pytest.raises(EpistemicGraphError, match="checksum mismatch"):
