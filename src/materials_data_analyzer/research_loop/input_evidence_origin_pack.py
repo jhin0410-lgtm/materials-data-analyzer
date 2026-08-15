@@ -29,6 +29,12 @@ from .kernel import ResearchLoopError
 INPUT_EVIDENCE_ORIGIN_PACK_SCHEMA_VERSION = "1.0"
 INPUT_EVIDENCE_ORIGIN_PACK_POLICY_VERSION = "1.0"
 INPUT_EVIDENCE_ORIGIN_PACK_SUPPORTED_PLATFORMS = ("windows", "linux")
+_ORIGIN_CLASSES = {
+    "empirical_measurement",
+    "external_physical_experiment",
+    "computational_output",
+    "analysis_output",
+}
 _PACK_MANIFEST = "input_evidence_origin_pack_manifest.json"
 _REQUEST_SNAPSHOT = "request.json"
 
@@ -242,10 +248,33 @@ def publish_input_evidence_origin_pack(
             raise InputEvidenceOriginPackError(
                 "authenticated request item lacks program evidence identity"
             )
+        report_identity = (
+            program_binding.get("workstream_id"),
+            program_binding.get("role"),
+            program_binding.get("sha256"),
+        )
+        payload_identity = (
+            payload.workstream_id,
+            payload.role,
+            payload.evidence_sha256,
+        )
+        if report_identity != payload_identity:
+            raise InputEvidenceOriginPackError(
+                "authenticated request report/payload identity diverged"
+            )
+        if _sha256(payload.evidence_bytes) != payload.evidence_sha256:
+            raise InputEvidenceOriginPackError(
+                "authenticated request payload evidence checksum diverged"
+            )
+        origin_class = report_item.get("origin_class")
+        if origin_class not in _ORIGIN_CLASSES:
+            raise InputEvidenceOriginPackError(
+                "authenticated request returned unsupported origin_class"
+            )
         manifest_items.append(
             {
                 "program_evidence_binding": dict(program_binding),
-                "origin_class": report_item.get("origin_class"),
+                "origin_class": origin_class,
                 "evidence_artifact": _binding(
                     path=paths["evidence"], raw=payload.evidence_bytes, role="evidence"
                 ),
