@@ -273,7 +273,11 @@ def publish_input_evidence_origin_pack(
             )
         manifest_items.append(
             {
-                "program_evidence_binding": dict(program_binding),
+                "program_evidence_binding": {
+                    "workstream_id": payload.workstream_id,
+                    "role": payload.role,
+                    "sha256": payload.evidence_sha256,
+                },
                 "origin_class": origin_class,
                 "evidence_artifact": _binding(
                     path=paths["evidence"], raw=payload.evidence_bytes, role="evidence"
