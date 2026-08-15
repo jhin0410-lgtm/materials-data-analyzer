@@ -23,6 +23,12 @@ from .action_registry import (
     load_action_registry,
     validate_action_registry,
 )
+from .authenticated_transition_consumer import (
+    AUTHENTICATED_TRANSITION_CONSUMER_POLICY_VERSION,
+    AUTHENTICATED_TRANSITION_CONSUMER_SCHEMA_VERSION,
+    AuthenticatedTransitionConsumerError,
+    authenticate_transition_bundle,
+)
 from .authorized_execution import (
     EXECUTION_POLICY_VERSION,
     EXECUTION_SCHEMA_VERSION,
@@ -141,6 +147,8 @@ build_scientific_critic_report = build_policy_hardened_scientific_critic_report
 __all__ = [
     "ACTION_REGISTRY_SCHEMA_VERSION",
     "ACTION_REPORT_FILENAME",
+    "AUTHENTICATED_TRANSITION_CONSUMER_POLICY_VERSION",
+    "AUTHENTICATED_TRANSITION_CONSUMER_SCHEMA_VERSION",
     "AUTHORIZATION_POLICY_VERSION",
     "AUTHORIZATION_SCHEMA_VERSION",
     "CYCLE_POLICY_VERSION",
@@ -170,6 +178,7 @@ __all__ = [
     "TRANSITION_POLICY_VERSION",
     "TRANSITION_SCHEMA_VERSION",
     "ActionAuthorizationError",
+    "AuthenticatedTransitionConsumerError",
     "AuthorizedExecutionError",
     "EpistemicControlError",
     "EpistemicGateError",
@@ -194,6 +203,7 @@ __all__ = [
     "append_stop",
     "assess_action_authorization",
     "assess_current_action_authorization",
+    "authenticate_transition_bundle",
     "available_planning_adapters",
     "build_current_research_transition",
     "build_protocol_stratification",
