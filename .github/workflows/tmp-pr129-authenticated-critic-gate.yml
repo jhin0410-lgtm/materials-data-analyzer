@@ -1,0 +1,33 @@
+name: Temporary PR129 authenticated critic gate
+
+on:
+  push:
+    branches:
+      - agent/scientific-critic-authenticated-adapter-20260815
+
+jobs:
+  focused-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install ruff
+      - name: Run authenticated critic regressions
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            tests/test_scientific_critic_authenticated_policy.py \
+            tests/test_scientific_critic_policy.py \
+            tests/test_scientific_critic_negative_directional_policy.py \
+            tests/test_scientific_critic_negative_obligation_reconstruction.py \
+            tests/test_scientific_critic_negative_test_interpretation_reconstruction.py \
+            tests/test_authenticated_transition_consumer.py
+          python -m ruff check \
+            src/materials_data_analyzer/research_loop/scientific_critic_authenticated_policy.py \
+            tests/test_scientific_critic_authenticated_policy.py
