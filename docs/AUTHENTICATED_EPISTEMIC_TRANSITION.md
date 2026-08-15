@@ -51,3 +51,19 @@ fail-closed until the separate evidence-origin contract provides checksum-bound 
 snapshots. Existing inherited `domain_verified` relations from the legacy graph contract may still
 retain their prior evaluator authority; the authenticated producer reports that retention explicitly
 and does not describe those relations as re-authenticated v1.1 authority.
+
+## Authenticated graph-chain continuity
+
+Inherited authenticated transitions must form a consecutive suffix of the legacy transition
+lineage. For each hop, the exact historical `parent_graph_id`/SHA must match that record's exact
+base snapshot, and the proposal `new_graph_id` must lead to the next authenticated record's exact
+base graph. The final inherited hop is anchored to the exact current base bytes/SHA authenticated
+by the current v1.1 verifier. Each immediate successor must contain exactly the base structure plus
+the authenticated result/tests/diagnostic-inference additions; unrelated grafted structure is
+rejected. This provides a forward-anchored graph-ID/SHA replay chain rather than accepting a
+self-consistent historical subgraph merely because it appears somewhere in the current graph.
+
+Authenticated lineage records use an exact top-level key set. Unknown authority or credential
+claims are rejected instead of being copied through opaque metadata. Exact current-base node
+artifact and edge-verifier SHA bindings are also required to be canonical lowercase SHA-256 text
+so every published bundle remains consumable by the same replay contract.

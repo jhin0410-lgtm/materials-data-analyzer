@@ -43,9 +43,38 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
                 "node_type": "hypothesis",
                 "statement": "The bounded structural target holds.",
                 "metadata": {"claim_scope": "structural"},
+            },
+            {
+                "node_id": "legacy-result-node",
+                "node_type": "analysis",
+                "statement": "A legacy verified analysis remains inherited authority.",
+                "execution_status": "completed",
+                "artifact_bindings": [
+                    {
+                        "role": "primary_result",
+                        "path": str(legacy_result),
+                        "sha256": legacy_result_sha,
+                    }
+                ],
+                "metadata": {"result_origin": "authorized_local_analysis"},
+            },
+        ],
+        "edges": [
+            {
+                "edge_id": "legacy-support",
+                "source_node_id": "legacy-result-node",
+                "target_node_id": "hypothesis-1",
+                "relation": "supports",
+                "assessment_level": "domain_verified",
+                "rationale": "Legacy v1.0-era verified structural support.",
+                "active": True,
+                "verification_artifact": {
+                    "role": "domain_verification_decision",
+                    "path": str(legacy_verifier),
+                    "sha256": legacy_verifier_sha,
+                },
             }
         ],
-        "edges": [],
         "metadata": {},
     }
     old_parent_sha = _write_json(old_parent, old_parent_graph)
@@ -124,7 +153,7 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
         "graph_id": "graph-v1",
         "research_scope": research_scope,
         "nodes": [
-            old_parent_graph["nodes"][0],
+            *old_parent_graph["nodes"],
             {
                 "node_id": "old-result-node",
                 "node_type": "analysis",
@@ -139,22 +168,9 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
                 ],
                 "metadata": old_result_metadata,
             },
-            {
-                "node_id": "legacy-result-node",
-                "node_type": "analysis",
-                "statement": "A legacy verified analysis remains inherited authority.",
-                "execution_status": "completed",
-                "artifact_bindings": [
-                    {
-                        "role": "primary_result",
-                        "path": str(legacy_result),
-                        "sha256": legacy_result_sha,
-                    }
-                ],
-                "metadata": {"result_origin": "authorized_local_analysis"},
-            },
         ],
         "edges": [
+            *old_parent_graph["edges"],
             {
                 "edge_id": "old-tests",
                 "source_node_id": "old-result-node",
@@ -175,20 +191,6 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
                 "assessment_level": "diagnostic",
                 "rationale": "Previously authenticated structural support identity.",
                 "active": True,
-            },
-            {
-                "edge_id": "legacy-support",
-                "source_node_id": "legacy-result-node",
-                "target_node_id": "hypothesis-1",
-                "relation": "supports",
-                "assessment_level": "domain_verified",
-                "rationale": "Legacy v1.0-era verified structural support.",
-                "active": True,
-                "verification_artifact": {
-                    "role": "domain_verification_decision",
-                    "path": str(legacy_verifier),
-                    "sha256": legacy_verifier_sha,
-                },
             },
         ],
         "metadata": {

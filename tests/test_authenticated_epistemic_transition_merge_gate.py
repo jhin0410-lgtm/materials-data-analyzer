@@ -242,7 +242,18 @@ def _valid_historical_lineage_fixture(
                 "active": True,
             },
         ],
-        "metadata": {},
+        "metadata": {
+            "transition_lineage": [
+                {
+                    "transition_id": "old-auth",
+                    "parent_graph_id": "graph-v0",
+                    "parent_graph_sha256": base_sha,
+                    "proposal_sha256": proposal_sha,
+                    "verification_decision_sha256": verifier_sha,
+                    "result_node_id": "old-result",
+                }
+            ]
+        },
     }
     return lineage, enclosing
 
@@ -252,9 +263,17 @@ def _remap_one_lineage(
     lineage: dict[str, object],
     enclosing: dict[str, object],
 ) -> None:
+    metadata = enclosing.get("metadata")
+    assert isinstance(metadata, dict)
+    metadata["authenticated_transition_lineage"] = [lineage]
+    enclosing_bytes = (
+        json.dumps(enclosing, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
     _remap_authenticated_lineage_artifacts(
-        {"authenticated_transition_lineage": [lineage]},
+        metadata,
         enclosing_graph=enclosing,
+        enclosing_graph_bytes=enclosing_bytes,
+        enclosing_graph_sha256=hashlib.sha256(enclosing_bytes).hexdigest(),
         program_state={"workstreams": []},
         artifact_root=tmp_path,
         payloads={},
@@ -277,7 +296,7 @@ def test_malformed_inherited_authenticated_lineage_fails_closed(tmp_path: Path) 
     }
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
-        match="base_graph_artifact must be an object",
+        match="exact producer lineage key set",
     ):
         _remap_one_lineage(tmp_path, malformed, enclosing)
 
@@ -360,6 +379,77 @@ def test_inherited_empirical_derived_lineage_fails_closed(tmp_path: Path) -> Non
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
         match="does not accept inherited empirical_derived lineage",
+    ):
+        _remap_one_lineage(tmp_path, lineage, enclosing)
+
+
+def test_inherited_lineage_rejects_unknown_authority_claim(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(tmp_path)
+    lineage["positive_closeout_granted"] = True
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="exact producer lineage key set",
+    ):
+        _remap_one_lineage(tmp_path, lineage, enclosing)
+
+
+def test_inherited_legacy_parent_graph_id_must_match_exact_base(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(tmp_path)
+    metadata = enclosing["metadata"]
+    assert isinstance(metadata, dict)
+    legacy = metadata["transition_lineage"]
+    assert isinstance(legacy, list)
+    record = legacy[0]
+    assert isinstance(record, dict)
+    record["parent_graph_id"] = "wrong-parent"
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="parent_graph_id does not match the exact authenticated base graph",
+    ):
+        _remap_one_lineage(tmp_path, lineage, enclosing)
+
+
+def test_inherited_authenticated_history_must_be_consecutive_legacy_suffix(
+    tmp_path: Path,
+) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(tmp_path)
+    metadata = enclosing["metadata"]
+    assert isinstance(metadata, dict)
+    legacy = metadata["transition_lineage"]
+    assert isinstance(legacy, list)
+    legacy.append(
+        {
+            "transition_id": "legacy-after-auth",
+            "parent_graph_id": "graph-v1",
+            "parent_graph_sha256": "a" * 64,
+            "proposal_sha256": "b" * 64,
+            "verification_decision_sha256": "c" * 64,
+            "result_node_id": "legacy-result",
+        }
+    )
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="consecutive suffix",
+    ):
+        _remap_one_lineage(tmp_path, lineage, enclosing)
+
+
+def test_inherited_authenticated_successor_cannot_graft_extra_structure(
+    tmp_path: Path,
+) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(tmp_path)
+    nodes = enclosing["nodes"]
+    assert isinstance(nodes, list)
+    nodes.append(
+        {
+            "node_id": "grafted-question",
+            "node_type": "research_question",
+            "statement": "Unrelated grafted structure.",
+        }
+    )
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="structure outside the authenticated transition",
     ):
         _remap_one_lineage(tmp_path, lineage, enclosing)
 

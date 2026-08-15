@@ -283,6 +283,10 @@ def test_inherited_evidence_nodes_fail_closed_without_resolvable_artifact_contra
     ):
         module._remap_base_graph_artifacts(
             base,
+            enclosing_graph_bytes=(json.dumps(base, sort_keys=True) + "\n").encode("utf-8"),
+            enclosing_graph_sha256=hashlib.sha256(
+                (json.dumps(base, sort_keys=True) + "\n").encode("utf-8")
+            ).hexdigest(),
             program_state={"workstreams": []},
             artifact_root=tmp_path,
             payloads={},
@@ -393,6 +397,58 @@ def test_current_proposal_result_sha_must_be_canonical_for_replay(tmp_path: Path
     proposal = _proposal(base_sha=base_sha, result_sha=f" {result_sha} ")
     proposal_file = tmp_path / "proposal.json"
     proposal_sha = _write_json(proposal_file, proposal)
+    verification_file = tmp_path / "verification.json"
+    _write_json(
+        verification_file,
+        _verification(proposal_sha=proposal_sha, base_sha=base_sha),
+    )
+    output = tmp_path / "out"
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="sha256 must be canonical lowercase SHA-256 text",
+    ):
+        apply_authenticated_epistemic_transition_files(
+            base_graph_path=base_file,
+            proposal_path=proposal_file,
+            verification_decision_path=verification_file,
+            program_state=_program_state(),
+            artifact_root=tmp_path,
+            output_dir=output,
+        )
+    assert not output.exists()
+
+def test_current_base_artifact_sha_must_be_canonical_for_replay(tmp_path: Path) -> None:
+    inherited_result = tmp_path / "inherited-result.json"
+    inherited_sha = _write_json(inherited_result, {"prior": 1})
+    base = _base_graph()
+    nodes = base["nodes"]
+    assert isinstance(nodes, list)
+    nodes.append(
+        {
+            "node_id": "prior-result",
+            "node_type": "analysis",
+            "statement": "Prior completed result.",
+            "execution_status": "completed",
+            "artifact_bindings": [
+                {
+                    "role": "primary_result",
+                    "path": str(inherited_result),
+                    "sha256": f" {inherited_sha} ",
+                }
+            ],
+            "metadata": {"result_origin": "authorized_local_analysis"},
+        }
+    )
+    base_file = tmp_path / "base_graph.json"
+    base_sha = _write_json(base_file, base)
+    result_file = tmp_path / "result.json"
+    result_sha = _write_json(result_file, {"rank_before": 3, "rank_after": 4})
+    proposal_file = tmp_path / "proposal.json"
+    proposal_sha = _write_json(
+        proposal_file,
+        _proposal(base_sha=base_sha, result_sha=result_sha),
+    )
     verification_file = tmp_path / "verification.json"
     _write_json(
         verification_file,
