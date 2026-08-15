@@ -8,6 +8,7 @@ import pytest
 
 from materials_data_analyzer.research_loop import authenticated_epistemic_transition as module
 from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
+    AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
     AuthenticatedEpistemicTransitionError,
     apply_authenticated_epistemic_transition_files,
 )
@@ -150,6 +151,9 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
         proposal_sha,
         verification_sha,
     ) = _fixture_files(tmp_path)
+    result_source = tmp_path / "result.json"
+    result_source_bytes = result_source.read_bytes()
+    result_sha = hashlib.sha256(result_source_bytes).hexdigest()
     output = tmp_path / "out"
 
     result = apply_authenticated_epistemic_transition_files(
@@ -173,7 +177,10 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
     assert boundary["exact_inference_edge_identity_authenticated"] is True
     assert boundary["source_file_toctou_changes_transition_bytes"] is False
     assert boundary["provenance_snapshots_self_contained"] is True
+    assert boundary["result_artifact_snapshots_self_contained"] is True
+    assert boundary["result_artifact_source_drift_changes_published_evidence"] is False
     assert boundary["temporary_transition_staging_used"] is False
+    assert boundary["authenticated_v11_verifier_consumed_by_legacy_critic"] is False
     assert boundary["verifier_identity_or_credential_authenticated"] is False
     assert boundary["execution_authorized_by_authentication"] is False
     assert boundary["positive_closeout_granted_by_authentication"] is False
@@ -181,18 +188,30 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
     base_snapshot = output / "provenance" / "base_graph.json"
     proposal_snapshot = output / "provenance" / "proposal.json"
     verification_snapshot = output / "provenance" / "verification_decision.json"
+    result_snapshot = output / "provenance" / "result_artifacts" / "result-000.json"
     assert hashlib.sha256(base_snapshot.read_bytes()).hexdigest() == base_sha
     assert hashlib.sha256(proposal_snapshot.read_bytes()).hexdigest() == proposal_sha
     assert hashlib.sha256(verification_snapshot.read_bytes()).hexdigest() == verification_sha
+    assert result_snapshot.read_bytes() == result_source_bytes
+    assert hashlib.sha256(result_snapshot.read_bytes()).hexdigest() == result_sha
 
     graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
     edge = next(item for item in graph["edges"] if item["edge_id"] == "inference-1")
     assert edge["assessment_level"] == "domain_verified"
     assert edge["verification_artifact"] == {
-        "role": "domain_verification_decision",
+        "role": AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
         "path": str(verification_snapshot.resolve()),
         "sha256": verification_sha,
     }
+    result_node = next(item for item in graph["nodes"] if item["node_id"] == "result-1")
+    assert result_node["artifact_bindings"] == [
+        {
+            "role": "primary_result",
+            "path": str(result_snapshot.resolve()),
+            "sha256": result_sha,
+        }
+    ]
+
     lineage = graph["metadata"]["authenticated_transition_lineage"][-1]
     assert lineage["base_graph_artifact"]["path"] == str(base_snapshot.resolve())
     assert lineage["base_graph_artifact"]["source_path"] == str(base_file.resolve())
@@ -208,6 +227,16 @@ def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
         verification_file.resolve()
     )
     assert lineage["verification_decision_artifact"]["source_path_authoritative"] is False
+    assert lineage["result_artifact_snapshots"] == [
+        {
+            "role": "primary_result",
+            "path": str(result_snapshot.resolve()),
+            "source_path": str(result_source.resolve()),
+            "source_path_authoritative": False,
+            "sha256": result_sha,
+            "size_bytes": len(result_source_bytes),
+        }
+    ]
     assert lineage["authenticated_inference_binding"] == binding
 
 
