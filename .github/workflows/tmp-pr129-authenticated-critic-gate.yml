@@ -5,11 +5,18 @@ on:
     branches:
       - agent/scientific-critic-authenticated-adapter-20260815
 
+permissions:
+  contents: write
+
 jobs:
   focused-adapter:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: agent/scientific-critic-authenticated-adapter-20260815
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -21,6 +28,9 @@ jobs:
       - name: Run authenticated critic regressions
         run: |
           set -euo pipefail
+          python -m ruff check --fix \
+            src/materials_data_analyzer/research_loop/scientific_critic_authenticated_policy.py \
+            tests/test_scientific_critic_authenticated_policy.py
           python -m pytest -q \
             tests/test_scientific_critic_authenticated_policy.py \
             tests/test_scientific_critic_policy.py \
@@ -31,3 +41,13 @@ jobs:
           python -m ruff check \
             src/materials_data_analyzer/research_loop/scientific_critic_authenticated_policy.py \
             tests/test_scientific_critic_authenticated_policy.py
+      - name: Commit verified adapter changes
+        run: |
+          set -euo pipefail
+          git add \
+            src/materials_data_analyzer/research_loop/scientific_critic_authenticated_policy.py \
+            tests/test_scientific_critic_authenticated_policy.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'Add authenticated Scientific Critic advisory policy'
+          git push origin HEAD:agent/scientific-critic-authenticated-adapter-20260815
