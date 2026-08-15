@@ -76,7 +76,7 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
                 {
                     "transition_id": "old-auth",
                     "parent_graph_id": "graph-v0",
-                    "parent_graph_sha256": "d" * 64,
+                    "parent_graph_sha256": old_parent_sha,
                     "proposal_sha256": old_proposal_sha,
                     "verification_decision_sha256": old_auth_verifier_sha,
                     "result_node_id": "old-result-node",
@@ -110,6 +110,7 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
                         "schema_version": "1.0",
                         "transition_id": "old-auth",
                         "inference_edge_id": "old-support",
+                        "result_node_id": "old-result-node",
                     },
                     "scientific_authority_applied": False,
                 }
