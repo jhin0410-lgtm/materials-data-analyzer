@@ -8,8 +8,13 @@ left to a later consumer that independently re-authenticates the published bundl
 from __future__ import annotations
 
 import copy
+import ctypes
+import errno
 import hashlib
+import os
 import shutil
+import stat
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping
@@ -32,7 +37,7 @@ from .epistemic_transition import (
     validate_verification_decision,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.1"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.2"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE = "authenticated_domain_verification_decision"
 
@@ -193,6 +198,59 @@ def _lineage_records(
     return result
 
 
+def _lineage_identity(record: Mapping[str, Any], field: str) -> str:
+    value = record.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise AuthenticatedEpistemicTransitionError(
+            f"lineage coherence field {field} must be non-empty text"
+        )
+    return value.strip()
+
+
+def _assert_cross_lineage_coherence(
+    legacy: list[Mapping[str, Any]], authenticated: list[Mapping[str, Any]]
+) -> None:
+    """Reject one normalized transition identity denoting incompatible histories."""
+    legacy_by_id = {
+        _lineage_identity(item, "transition_id"): item for item in legacy
+    }
+    authenticated_by_id = {
+        _lineage_identity(item, "transition_id"): item for item in authenticated
+    }
+    for transition_id in sorted(set(legacy_by_id) & set(authenticated_by_id)):
+        legacy_record = legacy_by_id[transition_id]
+        auth_record = authenticated_by_id[transition_id]
+        base_artifact = auth_record.get("base_graph_artifact")
+        proposal_artifact = auth_record.get("proposal_artifact")
+        verifier_artifact = auth_record.get("verification_decision_artifact")
+        binding = auth_record.get("authenticated_inference_binding")
+        if not all(
+            isinstance(item, Mapping)
+            for item in (base_artifact, proposal_artifact, verifier_artifact, binding)
+        ):
+            raise AuthenticatedEpistemicTransitionError(
+                f"cross-lineage transition_id {transition_id} lacks authenticated coherence fields"
+            )
+        assert isinstance(base_artifact, Mapping)
+        assert isinstance(proposal_artifact, Mapping)
+        assert isinstance(verifier_artifact, Mapping)
+        assert isinstance(binding, Mapping)
+        expected_pairs = (
+            (legacy_record.get("parent_graph_sha256"), base_artifact.get("sha256")),
+            (legacy_record.get("proposal_sha256"), proposal_artifact.get("sha256")),
+            (
+                legacy_record.get("verification_decision_sha256"),
+                verifier_artifact.get("sha256"),
+            ),
+            (legacy_record.get("result_node_id"), binding.get("result_node_id")),
+            (transition_id, str(binding.get("transition_id", "")).strip()),
+        )
+        if any(left != right for left, right in expected_pairs):
+            raise AuthenticatedEpistemicTransitionError(
+                f"cross-lineage transition_id {transition_id} denotes incompatible histories"
+            )
+
+
 def _reject_transition_id_reuse(
     metadata: Mapping[str, Any], *, transition_id: str
 ) -> tuple[list[Mapping[str, Any]], list[Mapping[str, Any]]]:
@@ -200,6 +258,7 @@ def _reject_transition_id_reuse(
     authenticated = _lineage_records(
         metadata, field="authenticated_transition_lineage"
     )
+    _assert_cross_lineage_coherence(legacy, authenticated)
     if any(str(item.get("transition_id")).strip() == transition_id for item in legacy):
         raise AuthenticatedEpistemicTransitionError(
             f"transition_id already exists in base transition_lineage: {transition_id}"
@@ -573,15 +632,55 @@ def _write_payloads(root: Path, payloads: Mapping[str, bytes]) -> None:
         destination.write_bytes(data)
 
 
+def _read_staged_regular_file(root: Path, relative: str, *, field: str) -> bytes:
+    """Read one staged file without accepting symlinks or non-regular files."""
+    root_resolved = root.resolve(strict=True)
+    path = root / Path(relative)
+    try:
+        parent_resolved = path.parent.resolve(strict=True)
+    except OSError as exc:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} parent could not be resolved inside staging root"
+        ) from exc
+    if parent_resolved != root_resolved and root_resolved not in parent_resolved.parents:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} escapes the staging root"
+        )
+    flags = os.O_RDONLY
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} could not be opened as a no-follow staged file"
+        ) from exc
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field} must be a regular staged file"
+            )
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
+
+
 def _validate_written_payloads(root: Path, payloads: Mapping[str, bytes]) -> None:
     for relative, expected in payloads.items():
-        path = root / Path(relative)
-        try:
-            actual = path.read_bytes()
-        except OSError as exc:
-            raise AuthenticatedEpistemicTransitionError(
-                f"published snapshot became unreadable before atomic publication: {relative}"
-            ) from exc
+        actual = _read_staged_regular_file(
+            root,
+            relative,
+            field=f"published snapshot {relative}",
+        )
         if actual != expected:
             raise AuthenticatedEpistemicTransitionError(
                 f"published snapshot bytes changed before atomic publication: {relative}"
@@ -599,17 +698,23 @@ def _validate_written_bundle(
     inference_edge_id: str,
 ) -> dict[str, Any]:
     _validate_written_payloads(root, payloads)
-    graph_path = root / "epistemic_graph.json"
-    manifest_path = root / "epistemic_transition_manifest.json"
-    if graph_path.read_bytes() != graph_bytes:
+    graph_raw = _read_staged_regular_file(
+        root, "epistemic_graph.json", field="written epistemic graph"
+    )
+    manifest_raw = _read_staged_regular_file(
+        root,
+        "epistemic_transition_manifest.json",
+        field="written transition manifest",
+    )
+    if graph_raw != graph_bytes:
         raise AuthenticatedEpistemicTransitionError(
             "written epistemic graph bytes changed before atomic publication"
         )
-    if manifest_path.read_bytes() != manifest_bytes:
+    if manifest_raw != manifest_bytes:
         raise AuthenticatedEpistemicTransitionError(
             "written transition manifest bytes changed before atomic publication"
         )
-    graph, _, _ = _read_json_snapshot(graph_path)
+    graph, _, _ = _read_json_snapshot(root / "epistemic_graph.json")
     evaluation = evaluate_epistemic_graph(
         graph,
         program_state=program_state,
@@ -620,7 +725,80 @@ def _validate_written_bundle(
         raise AuthenticatedEpistemicTransitionError(
             "authenticated inference edge was not preserved as a diagnostic relation"
         )
+    # Re-read all files after graph evaluation so a staging hook cannot substitute a
+    # payload during evaluation and leave altered bytes for publication.
+    _validate_written_payloads(root, payloads)
+    if _read_staged_regular_file(
+        root, "epistemic_graph.json", field="written epistemic graph"
+    ) != graph_bytes:
+        raise AuthenticatedEpistemicTransitionError(
+            "written epistemic graph changed during final bundle validation"
+        )
+    if _read_staged_regular_file(
+        root,
+        "epistemic_transition_manifest.json",
+        field="written transition manifest",
+    ) != manifest_bytes:
+        raise AuthenticatedEpistemicTransitionError(
+            "written transition manifest changed during final bundle validation"
+        )
     return target_after
+
+
+def _atomic_publish_directory_no_replace(source: Path, destination: Path) -> None:
+    """Atomically publish a directory without replacing an existing destination."""
+    if os.name == "nt":
+        try:
+            os.rename(source, destination)
+        except FileExistsError as exc:
+            raise AuthenticatedEpistemicTransitionError(
+                f"output_dir appeared during atomic publication: {destination}"
+            ) from exc
+        except OSError as exc:
+            if destination.exists():
+                raise AuthenticatedEpistemicTransitionError(
+                    f"output_dir appeared during atomic publication: {destination}"
+                ) from exc
+            raise
+        return
+
+    if sys.platform.startswith("linux"):
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise AuthenticatedEpistemicTransitionError(
+                "atomic no-replace directory publication requires renameat2 on Linux"
+            )
+        renameat2.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        renameat2.restype = ctypes.c_int
+        rc = renameat2(
+            -100,
+            os.fsencode(source),
+            -100,
+            os.fsencode(destination),
+            1,
+        )
+        if rc != 0:
+            error = ctypes.get_errno()
+            if error in {errno.EEXIST, errno.ENOTEMPTY}:
+                raise AuthenticatedEpistemicTransitionError(
+                    f"output_dir appeared during atomic publication: {destination}"
+                )
+            raise AuthenticatedEpistemicTransitionError(
+                f"atomic no-replace publication failed with errno {error}"
+            )
+        return
+
+    raise AuthenticatedEpistemicTransitionError(
+        "authenticated transition publication is unsupported on this platform because "
+        "an atomic no-replace directory primitive is unavailable"
+    )
 
 
 def apply_authenticated_epistemic_transition_files(
@@ -696,6 +874,12 @@ def apply_authenticated_epistemic_transition_files(
     if scope_validation["inference_scope"] != authenticated_binding["inference_scope"]:
         raise AuthenticatedEpistemicTransitionError(
             "authenticated verifier scope diverged from transition scope validation"
+        )
+    if scope_validation["inference_scope"] == "empirical_derived":
+        raise AuthenticatedEpistemicTransitionError(
+            "authenticated self-contained transition does not yet accept empirical_derived "
+            "inference because program evidence bindings do not provide a first-class "
+            "checksum-bound resolvable artifact contract"
         )
 
     metadata = base_raw.get("metadata")
@@ -869,10 +1053,13 @@ def apply_authenticated_epistemic_transition_files(
                 "duplicate_transition_lineage_allowed": False,
                 "source_file_toctou_changes_transition_bytes": False,
                 "bundle_published_atomically": True,
+                "bundle_published_with_no_replace": True,
                 "bundle_relative_artifact_paths": True,
                 "inherited_artifacts_snapshotted": True,
                 "provenance_snapshots_self_contained": True,
-                "temporary_transition_staging_used": False,
+                "temporary_transition_staging_used": True,
+                "staged_symlinks_accepted": False,
+                "empirical_derived_without_resolvable_input_snapshots_allowed": False,
                 "opaque_graph_metadata_used_as_authority": False,
                 "legacy_v10_verifier_used_as_authenticated_authority": False,
                 "authenticated_v11_verifier_consumed_by_legacy_critic": False,
@@ -898,11 +1085,7 @@ def apply_authenticated_epistemic_transition_files(
             raise AuthenticatedEpistemicTransitionError(
                 "written bundle target assessment differs from pre-publication assessment"
             )
-        if output.exists():
-            raise AuthenticatedEpistemicTransitionError(
-                f"output_dir appeared during atomic publication: {output}"
-            )
-        build_root.rename(output)
+        _atomic_publish_directory_no_replace(build_root, output)
         published = True
     finally:
         if not published and build_root.exists():
