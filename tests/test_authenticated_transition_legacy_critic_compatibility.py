@@ -18,7 +18,7 @@ def _write_json(path: Path, value: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def test_current_critic_does_not_crash_or_consume_v11_authenticated_role(
+def test_current_critic_sees_producer_edge_as_diagnostic_not_verified_support(
     tmp_path: Path,
 ) -> None:
     result_file = tmp_path / "result.json"
@@ -30,7 +30,7 @@ def test_current_critic_does_not_crash_or_consume_v11_authenticated_role(
             "schema_version": "1.1",
             "decision_id": "decision-1",
             "transition_id": "transition-1",
-            "proposal_sha256": "p" * 64,
+            "proposal_sha256": "a" * 64,
             "base_graph_sha256": "b" * 64,
             "inference_edge_id": "support-1",
             "result_node_id": "result-1",
@@ -49,7 +49,7 @@ def test_current_critic_does_not_crash_or_consume_v11_authenticated_role(
         {
             "schema_version": "1.0",
             "graph_id": "critic-v11-compatibility",
-            "research_scope": "legacy critic compatibility with authenticated role",
+            "research_scope": "legacy critic compatibility with diagnostic producer edge",
             "nodes": [
                 {
                     "node_id": "hypothesis-1",
@@ -77,16 +77,27 @@ def test_current_critic_does_not_crash_or_consume_v11_authenticated_role(
                     "source_node_id": "result-1",
                     "target_node_id": "hypothesis-1",
                     "relation": "supports",
-                    "assessment_level": "domain_verified",
-                    "rationale": "Evaluator-visible structural support.",
+                    "assessment_level": "diagnostic",
+                    "rationale": "Authenticated producer proposal awaiting consumer promotion.",
                     "active": True,
-                    "verification_artifact": {
-                        "role": AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
-                        "path": str(verifier_file),
-                        "sha256": verifier_sha,
-                    },
                 }
             ],
+            "metadata": {
+                "authenticated_transition_lineage": [
+                    {
+                        "schema_version": "1.0",
+                        "transition_id": "transition-1",
+                        "verification_decision_artifact": {
+                            "role": AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
+                            "path": str(verifier_file),
+                            "source_path": str(verifier_file),
+                            "source_path_authoritative": False,
+                            "sha256": verifier_sha,
+                        },
+                        "scientific_authority_applied": False,
+                    }
+                ]
+            },
         },
     )
     program_state = {
@@ -106,9 +117,11 @@ def test_current_critic_does_not_crash_or_consume_v11_authenticated_role(
     )
 
     target = report["target_reports"][0]
-    assert target["epistemic_assessment"]["status"] == "provisionally_supported"
+    assert target["epistemic_assessment"]["status"] == "inconclusive"
+    assert target["epistemic_assessment"]["verified_support_edges"] == []
+    assert target["epistemic_assessment"]["diagnostic_relation_edges"] == ["support-1"]
     codes = {item["code"] for item in target["critic_findings"]}
-    assert "SUPPORT_INDEPENDENCE_NOT_ESTABLISHED" in codes
-    assert "EMPIRICAL_SUPPORT_SCOPE_NOT_ESTABLISHED" not in codes
+    assert "DIRECTIONAL_RELATIONS_NOT_DOMAIN_VERIFIED" in codes
+    assert "SUPPORT_INDEPENDENCE_NOT_ESTABLISHED" not in codes
     assert report["autonomy_boundary"]["automatic_action_execution_authorized"] is False
     assert report["autonomy_boundary"]["positive_scientific_closeout_granted"] is False
