@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -12,6 +11,7 @@ from materials_data_analyzer.research_loop.authenticated_epistemic_transition im
     _assert_cross_lineage_coherence,
     _atomic_publish_directory_no_replace,
     _read_staged_regular_file,
+    _remap_authenticated_lineage_artifacts,
     apply_authenticated_epistemic_transition_files,
 )
 
@@ -67,9 +67,38 @@ def test_cross_lineage_matching_identity_must_be_coherent() -> None:
         )
 
 
+def test_malformed_inherited_authenticated_lineage_fails_closed(tmp_path: Path) -> None:
+    metadata: dict[str, object] = {
+        "authenticated_transition_lineage": [
+            {
+                "schema_version": "1.0",
+                "transition_id": "old-auth",
+                # Missing mandatory base_graph_artifact must never survive as
+                # inherited authenticated provenance.
+                "proposal_artifact": {},
+                "verification_decision_artifact": {},
+                "result_artifact_snapshots": [],
+                "authenticated_inference_binding": {
+                    "transition_id": "old-auth",
+                    "result_node_id": "result-old",
+                },
+                "scientific_authority_applied": False,
+            }
+        ]
+    }
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="base_graph_artifact must be an object",
+    ):
+        _remap_authenticated_lineage_artifacts(
+            metadata,
+            artifact_root=tmp_path,
+            payloads={},
+        )
+
+
 def test_staged_symlink_is_rejected_even_when_target_bytes_match(tmp_path: Path) -> None:
-    if not hasattr(os, "O_NOFOLLOW"):
-        pytest.skip("platform does not expose O_NOFOLLOW")
     stage = tmp_path / "stage"
     stage.mkdir()
     outside = tmp_path / "outside.bin"
@@ -80,8 +109,34 @@ def test_staged_symlink_is_rejected_even_when_target_bytes_match(tmp_path: Path)
     except OSError as exc:
         pytest.skip(f"symlink creation unavailable: {exc}")
 
-    with pytest.raises(AuthenticatedEpistemicTransitionError, match="no-follow"):
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match=r"(no-follow|links or reparse|unsafe staged)",
+    ):
         _read_staged_regular_file(stage, "payload.bin", field="payload")
+
+
+def test_staged_intermediate_directory_symlink_is_rejected(tmp_path: Path) -> None:
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "payload.bin").write_bytes(b"expected")
+    linked_directory = stage / "provenance"
+    try:
+        linked_directory.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlink creation unavailable: {exc}")
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match=r"(unsafe staged parent|links or reparse|no-follow)",
+    ):
+        _read_staged_regular_file(
+            stage,
+            "provenance/payload.bin",
+            field="payload",
+        )
 
 
 def test_atomic_publication_never_replaces_newly_appeared_empty_target(
