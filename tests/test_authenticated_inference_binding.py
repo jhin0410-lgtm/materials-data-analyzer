@@ -11,12 +11,17 @@ from materials_data_analyzer.research_loop.authenticated_inference_binding impor
 )
 
 
-def _proposal_bytes(*, edge_id: str = "edge-1") -> bytes:
+def _proposal_bytes(
+    *,
+    edge_id: str = "edge-1",
+    transition_id: str = "transition-1",
+    base_graph_sha256: str = "b" * 64,
+) -> bytes:
     value = {
         "schema_version": "1.0",
-        "transition_id": "transition-1",
+        "transition_id": transition_id,
         "base_graph_id": "base-graph",
-        "base_graph_sha256": "b" * 64,
+        "base_graph_sha256": base_graph_sha256,
         "new_graph_id": "successor-graph",
         "target_node_id": "target-1",
         "source_action": {
@@ -48,6 +53,7 @@ def _decision_bytes(
     proposal: bytes,
     *,
     edge_id: str = "edge-1",
+    transition_id: str = "transition-1",
     schema_version: str = "1.1",
     base_graph_sha256: str = "b" * 64,
     extra: dict[str, object] | None = None,
@@ -55,7 +61,7 @@ def _decision_bytes(
     value: dict[str, object] = {
         "schema_version": schema_version,
         "decision_id": "decision-1",
-        "transition_id": "transition-1",
+        "transition_id": transition_id,
         "proposal_sha256": hashlib.sha256(proposal).hexdigest(),
         "base_graph_sha256": base_graph_sha256,
         "inference_edge_id": edge_id,
@@ -83,6 +89,7 @@ def test_exact_pretty_printed_proposal_bytes_are_authenticated() -> None:
         expected_base_graph_sha256="b" * 64,
     )
 
+    assert result["transition_id"] == "transition-1"
     assert result["inference_edge_id"] == "edge-1"
     assert result["proposal_sha256"] == hashlib.sha256(proposal).hexdigest()
     assert result["verification_decision_sha256"] == hashlib.sha256(decision).hexdigest()
@@ -99,6 +106,36 @@ def test_same_triple_reused_for_different_edge_id_is_rejected() -> None:
     with pytest.raises(
         AuthenticatedInferenceBindingError,
         match="inference_edge_id does not match proposal",
+    ):
+        authenticate_inference_binding(
+            proposal_bytes=proposal,
+            verification_decision_bytes=decision,
+            expected_base_graph_sha256="b" * 64,
+        )
+
+
+def test_verifier_transition_id_must_match_exact_proposal() -> None:
+    proposal = _proposal_bytes(transition_id="transition-1")
+    decision = _decision_bytes(proposal, transition_id="transition-2")
+
+    with pytest.raises(
+        AuthenticatedInferenceBindingError,
+        match="transition_id does not match proposal",
+    ):
+        authenticate_inference_binding(
+            proposal_bytes=proposal,
+            verification_decision_bytes=decision,
+            expected_base_graph_sha256="b" * 64,
+        )
+
+
+def test_proposal_base_graph_sha_must_match_actual_base_graph() -> None:
+    proposal = _proposal_bytes(base_graph_sha256="c" * 64)
+    decision = _decision_bytes(proposal, base_graph_sha256="c" * 64)
+
+    with pytest.raises(
+        AuthenticatedInferenceBindingError,
+        match="proposal base_graph_sha256 does not match expected base graph",
     ):
         authenticate_inference_binding(
             proposal_bytes=proposal,
@@ -125,7 +162,7 @@ def test_verifier_cannot_bind_a_different_proposal_serialization() -> None:
         )
 
 
-def test_base_graph_mismatch_is_rejected() -> None:
+def test_verifier_base_graph_mismatch_is_rejected() -> None:
     proposal = _proposal_bytes()
     decision = _decision_bytes(proposal, base_graph_sha256="c" * 64)
 
