@@ -20,6 +20,7 @@ from .authenticated_inference_binding import (
     AuthenticatedInferenceBindingError,
     authenticate_inference_binding,
 )
+from .epistemic_graph import EpistemicGraphError, validate_epistemic_graph
 from .kernel import ResearchLoopError
 
 AUTHENTICATED_TRANSITION_CONSUMER_SCHEMA_VERSION = "1.0"
@@ -361,6 +362,21 @@ def _read_bound_artifact(
             f"{field}.size_bytes does not match its exact bundle bytes"
         )
     return binding, raw
+
+
+def _validate_graph_contract(
+    value: Mapping[str, Any], *, root: Path, field: str
+) -> None:
+    try:
+        validate_epistemic_graph(
+            value,
+            program_state={"workstreams": []},
+            artifact_root=root,
+        )
+    except EpistemicGraphError as exc:
+        raise AuthenticatedTransitionConsumerError(
+            f"{field} violates the epistemic graph contract"
+        ) from exc
 
 
 def _lineage_records(metadata: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
@@ -1279,6 +1295,9 @@ def authenticate_transition_bundle(bundle_root: str | Path) -> dict[str, Any]:
         inference_scope=str(recomputed["inference_scope"]),
         target_claim_scope=target_scope,
     )
+    _validate_graph_contract(
+        base_graph, root=root, field="current exact base graph snapshot"
+    )
     _verify_successor_is_exact_append(
         base_graph=base_graph,
         successor_graph=graph,
@@ -1290,6 +1309,7 @@ def authenticate_transition_bundle(bundle_root: str | Path) -> dict[str, Any]:
         binding=recomputed,
         result_snapshots=result_bindings,
     )
+    _validate_graph_contract(graph, root=root, field="epistemic graph")
     graph_id = _text(graph.get("graph_id"), "epistemic graph graph_id")
     _verify_manifest(
         manifest,

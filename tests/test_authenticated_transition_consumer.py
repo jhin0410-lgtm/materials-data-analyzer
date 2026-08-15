@@ -467,3 +467,18 @@ def test_consumer_rejects_windows_nonportable_bundle_components(value: str) -> N
         match="Windows-(?:nonportable|reserved)",
     ):
         module._relative_bundle_parts(value, "binding.path")
+
+
+def test_consumer_rejects_successor_that_violates_graph_schema_even_when_manifest_hash_is_synced(
+    tmp_path: Path,
+) -> None:
+    bundle = _make_bundle(tmp_path)
+    graph = _load_json(bundle / "epistemic_graph.json")
+    graph["unauthenticated_authority_override"] = True
+    _rewrite_graph_and_sync_manifest(bundle, graph)
+
+    with pytest.raises(
+        AuthenticatedTransitionConsumerError,
+        match="epistemic graph contract",
+    ):
+        authenticate_transition_bundle(bundle)
