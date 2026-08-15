@@ -47,7 +47,7 @@ jobs:
             src/materials_data_analyzer/research_program_cli.py \
             tests/test_authenticated_transition_consumer.py \
             tests/test_authenticated_transition_consumer_cli.py
-          python -m materials_data_analyzer.research_program_cli authenticate-transition-bundle --help
+          PYTHONPATH=src python -m materials_data_analyzer.research_program_cli authenticate-transition-bundle --help
       - name: Commit verified public surface
         run: |
           set -euo pipefail
