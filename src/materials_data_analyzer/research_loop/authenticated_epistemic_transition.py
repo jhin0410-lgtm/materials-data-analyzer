@@ -1,15 +1,14 @@
 """Authenticated successor-graph production for exact directional inference identity.
 
-This is an additive hardened producer above the legacy transition-v1 path. It requires a
-v1.1 domain-verification decision that binds the exact inference edge ID and preserves
-self-contained snapshots of the exact base/proposal/verifier bytes used by the transition.
+This additive producer validates the existing transition contract but constructs the
+successor directly from the exact base/proposal/verifier snapshots read at entry. It does
+not re-read proposal bytes through a staging transition, eliminating that TOCTOU boundary.
 """
 
 from __future__ import annotations
 
 import hashlib
 import shutil
-import tempfile
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -20,17 +19,18 @@ from .authenticated_inference_binding import (
 )
 from .epistemic_graph import evaluate_epistemic_graph, validate_epistemic_graph
 from .epistemic_transition import (
+    TRANSITION_POLICY_VERSION,
+    TRANSITION_SCHEMA_VERSION,
     VERIFICATION_SCHEMA_VERSION as LEGACY_VERIFICATION_SCHEMA_VERSION,
     EpistemicTransitionError,
     _assessment_for,
     _canonical_json_bytes,
     _read_json_snapshot,
-    apply_epistemic_transition_files,
     validate_transition_proposal,
     validate_verification_decision,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "1.1"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "1.2"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 
 
@@ -39,7 +39,7 @@ class AuthenticatedEpistemicTransitionError(EpistemicTransitionError):
 
 
 def _legacy_scope_decision(value: Mapping[str, Any]) -> dict[str, Any]:
-    """Project v1.1 identity into the legacy scope validator without changing source bytes."""
+    """Project v1.1 identity into the legacy scientific-scope validator."""
     legacy = dict(value)
     legacy.pop("inference_edge_id", None)
     legacy["schema_version"] = LEGACY_VERIFICATION_SCHEMA_VERSION
@@ -76,47 +76,83 @@ def _verified_directional_edge_ids(assessment: Mapping[str, Any]) -> set[str]:
     return result
 
 
-def _find_exact_edge(
-    graph: Mapping[str, Any], *, edge_id: str
-) -> tuple[list[dict[str, Any]], int, dict[str, Any]]:
-    raw_edges = graph.get("edges")
-    if not isinstance(raw_edges, list):
-        raise AuthenticatedEpistemicTransitionError("staged graph edges must be a list")
-    normalized: list[dict[str, Any]] = []
-    match_index: int | None = None
-    match: dict[str, Any] | None = None
-    for index, raw in enumerate(raw_edges):
-        if not isinstance(raw, Mapping):
-            raise AuthenticatedEpistemicTransitionError(
-                f"staged graph edge[{index}] must be an object"
-            )
-        edge = dict(raw)
-        normalized.append(edge)
-        if edge.get("edge_id") == edge_id:
-            if match is not None:
-                raise AuthenticatedEpistemicTransitionError(
-                    f"duplicate staged inference edge ID: {edge_id}"
-                )
-            match_index = index
-            match = edge
-    if match_index is None or match is None:
-        raise AuthenticatedEpistemicTransitionError(
-            f"authenticated inference edge is absent from staged graph: {edge_id}"
-        )
-    return normalized, match_index, match
-
-
 def _snapshot_binding(
     *,
     source: Path,
     snapshot: Path,
     sha256: str,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     return {
         "path": str(snapshot),
         "source_path": str(source),
+        "source_path_authoritative": False,
         "sha256": sha256,
     }
+
+
+def _proposal_result_and_edges(
+    proposal: Mapping[str, Any],
+    *,
+    verifier_snapshot: Path,
+    verification_sha256: str,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    inference = proposal.get("proposed_inference")
+    if not isinstance(inference, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            "validated proposal proposed_inference is malformed"
+        )
+    raw_result = proposal.get("result_node")
+    if not isinstance(raw_result, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            "validated proposal result_node is malformed"
+        )
+    source_action = proposal.get("source_action")
+    input_evidence = proposal.get("input_evidence_bindings")
+    limitations = proposal.get("limitations")
+    if not isinstance(source_action, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            "validated proposal source_action is malformed"
+        )
+    if not isinstance(input_evidence, list) or not isinstance(limitations, list):
+        raise AuthenticatedEpistemicTransitionError(
+            "validated proposal evidence/limitations are malformed"
+        )
+
+    result_node = dict(raw_result)
+    result_metadata = dict(result_node.get("metadata", {}))
+    result_metadata["source_action"] = dict(source_action)
+    result_metadata["input_evidence_bindings"] = list(input_evidence)
+    result_metadata["transition_id"] = proposal["transition_id"]
+    result_metadata["limitations"] = list(limitations)
+    result_node["metadata"] = result_metadata
+
+    tests_edge = {
+        "edge_id": inference["tests_edge_id"],
+        "source_node_id": result_node["node_id"],
+        "target_node_id": proposal["target_node_id"],
+        "relation": "tests",
+        "assessment_level": "proposal",
+        "rationale": (
+            "The completed result was introduced to test this target; execution success alone "
+            "does not establish scientific support, contradiction, or falsification."
+        ),
+        "active": True,
+    }
+    inference_edge = {
+        "edge_id": inference["inference_edge_id"],
+        "source_node_id": result_node["node_id"],
+        "target_node_id": proposal["target_node_id"],
+        "relation": inference["relation"],
+        "assessment_level": "domain_verified",
+        "rationale": inference["rationale"],
+        "active": True,
+        "verification_artifact": {
+            "role": "domain_verification_decision",
+            "path": str(verifier_snapshot),
+            "sha256": verification_sha256,
+        },
+    }
+    return result_node, tests_edge, inference_edge
 
 
 def apply_authenticated_epistemic_transition_files(
@@ -128,11 +164,11 @@ def apply_authenticated_epistemic_transition_files(
     artifact_root: str | Path,
     output_dir: str | Path,
 ) -> dict[str, Any]:
-    """Create a successor graph carrying re-checkable exact-edge authentication.
+    """Create a successor graph with re-checkable exact-edge authentication.
 
-    Authentication and scope validation occur before ``output_dir`` is created. The exact
-    bytes read at the start are then used for both staging and final provenance snapshots,
-    preventing source-file TOCTOU from changing the transition after authentication.
+    Base/proposal/verifier bytes are read exactly once at entry. Existing validators are
+    reused on those in-memory snapshots, then the successor is constructed directly from
+    the validated base/proposal objects. No temporary transition input is re-read.
     """
     base_path = Path(base_graph_path).expanduser().resolve(strict=True)
     proposal_file = Path(proposal_path).expanduser().resolve(strict=True)
@@ -172,6 +208,11 @@ def apply_authenticated_epistemic_transition_files(
         program_state=program_state,
         artifact_root=artifacts,
     )
+    before_eval = evaluate_epistemic_graph(
+        base_raw,
+        program_state=program_state,
+        artifact_root=artifacts,
+    )
     proposal = validate_transition_proposal(
         proposal_raw,
         base_graph=base_validated,
@@ -195,161 +236,152 @@ def apply_authenticated_epistemic_transition_files(
             "authenticated verifier scope diverged from transition scope validation"
         )
 
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(
-        prefix="mda-auth-transition-", dir=str(output.parent)
-    ) as staging_root:
-        staging = Path(staging_root)
-        staged_base = staging / "base_graph.snapshot.json"
-        staged_proposal = staging / "proposal.snapshot.json"
-        staged_base.write_bytes(base_bytes)
-        staged_proposal.write_bytes(proposal_bytes)
-        staged_output = staging / "staged"
-        staged = apply_epistemic_transition_files(
-            base_graph_path=staged_base,
-            proposal_path=staged_proposal,
-            program_state=program_state,
-            artifact_root=artifacts,
-            output_dir=staged_output,
-            verification_decision_path=None,
-        )
-        staged_graph_path = staged_output / "epistemic_graph.json"
-        staged_graph, _, _ = _read_json_snapshot(staged_graph_path)
+    provenance_dir = output / "provenance"
+    base_snapshot = provenance_dir / "base_graph.json"
+    proposal_snapshot = provenance_dir / "proposal.json"
+    verification_snapshot = provenance_dir / "verification_decision.json"
+    base_binding = _snapshot_binding(
+        source=base_path, snapshot=base_snapshot, sha256=base_sha
+    )
+    proposal_binding = _snapshot_binding(
+        source=proposal_file, snapshot=proposal_snapshot, sha256=proposal_sha
+    )
+    verification_binding = _snapshot_binding(
+        source=verification_file,
+        snapshot=verification_snapshot,
+        sha256=verification_sha,
+    )
 
-        edge_id = str(authenticated_binding["inference_edge_id"])
-        edges, edge_index, inference_edge = _find_exact_edge(
-            staged_graph, edge_id=edge_id
-        )
-        expected_edge = {
-            "source_node_id": authenticated_binding["result_node_id"],
-            "target_node_id": authenticated_binding["target_node_id"],
-            "relation": authenticated_binding["relation"],
-        }
-        for field, expected in expected_edge.items():
-            if inference_edge.get(field) != expected:
-                raise AuthenticatedEpistemicTransitionError(
-                    f"staged inference edge {field} does not match authenticated binding"
-                )
-        if inference_edge.get("assessment_level") != "proposal":
-            raise AuthenticatedEpistemicTransitionError(
-                "staged inference edge must remain proposal-level before authenticated upgrade"
-            )
-
-        provenance_dir = output / "provenance"
-        base_snapshot = provenance_dir / "base_graph.json"
-        proposal_snapshot = provenance_dir / "proposal.json"
-        verification_snapshot = provenance_dir / "verification_decision.json"
-        base_binding = _snapshot_binding(
-            source=base_path, snapshot=base_snapshot, sha256=base_sha
-        )
-        proposal_binding = _snapshot_binding(
-            source=proposal_file, snapshot=proposal_snapshot, sha256=proposal_sha
-        )
-        verification_binding = _snapshot_binding(
-            source=verification_file,
-            snapshot=verification_snapshot,
-            sha256=verification_sha,
+    result_node, tests_edge, inference_edge = _proposal_result_and_edges(
+        proposal,
+        verifier_snapshot=verification_snapshot,
+        verification_sha256=verification_sha,
+    )
+    edge_id = str(authenticated_binding["inference_edge_id"])
+    if inference_edge["edge_id"] != edge_id:
+        raise AuthenticatedEpistemicTransitionError(
+            "constructed inference edge does not match authenticated inference edge ID"
         )
 
-        inference_edge["assessment_level"] = "domain_verified"
-        inference_edge["verification_artifact"] = {
-            "role": "domain_verification_decision",
-            "path": str(verification_snapshot),
-            "sha256": verification_sha,
-        }
-        edges[edge_index] = inference_edge
-
-        metadata = dict(staged_graph.get("metadata", {}))
-        authenticated_lineage = metadata.get("authenticated_transition_lineage", [])
-        if not isinstance(authenticated_lineage, list):
-            raise AuthenticatedEpistemicTransitionError(
-                "graph metadata.authenticated_transition_lineage must be a list"
-            )
-        lineage_record = {
+    metadata = dict(base_raw.get("metadata", {}))
+    legacy_lineage = metadata.get("transition_lineage", [])
+    if not isinstance(legacy_lineage, list):
+        raise AuthenticatedEpistemicTransitionError(
+            "base graph metadata.transition_lineage must be a list"
+        )
+    metadata["transition_lineage"] = [
+        *legacy_lineage,
+        {
+            "transition_id": proposal["transition_id"],
+            "parent_graph_id": base_validated["graph_id"],
+            "parent_graph_sha256": base_sha,
+            "proposal_sha256": proposal_sha,
+            "verification_decision_sha256": verification_sha,
+            "result_node_id": result_node["node_id"],
+        },
+    ]
+    authenticated_lineage = metadata.get("authenticated_transition_lineage", [])
+    if not isinstance(authenticated_lineage, list):
+        raise AuthenticatedEpistemicTransitionError(
+            "base graph metadata.authenticated_transition_lineage must be a list"
+        )
+    metadata["authenticated_transition_lineage"] = [
+        *authenticated_lineage,
+        {
             "schema_version": AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION,
             "transition_id": proposal["transition_id"],
             "base_graph_artifact": base_binding,
             "proposal_artifact": proposal_binding,
             "verification_decision_artifact": verification_binding,
             "authenticated_inference_binding": dict(authenticated_binding),
-        }
-        metadata["authenticated_transition_lineage"] = [
-            *authenticated_lineage,
-            lineage_record,
-        ]
+        },
+    ]
 
-        successor = {
-            **staged_graph,
-            "edges": edges,
-            "metadata": metadata,
-        }
+    successor = {
+        "schema_version": base_raw["schema_version"],
+        "graph_id": proposal["new_graph_id"],
+        "research_scope": base_raw["research_scope"],
+        "nodes": [*base_raw["nodes"], result_node],
+        "edges": [*base_raw["edges"], tests_edge, inference_edge],
+        "metadata": metadata,
+    }
+    before_target = _target_assessment(before_eval, str(proposal["target_node_id"]))
 
-        output_created = False
-        try:
-            output.mkdir(parents=True, exist_ok=False)
-            output_created = True
-            provenance_dir.mkdir(parents=False, exist_ok=False)
-            base_snapshot.write_bytes(base_bytes)
-            proposal_snapshot.write_bytes(proposal_bytes)
-            verification_snapshot.write_bytes(verification_bytes)
+    output_created = False
+    try:
+        output.mkdir(parents=True, exist_ok=False)
+        output_created = True
+        provenance_dir.mkdir(parents=False, exist_ok=False)
+        base_snapshot.write_bytes(base_bytes)
+        proposal_snapshot.write_bytes(proposal_bytes)
+        verification_snapshot.write_bytes(verification_bytes)
 
-            after_eval = evaluate_epistemic_graph(
-                successor,
-                program_state=program_state,
-                artifact_root=artifacts,
+        after_eval = evaluate_epistemic_graph(
+            successor,
+            program_state=program_state,
+            artifact_root=artifacts,
+        )
+        target_id = str(proposal["target_node_id"])
+        target_after = _target_assessment(after_eval, target_id)
+        if edge_id not in _verified_directional_edge_ids(target_after):
+            raise AuthenticatedEpistemicTransitionError(
+                "authenticated inference edge did not become a usable verified relation"
             )
-            target_id = str(proposal["target_node_id"])
-            target_after = _target_assessment(after_eval, target_id)
-            if edge_id not in _verified_directional_edge_ids(target_after):
-                raise AuthenticatedEpistemicTransitionError(
-                    "authenticated inference edge did not become a usable verified relation"
-                )
 
-            graph_bytes = _canonical_json_bytes(successor)
-            graph_sha = hashlib.sha256(graph_bytes).hexdigest()
-            manifest = {
-                **{
-                    key: value
-                    for key, value in staged.items()
-                    if key != "successor_graph_evaluation"
-                },
-                "authenticated_transition_policy_version": AUTHENTICATED_TRANSITION_POLICY_VERSION,
-                "base_graph_binding": base_binding,
-                "proposal_binding": proposal_binding,
-                "verification_decision_binding": verification_binding,
-                "authenticated_inference_binding": dict(authenticated_binding),
-                "successor_graph": {
-                    "graph_id": successor["graph_id"],
-                    "path": str(output / "epistemic_graph.json"),
-                    "sha256": graph_sha,
-                },
-                "target_after": target_after,
-                "inference_assessment_level": "domain_verified",
-                "domain_verification_applied": True,
-                "verification": {
-                    **scope_validation,
-                    "schema_version": DOMAIN_VERIFICATION_DECISION_SCHEMA_VERSION,
-                    "inference_edge_id": edge_id,
-                    "verification_sha256": verification_sha,
-                },
-                "autonomy_boundary": {
-                    **dict(staged.get("autonomy_boundary", {})),
-                    "exact_inference_edge_identity_authenticated": True,
-                    "source_file_toctou_changes_transition_bytes": False,
-                    "provenance_snapshots_self_contained": True,
-                    "opaque_graph_metadata_used_as_authority": False,
-                    "legacy_v10_verifier_used_as_authenticated_authority": False,
-                    "execution_authorized_by_authentication": False,
-                    "positive_closeout_granted_by_authentication": False,
-                },
-            }
-            manifest_bytes = _canonical_json_bytes(manifest)
-            (output / "epistemic_graph.json").write_bytes(graph_bytes)
-            (output / "epistemic_transition_manifest.json").write_bytes(manifest_bytes)
-        except Exception:
-            if output_created:
-                shutil.rmtree(output, ignore_errors=True)
-            raise
+        graph_bytes = _canonical_json_bytes(successor)
+        graph_sha = hashlib.sha256(graph_bytes).hexdigest()
+        manifest = {
+            "schema_version": TRANSITION_SCHEMA_VERSION,
+            "transition_policy_version": TRANSITION_POLICY_VERSION,
+            "authenticated_transition_policy_version": AUTHENTICATED_TRANSITION_POLICY_VERSION,
+            "transition_id": proposal["transition_id"],
+            "base_graph_binding": base_binding,
+            "proposal_binding": proposal_binding,
+            "verification_decision_binding": verification_binding,
+            "authenticated_inference_binding": dict(authenticated_binding),
+            "result_artifact_bindings": list(proposal["result_node"]["artifact_bindings"]),
+            "successor_graph": {
+                "graph_id": successor["graph_id"],
+                "path": str(output / "epistemic_graph.json"),
+                "sha256": graph_sha,
+            },
+            "target_node_id": target_id,
+            "target_before": before_target,
+            "target_after": target_after,
+            "inference_assessment_level": "domain_verified",
+            "domain_verification_applied": True,
+            "verification": {
+                **scope_validation,
+                "schema_version": DOMAIN_VERIFICATION_DECISION_SCHEMA_VERSION,
+                "inference_edge_id": edge_id,
+                "verification_sha256": verification_sha,
+            },
+            "autonomy_boundary": {
+                "action_execution_performed": False,
+                "network_access_performed": False,
+                "physical_experiment_execution_performed": False,
+                "base_graph_mutated": False,
+                "result_execution_success_treated_as_scientific_verification": False,
+                "simulation_may_directly_verify_empirical_claim": False,
+                "positive_support_grants_final_truth": False,
+                "exact_inference_edge_identity_authenticated": True,
+                "source_file_toctou_changes_transition_bytes": False,
+                "provenance_snapshots_self_contained": True,
+                "temporary_transition_staging_used": False,
+                "opaque_graph_metadata_used_as_authority": False,
+                "legacy_v10_verifier_used_as_authenticated_authority": False,
+                "verifier_identity_or_credential_authenticated": False,
+                "execution_authorized_by_authentication": False,
+                "positive_closeout_granted_by_authentication": False,
+            },
+        }
+        manifest_bytes = _canonical_json_bytes(manifest)
+        (output / "epistemic_graph.json").write_bytes(graph_bytes)
+        (output / "epistemic_transition_manifest.json").write_bytes(manifest_bytes)
+    except Exception:
+        if output_created:
+            shutil.rmtree(output, ignore_errors=True)
+        raise
 
     return {
         **manifest,
