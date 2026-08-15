@@ -45,6 +45,36 @@ def patch_source() -> None:
         '''        else:\n            successor = parsed_enclosing\n            successor_bytes = enclosing_graph_bytes\n            successor_sha = canonical_enclosing_sha\n''',
         label="final chain successor uses exact parsed enclosing graph",
     )
+    text = replace_once(
+        text,
+        '''    artifact_root: Path,\n    payloads: Mapping[str, bytes],\n) -> None:\n''',
+        '''    artifact_root: Path,\n    validated_proposals: Mapping[str, Mapping[str, Any]],\n    payloads: Mapping[str, bytes],\n) -> None:\n''',
+        label="chain receives validated proposal replays",
+    )
+    text = replace_once(
+        text,
+        '''        record = entry["record"]\n        base_graph = entry["base_graph"]\n        proposal = entry["proposal"]\n        legacy_record = legacy_suffix[index]\n''',
+        '''        record = entry["record"]\n        base_graph = entry["base_graph"]\n        transition_id = _lineage_identity(record, "transition_id")\n        proposal = validated_proposals.get(transition_id)\n        if not isinstance(proposal, Mapping):\n            raise AuthenticatedEpistemicTransitionError(\n                f"{field} lacks its validated historical proposal replay"\n            )\n        legacy_record = legacy_suffix[index]\n''',
+        label="chain uses validated proposal semantics",
+    )
+    text = replace_once(
+        text,
+        '''    remapped: list[dict[str, Any]] = []\n    for index, raw_record in enumerate(raw_lineage):\n''',
+        '''    remapped: list[dict[str, Any]] = []\n    validated_replays: dict[str, dict[str, Any]] = {}\n    for index, raw_record in enumerate(raw_lineage):\n''',
+        label="collect validated historical proposal replays",
+    )
+    text = replace_once(
+        text,
+        '''        if scope_validation["inference_scope"] != recomputed_binding["inference_scope"]:\n            raise AuthenticatedEpistemicTransitionError(\n                f"{field} exact inference scope diverges from full verifier scope validation"\n            )\n        result_graph_bindings = [\n''',
+        '''        if scope_validation["inference_scope"] != recomputed_binding["inference_scope"]:\n            raise AuthenticatedEpistemicTransitionError(\n                f"{field} exact inference scope diverges from full verifier scope validation"\n            )\n        validated_replays[record_transition_id] = validated_proposal\n        result_graph_bindings = [\n''',
+        label="record validated historical proposal replay",
+    )
+    text = replace_once(
+        text,
+        '''        program_state=program_state,\n        artifact_root=artifact_root,\n        payloads=payloads,\n    )\n\n\ndef _remap_base_graph_artifacts(\n''',
+        '''        program_state=program_state,\n        artifact_root=artifact_root,\n        validated_proposals=validated_replays,\n        payloads=payloads,\n    )\n\n\ndef _remap_base_graph_artifacts(\n''',
+        label="pass validated replays into graph chain",
+    )
     SOURCE.write_text(text, encoding="utf-8")
 
 
