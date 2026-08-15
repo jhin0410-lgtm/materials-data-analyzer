@@ -32,7 +32,7 @@ from .epistemic_transition import (
     validate_verification_decision,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.0"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.1"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE = "authenticated_domain_verification_decision"
 
@@ -894,12 +894,9 @@ def apply_authenticated_epistemic_transition_files(
             target_node_id=target_id,
             inference_edge_id=edge_id,
         )
-        manifest["target_after"] = target_after_written
-        manifest_bytes = _canonical_json_bytes(manifest)
-        (build_root / "epistemic_transition_manifest.json").write_bytes(manifest_bytes)
-        if (build_root / "epistemic_transition_manifest.json").read_bytes() != manifest_bytes:
+        if target_after_written != target_after:
             raise AuthenticatedEpistemicTransitionError(
-                "written transition manifest changed before atomic publication"
+                "written bundle target assessment differs from pre-publication assessment"
             )
         if output.exists():
             raise AuthenticatedEpistemicTransitionError(
