@@ -186,6 +186,16 @@ def authenticate_inference_binding(
     )
     _validate_decision_v11(decision)
 
+    proposal_transition_id = _nonempty_text(
+        proposal.get("transition_id"), "proposal transition_id"
+    )
+    proposal_base_graph_sha = _sha256_text(
+        proposal.get("base_graph_sha256"), "proposal base_graph_sha256"
+    )
+    if proposal_base_graph_sha != base_graph_sha:
+        raise AuthenticatedInferenceBindingError(
+            "proposal base_graph_sha256 does not match expected base graph"
+        )
     if decision.get("proposal_sha256") != proposal_sha:
         raise AuthenticatedInferenceBindingError(
             "domain verification decision proposal_sha256 does not match exact proposal bytes"
@@ -193,6 +203,10 @@ def authenticate_inference_binding(
     if decision.get("base_graph_sha256") != base_graph_sha:
         raise AuthenticatedInferenceBindingError(
             "domain verification decision base_graph_sha256 does not match expected base graph"
+        )
+    if decision.get("transition_id") != proposal_transition_id:
+        raise AuthenticatedInferenceBindingError(
+            "domain verification decision transition_id does not match proposal"
         )
 
     proposed = _proposal_inference(proposal)
@@ -228,9 +242,7 @@ def authenticate_inference_binding(
 
     return {
         "schema_version": AUTHENTICATED_INFERENCE_BINDING_SCHEMA_VERSION,
-        "transition_id": _nonempty_text(
-            decision.get("transition_id"), "domain verification decision transition_id"
-        ),
+        "transition_id": proposal_transition_id,
         "inference_edge_id": edge_id,
         "result_node_id": result_node_id,
         "target_node_id": target_node_id,
