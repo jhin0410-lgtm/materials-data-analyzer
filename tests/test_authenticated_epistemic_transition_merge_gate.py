@@ -1,0 +1,249 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+
+import pytest
+
+from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
+    AuthenticatedEpistemicTransitionError,
+    _assert_cross_lineage_coherence,
+    _atomic_publish_directory_no_replace,
+    _read_staged_regular_file,
+    apply_authenticated_epistemic_transition_files,
+)
+
+
+def _write_json(path: Path, value: object) -> str:
+    raw = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    path.write_bytes(raw)
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _legacy_record(*, transition_id: str = "transition-old") -> dict[str, object]:
+    return {
+        "transition_id": transition_id,
+        "parent_graph_id": "graph-parent",
+        "parent_graph_sha256": "a" * 64,
+        "proposal_sha256": "b" * 64,
+        "verification_decision_sha256": "c" * 64,
+        "result_node_id": "result-old",
+    }
+
+
+def _authenticated_record(
+    *, transition_id: str = "transition-old", proposal_sha: str | None = None
+) -> dict[str, object]:
+    return {
+        "schema_version": "1.0",
+        "transition_id": transition_id,
+        "base_graph_artifact": {"sha256": "a" * 64},
+        "proposal_artifact": {"sha256": proposal_sha or "b" * 64},
+        "verification_decision_artifact": {"sha256": "c" * 64},
+        "result_artifact_snapshots": [],
+        "authenticated_inference_binding": {
+            "transition_id": transition_id.strip(),
+            "result_node_id": "result-old",
+        },
+        "scientific_authority_applied": False,
+    }
+
+
+def test_cross_lineage_matching_identity_must_be_coherent() -> None:
+    _assert_cross_lineage_coherence(
+        [_legacy_record()],
+        [_authenticated_record()],
+    )
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="denotes incompatible histories",
+    ):
+        _assert_cross_lineage_coherence(
+            [_legacy_record()],
+            [_authenticated_record(proposal_sha="d" * 64)],
+        )
+
+
+def test_staged_symlink_is_rejected_even_when_target_bytes_match(tmp_path: Path) -> None:
+    if not hasattr(os, "O_NOFOLLOW"):
+        pytest.skip("platform does not expose O_NOFOLLOW")
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    outside = tmp_path / "outside.bin"
+    outside.write_bytes(b"expected")
+    link = stage / "payload.bin"
+    try:
+        link.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+    with pytest.raises(AuthenticatedEpistemicTransitionError, match="no-follow"):
+        _read_staged_regular_file(stage, "payload.bin", field="payload")
+
+
+def test_atomic_publication_never_replaces_newly_appeared_target(tmp_path: Path) -> None:
+    source = tmp_path / "staged"
+    source.mkdir()
+    (source / "payload.txt").write_text("candidate\n", encoding="utf-8")
+    destination = tmp_path / "published"
+    destination.mkdir()
+    marker = destination / "owner.txt"
+    marker.write_text("other-process\n", encoding="utf-8")
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="output_dir appeared during atomic publication",
+    ):
+        _atomic_publish_directory_no_replace(source, destination)
+
+    assert source.is_dir()
+    assert marker.read_text(encoding="utf-8") == "other-process\n"
+
+
+def _program_state_with_evidence() -> dict[str, object]:
+    return {
+        "workstreams": [
+            {
+                "workstream_id": "benchmark",
+                "planning_state": {
+                    "evidence_bindings": [
+                        {
+                            "role": "measured_source",
+                            "sha256": "e" * 64,
+                        }
+                    ]
+                },
+            }
+        ]
+    }
+
+
+def _base_graph() -> dict[str, object]:
+    return {
+        "schema_version": "1.0",
+        "graph_id": "graph-v1",
+        "research_scope": "empirical-derived merge-gate regression",
+        "nodes": [
+            {
+                "node_id": "question-1",
+                "node_type": "research_question",
+                "statement": "Does the derived analysis support the empirical claim?",
+            },
+            {
+                "node_id": "hypothesis-1",
+                "node_type": "hypothesis",
+                "statement": "The empirical claim holds.",
+                "metadata": {"claim_scope": "empirical"},
+            },
+        ],
+        "edges": [
+            {
+                "edge_id": "motivation-1",
+                "source_node_id": "question-1",
+                "target_node_id": "hypothesis-1",
+                "relation": "motivates",
+                "assessment_level": "proposal",
+                "rationale": "The question motivates the hypothesis.",
+                "active": True,
+            }
+        ],
+    }
+
+
+def _empirical_derived_proposal(*, base_sha: str, result_sha: str) -> dict[str, object]:
+    return {
+        "schema_version": "1.0",
+        "transition_id": "transition-1",
+        "base_graph_id": "graph-v1",
+        "base_graph_sha256": base_sha,
+        "new_graph_id": "graph-v2",
+        "target_node_id": "hypothesis-1",
+        "source_action": {
+            "action_id": "action-1",
+            "action_class": "existing_data_reanalysis",
+            "action_version": "1.0",
+            "execution_mode": "typed_local_action",
+        },
+        "result_node": {
+            "node_id": "result-1",
+            "node_type": "analysis",
+            "statement": "A bounded analysis of measured input completed.",
+            "artifact_bindings": [
+                {
+                    "role": "primary_result",
+                    "path": "result.json",
+                    "sha256": result_sha,
+                }
+            ],
+            "metadata": {"result_origin": "authorized_local_analysis"},
+        },
+        "input_evidence_bindings": [
+            {
+                "workstream_id": "benchmark",
+                "role": "measured_source",
+                "sha256": "e" * 64,
+            }
+        ],
+        "proposed_inference": {
+            "tests_edge_id": "tests-1",
+            "inference_edge_id": "inference-1",
+            "relation": "supports",
+            "rationale": "The derived analysis bears on the empirical target.",
+        },
+        "limitations": ["Input-origin artifact path is not first-class yet."],
+    }
+
+
+def _verification(*, proposal_sha: str, base_sha: str) -> dict[str, object]:
+    return {
+        "schema_version": "1.1",
+        "decision_id": "verification-1",
+        "transition_id": "transition-1",
+        "proposal_sha256": proposal_sha,
+        "base_graph_sha256": base_sha,
+        "inference_edge_id": "inference-1",
+        "result_node_id": "result-1",
+        "target_node_id": "hypothesis-1",
+        "relation": "supports",
+        "inference_scope": "empirical_derived",
+        "verifier_id": "bounded-verifier-v1.1",
+        "rationale": "The exact derived relation was reviewed within the declared scope.",
+        "limitations": ["No input artifact path contract exists yet."],
+        "domain_verified": True,
+    }
+
+
+def test_empirical_derived_fails_closed_without_resolvable_input_artifact_contract(
+    tmp_path: Path,
+) -> None:
+    result_file = tmp_path / "result.json"
+    result_sha = _write_json(result_file, {"derived": 1.0})
+    base_file = tmp_path / "base_graph.json"
+    base_sha = _write_json(base_file, _base_graph())
+    proposal_file = tmp_path / "proposal.json"
+    proposal_sha = _write_json(
+        proposal_file,
+        _empirical_derived_proposal(base_sha=base_sha, result_sha=result_sha),
+    )
+    verification_file = tmp_path / "verification.json"
+    _write_json(
+        verification_file,
+        _verification(proposal_sha=proposal_sha, base_sha=base_sha),
+    )
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="does not yet accept empirical_derived",
+    ):
+        apply_authenticated_epistemic_transition_files(
+            base_graph_path=base_file,
+            proposal_path=proposal_file,
+            verification_decision_path=verification_file,
+            program_state=_program_state_with_evidence(),
+            artifact_root=tmp_path,
+            output_dir=tmp_path / "out",
+        )
+    assert not (tmp_path / "out").exists()
