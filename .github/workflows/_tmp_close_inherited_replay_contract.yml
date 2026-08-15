@@ -25,7 +25,18 @@ jobs:
       - name: Apply historical replay closure
         run: |
           python scripts/_tmp_close_inherited_replay_contract.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_authenticated_epistemic_transition.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        module._remap_base_graph_artifacts(\n            base,\n            artifact_root=tmp_path,\n            payloads={},\n        )'''
+          new = '''        module._remap_base_graph_artifacts(\n            base,\n            program_state={"workstreams": []},\n            artifact_root=tmp_path,\n            payloads={},\n        )'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one direct remap test call, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
           python -m py_compile src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
+          python -m py_compile tests/test_authenticated_epistemic_transition.py
           python -m py_compile tests/test_authenticated_epistemic_transition_merge_gate.py
           python -m py_compile tests/test_authenticated_epistemic_transition_inherited_portability.py
           git diff --check
@@ -34,6 +45,7 @@ jobs:
           python -m pip install -e '.[dev]'
           python -m ruff check --fix \
             src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition.py \
             tests/test_authenticated_epistemic_transition_merge_gate.py \
             tests/test_authenticated_epistemic_transition_inherited_portability.py
           python -m pytest -q \
@@ -46,6 +58,7 @@ jobs:
             tests/test_authenticated_transition_legacy_critic_compatibility.py
           python -m ruff check \
             src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition.py \
             tests/test_authenticated_epistemic_transition_merge_gate.py \
             tests/test_authenticated_epistemic_transition_inherited_portability.py
           git diff --check
@@ -55,6 +68,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
             src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition.py \
             tests/test_authenticated_epistemic_transition_merge_gate.py \
             tests/test_authenticated_epistemic_transition_inherited_portability.py \
             docs/AUTHENTICATED_EPISTEMIC_TRANSITION.md
