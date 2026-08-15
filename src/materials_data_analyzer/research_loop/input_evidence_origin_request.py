@@ -16,11 +16,10 @@ import hashlib
 import json
 import os
 import stat
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
-
-from collections.abc import Mapping, Sequence
 
 from .kernel import ResearchLoopError
 from .program_evidence_origin_binding import (
