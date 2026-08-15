@@ -11,11 +11,14 @@ from typing import Any
 
 from materials_data_analyzer.research_loop import (
     ResearchLoopError,
+    authenticate_transition_bundle,
     build_research_program,
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
-from materials_data_analyzer.research_loop.epistemic_graph import evaluate_epistemic_graph
+from materials_data_analyzer.research_loop.epistemic_graph import (
+    evaluate_epistemic_graph,
+)
 from materials_data_analyzer.research_loop.epistemic_transition import (
     apply_epistemic_transition_files,
 )
@@ -78,13 +81,29 @@ def build_parser() -> argparse.ArgumentParser:
         prog="mda-research-program",
         description=(
             "Build a provenance-aware mission-level research agenda, validate evidence-bound "
-            "scientific reasoning proposals, evaluate and critique checksum-bound epistemic "
-            "graphs, create immutable result-to-graph transitions, and run a finite "
+            "scientific reasoning proposals, independently re-authenticate published transition "
+            "bundles, evaluate and critique checksum-bound epistemic graphs, create immutable "
+            "result-to-graph transitions, and run a finite "
             "policy-authorized local execute-record-regate loop. This command does not initiate "
             "network access or physical experiments."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    authenticate_bundle = subparsers.add_parser(
+        "authenticate-transition-bundle",
+        help=(
+            "Independently re-authenticate the current transition in a published authenticated "
+            "bundle from its exact bundle-relative bytes. This is provenance-only and does not "
+            "grant scientific or execution authority."
+        ),
+    )
+    authenticate_bundle.add_argument(
+        "--bundle",
+        required=True,
+        type=Path,
+        help="Published authenticated-transition bundle directory.",
+    )
 
     show = subparsers.add_parser(
         "show",
@@ -208,6 +227,8 @@ def _build_program(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _run(args: argparse.Namespace) -> dict[str, object]:
+    if args.command == "authenticate-transition-bundle":
+        return authenticate_transition_bundle(args.bundle)
     if args.command == "run-closed-loop":
         if args.context is None:
             raise ResearchLoopError("run-closed-loop requires --context")
