@@ -95,9 +95,13 @@ def _verified_program_evidence_matches(
             )
         normalized_workstream_ids.add(workstream_id)
         planning_state = raw_workstream.get("planning_state")
+        if planning_state is None:
+            # `build_research_program()` legitimately uses None for disabled or
+            # runtime-context-blocked workstreams; they contribute no evidence.
+            continue
         if not isinstance(planning_state, Mapping):
             raise ProgramEvidenceOriginBindingError(
-                f"program_state.workstreams[{index}].planning_state must be an object"
+                f"program_state.workstreams[{index}].planning_state must be an object or null"
             )
         evidence_bindings = planning_state.get("evidence_bindings")
         if not isinstance(evidence_bindings, list):

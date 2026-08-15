@@ -225,3 +225,31 @@ def test_program_binding_digest_must_be_canonical_sha256() -> None:
             origin_declaration_bytes=declaration,
             origin_verification_decision_bytes=verification,
         )
+
+
+def test_accepts_unrelated_disabled_or_runtime_blocked_workstreams_with_null_planning_state() -> None:
+    program_state, binding, evidence, declaration, verification = _fixture()
+    workstreams = program_state["workstreams"]
+    assert isinstance(workstreams, list)
+    workstreams.extend(
+        [
+            {
+                "workstream_id": "ws-disabled",
+                "status": "disabled_by_mission",
+                "planning_state": None,
+            },
+            {
+                "workstream_id": "ws-runtime-needed",
+                "status": "runtime_context_required",
+                "planning_state": None,
+            },
+        ]
+    )
+    result = authenticate_program_evidence_origin_binding(
+        program_state=program_state,
+        program_evidence_binding=binding,
+        evidence_bytes=evidence,
+        origin_declaration_bytes=declaration,
+        origin_verification_decision_bytes=verification,
+    )
+    assert result["verified_program_state_membership_established"] is True
