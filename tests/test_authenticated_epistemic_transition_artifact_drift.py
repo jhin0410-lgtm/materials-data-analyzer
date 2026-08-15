@@ -8,9 +8,9 @@ import pytest
 
 from materials_data_analyzer.research_loop import authenticated_epistemic_transition as module
 from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
+    AuthenticatedEpistemicTransitionError,
     apply_authenticated_epistemic_transition_files,
 )
-from materials_data_analyzer.research_loop.epistemic_graph import EpistemicGraphError
 
 
 def _write_json(path: Path, value: object) -> str:
@@ -19,11 +19,13 @@ def _write_json(path: Path, value: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def test_result_artifact_drift_after_validation_fails_and_cleans_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _fixture(tmp_path: Path) -> tuple[Path, Path, Path, Path, bytes]:
     result_file = tmp_path / "result.json"
-    result_sha = _write_json(result_file, {"rank_before": 3, "rank_after": 4})
+    result_bytes = (json.dumps({"rank_before": 3, "rank_after": 4}) + "\n").encode(
+        "utf-8"
+    )
+    result_file.write_bytes(result_bytes)
+    result_sha = hashlib.sha256(result_bytes).hexdigest()
 
     base_graph = {
         "schema_version": "1.0",
@@ -109,7 +111,13 @@ def test_result_artifact_drift_after_validation_fails_and_cleans_output(
     }
     verification_file = tmp_path / "verification.json"
     _write_json(verification_file, verification)
+    return base_file, proposal_file, verification_file, result_file, result_bytes
 
+
+def test_result_drift_before_snapshot_fails_before_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base_file, proposal_file, verification_file, result_file, _ = _fixture(tmp_path)
     real_scope_validate = module.validate_verification_decision
 
     def mutate_result_after_scope_validation(
@@ -126,7 +134,10 @@ def test_result_artifact_drift_after_validation_fails_and_cleans_output(
     )
     output = tmp_path / "out"
 
-    with pytest.raises(EpistemicGraphError, match="checksum mismatch"):
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="result artifact changed after transition proposal validation",
+    ):
         apply_authenticated_epistemic_transition_files(
             base_graph_path=base_file,
             proposal_path=proposal_file,
@@ -137,3 +148,43 @@ def test_result_artifact_drift_after_validation_fails_and_cleans_output(
         )
 
     assert not output.exists()
+
+
+def test_result_source_drift_after_snapshot_cannot_change_published_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base_file, proposal_file, verification_file, result_file, original_result = _fixture(
+        tmp_path
+    )
+    real_prepare = module._prepare_result_artifact_snapshots
+
+    def mutate_result_after_snapshot(*args: object, **kwargs: object):
+        prepared = real_prepare(*args, **kwargs)
+        result_file.write_text('{"tampered":"after-snapshot"}\n', encoding="utf-8")
+        return prepared
+
+    monkeypatch.setattr(
+        module,
+        "_prepare_result_artifact_snapshots",
+        mutate_result_after_snapshot,
+    )
+    output = tmp_path / "out"
+
+    result = apply_authenticated_epistemic_transition_files(
+        base_graph_path=base_file,
+        proposal_path=proposal_file,
+        verification_decision_path=verification_file,
+        program_state={"workstreams": []},
+        artifact_root=tmp_path,
+        output_dir=output,
+    )
+
+    snapshot = output / "provenance" / "result_artifacts" / "result-000.json"
+    assert result_file.read_bytes() != original_result
+    assert snapshot.read_bytes() == original_result
+    graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
+    result_node = next(item for item in graph["nodes"] if item["node_id"] == "result-1")
+    assert result_node["artifact_bindings"][0]["path"] == str(snapshot.resolve())
+    assert result["autonomy_boundary"][
+        "result_artifact_source_drift_changes_published_evidence"
+    ] is False
