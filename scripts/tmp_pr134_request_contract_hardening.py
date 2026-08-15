@@ -79,7 +79,13 @@ def test_rejects_nonportable_source_path_inside_request_snapshot(
     manifest["request_artifact"]["sha256"] = hashlib.sha256(raw).hexdigest()
     manifest["request_artifact"]["size_bytes"] = len(raw)
     _write_manifest(pack, manifest)
-    with pytest.raises(InputEvidenceOriginPackConsumerError, match="portable relative pack path|nonportable"):
+    with pytest.raises(
+        InputEvidenceOriginPackConsumerError,
+        match=(
+            "portable relative pack path|nonportable|parent components|"
+            "Windows-reserved path component"
+        ),
+    ):
         authenticate_input_evidence_origin_pack(pack)
 
 
