@@ -25,6 +25,15 @@ jobs:
       - name: Apply authenticated graph-chain closure
         run: |
           python scripts/_tmp_close_authenticated_graph_chain.py
+          python - <<'PY'
+          from pathlib import Path
+          for name in (
+              'tests/test_authenticated_epistemic_transition.py',
+              'tests/test_authenticated_epistemic_transition_merge_gate.py',
+          ):
+              path = Path(name)
+              path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
+          PY
           python -m py_compile src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
           python -m py_compile tests/test_authenticated_epistemic_transition.py
           python -m py_compile tests/test_authenticated_epistemic_transition_merge_gate.py
