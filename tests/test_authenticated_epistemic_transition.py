@@ -193,6 +193,10 @@ def test_authenticated_transition_publishes_diagnostic_self_contained_bundle(
     assert boundary["positive_closeout_granted_by_authentication"] is False
 
     assert result["bundle_artifact_root"] == "."
+    assert result["publication_platform"] in {"linux", "windows"}
+    assert result["supported_publication_platforms"] == ["linux", "windows"]
+    assert boundary["unsupported_publication_platforms_fail_closed"] is True
+    assert boundary["inherited_evidence_nodes_without_resolvable_artifacts_allowed"] is False
     assert result["successor_graph"]["path"] == "epistemic_graph.json"
     base_snapshot = output / result["base_graph_binding"]["path"]
     proposal_snapshot = output / result["proposal_binding"]["path"]
@@ -237,6 +241,51 @@ def test_authenticated_transition_publishes_diagnostic_self_contained_bundle(
     assert lineage["verification_decision_artifact"]["source_path_authoritative"] is False
     assert lineage["result_artifact_snapshots"] == result["result_artifact_provenance"]
     assert lineage["authenticated_inference_binding"] == binding
+
+
+def test_publication_platform_contract_is_explicit_and_fail_closed() -> None:
+    assert module._require_supported_publication_platform(
+        os_name="nt", platform="win32"
+    ) == "windows"
+    assert module._require_supported_publication_platform(
+        os_name="posix", platform="linux"
+    ) == "linux"
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="currently supports only Windows and Linux",
+    ):
+        module._require_supported_publication_platform(
+            os_name="posix", platform="darwin"
+        )
+
+
+def test_inherited_evidence_nodes_fail_closed_without_resolvable_artifact_contract(
+    tmp_path: Path,
+) -> None:
+    base = _base_graph()
+    nodes = base["nodes"]
+    assert isinstance(nodes, list)
+    nodes.append(
+        {
+            "node_id": "evidence-1",
+            "node_type": "evidence",
+            "statement": "Hash-only inherited evidence.",
+            "evidence_binding": {
+                "workstream_id": "benchmark",
+                "role": "measured_source",
+                "sha256": "e" * 64,
+            },
+        }
+    )
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="does not yet accept inherited evidence nodes",
+    ):
+        module._remap_base_graph_artifacts(
+            base,
+            artifact_root=tmp_path,
+            payloads={},
+        )
 
 
 def test_v10_verifier_cannot_enter_authenticated_transition_path(tmp_path: Path) -> None:

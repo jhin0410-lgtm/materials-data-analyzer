@@ -8,7 +8,8 @@ Filesystem trust boundary: atomic publication and staged integrity checks assume
 has exclusive write ownership of its private staging tree from creation through publication.
 The producer is not a sandbox against a hostile process sharing the same OS identity and write
 access to that staging parent. No provenance or security claim should be read as resisting such
-a same-identity attacker.
+a same-identity attacker. Atomic publication for this producer is currently supported only on
+Windows and Linux; other platforms fail closed before transition inputs are consumed.
 """
 
 from __future__ import annotations
@@ -47,13 +48,32 @@ from .epistemic_transition import (
     VERIFICATION_SCHEMA_VERSION as LEGACY_VERIFICATION_SCHEMA_VERSION,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.5"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.6"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE = "authenticated_domain_verification_decision"
+AUTHENTICATED_TRANSITION_SUPPORTED_PUBLICATION_PLATFORMS = ("linux", "windows")
 
 
 class AuthenticatedEpistemicTransitionError(EpistemicTransitionError):
     """Raised when authenticated transition production cannot preserve provenance."""
+
+
+def _require_supported_publication_platform(
+    *,
+    os_name: str | None = None,
+    platform: str | None = None,
+) -> str:
+    actual_os_name = os.name if os_name is None else os_name
+    actual_platform = sys.platform if platform is None else platform
+    if actual_os_name == "nt":
+        return "windows"
+    if actual_platform.startswith("linux"):
+        return "linux"
+    raise AuthenticatedEpistemicTransitionError(
+        "authenticated transition publication currently supports only Windows and Linux "
+        "because another platform-safe atomic no-replace directory primitive has not been "
+        "implemented"
+    )
 
 
 def _legacy_scope_decision(value: Mapping[str, Any]) -> dict[str, Any]:
@@ -626,6 +646,12 @@ def _remap_base_graph_artifacts(
     for node_index, node in enumerate(raw_nodes):
         if not isinstance(node, dict):
             continue
+        if node.get("node_type") == "evidence":
+            raise AuthenticatedEpistemicTransitionError(
+                "authenticated self-contained transition does not yet accept inherited "
+                "evidence nodes because evidence_binding lacks a first-class checksum-bound "
+                "resolvable artifact contract"
+            )
         raw_bindings = node.get("artifact_bindings")
         if not isinstance(raw_bindings, list):
             continue
@@ -1095,7 +1121,10 @@ def apply_authenticated_epistemic_transition_files(
 
     The filesystem integrity boundary assumes no hostile same-OS-identity process can write
     into or replace this function's private staging tree while it is being assembled.
+    Publication is intentionally limited to Windows and Linux until another platform-safe
+    atomic no-replace directory primitive is implemented.
     """
+    publication_platform = _require_supported_publication_platform()
     base_path = Path(base_graph_path).expanduser().resolve(strict=True)
     proposal_file = Path(proposal_path).expanduser().resolve(strict=True)
     verification_file = Path(verification_decision_path).expanduser().resolve(strict=True)
@@ -1300,6 +1329,10 @@ def apply_authenticated_epistemic_transition_files(
             "authenticated_transition_policy_version": AUTHENTICATED_TRANSITION_POLICY_VERSION,
             "transition_id": transition_id,
             "bundle_artifact_root": ".",
+            "publication_platform": publication_platform,
+            "supported_publication_platforms": list(
+                AUTHENTICATED_TRANSITION_SUPPORTED_PUBLICATION_PLATFORMS
+            ),
             "base_graph_binding": base_binding,
             "proposal_binding": proposal_binding,
             "verification_decision_binding": verification_binding,
@@ -1339,8 +1372,10 @@ def apply_authenticated_epistemic_transition_files(
                 "source_file_toctou_changes_transition_bytes": False,
                 "bundle_published_atomically": True,
                 "bundle_published_with_no_replace": True,
+                "unsupported_publication_platforms_fail_closed": True,
                 "bundle_relative_artifact_paths": True,
                 "inherited_artifacts_snapshotted": True,
+                "inherited_evidence_nodes_without_resolvable_artifacts_allowed": False,
                 "provenance_snapshots_self_contained": True,
                 "temporary_transition_staging_used": True,
                 "staged_symlinks_accepted": False,
@@ -1385,6 +1420,7 @@ def apply_authenticated_epistemic_transition_files(
 __all__ = [
     "AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION",
     "AUTHENTICATED_TRANSITION_POLICY_VERSION",
+    "AUTHENTICATED_TRANSITION_SUPPORTED_PUBLICATION_PLATFORMS",
     "AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE",
     "AuthenticatedEpistemicTransitionError",
     "apply_authenticated_epistemic_transition_files",
