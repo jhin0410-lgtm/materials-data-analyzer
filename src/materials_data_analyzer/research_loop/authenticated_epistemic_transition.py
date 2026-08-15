@@ -8,7 +8,7 @@ independently re-authenticate the same bytes.
 
 from __future__ import annotations
 
-import json
+import hashlib
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping
@@ -53,6 +53,27 @@ def _target_assessment(result: Mapping[str, Any], node_id: str) -> dict[str, Any
             "target assessment could not be reconstructed"
         )
     return assessment
+
+
+def _verified_directional_edge_ids(assessment: Mapping[str, Any]) -> set[str]:
+    result: set[str] = set()
+    for field in (
+        "verified_support_edges",
+        "verified_contradiction_edges",
+        "verified_falsification_edges",
+    ):
+        values = assessment.get(field)
+        if not isinstance(values, list):
+            raise AuthenticatedEpistemicTransitionError(
+                f"target assessment {field} must be a list"
+            )
+        for value in values:
+            if not isinstance(value, str) or not value:
+                raise AuthenticatedEpistemicTransitionError(
+                    f"target assessment {field} must contain non-empty edge IDs"
+                )
+            result.add(value)
+    return result
 
 
 def _find_exact_edge(
@@ -241,17 +262,13 @@ def apply_authenticated_epistemic_transition_files(
         )
         target_id = str(proposal["target_node_id"])
         target_after = _target_assessment(after_eval, target_id)
-        if edge_id not in {
-            *target_after.get("verified_support_edges", []),
-            *target_after.get("verified_contradiction_edges", []),
-            *target_after.get("verified_falsification_edges", []),
-        }:
+        if edge_id not in _verified_directional_edge_ids(target_after):
             raise AuthenticatedEpistemicTransitionError(
                 "authenticated inference edge did not become a usable verified relation"
             )
 
         graph_bytes = _canonical_json_bytes(successor)
-        graph_sha = __import__("hashlib").sha256(graph_bytes).hexdigest()
+        graph_sha = hashlib.sha256(graph_bytes).hexdigest()
         manifest = {
             **{
                 key: value
