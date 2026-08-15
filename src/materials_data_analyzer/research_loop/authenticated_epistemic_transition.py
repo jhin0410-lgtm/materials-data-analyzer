@@ -68,6 +68,14 @@ _AUTHENTICATED_TRANSITION_LINEAGE_KEYS = frozenset(
         "scientific_authority_applied",
     }
 )
+_LINEAGE_ARTIFACT_REQUIRED_KEYS = frozenset({"path", "sha256"})
+_LINEAGE_ARTIFACT_OPTIONAL_KEYS = frozenset(
+    {"source_path", "source_path_authoritative", "size_bytes"}
+)
+_LINEAGE_ARTIFACT_ALLOWED_KEYS = (
+    _LINEAGE_ARTIFACT_REQUIRED_KEYS | _LINEAGE_ARTIFACT_OPTIONAL_KEYS
+)
+_LINEAGE_ROLE_ARTIFACT_ALLOWED_KEYS = _LINEAGE_ARTIFACT_ALLOWED_KEYS | {"role"}
 
 
 class AuthenticatedEpistemicTransitionError(EpistemicTransitionError):
@@ -375,6 +383,48 @@ def _snapshot_graph_binding(
     return graph_binding, provenance
 
 
+
+def _validated_lineage_artifact_fields(
+    raw: Mapping[str, Any], *, field: str, require_role: bool
+) -> dict[str, Any]:
+    required = set(_LINEAGE_ARTIFACT_REQUIRED_KEYS)
+    allowed = set(_LINEAGE_ARTIFACT_ALLOWED_KEYS)
+    if require_role:
+        required.add("role")
+        allowed = set(_LINEAGE_ROLE_ARTIFACT_ALLOWED_KEYS)
+    raw_keys = set(raw)
+    unknown = sorted(raw_keys - allowed)
+    missing = sorted(required - raw_keys)
+    if unknown or missing:
+        raise AuthenticatedEpistemicTransitionError(
+            f"{field} violates the inherited artifact key contract; "
+            f"unknown={unknown}, missing={missing}"
+        )
+
+    result: dict[str, Any] = {
+        "path": _lineage_identity(raw, "path"),
+        "sha256": _lineage_sha256(raw, "sha256"),
+    }
+    if require_role:
+        result["role"] = _lineage_identity(raw, "role")
+
+    if "source_path" in raw:
+        result["source_path"] = _lineage_identity(raw, "source_path")
+    if "source_path_authoritative" in raw:
+        if raw.get("source_path_authoritative") is not False:
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field}.source_path_authoritative must be false when present"
+            )
+        result["source_path_authoritative"] = False
+    if "size_bytes" in raw:
+        size_bytes = raw.get("size_bytes")
+        if not isinstance(size_bytes, int) or isinstance(size_bytes, bool) or size_bytes < 0:
+            raise AuthenticatedEpistemicTransitionError(
+                f"{field}.size_bytes must be a non-negative integer when present"
+            )
+        result["size_bytes"] = size_bytes
+    return result
+
 def _snapshot_lineage_binding(
     raw: Mapping[str, Any],
     *,
@@ -390,16 +440,18 @@ def _snapshot_lineage_binding(
         field=field,
     )
     _add_payload(payloads, bundle_path, data)
-    copied = dict(raw)
-    copied["path"] = bundle_path
-    copied["source_path"] = (
-        raw.get("source_path")
-        if isinstance(raw.get("source_path"), str) and raw.get("source_path")
-        else str(source)
+    validated = _validated_lineage_artifact_fields(
+        raw, field=field, require_role="role" in raw
     )
-    copied["source_path_authoritative"] = False
-    copied["sha256"] = actual_sha
-    copied["size_bytes"] = len(data)
+    copied: dict[str, Any] = {
+        "path": bundle_path,
+        "source_path": str(source),
+        "source_path_authoritative": False,
+        "sha256": actual_sha,
+        "size_bytes": len(data),
+    }
+    if "role" in validated:
+        copied["role"] = validated["role"]
     return copied
 
 
@@ -410,6 +462,7 @@ def _captured_lineage_binding(
     bundle_path: str,
     field: str,
     payloads: dict[str, bytes],
+    require_role: bool,
 ) -> tuple[dict[str, Any], bytes]:
     expected_sha = _lineage_sha256(raw, "sha256")
     source, data, actual_sha = _read_bound_file(
@@ -419,16 +472,18 @@ def _captured_lineage_binding(
         field=field,
     )
     _add_payload(payloads, bundle_path, data)
-    copied = dict(raw)
-    copied["path"] = bundle_path
-    copied["source_path"] = (
-        raw.get("source_path")
-        if isinstance(raw.get("source_path"), str) and raw.get("source_path")
-        else str(source)
+    validated = _validated_lineage_artifact_fields(
+        raw, field=field, require_role=require_role
     )
-    copied["source_path_authoritative"] = False
-    copied["sha256"] = actual_sha
-    copied["size_bytes"] = len(data)
+    copied: dict[str, Any] = {
+        "path": bundle_path,
+        "source_path": str(source),
+        "source_path_authoritative": False,
+        "sha256": actual_sha,
+        "size_bytes": len(data),
+    }
+    if require_role:
+        copied["role"] = validated["role"]
     return copied, data
 
 
@@ -596,28 +651,19 @@ def _graph_structure_ids(
 
 
 def _lineage_artifact_metadata_identity(
-    value: object, *, field: str
+    value: object, *, field: str, require_role: bool
 ) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise AuthenticatedEpistemicTransitionError(f"{field} must be an object")
-    result: dict[str, Any] = {"sha256": _lineage_sha256(value, "sha256")}
-    if "role" in value:
-        result["role"] = _lineage_identity(value, "role")
+    validated = _validated_lineage_artifact_fields(
+        value, field=field, require_role=require_role
+    )
+    result: dict[str, Any] = {"sha256": validated["sha256"]}
+    if require_role:
+        result["role"] = validated["role"]
     # Paths, source-path annotations, and size are rebundling metadata rather than
-    # graph-hop identity. Validate them when present, but compare authority identity
-    # only by exact checksum and role so a portable re-snapshot remains equivalent.
-    authoritative = value.get("source_path_authoritative")
-    if authoritative is not None and authoritative is not False:
-        raise AuthenticatedEpistemicTransitionError(
-            f"{field}.source_path_authoritative must remain false"
-        )
-    size_bytes = value.get("size_bytes")
-    if size_bytes is not None and (
-        not isinstance(size_bytes, int) or isinstance(size_bytes, bool) or size_bytes < 0
-    ):
-        raise AuthenticatedEpistemicTransitionError(
-            f"{field}.size_bytes must be a non-negative integer"
-        )
+    # graph-hop identity. The exact-key gate above rejects unknown nested claims,
+    # while authority identity compares only exact checksum and required role.
     return result
 
 
@@ -648,18 +694,25 @@ def _authenticated_lineage_metadata_identity(
         "schema_version": value["schema_version"],
         "transition_id": _lineage_identity(value, "transition_id"),
         "base_graph_artifact": _lineage_artifact_metadata_identity(
-            value.get("base_graph_artifact"), field=f"{field}.base_graph_artifact"
+            value.get("base_graph_artifact"),
+            field=f"{field}.base_graph_artifact",
+            require_role=False,
         ),
         "proposal_artifact": _lineage_artifact_metadata_identity(
-            value.get("proposal_artifact"), field=f"{field}.proposal_artifact"
+            value.get("proposal_artifact"),
+            field=f"{field}.proposal_artifact",
+            require_role=False,
         ),
         "verification_decision_artifact": _lineage_artifact_metadata_identity(
             value.get("verification_decision_artifact"),
             field=f"{field}.verification_decision_artifact",
+            require_role=True,
         ),
         "result_artifact_snapshots": [
             _lineage_artifact_metadata_identity(
-                item, field=f"{field}.result_artifact_snapshots[{index}]"
+                item,
+                field=f"{field}.result_artifact_snapshots[{index}]",
+                require_role=True,
             )
             for index, item in enumerate(snapshots)
         ],
@@ -1265,6 +1318,7 @@ def _remap_authenticated_lineage_artifacts(
                 bundle_path=relative,
                 field=f"{field}.{name}",
                 payloads=payloads,
+                require_role=name == "verification_decision_artifact",
             )
 
         base_binding, base_bytes = captured["base_graph_artifact"]
@@ -1360,6 +1414,7 @@ def _remap_authenticated_lineage_artifacts(
                 bundle_path=relative,
                 field=f"{field}.result_artifact_snapshots[{result_index}]",
                 payloads=payloads,
+                require_role=True,
             )
             actual_results[role] = expected_sha
             result_validation_paths[role] = str(suffix_source)
