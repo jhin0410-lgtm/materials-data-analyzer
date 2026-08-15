@@ -17,6 +17,7 @@ import copy
 import ctypes
 import errno
 import hashlib
+import json
 import os
 import shutil
 import stat
@@ -46,7 +47,7 @@ from .epistemic_transition import (
     VERIFICATION_SCHEMA_VERSION as LEGACY_VERIFICATION_SCHEMA_VERSION,
 )
 
-AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.4"
+AUTHENTICATED_TRANSITION_POLICY_VERSION = "2.5"
 AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION = "1.0"
 AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE = "authenticated_domain_verification_decision"
 
@@ -366,6 +367,73 @@ def _snapshot_lineage_binding(
     return copied
 
 
+def _captured_lineage_binding(
+    raw: Mapping[str, Any],
+    *,
+    artifact_root: Path,
+    bundle_path: str,
+    field: str,
+    payloads: dict[str, bytes],
+) -> tuple[dict[str, Any], bytes]:
+    expected_sha = _lineage_sha256(raw, "sha256")
+    source, data, actual_sha = _read_bound_file(
+        path_value=raw.get("path"),
+        expected_sha256=expected_sha,
+        artifact_root=artifact_root,
+        field=field,
+    )
+    _add_payload(payloads, bundle_path, data)
+    copied = dict(raw)
+    copied["path"] = bundle_path
+    copied["source_path"] = (
+        raw.get("source_path")
+        if isinstance(raw.get("source_path"), str) and raw.get("source_path")
+        else str(source)
+    )
+    copied["source_path_authoritative"] = False
+    copied["sha256"] = actual_sha
+    copied["size_bytes"] = len(data)
+    return copied, data
+
+
+def _proposal_result_artifact_identity(proposal_bytes: bytes) -> dict[str, str]:
+    # Exact-byte JSON validity and duplicate-key rejection already succeeded in
+    # authenticate_inference_binding before this helper is called.
+    try:
+        proposal = json.loads(proposal_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:  # defensive only
+        raise AuthenticatedEpistemicTransitionError(
+            "authenticated inherited proposal could not be reparsed"
+        ) from exc
+    if not isinstance(proposal, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            "authenticated inherited proposal root must be an object"
+        )
+    result_node = proposal.get("result_node")
+    if not isinstance(result_node, Mapping):
+        raise AuthenticatedEpistemicTransitionError(
+            "authenticated inherited proposal result_node must be an object"
+        )
+    bindings = result_node.get("artifact_bindings")
+    if not isinstance(bindings, list) or not bindings:
+        raise AuthenticatedEpistemicTransitionError(
+            "authenticated inherited proposal result artifacts must be non-empty"
+        )
+    identity: dict[str, str] = {}
+    for index, raw in enumerate(bindings):
+        if not isinstance(raw, Mapping):
+            raise AuthenticatedEpistemicTransitionError(
+                "authenticated inherited proposal result artifact must be an object"
+            )
+        role = _lineage_identity(raw, "role")
+        if role in identity:
+            raise AuthenticatedEpistemicTransitionError(
+                "authenticated inherited proposal result artifact roles must be unique"
+            )
+        identity[role] = _lineage_sha256(raw, "sha256")
+    return identity
+
+
 def _remap_authenticated_lineage_artifacts(
     metadata: dict[str, Any],
     *,
@@ -389,14 +457,14 @@ def _remap_authenticated_lineage_artifacts(
                 f"authenticated_transition_lineage[{index}].schema_version must be "
                 f"{AUTHENTICATED_TRANSITION_LINEAGE_SCHEMA_VERSION}"
             )
-        binding = record.get("authenticated_inference_binding")
-        if not isinstance(binding, Mapping):
+        stored_binding = record.get("authenticated_inference_binding")
+        if not isinstance(stored_binding, Mapping):
             raise AuthenticatedEpistemicTransitionError(
                 f"authenticated_transition_lineage[{index}].authenticated_inference_binding "
                 "must be an object"
             )
         record_transition_id = _lineage_identity(record, "transition_id")
-        if _lineage_identity(binding, "transition_id") != record_transition_id:
+        if _lineage_identity(stored_binding, "transition_id") != record_transition_id:
             raise AuthenticatedEpistemicTransitionError(
                 f"authenticated_transition_lineage[{index}] transition identity is inconsistent"
             )
@@ -405,6 +473,8 @@ def _remap_authenticated_lineage_artifacts(
                 f"authenticated_transition_lineage[{index}].scientific_authority_applied "
                 "must be false for producer lineage"
             )
+
+        captured: dict[str, tuple[dict[str, Any], bytes]] = {}
         for name in (
             "base_graph_artifact",
             "proposal_artifact",
@@ -414,6 +484,14 @@ def _remap_authenticated_lineage_artifacts(
             if not isinstance(raw_binding, Mapping):
                 raise AuthenticatedEpistemicTransitionError(
                     f"authenticated_transition_lineage[{index}].{name} must be an object"
+                )
+            if (
+                name == "verification_decision_artifact"
+                and raw_binding.get("role") != AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE
+            ):
+                raise AuthenticatedEpistemicTransitionError(
+                    f"authenticated_transition_lineage[{index}].{name}.role must be "
+                    f"{AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE}"
                 )
             suffix_source = _resolve_file(
                 raw_binding.get("path"),
@@ -426,24 +504,71 @@ def _remap_authenticated_lineage_artifacts(
                 f"lineage-{index:03d}",
                 f"{name}{_safe_suffix(suffix_source)}",
             )
-            record[name] = _snapshot_lineage_binding(
+            captured[name] = _captured_lineage_binding(
                 raw_binding,
                 artifact_root=artifact_root,
                 bundle_path=relative,
                 field=f"authenticated_transition_lineage[{index}].{name}",
                 payloads=payloads,
             )
-        raw_results = record.get("result_artifact_snapshots")
-        if not isinstance(raw_results, list):
+
+        base_binding, _base_bytes = captured["base_graph_artifact"]
+        proposal_binding, proposal_bytes = captured["proposal_artifact"]
+        verifier_binding, verifier_bytes = captured["verification_decision_artifact"]
+        try:
+            recomputed_binding = authenticate_inference_binding(
+                proposal_bytes=proposal_bytes,
+                verification_decision_bytes=verifier_bytes,
+                expected_base_graph_sha256=_lineage_sha256(base_binding, "sha256"),
+            )
+        except AuthenticatedInferenceBindingError as exc:
             raise AuthenticatedEpistemicTransitionError(
-                f"authenticated_transition_lineage[{index}].result_artifact_snapshots must be a list"
+                f"authenticated_transition_lineage[{index}] exact inference binding "
+                "could not be re-authenticated"
+            ) from exc
+        if dict(stored_binding) != recomputed_binding:
+            raise AuthenticatedEpistemicTransitionError(
+                f"authenticated_transition_lineage[{index}] stored inference binding "
+                "does not match exact proposal/verifier bytes"
+            )
+        if recomputed_binding["transition_id"] != record_transition_id:
+            raise AuthenticatedEpistemicTransitionError(
+                f"authenticated_transition_lineage[{index}] recomputed transition identity "
+                "is inconsistent"
+            )
+        if recomputed_binding["proposal_sha256"] != _lineage_sha256(
+            proposal_binding, "sha256"
+        ):
+            raise AuthenticatedEpistemicTransitionError(
+                f"authenticated_transition_lineage[{index}] proposal binding is inconsistent"
+            )
+        if recomputed_binding["verification_decision_sha256"] != _lineage_sha256(
+            verifier_binding, "sha256"
+        ):
+            raise AuthenticatedEpistemicTransitionError(
+                f"authenticated_transition_lineage[{index}] verifier binding is inconsistent"
+            )
+
+        expected_results = _proposal_result_artifact_identity(proposal_bytes)
+        raw_results = record.get("result_artifact_snapshots")
+        if not isinstance(raw_results, list) or not raw_results:
+            raise AuthenticatedEpistemicTransitionError(
+                f"authenticated_transition_lineage[{index}].result_artifact_snapshots "
+                "must be a non-empty list"
             )
         result_records: list[dict[str, Any]] = []
+        actual_results: dict[str, str] = {}
         for result_index, raw_binding in enumerate(raw_results):
             if not isinstance(raw_binding, Mapping):
                 raise AuthenticatedEpistemicTransitionError(
                     "authenticated lineage result artifact snapshot must be an object"
                 )
+            role = _lineage_identity(raw_binding, "role")
+            if role in actual_results:
+                raise AuthenticatedEpistemicTransitionError(
+                    "authenticated lineage result artifact roles must be unique"
+                )
+            expected_sha = _lineage_sha256(raw_binding, "sha256")
             suffix_source = _resolve_file(
                 raw_binding.get("path"),
                 artifact_root=artifact_root,
@@ -459,19 +584,29 @@ def _remap_authenticated_lineage_artifacts(
                 "result_artifacts",
                 f"result-{result_index:03d}{_safe_suffix(suffix_source)}",
             )
-            result_records.append(
-                _snapshot_lineage_binding(
-                    raw_binding,
-                    artifact_root=artifact_root,
-                    bundle_path=relative,
-                    field=(
-                        f"authenticated_transition_lineage[{index}]"
-                        f".result_artifact_snapshots[{result_index}]"
-                    ),
-                    payloads=payloads,
-                )
+            copied, _data = _captured_lineage_binding(
+                raw_binding,
+                artifact_root=artifact_root,
+                bundle_path=relative,
+                field=(
+                    f"authenticated_transition_lineage[{index}]"
+                    f".result_artifact_snapshots[{result_index}]"
+                ),
+                payloads=payloads,
             )
+            actual_results[role] = expected_sha
+            result_records.append(copied)
+        if actual_results != expected_results:
+            raise AuthenticatedEpistemicTransitionError(
+                f"authenticated_transition_lineage[{index}] result snapshots do not match "
+                "the exact proposal result artifacts"
+            )
+
+        record["base_graph_artifact"] = base_binding
+        record["proposal_artifact"] = proposal_binding
+        record["verification_decision_artifact"] = verifier_binding
         record["result_artifact_snapshots"] = result_records
+        record["authenticated_inference_binding"] = dict(recomputed_binding)
         remapped.append(record)
     metadata["authenticated_transition_lineage"] = remapped
 

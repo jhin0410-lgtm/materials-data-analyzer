@@ -7,7 +7,12 @@ from pathlib import Path
 from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
     apply_authenticated_epistemic_transition_files,
 )
-from materials_data_analyzer.research_loop.epistemic_graph import evaluate_epistemic_graph
+from materials_data_analyzer.research_loop.authenticated_inference_binding import (
+    authenticate_inference_binding,
+)
+from materials_data_analyzer.research_loop.epistemic_graph import (
+    evaluate_epistemic_graph,
+)
 
 
 def _write_json(path: Path, value: object) -> str:
@@ -26,9 +31,65 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
     old_parent = tmp_path / "old-parent.json"
     old_parent_sha = _write_json(old_parent, {"old": "parent"})
     old_proposal = tmp_path / "old-proposal.json"
-    old_proposal_sha = _write_json(old_proposal, {"old": "proposal"})
+    old_proposal_value = {
+        "schema_version": "1.0",
+        "transition_id": "old-auth",
+        "base_graph_id": "graph-v0",
+        "base_graph_sha256": old_parent_sha,
+        "new_graph_id": "graph-v1",
+        "target_node_id": "hypothesis-1",
+        "source_action": {
+            "action_id": "old-action",
+            "action_class": "existing_data_reanalysis",
+            "action_version": "1.0",
+            "execution_mode": "typed_local_action",
+        },
+        "result_node": {
+            "node_id": "old-result-node",
+            "node_type": "analysis",
+            "statement": "Previously completed bounded analysis.",
+            "artifact_bindings": [
+                {
+                    "role": "primary_result",
+                    "path": str(old_result),
+                    "sha256": old_result_sha,
+                }
+            ],
+            "metadata": {"result_origin": "authorized_local_analysis"},
+        },
+        "input_evidence_bindings": [],
+        "proposed_inference": {
+            "tests_edge_id": "old-tests",
+            "inference_edge_id": "old-support",
+            "relation": "supports",
+            "rationale": "Previously authenticated structural support identity.",
+        },
+        "limitations": ["Historical producer lineage remains diagnostic-only."],
+    }
+    old_proposal_sha = _write_json(old_proposal, old_proposal_value)
     old_auth_verifier = tmp_path / "old-auth-verifier.json"
-    old_auth_verifier_sha = _write_json(old_auth_verifier, {"old": "auth-verifier"})
+    old_auth_verifier_value = {
+        "schema_version": "1.1",
+        "decision_id": "old-decision",
+        "transition_id": "old-auth",
+        "proposal_sha256": old_proposal_sha,
+        "base_graph_sha256": old_parent_sha,
+        "inference_edge_id": "old-support",
+        "result_node_id": "old-result-node",
+        "target_node_id": "hypothesis-1",
+        "relation": "supports",
+        "inference_scope": "structural",
+        "verifier_id": "old-verifier-v1.1",
+        "rationale": "Exact historical edge identity authenticated.",
+        "limitations": [],
+        "domain_verified": True,
+    }
+    old_auth_verifier_sha = _write_json(old_auth_verifier, old_auth_verifier_value)
+    old_authenticated_binding = authenticate_inference_binding(
+        proposal_bytes=old_proposal.read_bytes(),
+        verification_decision_bytes=old_auth_verifier.read_bytes(),
+        expected_base_graph_sha256=old_parent_sha,
+    )
 
     base_graph = {
         "schema_version": "1.0",
@@ -106,12 +167,7 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
                             "sha256": old_result_sha,
                         }
                     ],
-                    "authenticated_inference_binding": {
-                        "schema_version": "1.0",
-                        "transition_id": "old-auth",
-                        "inference_edge_id": "old-support",
-                        "result_node_id": "old-result-node",
-                    },
+                    "authenticated_inference_binding": old_authenticated_binding,
                     "scientific_authority_applied": False,
                 }
             ],

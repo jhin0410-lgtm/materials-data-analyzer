@@ -98,6 +98,181 @@ def test_malformed_inherited_authenticated_lineage_fails_closed(tmp_path: Path) 
         )
 
 
+def _write_authenticated_lineage_fixture(
+    tmp_path: Path,
+    *,
+    stored_edge_id: str = "old-edge",
+    padded_proposal_sha: bool = False,
+    empty_results: bool = False,
+    result_snapshot_sha_override: str | None = None,
+) -> dict[str, object]:
+    result = tmp_path / "old-result.json"
+    result_sha = _write_json(result, {"result": 1})
+    base = tmp_path / "old-base.json"
+    base_sha = _write_json(base, {"base": 1})
+    proposal = tmp_path / "old-proposal.json"
+    proposal_value = {
+        "schema_version": "1.0",
+        "transition_id": "old-auth",
+        "base_graph_id": "graph-v0",
+        "base_graph_sha256": base_sha,
+        "new_graph_id": "graph-v1",
+        "target_node_id": "hypothesis-1",
+        "result_node": {
+            "node_id": "old-result",
+            "artifact_bindings": [
+                {
+                    "role": "primary_result",
+                    "path": str(result),
+                    "sha256": result_sha,
+                }
+            ],
+        },
+        "proposed_inference": {
+            "inference_edge_id": "old-edge",
+            "relation": "supports",
+        },
+    }
+    proposal_sha = _write_json(proposal, proposal_value)
+    verifier = tmp_path / "old-verifier.json"
+    verifier_value = {
+        "schema_version": "1.1",
+        "decision_id": "old-decision",
+        "transition_id": "old-auth",
+        "proposal_sha256": proposal_sha,
+        "base_graph_sha256": base_sha,
+        "inference_edge_id": "old-edge",
+        "result_node_id": "old-result",
+        "target_node_id": "hypothesis-1",
+        "relation": "supports",
+        "inference_scope": "structural",
+        "verifier_id": "old-verifier",
+        "rationale": "Exact inherited identity.",
+        "limitations": [],
+        "domain_verified": True,
+    }
+    verifier_sha = _write_json(verifier, verifier_value)
+    from materials_data_analyzer.research_loop.authenticated_inference_binding import (
+        authenticate_inference_binding,
+    )
+
+    binding = authenticate_inference_binding(
+        proposal_bytes=proposal.read_bytes(),
+        verification_decision_bytes=verifier.read_bytes(),
+        expected_base_graph_sha256=base_sha,
+    )
+    binding["inference_edge_id"] = stored_edge_id
+    result_snapshots: list[dict[str, object]] = []
+    if not empty_results:
+        result_snapshots.append(
+            {
+                "role": "primary_result",
+                "path": str(result),
+                "sha256": result_snapshot_sha_override or result_sha,
+            }
+        )
+    return {
+        "schema_version": "1.0",
+        "transition_id": "old-auth",
+        "base_graph_artifact": {"path": str(base), "sha256": base_sha},
+        "proposal_artifact": {
+            "path": str(proposal),
+            "sha256": f" {proposal_sha} " if padded_proposal_sha else proposal_sha,
+        },
+        "verification_decision_artifact": {
+            "role": "authenticated_domain_verification_decision",
+            "path": str(verifier),
+            "sha256": verifier_sha,
+        },
+        "result_artifact_snapshots": result_snapshots,
+        "authenticated_inference_binding": binding,
+        "scientific_authority_applied": False,
+    }
+
+
+def test_inherited_authenticated_lineage_reauthenticates_exact_binding(
+    tmp_path: Path,
+) -> None:
+    metadata = {
+        "authenticated_transition_lineage": [
+            _write_authenticated_lineage_fixture(tmp_path, stored_edge_id="forged-edge")
+        ]
+    }
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="stored inference binding does not match exact proposal/verifier bytes",
+    ):
+        _remap_authenticated_lineage_artifacts(
+            metadata,
+            artifact_root=tmp_path,
+            payloads={},
+        )
+
+
+def test_orphan_authenticated_lineage_rejects_noncanonical_artifact_sha(
+    tmp_path: Path,
+) -> None:
+    metadata = {
+        "authenticated_transition_lineage": [
+            _write_authenticated_lineage_fixture(tmp_path, padded_proposal_sha=True)
+        ]
+    }
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="sha256 must be canonical lowercase SHA-256 text",
+    ):
+        _remap_authenticated_lineage_artifacts(
+            metadata,
+            artifact_root=tmp_path,
+            payloads={},
+        )
+
+
+def test_inherited_authenticated_lineage_requires_result_snapshots(
+    tmp_path: Path,
+) -> None:
+    metadata = {
+        "authenticated_transition_lineage": [
+            _write_authenticated_lineage_fixture(tmp_path, empty_results=True)
+        ]
+    }
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="result_artifact_snapshots must be a non-empty list",
+    ):
+        _remap_authenticated_lineage_artifacts(
+            metadata,
+            artifact_root=tmp_path,
+            payloads={},
+        )
+
+
+def test_inherited_result_snapshots_must_match_exact_proposal(
+    tmp_path: Path,
+) -> None:
+    other = tmp_path / "other-result.json"
+    other_sha = _write_json(other, {"result": 2})
+    lineage = _write_authenticated_lineage_fixture(
+        tmp_path,
+        result_snapshot_sha_override=other_sha,
+    )
+    snapshots = lineage["result_artifact_snapshots"]
+    assert isinstance(snapshots, list)
+    snapshot = snapshots[0]
+    assert isinstance(snapshot, dict)
+    snapshot["path"] = str(other)
+    metadata = {"authenticated_transition_lineage": [lineage]}
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="result snapshots do not match the exact proposal result artifacts",
+    ):
+        _remap_authenticated_lineage_artifacts(
+            metadata,
+            artifact_root=tmp_path,
+            payloads={},
+        )
+
+
 def test_cross_lineage_binding_transition_id_must_remain_text() -> None:
     legacy = _legacy_record(transition_id="1")
     authenticated = _authenticated_record(transition_id="1")
