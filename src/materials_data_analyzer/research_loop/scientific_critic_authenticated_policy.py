@@ -197,6 +197,10 @@ def _apply_authenticated_directional_advisory(
 
 
 def _validate_consumer_authority_boundary(consumer: Mapping[str, Any]) -> None:
+    if consumer.get("schema_version") != "1.0" or consumer.get("consumer_policy_version") != "1.0":
+        raise ScientificCriticError(
+            "authenticated critic adapter supports only transition consumer schema/policy 1.0"
+        )
     if consumer.get("current_transition_exact_provenance_authenticated") is not True:
         raise ScientificCriticError(
             "authenticated critic adapter requires independently authenticated current-transition provenance"
@@ -206,6 +210,7 @@ def _validate_consumer_authority_boundary(consumer: Mapping[str, Any]) -> None:
         raise ScientificCriticError("authenticated transition consumer authority boundary is malformed")
     forbidden_true = (
         "scientific_authority_applied",
+        "scientific_status_changed",
         "execution_authorized",
         "positive_closeout_granted",
         "verifier_identity_or_credential_authenticated",
@@ -217,9 +222,9 @@ def _validate_consumer_authority_boundary(consumer: Mapping[str, Any]) -> None:
             raise ScientificCriticError(
                 f"authenticated transition consumer must explicitly keep {field}=false"
             )
-    if consumer.get("inference_scope") == "empirical_derived":
+    if consumer.get("inference_scope") in {"empirical_derived", "empirical_direct"}:
         raise ScientificCriticError(
-            "empirical_derived critic authority remains disabled until the evidence-origin contract is authenticated"
+            "empirical critic authority remains disabled until the evidence-origin contract is authenticated"
         )
 
 def build_authenticated_scientific_critic_report(
@@ -248,6 +253,9 @@ def build_authenticated_scientific_critic_report(
     target_id = str(consumer["target_node_id"])
     target = _target_report_by_id(result, target_id)
     advisory_applied = target is not None
+    negative_manual_reframe = (
+        advisory_applied and str(consumer["relation"]) in _NEGATIVE_RELATIONS
+    )
     if target is not None:
         _apply_authenticated_directional_advisory(target, consumer=consumer)
 
@@ -275,13 +283,14 @@ def build_authenticated_scientific_critic_report(
             "caller_supplied_consumer_report_accepted": False,
             "persistent_graph_promoted_by_authenticated_advisory": False,
             "evaluator_status_changed_by_authenticated_advisory": False,
-            "authenticated_directional_advisory_may_inform_manual_reframe": True,
+            "authenticated_directional_advisory_may_inform_manual_reframe": negative_manual_reframe,
             "authenticated_directional_advisory_authorizes_automatic_stop": False,
             "authenticated_directional_advisory_authorizes_execution": False,
             "authenticated_directional_advisory_grants_positive_closeout": False,
             "support_independence_established_by_exact_edge_provenance": False,
             "calibrated_confidence_established_by_exact_edge_provenance": False,
             "empirical_derived_authority_enabled_without_evidence_origin_contract": False,
+            "empirical_direct_authority_enabled_without_evidence_origin_contract": False,
         }
     )
 
