@@ -26,18 +26,9 @@ def patch_source() -> None:
     helper = '''def _validate_graph_contract(\n    value: Mapping[str, Any], *, root: Path, field: str\n) -> None:\n    try:\n        validate_epistemic_graph(\n            value,\n            program_state={"workstreams": []},\n            artifact_root=root,\n        )\n    except EpistemicGraphError as exc:\n        raise AuthenticatedTransitionConsumerError(\n            f"{field} violates the epistemic graph contract"\n        ) from exc\n\n\n'''
     text = replace_once(text, marker, helper + marker, "graph-contract-helper")
 
-    text = replace_once(
-        text,
-        '    graph = _json_object(graph_raw, field="epistemic graph")\n    manifest = _json_object(manifest_raw, field="epistemic transition manifest")\n',
-        '    graph = _json_object(graph_raw, field="epistemic graph")\n    manifest = _json_object(manifest_raw, field="epistemic transition manifest")\n    _validate_graph_contract(graph, root=root, field="epistemic graph")\n',
-        "successor-graph-validation",
-    )
-    text = replace_once(
-        text,
-        '    base_graph = _json_object(base_raw, field="current exact base graph snapshot")\n    proposal_raw_object = _json_object(proposal_raw, field="current exact transition proposal")\n',
-        '    base_graph = _json_object(base_raw, field="current exact base graph snapshot")\n    _validate_graph_contract(\n        base_graph, root=root, field="current exact base graph snapshot"\n    )\n    proposal_raw_object = _json_object(proposal_raw, field="current exact transition proposal")\n',
-        "base-graph-validation",
-    )
+    old = '''    _validate_inference_scope(\n        proposal=proposal,\n        inference_scope=str(recomputed["inference_scope"]),\n        target_claim_scope=target_scope,\n    )\n    _verify_successor_is_exact_append(\n        base_graph=base_graph,\n        successor_graph=graph,\n        proposal=proposal,\n    )\n    _verify_graph_realization(\n        graph,\n        proposal=proposal,\n        binding=recomputed,\n        result_snapshots=result_bindings,\n    )\n    graph_id = _text(graph.get("graph_id"), "epistemic graph graph_id")\n'''
+    new = '''    _validate_inference_scope(\n        proposal=proposal,\n        inference_scope=str(recomputed["inference_scope"]),\n        target_claim_scope=target_scope,\n    )\n    _validate_graph_contract(\n        base_graph, root=root, field="current exact base graph snapshot"\n    )\n    _verify_successor_is_exact_append(\n        base_graph=base_graph,\n        successor_graph=graph,\n        proposal=proposal,\n    )\n    _verify_graph_realization(\n        graph,\n        proposal=proposal,\n        binding=recomputed,\n        result_snapshots=result_bindings,\n    )\n    _validate_graph_contract(graph, root=root, field="epistemic graph")\n    graph_id = _text(graph.get("graph_id"), "epistemic graph graph_id")\n'''
+    text = replace_once(text, old, new, "late-graph-validation")
     SOURCE.write_text(text, encoding="utf-8")
 
 
