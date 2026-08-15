@@ -20,6 +20,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .evidence_origin_binding import (
+    EvidenceOriginBindingError,
+    authenticate_evidence_origin_binding,
+)
 from .input_evidence_origin_request import (
     InputEvidenceOriginRequestError,
     authenticate_input_evidence_origin_request,
@@ -226,6 +230,11 @@ def publish_input_evidence_origin_pack(
             "input evidence origin request authentication failed"
         ) from exc
 
+    if authenticated.request_bytes != request_bytes:
+        raise InputEvidenceOriginPackError(
+            "authenticated request changed the exact request bytes"
+        )
+
     report_items = authenticated.report.get("items")
     if not isinstance(report_items, list) or len(report_items) != len(authenticated.payloads):
         raise InputEvidenceOriginPackError("authenticated request returned inconsistent item payloads")
@@ -270,6 +279,26 @@ def publish_input_evidence_origin_pack(
         if origin_class not in _ORIGIN_CLASSES:
             raise InputEvidenceOriginPackError(
                 "authenticated request returned unsupported origin_class"
+            )
+        try:
+            recomputed_origin = authenticate_evidence_origin_binding(
+                evidence_bytes=payload.evidence_bytes,
+                origin_declaration_bytes=payload.origin_declaration_bytes,
+                origin_verification_decision_bytes=(
+                    payload.origin_verification_decision_bytes
+                ),
+            )
+        except EvidenceOriginBindingError as exc:
+            raise InputEvidenceOriginPackError(
+                "authenticated request payload origin bytes failed independent cross-check"
+            ) from exc
+        if recomputed_origin["origin_class"] != origin_class:
+            raise InputEvidenceOriginPackError(
+                "authenticated request origin_class diverged from exact origin bytes"
+            )
+        if recomputed_origin["evidence_artifact_sha256"] != payload.evidence_sha256:
+            raise InputEvidenceOriginPackError(
+                "authenticated request origin binding evidence SHA diverged from payload"
             )
         manifest_items.append(
             {

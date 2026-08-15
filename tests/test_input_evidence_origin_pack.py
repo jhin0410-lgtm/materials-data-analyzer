@@ -328,3 +328,86 @@ def test_reconstructs_manifest_program_binding_from_exact_payload(monkeypatch, t
     manifest = json.loads((output / "input_evidence_origin_pack_manifest.json").read_bytes())
     assert manifest["items"][0]["program_evidence_binding"] == bindings[0]
     assert "credential_verified" not in manifest["items"][0]["program_evidence_binding"]
+
+
+
+def test_rejects_authenticator_request_byte_substitution(monkeypatch, tmp_path: Path) -> None:
+    root, request, program_state, bindings, request_bytes = _fixture(tmp_path)
+    evidence = (root / "evidence.bin").read_bytes()
+    declaration = (root / "origin-declaration.json").read_bytes()
+    verification = (root / "origin-verification.json").read_bytes()
+    fake = SimpleNamespace(
+        request_bytes=request_bytes + b" ",
+        report={
+            "items": [
+                {
+                    "program_evidence_binding": dict(bindings[0]),
+                    "origin_class": "empirical_measurement",
+                }
+            ]
+        },
+        payloads=(
+            InputEvidenceOriginPayload(
+                workstream_id="ws-1",
+                role="measurement",
+                evidence_sha256=hashlib.sha256(evidence).hexdigest(),
+                evidence_bytes=evidence,
+                origin_declaration_bytes=declaration,
+                origin_verification_decision_bytes=verification,
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        module,
+        "authenticate_input_evidence_origin_request",
+        lambda **kwargs: fake,
+    )
+    with pytest.raises(InputEvidenceOriginPackError, match="changed the exact request bytes"):
+        publish_input_evidence_origin_pack(
+            request_path=request,
+            proposal_input_evidence_bindings=bindings,
+            program_state=program_state,
+            artifact_root=root,
+            output_dir=tmp_path / "pack",
+        )
+
+
+def test_rejects_authenticator_origin_class_report_payload_mismatch(monkeypatch, tmp_path: Path) -> None:
+    root, request, program_state, bindings, request_bytes = _fixture(tmp_path)
+    evidence = (root / "evidence.bin").read_bytes()
+    declaration = (root / "origin-declaration.json").read_bytes()
+    verification = (root / "origin-verification.json").read_bytes()
+    fake = SimpleNamespace(
+        request_bytes=request_bytes,
+        report={
+            "items": [
+                {
+                    "program_evidence_binding": dict(bindings[0]),
+                    "origin_class": "analysis_output",
+                }
+            ]
+        },
+        payloads=(
+            InputEvidenceOriginPayload(
+                workstream_id="ws-1",
+                role="measurement",
+                evidence_sha256=hashlib.sha256(evidence).hexdigest(),
+                evidence_bytes=evidence,
+                origin_declaration_bytes=declaration,
+                origin_verification_decision_bytes=verification,
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        module,
+        "authenticate_input_evidence_origin_request",
+        lambda **kwargs: fake,
+    )
+    with pytest.raises(InputEvidenceOriginPackError, match="origin_class diverged"):
+        publish_input_evidence_origin_pack(
+            request_path=request,
+            proposal_input_evidence_bindings=bindings,
+            program_state=program_state,
+            artifact_root=root,
+            output_dir=tmp_path / "pack",
+        )
