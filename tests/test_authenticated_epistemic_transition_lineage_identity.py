@@ -25,6 +25,16 @@ def test_reused_transition_id_in_legacy_lineage_is_rejected() -> None:
         _reject_transition_id_reuse(metadata, transition_id="transition-1")
 
 
+def test_padded_legacy_transition_id_cannot_bypass_reuse_check() -> None:
+    metadata = {"transition_lineage": [{"transition_id": "  transition-1  "}]}
+
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="already exists in base transition_lineage: transition-1",
+    ):
+        _reject_transition_id_reuse(metadata, transition_id="transition-1")
+
+
 def test_reused_transition_id_in_authenticated_lineage_is_rejected() -> None:
     metadata = {
         "authenticated_transition_lineage": [
@@ -42,11 +52,11 @@ def test_reused_transition_id_in_authenticated_lineage_is_rejected() -> None:
         _reject_transition_id_reuse(metadata, transition_id="transition-1")
 
 
-def test_preexisting_duplicate_lineage_is_rejected_even_for_new_transition_id() -> None:
+def test_preexisting_duplicate_lineage_is_rejected_even_when_padding_differs() -> None:
     metadata = {
         "transition_lineage": [
             {"transition_id": "transition-old"},
-            {"transition_id": "transition-old"},
+            {"transition_id": "  transition-old  "},
         ]
     }
 
