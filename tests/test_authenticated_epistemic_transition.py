@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from materials_data_analyzer.research_loop import authenticated_epistemic_transition as module
 from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
     AuthenticatedEpistemicTransitionError,
     apply_authenticated_epistemic_transition_files,
@@ -138,7 +139,7 @@ def _fixture_files(tmp_path: Path) -> tuple[Path, Path, Path, str, str, str]:
     )
 
 
-def test_authenticated_transition_binds_original_proposal_verifier_and_exact_edge(
+def test_authenticated_transition_binds_self_contained_snapshots_and_exact_edge(
     tmp_path: Path,
 ) -> None:
     (
@@ -149,6 +150,7 @@ def test_authenticated_transition_binds_original_proposal_verifier_and_exact_edg
         proposal_sha,
         verification_sha,
     ) = _fixture_files(tmp_path)
+    output = tmp_path / "out"
 
     result = apply_authenticated_epistemic_transition_files(
         base_graph_path=base_file,
@@ -156,7 +158,7 @@ def test_authenticated_transition_binds_original_proposal_verifier_and_exact_edg
         verification_decision_path=verification_file,
         program_state=_program_state(),
         artifact_root=tmp_path,
-        output_dir=tmp_path / "out",
+        output_dir=output,
     )
 
     assert result["domain_verification_applied"] is True
@@ -168,25 +170,41 @@ def test_authenticated_transition_binds_original_proposal_verifier_and_exact_edg
     assert binding["proposal_sha256"] == proposal_sha
     assert binding["verification_decision_sha256"] == verification_sha
     assert result["autonomy_boundary"]["exact_inference_edge_identity_authenticated"] is True
+    assert result["autonomy_boundary"]["source_file_toctou_changes_transition_bytes"] is False
+    assert result["autonomy_boundary"]["provenance_snapshots_self_contained"] is True
     assert result["autonomy_boundary"]["execution_authorized_by_authentication"] is False
     assert result["autonomy_boundary"]["positive_closeout_granted_by_authentication"] is False
 
-    graph = json.loads((tmp_path / "out" / "epistemic_graph.json").read_text(encoding="utf-8"))
+    base_snapshot = output / "provenance" / "base_graph.json"
+    proposal_snapshot = output / "provenance" / "proposal.json"
+    verification_snapshot = output / "provenance" / "verification_decision.json"
+    assert hashlib.sha256(base_snapshot.read_bytes()).hexdigest() == base_sha
+    assert hashlib.sha256(proposal_snapshot.read_bytes()).hexdigest() == proposal_sha
+    assert hashlib.sha256(verification_snapshot.read_bytes()).hexdigest() == verification_sha
+
+    graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
     edge = next(item for item in graph["edges"] if item["edge_id"] == "inference-1")
     assert edge["assessment_level"] == "domain_verified"
     assert edge["verification_artifact"] == {
         "role": "domain_verification_decision",
-        "path": str(verification_file.resolve()),
+        "path": str(verification_snapshot.resolve()),
         "sha256": verification_sha,
     }
     lineage = graph["metadata"]["authenticated_transition_lineage"][-1]
-    assert lineage["proposal_artifact"]["path"] == str(proposal_file.resolve())
+    assert lineage["base_graph_artifact"]["path"] == str(base_snapshot.resolve())
+    assert lineage["base_graph_artifact"]["source_path"] == str(base_file.resolve())
+    assert lineage["proposal_artifact"]["path"] == str(proposal_snapshot.resolve())
+    assert lineage["proposal_artifact"]["source_path"] == str(proposal_file.resolve())
     assert lineage["proposal_artifact"]["sha256"] == proposal_sha
     assert lineage["verification_decision_artifact"]["path"] == str(
+        verification_snapshot.resolve()
+    )
+    assert lineage["verification_decision_artifact"]["source_path"] == str(
         verification_file.resolve()
     )
     assert lineage["authenticated_inference_binding"] == binding
-    assert "mda-auth-transition-" not in json.dumps(lineage)
+    assert "mda-auth-transition-" not in json.dumps(result)
+    assert "mda-auth-transition-" not in json.dumps(graph)
 
 
 def test_v10_verifier_cannot_enter_authenticated_transition_path(tmp_path: Path) -> None:
@@ -244,10 +262,52 @@ def test_same_triple_wrong_edge_id_fails_before_output(tmp_path: Path) -> None:
     assert not (tmp_path / "out").exists()
 
 
-def test_verifier_checksum_is_bound_to_final_graph_not_staging_artifact(tmp_path: Path) -> None:
+def test_source_mutation_during_staging_does_not_change_authenticated_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base_file, proposal_file, verification_file, base_sha, proposal_sha, verification_sha = (
+        _fixture_files(tmp_path)
+    )
+    initial_base = base_file.read_bytes()
+    initial_proposal = proposal_file.read_bytes()
+    initial_verification = verification_file.read_bytes()
+    real_apply = module.apply_epistemic_transition_files
+
+    def mutating_stage_apply(**kwargs: object) -> dict[str, object]:
+        base_file.write_text('{"tampered":"base"}\n', encoding="utf-8")
+        proposal_file.write_text('{"tampered":"proposal"}\n', encoding="utf-8")
+        verification_file.write_text('{"tampered":"verification"}\n', encoding="utf-8")
+        return real_apply(**kwargs)
+
+    monkeypatch.setattr(module, "apply_epistemic_transition_files", mutating_stage_apply)
+    output = tmp_path / "out"
+    result = apply_authenticated_epistemic_transition_files(
+        base_graph_path=base_file,
+        proposal_path=proposal_file,
+        verification_decision_path=verification_file,
+        program_state=_program_state(),
+        artifact_root=tmp_path,
+        output_dir=output,
+    )
+
+    assert base_file.read_bytes() != initial_base
+    assert proposal_file.read_bytes() != initial_proposal
+    assert verification_file.read_bytes() != initial_verification
+    assert (output / "provenance" / "base_graph.json").read_bytes() == initial_base
+    assert (output / "provenance" / "proposal.json").read_bytes() == initial_proposal
+    assert (output / "provenance" / "verification_decision.json").read_bytes() == initial_verification
+    assert result["base_graph_binding"]["sha256"] == base_sha
+    assert result["proposal_binding"]["sha256"] == proposal_sha
+    assert result["verification_decision_binding"]["sha256"] == verification_sha
+
+
+def test_verifier_checksum_is_bound_to_final_snapshot_not_staging_artifact(
+    tmp_path: Path,
+) -> None:
     base_file, proposal_file, verification_file, _, _, verification_sha = _fixture_files(
         tmp_path
     )
+    output = tmp_path / "out"
 
     apply_authenticated_epistemic_transition_files(
         base_graph_path=base_file,
@@ -255,10 +315,11 @@ def test_verifier_checksum_is_bound_to_final_graph_not_staging_artifact(tmp_path
         verification_decision_path=verification_file,
         program_state=_program_state(),
         artifact_root=tmp_path,
-        output_dir=tmp_path / "out",
+        output_dir=output,
     )
 
-    graph = json.loads((tmp_path / "out" / "epistemic_graph.json").read_text(encoding="utf-8"))
+    graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
     edge = next(item for item in graph["edges"] if item["edge_id"] == "inference-1")
+    verifier_snapshot = output / "provenance" / "verification_decision.json"
     assert edge["verification_artifact"]["sha256"] == verification_sha
-    assert edge["verification_artifact"]["path"] == str(verification_file.resolve())
+    assert edge["verification_artifact"]["path"] == str(verifier_snapshot.resolve())
