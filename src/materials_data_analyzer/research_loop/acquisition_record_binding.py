@@ -227,6 +227,21 @@ def _normalize_claims(value: object) -> list[dict[str, Any]]:
             "manifest_claim_bindings are missing required recorded-provenance claims: "
             + ", ".join(missing)
         )
+    by_name = {item["claim"]: item for item in result}
+    for claim_name in (
+        "source_system",
+        "source_version",
+        "retrieval_endpoint",
+        "retrieval_status",
+    ):
+        if not isinstance(by_name[claim_name]["expected_value"], str):
+            raise AcquisitionRecordBindingError(
+                f"required manifest claim {claim_name!r} must declare a text value"
+            )
+    if not isinstance(by_name["network_performed"]["expected_value"], bool):
+        raise AcquisitionRecordBindingError(
+            "required manifest claim 'network_performed' must declare a boolean value"
+        )
     return result
 
 
@@ -308,6 +323,10 @@ def authenticate_acquisition_record_binding(
     limitations = _string_list(
         declaration["limitations"], "acquisition declaration limitations"
     )
+    if not limitations:
+        raise AcquisitionRecordBindingError(
+            "acquisition declaration limitations must be non-empty"
+        )
     claim_map = {item["claim"]: item["expected_value"] for item in authenticated_claims}
     return {
         "schema_version": ACQUISITION_RECORD_BINDING_SCHEMA_VERSION,
@@ -323,6 +342,8 @@ def authenticate_acquisition_record_binding(
         "recorded_network_performed": claim_map["network_performed"],
         "authenticated_manifest_claim_bindings": authenticated_claims,
         "recorded_acquisition_provenance_authenticated": True,
+        "historical_acquisition_event_authenticated": False,
+        "acquisition_manifest_authorship_authenticated": False,
         "source_identity_or_credential_authenticated": False,
         "transport_peer_identity_authenticated_by_this_contract": False,
         "physical_origin_truth_authenticated": False,
