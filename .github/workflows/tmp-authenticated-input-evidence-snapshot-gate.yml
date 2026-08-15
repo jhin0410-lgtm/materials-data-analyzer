@@ -1,0 +1,66 @@
+name: Temporary authenticated input evidence snapshot gate
+
+on:
+  push:
+    branches:
+      - agent/authenticated-input-evidence-snapshot-dev-20260815
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/authenticated-input-evidence-snapshot-dev-20260815
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Apply producer integration
+        run: |
+          python scripts/tmp_authenticated_input_evidence_snapshot.py
+          git diff --check
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install ruff
+      - name: Run authenticated input evidence regressions
+        run: |
+          set -euo pipefail
+          python -m ruff check --fix \
+            src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            src/materials_data_analyzer/research_loop/input_evidence_origin_snapshot.py \
+            tests/test_authenticated_epistemic_transition_input_evidence.py \
+            tests/test_input_evidence_origin_snapshot.py
+          python -m pytest -q \
+            tests/test_authenticated_epistemic_transition_input_evidence.py \
+            tests/test_input_evidence_origin_snapshot.py \
+            tests/test_input_evidence_origin_request.py \
+            tests/test_program_evidence_origin_binding.py \
+            tests/test_evidence_origin_binding.py \
+            tests/test_authenticated_epistemic_transition.py \
+            tests/test_authenticated_epistemic_transition_hardening.py \
+            tests/test_authenticated_epistemic_transition_adversarial.py \
+            tests/test_authenticated_transition_consumer.py
+          python -m ruff check \
+            src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            src/materials_data_analyzer/research_loop/input_evidence_origin_snapshot.py \
+            tests/test_authenticated_epistemic_transition_input_evidence.py \
+            tests/test_input_evidence_origin_snapshot.py
+      - name: Commit verified producer integration
+        run: |
+          set -euo pipefail
+          git add \
+            src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py \
+            src/materials_data_analyzer/research_loop/input_evidence_origin_snapshot.py \
+            tests/test_authenticated_epistemic_transition_input_evidence.py \
+            tests/test_input_evidence_origin_snapshot.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'Snapshot authenticated input evidence origin provenance'
+          git push origin HEAD:agent/authenticated-input-evidence-snapshot-dev-20260815
