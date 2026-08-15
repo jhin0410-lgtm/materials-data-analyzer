@@ -28,12 +28,15 @@ jobs:
           fi
           python - <<'PY'
           from pathlib import Path
-          import textwrap
 
           workflow = Path('.github/workflows/tmp-pr127-final-review-closure.yml').read_text(encoding='utf-8')
           start = workflow.index("          python - <<'PY'\n") + len("          python - <<'PY'\n")
           end = workflow.index("\n          PY", start)
-          payload = textwrap.dedent(workflow[start:end])
+          raw_payload = workflow[start:end]
+          payload = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in raw_payload.splitlines()
+          )
           exec(compile(payload, '<pr127-closure-payload>', 'exec'))
           PY
           git diff --check
