@@ -59,6 +59,14 @@ from .epistemic_multicycle import (
     EpistemicMultiCycleError,
     run_epistemically_bounded_multicycle,
 )
+from .evidence_origin_binding import (
+    EVIDENCE_ORIGIN_BINDING_SCHEMA_VERSION,
+    EVIDENCE_ORIGIN_DECLARATION_SCHEMA_VERSION,
+    EVIDENCE_ORIGIN_VERIFICATION_SCHEMA_VERSION,
+    EVIDENCE_ORIGIN_VERIFICATION_SCOPE,
+    EvidenceOriginBindingError,
+    authenticate_evidence_origin_binding,
+)
 from .kernel import (
     LEDGER_FILENAME,
     STATE_FILENAME,
@@ -110,6 +118,11 @@ from .planning_transition import (
     determine_research_transition,
     prepare_reopen_evidence_review,
 )
+from .program_evidence_origin_binding import (
+    PROGRAM_EVIDENCE_ORIGIN_BINDING_SCHEMA_VERSION,
+    ProgramEvidenceOriginBindingError,
+    authenticate_program_evidence_origin_binding,
+)
 from .protocol_stratification import build_protocol_stratification
 from .research_cycle import (
     CYCLE_POLICY_VERSION,
@@ -133,6 +146,10 @@ from .scientific_critic import (
     SCIENTIFIC_CRITIC_SCHEMA_VERSION,
     ScientificCriticError,
 )
+from .scientific_critic_authenticated_policy import (
+    AUTHENTICATED_SCIENTIFIC_CRITIC_POLICY_VERSION,
+    build_authenticated_scientific_critic_report,
+)
 from .scientific_critic_policy import (
     SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION,
     build_policy_hardened_scientific_critic_report,
@@ -147,6 +164,7 @@ build_scientific_critic_report = build_policy_hardened_scientific_critic_report
 __all__ = [
     "ACTION_REGISTRY_SCHEMA_VERSION",
     "ACTION_REPORT_FILENAME",
+    "AUTHENTICATED_SCIENTIFIC_CRITIC_POLICY_VERSION",
     "AUTHENTICATED_TRANSITION_CONSUMER_POLICY_VERSION",
     "AUTHENTICATED_TRANSITION_CONSUMER_SCHEMA_VERSION",
     "AUTHORIZATION_POLICY_VERSION",
@@ -158,6 +176,10 @@ __all__ = [
     "EPISTEMIC_GATE_SCHEMA_VERSION",
     "EPISTEMIC_MULTICYCLE_POLICY_VERSION",
     "EPISTEMIC_MULTICYCLE_SCHEMA_VERSION",
+    "EVIDENCE_ORIGIN_BINDING_SCHEMA_VERSION",
+    "EVIDENCE_ORIGIN_DECLARATION_SCHEMA_VERSION",
+    "EVIDENCE_ORIGIN_VERIFICATION_SCHEMA_VERSION",
+    "EVIDENCE_ORIGIN_VERIFICATION_SCOPE",
     "EXECUTION_POLICY_VERSION",
     "EXECUTION_SCHEMA_VERSION",
     "GRAPH_POLICY_VERSION",
@@ -168,6 +190,7 @@ __all__ = [
     "PLANNING_DECISION_SCHEMA_VERSION",
     "PLANNING_STATE_SCHEMA_VERSION",
     "PLANNING_STATE_VERSION",
+    "PROGRAM_EVIDENCE_ORIGIN_BINDING_SCHEMA_VERSION",
     "PROGRAM_POLICY_VERSION",
     "PROGRAM_SCHEMA_VERSION",
     "REASONING_PROPOSAL_SCHEMA_VERSION",
@@ -184,6 +207,7 @@ __all__ = [
     "EpistemicGateError",
     "EpistemicGraphError",
     "EpistemicMultiCycleError",
+    "EvidenceOriginBindingError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
@@ -191,6 +215,7 @@ __all__ = [
     "PlanningAdapterError",
     "PlanningStateError",
     "PlanningTransitionError",
+    "ProgramEvidenceOriginBindingError",
     "ResearchCycleError",
     "ResearchLoopError",
     "ResearchProgramError",
@@ -203,8 +228,11 @@ __all__ = [
     "append_stop",
     "assess_action_authorization",
     "assess_current_action_authorization",
+    "authenticate_evidence_origin_binding",
+    "authenticate_program_evidence_origin_binding",
     "authenticate_transition_bundle",
     "available_planning_adapters",
+    "build_authenticated_scientific_critic_report",
     "build_current_research_transition",
     "build_protocol_stratification",
     "build_reopen_evidence_review",
