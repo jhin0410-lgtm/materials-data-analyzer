@@ -24,13 +24,39 @@ def _write_json(path: Path, value: object) -> str:
 def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
     tmp_path: Path,
 ) -> None:
+    research_scope = "portable inherited provenance regression"
     old_result = tmp_path / "old-result.json"
     old_result_sha = _write_json(old_result, {"old": "result"})
-    old_verifier = tmp_path / "old-verifier.json"
-    old_verifier_sha = _write_json(old_verifier, {"legacy": "verifier"})
+    legacy_result = tmp_path / "legacy-result.json"
+    legacy_result_sha = _write_json(legacy_result, {"legacy": "result"})
+    legacy_verifier = tmp_path / "legacy-verifier.json"
+    legacy_verifier_sha = _write_json(legacy_verifier, {"legacy": "verifier"})
+
     old_parent = tmp_path / "old-parent.json"
-    old_parent_sha = _write_json(old_parent, {"old": "parent"})
+    old_parent_graph = {
+        "schema_version": "1.0",
+        "graph_id": "graph-v0",
+        "research_scope": research_scope,
+        "nodes": [
+            {
+                "node_id": "hypothesis-1",
+                "node_type": "hypothesis",
+                "statement": "The bounded structural target holds.",
+                "metadata": {"claim_scope": "structural"},
+            }
+        ],
+        "edges": [],
+        "metadata": {},
+    }
+    old_parent_sha = _write_json(old_parent, old_parent_graph)
     old_proposal = tmp_path / "old-proposal.json"
+    old_limitations = ["Historical producer lineage remains diagnostic-only."]
+    old_source_action = {
+        "action_id": "old-action",
+        "action_class": "existing_data_reanalysis",
+        "action_version": "1.0",
+        "execution_mode": "typed_local_action",
+    }
     old_proposal_value = {
         "schema_version": "1.0",
         "transition_id": "old-auth",
@@ -38,12 +64,7 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
         "base_graph_sha256": old_parent_sha,
         "new_graph_id": "graph-v1",
         "target_node_id": "hypothesis-1",
-        "source_action": {
-            "action_id": "old-action",
-            "action_class": "existing_data_reanalysis",
-            "action_version": "1.0",
-            "execution_mode": "typed_local_action",
-        },
+        "source_action": old_source_action,
         "result_node": {
             "node_id": "old-result-node",
             "node_type": "analysis",
@@ -64,7 +85,7 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
             "relation": "supports",
             "rationale": "Previously authenticated structural support identity.",
         },
-        "limitations": ["Historical producer lineage remains diagnostic-only."],
+        "limitations": old_limitations,
     }
     old_proposal_sha = _write_json(old_proposal, old_proposal_value)
     old_auth_verifier = tmp_path / "old-auth-verifier.json"
@@ -91,17 +112,19 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
         expected_base_graph_sha256=old_parent_sha,
     )
 
+    old_result_metadata = {
+        "result_origin": "authorized_local_analysis",
+        "source_action": old_source_action,
+        "input_evidence_bindings": [],
+        "transition_id": "old-auth",
+        "limitations": old_limitations,
+    }
     base_graph = {
         "schema_version": "1.0",
         "graph_id": "graph-v1",
-        "research_scope": "portable inherited provenance regression",
+        "research_scope": research_scope,
         "nodes": [
-            {
-                "node_id": "hypothesis-1",
-                "node_type": "hypothesis",
-                "statement": "The bounded structural target holds.",
-                "metadata": {"claim_scope": "structural"},
-            },
+            old_parent_graph["nodes"][0],
             {
                 "node_id": "old-result-node",
                 "node_type": "analysis",
@@ -114,23 +137,59 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
                         "sha256": old_result_sha,
                     }
                 ],
+                "metadata": old_result_metadata,
+            },
+            {
+                "node_id": "legacy-result-node",
+                "node_type": "analysis",
+                "statement": "A legacy verified analysis remains inherited authority.",
+                "execution_status": "completed",
+                "artifact_bindings": [
+                    {
+                        "role": "primary_result",
+                        "path": str(legacy_result),
+                        "sha256": legacy_result_sha,
+                    }
+                ],
+                "metadata": {"result_origin": "authorized_local_analysis"},
             },
         ],
         "edges": [
+            {
+                "edge_id": "old-tests",
+                "source_node_id": "old-result-node",
+                "target_node_id": "hypothesis-1",
+                "relation": "tests",
+                "assessment_level": "proposal",
+                "rationale": (
+                    "The completed result was introduced to test this target; execution success alone "
+                    "does not establish scientific support, contradiction, or falsification."
+                ),
+                "active": True,
+            },
             {
                 "edge_id": "old-support",
                 "source_node_id": "old-result-node",
                 "target_node_id": "hypothesis-1",
                 "relation": "supports",
+                "assessment_level": "diagnostic",
+                "rationale": "Previously authenticated structural support identity.",
+                "active": True,
+            },
+            {
+                "edge_id": "legacy-support",
+                "source_node_id": "legacy-result-node",
+                "target_node_id": "hypothesis-1",
+                "relation": "supports",
                 "assessment_level": "domain_verified",
-                "rationale": "Previously verified structural support.",
+                "rationale": "Legacy v1.0-era verified structural support.",
                 "active": True,
                 "verification_artifact": {
-                    "role": "domain_verification",
-                    "path": str(old_verifier),
-                    "sha256": old_verifier_sha,
+                    "role": "domain_verification_decision",
+                    "path": str(legacy_verifier),
+                    "sha256": legacy_verifier_sha,
                 },
-            }
+            },
         ],
         "metadata": {
             "transition_lineage": [
@@ -237,7 +296,7 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
     )
 
     output = tmp_path / "bundle"
-    apply_authenticated_epistemic_transition_files(
+    manifest = apply_authenticated_epistemic_transition_files(
         base_graph_path=base_file,
         proposal_path=proposal_file,
         verification_decision_path=verifier_file,
@@ -245,10 +304,16 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
         artifact_root=tmp_path,
         output_dir=output,
     )
+    boundary = manifest["autonomy_boundary"]
+    assert manifest["inherited_domain_verified_relation_count"] == 1
+    assert boundary["inherited_domain_verified_authority_preserved"] is True
+    assert boundary["legacy_v10_verifier_promoted_by_authenticated_producer"] is False
+    assert boundary["inherited_domain_verified_relations_reauthenticated_as_v11"] is False
 
     for source in (
         old_result,
-        old_verifier,
+        legacy_result,
+        legacy_verifier,
         old_parent,
         old_proposal,
         old_auth_verifier,
@@ -261,20 +326,12 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
 
     graph = json.loads((output / "epistemic_graph.json").read_text(encoding="utf-8"))
     old_node = next(item for item in graph["nodes"] if item["node_id"] == "old-result-node")
-    assert old_node["artifact_bindings"][0]["path"].startswith(
-        "provenance/inherited/"
-    )
-    old_edge = next(item for item in graph["edges"] if item["edge_id"] == "old-support")
-    assert old_edge["verification_artifact"]["path"].startswith(
-        "provenance/inherited/"
-    )
+    assert old_node["artifact_bindings"][0]["path"].startswith("provenance/inherited/")
+    old_edge = next(item for item in graph["edges"] if item["edge_id"] == "legacy-support")
+    assert old_edge["verification_artifact"]["path"].startswith("provenance/inherited/")
     old_lineage = graph["metadata"]["authenticated_transition_lineage"][0]
-    assert old_lineage["base_graph_artifact"]["path"].startswith(
-        "provenance/inherited/"
-    )
-    assert old_lineage["proposal_artifact"]["path"].startswith(
-        "provenance/inherited/"
-    )
+    assert old_lineage["base_graph_artifact"]["path"].startswith("provenance/inherited/")
+    assert old_lineage["proposal_artifact"]["path"].startswith("provenance/inherited/")
     assert old_lineage["verification_decision_artifact"]["path"].startswith(
         "provenance/inherited/"
     )
@@ -291,5 +348,6 @@ def test_inherited_result_verifier_and_lineage_artifacts_are_bundle_portable(
         item for item in evaluation["assessments"] if item["node_id"] == "hypothesis-1"
     )
     assert target["status"] == "provisionally_supported"
-    assert "old-support" in target["verified_support_edges"]
+    assert "legacy-support" in target["verified_support_edges"]
+    assert "old-support" in target["diagnostic_relation_edges"]
     assert "new-support" in target["diagnostic_relation_edges"]

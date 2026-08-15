@@ -35,3 +35,19 @@ producer cannot make those nodes self-contained without inventing provenance. A 
 origin contract must provide checksum-bound resolvable artifacts before this restriction can be
 removed. The same principle is why new `empirical_derived` authenticated transitions remain
 fail-closed in this producer.
+
+## Historical replay validation
+
+Inherited authenticated lineage is accepted only when its exact historical base graph can be
+materialized against the enclosing graph's still-operative artifact bindings and passes the graph
+validator, its exact proposal passes the full transition proposal contract using the snapshotted
+result artifacts, and its v1.1 decision passes both exact-edge authentication and the established
+scope validator. The historical result node, tests edge, and diagnostic inference edge must also
+be present with matching semantics in the enclosing graph. Copying a self-consistent lineage
+record into an unrelated graph is therefore not sufficient.
+
+Any inherited or current transition carrying unresolved `input_evidence_bindings` remains
+fail-closed until the separate evidence-origin contract provides checksum-bound resolvable input
+snapshots. Existing inherited `domain_verified` relations from the legacy graph contract may still
+retain their prior evaluator authority; the authenticated producer reports that retention explicitly
+and does not describe those relations as re-authenticated v1.1 authority.

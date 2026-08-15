@@ -283,6 +283,7 @@ def test_inherited_evidence_nodes_fail_closed_without_resolvable_artifact_contra
     ):
         module._remap_base_graph_artifacts(
             base,
+            program_state={"workstreams": []},
             artifact_root=tmp_path,
             payloads={},
         )

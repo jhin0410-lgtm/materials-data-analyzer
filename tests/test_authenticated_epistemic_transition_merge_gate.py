@@ -67,59 +67,54 @@ def test_cross_lineage_matching_identity_must_be_coherent() -> None:
         )
 
 
-def test_malformed_inherited_authenticated_lineage_fails_closed(tmp_path: Path) -> None:
-    metadata: dict[str, object] = {
-        "authenticated_transition_lineage": [
-            {
-                "schema_version": "1.0",
-                "transition_id": "old-auth",
-                # Missing mandatory base_graph_artifact must never survive as
-                # inherited authenticated provenance.
-                "proposal_artifact": {},
-                "verification_decision_artifact": {},
-                "result_artifact_snapshots": [],
-                "authenticated_inference_binding": {
-                    "transition_id": "old-auth",
-                    "result_node_id": "result-old",
-                },
-                "scientific_authority_applied": False,
-            }
-        ]
-    }
-
-    with pytest.raises(
-        AuthenticatedEpistemicTransitionError,
-        match="base_graph_artifact must be an object",
-    ):
-        _remap_authenticated_lineage_artifacts(
-            metadata,
-            artifact_root=tmp_path,
-            payloads={},
-        )
-
-
-def _write_authenticated_lineage_fixture(
+def _valid_historical_lineage_fixture(
     tmp_path: Path,
     *,
     stored_edge_id: str = "old-edge",
     padded_proposal_sha: bool = False,
     empty_results: bool = False,
     result_snapshot_sha_override: str | None = None,
-) -> dict[str, object]:
+    invalid_schema: bool = False,
+    inference_scope: str = "structural",
+) -> tuple[dict[str, object], dict[str, object]]:
     result = tmp_path / "old-result.json"
     result_sha = _write_json(result, {"result": 1})
+    historical_base_value = {
+        "schema_version": "1.0",
+        "graph_id": "graph-v0",
+        "research_scope": "inherited replay regression",
+        "nodes": [
+            {
+                "node_id": "hypothesis-1",
+                "node_type": "hypothesis",
+                "statement": "Historical target.",
+                "metadata": {"claim_scope": "structural"},
+            }
+        ],
+        "edges": [],
+        "metadata": {},
+    }
     base = tmp_path / "old-base.json"
-    base_sha = _write_json(base, {"base": 1})
-    proposal = tmp_path / "old-proposal.json"
-    proposal_value = {
+    base_sha = _write_json(base, historical_base_value)
+    source_action = {
+        "action_id": "old-action",
+        "action_class": "existing_data_reanalysis",
+        "action_version": "1.0",
+        "execution_mode": "typed_local_action",
+    }
+    limitations = ["Historical diagnostic producer lineage."]
+    proposal_value: dict[str, object] = {
         "schema_version": "1.0",
         "transition_id": "old-auth",
         "base_graph_id": "graph-v0",
         "base_graph_sha256": base_sha,
         "new_graph_id": "graph-v1",
         "target_node_id": "hypothesis-1",
+        "source_action": source_action,
         "result_node": {
             "node_id": "old-result",
+            "node_type": "analysis",
+            "statement": "Historical result.",
             "artifact_bindings": [
                 {
                     "role": "primary_result",
@@ -127,12 +122,20 @@ def _write_authenticated_lineage_fixture(
                     "sha256": result_sha,
                 }
             ],
+            "metadata": {"result_origin": "authorized_local_analysis"},
         },
+        "input_evidence_bindings": [],
         "proposed_inference": {
+            "tests_edge_id": "old-tests",
             "inference_edge_id": "old-edge",
             "relation": "supports",
+            "rationale": "Historical diagnostic support.",
         },
+        "limitations": limitations,
     }
+    if invalid_schema:
+        proposal_value.pop("source_action")
+    proposal = tmp_path / "old-proposal.json"
     proposal_sha = _write_json(proposal, proposal_value)
     verifier = tmp_path / "old-verifier.json"
     verifier_value = {
@@ -145,7 +148,7 @@ def _write_authenticated_lineage_fixture(
         "result_node_id": "old-result",
         "target_node_id": "hypothesis-1",
         "relation": "supports",
-        "inference_scope": "structural",
+        "inference_scope": inference_scope,
         "verifier_id": "old-verifier",
         "rationale": "Exact inherited identity.",
         "limitations": [],
@@ -171,7 +174,7 @@ def _write_authenticated_lineage_fixture(
                 "sha256": result_snapshot_sha_override or result_sha,
             }
         )
-    return {
+    lineage = {
         "schema_version": "1.0",
         "transition_id": "old-auth",
         "base_graph_artifact": {"path": str(base), "sha256": base_sha},
@@ -188,89 +191,177 @@ def _write_authenticated_lineage_fixture(
         "authenticated_inference_binding": binding,
         "scientific_authority_applied": False,
     }
-
-
-def test_inherited_authenticated_lineage_reauthenticates_exact_binding(
-    tmp_path: Path,
-) -> None:
-    metadata = {
-        "authenticated_transition_lineage": [
-            _write_authenticated_lineage_fixture(tmp_path, stored_edge_id="forged-edge")
-        ]
+    result_metadata = {
+        "result_origin": "authorized_local_analysis",
+        "source_action": source_action,
+        "input_evidence_bindings": [],
+        "transition_id": "old-auth",
+        "limitations": limitations,
     }
+    enclosing = {
+        "schema_version": "1.0",
+        "graph_id": "graph-v1",
+        "research_scope": "inherited replay regression",
+        "nodes": [
+            historical_base_value["nodes"][0],
+            {
+                "node_id": "old-result",
+                "node_type": "analysis",
+                "statement": "Historical result.",
+                "execution_status": "completed",
+                "artifact_bindings": [
+                    {
+                        "role": "primary_result",
+                        "path": str(result),
+                        "sha256": result_sha,
+                    }
+                ],
+                "metadata": result_metadata,
+            },
+        ],
+        "edges": [
+            {
+                "edge_id": "old-tests",
+                "source_node_id": "old-result",
+                "target_node_id": "hypothesis-1",
+                "relation": "tests",
+                "assessment_level": "proposal",
+                "rationale": (
+                    "The completed result was introduced to test this target; execution success alone "
+                    "does not establish scientific support, contradiction, or falsification."
+                ),
+                "active": True,
+            },
+            {
+                "edge_id": "old-edge",
+                "source_node_id": "old-result",
+                "target_node_id": "hypothesis-1",
+                "relation": "supports",
+                "assessment_level": "diagnostic",
+                "rationale": "Historical diagnostic support.",
+                "active": True,
+            },
+        ],
+        "metadata": {},
+    }
+    return lineage, enclosing
+
+
+def _remap_one_lineage(
+    tmp_path: Path,
+    lineage: dict[str, object],
+    enclosing: dict[str, object],
+) -> None:
+    _remap_authenticated_lineage_artifacts(
+        {"authenticated_transition_lineage": [lineage]},
+        enclosing_graph=enclosing,
+        program_state={"workstreams": []},
+        artifact_root=tmp_path,
+        payloads={},
+    )
+
+
+def test_malformed_inherited_authenticated_lineage_fails_closed(tmp_path: Path) -> None:
+    _, enclosing = _valid_historical_lineage_fixture(tmp_path)
+    malformed: dict[str, object] = {
+        "schema_version": "1.0",
+        "transition_id": "old-auth",
+        "proposal_artifact": {},
+        "verification_decision_artifact": {},
+        "result_artifact_snapshots": [],
+        "authenticated_inference_binding": {
+            "transition_id": "old-auth",
+            "result_node_id": "result-old",
+        },
+        "scientific_authority_applied": False,
+    }
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="base_graph_artifact must be an object",
+    ):
+        _remap_one_lineage(tmp_path, malformed, enclosing)
+
+
+def test_inherited_authenticated_lineage_reauthenticates_exact_binding(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(
+        tmp_path, stored_edge_id="forged-edge"
+    )
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
         match="stored inference binding does not match exact proposal/verifier bytes",
     ):
-        _remap_authenticated_lineage_artifacts(
-            metadata,
-            artifact_root=tmp_path,
-            payloads={},
-        )
+        _remap_one_lineage(tmp_path, lineage, enclosing)
 
 
-def test_orphan_authenticated_lineage_rejects_noncanonical_artifact_sha(
-    tmp_path: Path,
-) -> None:
-    metadata = {
-        "authenticated_transition_lineage": [
-            _write_authenticated_lineage_fixture(tmp_path, padded_proposal_sha=True)
-        ]
-    }
+def test_orphan_authenticated_lineage_rejects_noncanonical_artifact_sha(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(
+        tmp_path, padded_proposal_sha=True
+    )
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
         match="sha256 must be canonical lowercase SHA-256 text",
     ):
-        _remap_authenticated_lineage_artifacts(
-            metadata,
-            artifact_root=tmp_path,
-            payloads={},
-        )
+        _remap_one_lineage(tmp_path, lineage, enclosing)
 
 
-def test_inherited_authenticated_lineage_requires_result_snapshots(
-    tmp_path: Path,
-) -> None:
-    metadata = {
-        "authenticated_transition_lineage": [
-            _write_authenticated_lineage_fixture(tmp_path, empty_results=True)
-        ]
-    }
+def test_inherited_authenticated_lineage_requires_result_snapshots(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(tmp_path, empty_results=True)
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
         match="result_artifact_snapshots must be a non-empty list",
     ):
-        _remap_authenticated_lineage_artifacts(
-            metadata,
-            artifact_root=tmp_path,
-            payloads={},
-        )
+        _remap_one_lineage(tmp_path, lineage, enclosing)
 
 
-def test_inherited_result_snapshots_must_match_exact_proposal(
-    tmp_path: Path,
-) -> None:
+def test_inherited_result_snapshots_must_match_exact_proposal(tmp_path: Path) -> None:
     other = tmp_path / "other-result.json"
     other_sha = _write_json(other, {"result": 2})
-    lineage = _write_authenticated_lineage_fixture(
-        tmp_path,
-        result_snapshot_sha_override=other_sha,
+    lineage, enclosing = _valid_historical_lineage_fixture(
+        tmp_path, result_snapshot_sha_override=other_sha
     )
     snapshots = lineage["result_artifact_snapshots"]
     assert isinstance(snapshots, list)
     snapshot = snapshots[0]
     assert isinstance(snapshot, dict)
     snapshot["path"] = str(other)
-    metadata = {"authenticated_transition_lineage": [lineage]}
     with pytest.raises(
         AuthenticatedEpistemicTransitionError,
         match="result snapshots do not match the exact proposal result artifacts",
     ):
-        _remap_authenticated_lineage_artifacts(
-            metadata,
-            artifact_root=tmp_path,
-            payloads={},
-        )
+        _remap_one_lineage(tmp_path, lineage, enclosing)
+
+
+def test_inherited_transition_must_satisfy_full_proposal_schema(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(tmp_path, invalid_schema=True)
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="full historical transition/verifier contract",
+    ):
+        _remap_one_lineage(tmp_path, lineage, enclosing)
+
+
+def test_inherited_transition_must_match_enclosing_graph(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(tmp_path)
+    nodes = enclosing["nodes"]
+    assert isinstance(nodes, list)
+    result = next(item for item in nodes if isinstance(item, dict) and item.get("node_id") == "old-result")
+    result["statement"] = "Substituted unrelated result."
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="result node does not match the enclosing graph",
+    ):
+        _remap_one_lineage(tmp_path, lineage, enclosing)
+
+
+def test_inherited_empirical_derived_lineage_fails_closed(tmp_path: Path) -> None:
+    lineage, enclosing = _valid_historical_lineage_fixture(
+        tmp_path, inference_scope="empirical_derived"
+    )
+    with pytest.raises(
+        AuthenticatedEpistemicTransitionError,
+        match="does not accept inherited empirical_derived lineage",
+    ):
+        _remap_one_lineage(tmp_path, lineage, enclosing)
 
 
 def test_cross_lineage_binding_transition_id_must_remain_text() -> None:
