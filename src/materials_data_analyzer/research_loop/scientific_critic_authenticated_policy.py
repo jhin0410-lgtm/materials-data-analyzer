@@ -195,6 +195,33 @@ def _apply_authenticated_directional_advisory(
     }
 
 
+
+def _validate_consumer_authority_boundary(consumer: Mapping[str, Any]) -> None:
+    if consumer.get("current_transition_exact_provenance_authenticated") is not True:
+        raise ScientificCriticError(
+            "authenticated critic adapter requires independently authenticated current-transition provenance"
+        )
+    boundary = consumer.get("authority_boundary")
+    if not isinstance(boundary, Mapping):
+        raise ScientificCriticError("authenticated transition consumer authority boundary is malformed")
+    forbidden_true = (
+        "scientific_authority_applied",
+        "execution_authorized",
+        "positive_closeout_granted",
+        "verifier_identity_or_credential_authenticated",
+        "support_independence_established",
+        "empirical_origin_independently_established",
+    )
+    for field in forbidden_true:
+        if boundary.get(field) is not False:
+            raise ScientificCriticError(
+                f"authenticated transition consumer must explicitly keep {field}=false"
+            )
+    if consumer.get("inference_scope") == "empirical_derived":
+        raise ScientificCriticError(
+            "empirical_derived critic authority remains disabled until the evidence-origin contract is authenticated"
+        )
+
 def build_authenticated_scientific_critic_report(
     bundle_root: str | Path,
     *,
@@ -208,6 +235,7 @@ def build_authenticated_scientific_critic_report(
     """
     root = Path(bundle_root).expanduser()
     consumer = authenticate_transition_bundle(root)
+    _validate_consumer_authority_boundary(consumer)
     graph_path = root / "epistemic_graph.json"
     report = build_policy_hardened_scientific_critic_report(
         graph_path,

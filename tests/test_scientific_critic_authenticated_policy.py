@@ -24,6 +24,9 @@ def _consumer(*, relation: str = "contradicts", scope: str = "structural") -> di
             "scientific_authority_applied": False,
             "execution_authorized": False,
             "positive_closeout_granted": False,
+            "verifier_identity_or_credential_authenticated": False,
+            "support_independence_established": False,
+            "empirical_origin_independently_established": False,
         },
     }
 
@@ -208,3 +211,38 @@ def test_adapter_boundary_never_authorizes_execution_or_closeout(
     assert boundary["authenticated_directional_advisory_authorizes_execution"] is False
     assert boundary["authenticated_directional_advisory_grants_positive_closeout"] is False
     assert boundary["empirical_derived_authority_enabled_without_evidence_origin_contract"] is False
+
+
+
+def test_adapter_rejects_empirical_derived_even_if_consumer_regresses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _wire(
+        monkeypatch,
+        consumer=_consumer(relation="supports", scope="empirical_derived"),
+        base=_base_report(),
+    )
+    with pytest.raises(
+        module.ScientificCriticError,
+        match="evidence-origin contract",
+    ):
+        module.build_authenticated_scientific_critic_report(
+            tmp_path / "bundle", program_state={"generated_goals": []}
+        )
+
+
+def test_adapter_rejects_consumer_authority_escalation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    consumer = _consumer(relation="supports")
+    boundary = consumer["authority_boundary"]
+    assert isinstance(boundary, dict)
+    boundary["scientific_authority_applied"] = True
+    _wire(monkeypatch, consumer=consumer, base=_base_report())
+    with pytest.raises(
+        module.ScientificCriticError,
+        match="scientific_authority_applied=false",
+    ):
+        module.build_authenticated_scientific_critic_report(
+            tmp_path / "bundle", program_state={"generated_goals": []}
+        )
