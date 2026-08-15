@@ -330,7 +330,10 @@ def _request_identities(raw: bytes) -> list[dict[str, str]]:
             "origin_declaration_path",
             "origin_verification_decision_path",
         ):
-            _strict_text(item[path_field], f"pack request snapshot items[{index}].{path_field}")
+            _portable_parts(
+                item[path_field],
+                f"pack request snapshot items[{index}].{path_field}",
+            )
         result.append(binding)
     return result
 
@@ -480,7 +483,10 @@ def authenticate_input_evidence_origin_pack(pack_root: str | Path) -> dict[str, 
                 "pack origin-classification bytes failed independent reauthentication"
             ) from exc
 
-        manifest_origin_class = item["origin_class"]
+        manifest_origin_class = _strict_text(
+            item["origin_class"],
+            f"pack manifest items[{index}].origin_class",
+        )
         if manifest_origin_class not in _ORIGIN_CLASSES:
             raise InputEvidenceOriginPackConsumerError(
                 "pack manifest contains unsupported origin_class"

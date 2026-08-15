@@ -300,3 +300,47 @@ def test_reports_post_return_mutability_boundary(tmp_path: Path) -> None:
     report = authenticate_input_evidence_origin_pack(_pack(tmp_path))
     assert report["pack_immutability_after_return_authenticated"] is False
     assert report["hostile_concurrent_writer_resistance_authenticated"] is False
+
+
+
+@pytest.mark.parametrize(
+    "field,bad_path",
+    [
+        ("evidence_path", "../outside.bin"),
+        ("origin_declaration_path", "NUL.txt"),
+        ("origin_verification_decision_path", "file:stream"),
+        ("evidence_path", "dir\\evidence.bin"),
+    ],
+)
+def test_rejects_nonportable_source_path_inside_request_snapshot(
+    tmp_path: Path,
+    field: str,
+    bad_path: str,
+) -> None:
+    pack = _pack(tmp_path)
+    request_path = pack / "request.json"
+    request = json.loads(request_path.read_bytes())
+    request["items"][0][field] = bad_path
+    raw = _json_bytes(request)
+    request_path.write_bytes(raw)
+    manifest = _manifest(pack)
+    manifest["request_artifact"]["sha256"] = hashlib.sha256(raw).hexdigest()
+    manifest["request_artifact"]["size_bytes"] = len(raw)
+    _write_manifest(pack, manifest)
+    with pytest.raises(
+        InputEvidenceOriginPackConsumerError,
+        match=(
+            "portable relative pack path|nonportable|parent components|"
+            "Windows-reserved path component"
+        ),
+    ):
+        authenticate_input_evidence_origin_pack(pack)
+
+
+def test_rejects_non_text_manifest_origin_class(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    manifest = _manifest(pack)
+    manifest["items"][0]["origin_class"] = ["empirical_measurement"]
+    _write_manifest(pack, manifest)
+    with pytest.raises(InputEvidenceOriginPackConsumerError, match="origin_class must be non-empty text"):
+        authenticate_input_evidence_origin_pack(pack)
