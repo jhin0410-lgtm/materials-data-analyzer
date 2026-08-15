@@ -18,10 +18,10 @@ def main() -> None:
     source = replace_once(
         source,
         '"The completed result tests the target proposition without itself granting scientific authority.",',
-        '(
+        '''(
             "The completed result was introduced to test this target; execution success alone "
             "does not establish scientific support, contradiction, or falsification."
-        ),',
+        ),''',
         "tests-edge-rationale",
     )
     SOURCE.write_text(source, encoding="utf-8")
