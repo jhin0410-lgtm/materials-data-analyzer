@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from materials_data_analyzer.research_loop.authenticated_epistemic_transition import (
+    AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
     _proposal_result_and_edges,
 )
 
@@ -24,9 +25,8 @@ def test_direct_construction_preserves_all_proposal_derived_provenance(tmp_path:
             "artifact_bindings": [
                 {
                     "role": "primary_result",
-                    "path": str(tmp_path / "result.json"),
+                    "path": str(tmp_path / "source-result.json"),
                     "sha256": "a" * 64,
-                    "bytes": 10,
                 }
             ],
             "metadata": {
@@ -50,16 +50,21 @@ def test_direct_construction_preserves_all_proposal_derived_provenance(tmp_path:
         "limitations": ["Limit A", "Limit B"],
     }
     verifier_snapshot = tmp_path / "provenance" / "verification_decision.json"
+    result_snapshot = tmp_path / "provenance" / "result_artifacts" / "result-000.json"
+    snapshot_bindings = [
+        {"role": "primary_result", "path": str(result_snapshot), "sha256": "a" * 64}
+    ]
 
     result_node, tests_edge, inference_edge = _proposal_result_and_edges(
         proposal,
         verifier_snapshot=verifier_snapshot,
         verification_sha256="v" * 64,
+        result_artifact_bindings=snapshot_bindings,
     )
 
     assert result_node["node_id"] == "result-1"
     assert result_node["statement"] == "Bound result."
-    assert result_node["artifact_bindings"] == proposal["result_node"]["artifact_bindings"]
+    assert result_node["artifact_bindings"] == snapshot_bindings
     metadata = result_node["metadata"]
     assert metadata["result_origin"] == "authorized_local_analysis"
     assert metadata["producer_note"] == "preserve-me"
@@ -89,7 +94,7 @@ def test_direct_construction_preserves_all_proposal_derived_provenance(tmp_path:
         "rationale": "Exact bounded directional rationale.",
         "active": True,
         "verification_artifact": {
-            "role": "domain_verification_decision",
+            "role": AUTHENTICATED_VERIFICATION_ARTIFACT_ROLE,
             "path": str(verifier_snapshot),
             "sha256": "v" * 64,
         },
