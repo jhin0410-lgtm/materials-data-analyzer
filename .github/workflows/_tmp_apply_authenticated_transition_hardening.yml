@@ -1,0 +1,38 @@
+name: Temporary authenticated transition hardening
+
+on:
+  push:
+    branches:
+      - agent/authenticated-inference-provenance-20260815
+    paths:
+      - .github/workflows/_tmp_apply_authenticated_transition_hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/authenticated-inference-provenance-20260815
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply exact hardening patch
+        run: |
+          python scripts/_tmp_harden_authenticated_transition.py
+          python -m py_compile src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
+          git diff --check
+          git diff -- src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
+      - name: Commit hardened producer
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/materials_data_analyzer/research_loop/authenticated_epistemic_transition.py
+          git diff --cached --quiet && exit 1
+          git commit -m 'Harden staged provenance path validation'
+          git push origin HEAD:agent/authenticated-inference-provenance-20260815
