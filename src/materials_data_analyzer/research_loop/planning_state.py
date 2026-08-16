@@ -1,12 +1,52 @@
-"""Stable planning-state facade with audited NIST execution-state projection."""
+"""Stable planning-state facade with audited NIST execution-state projection.
+
+The preserved legacy implementation remains the compatibility surface for existing domains;
+this facade adds only the executable NIST state projection while retaining historical module
+namespace and monkeypatch semantics.
+"""
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Callable
 
+from . import planning_state_legacy as _legacy
 from .planning_state_legacy import *  # noqa: F401,F403
-from .planning_state_legacy import build_research_planning_state as _legacy_build_state
 
 _NIST_ADAPTER = "nist-ambench-process-characterization"
+_LEGACY_ENTRYPOINTS = {"build_research_planning_state"}
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        return getattr(_legacy, name)
+    except AttributeError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+
+
+def _call_legacy_with_compat_namespace(
+    function: Callable[..., dict[str, Any]],
+    /,
+    *args: Any,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Preserve pre-facade module-global monkeypatch behavior for legacy projection."""
+    restored: dict[str, Any] = {}
+    facade_globals = globals()
+    for name, legacy_value in vars(_legacy).items():
+        if name.startswith("__") or name in _LEGACY_ENTRYPOINTS:
+            continue
+        if name not in facade_globals:
+            continue
+        facade_value = facade_globals[name]
+        if facade_value is legacy_value:
+            continue
+        restored[name] = legacy_value
+        setattr(_legacy, name, facade_value)
+    try:
+        return function(*args, **kwargs)
+    finally:
+        for name, value in restored.items():
+            setattr(_legacy, name, value)
 
 
 def build_research_planning_state(
@@ -30,7 +70,8 @@ def build_research_planning_state(
             research_run=research_run,
             action_registry_path=action_registry_path,
         )
-    return _legacy_build_state(
+    return _call_legacy_with_compat_namespace(
+        _legacy.build_research_planning_state,
         adapter_id,
         repository_root=repository_root,
         research_run=research_run,
