@@ -1,0 +1,56 @@
+name: Temporary PR136 acquisition source-trust gate
+
+on:
+  push:
+    branches:
+      - agent/acquisition-source-trust-policy-20260816
+
+permissions:
+  contents: write
+
+jobs:
+  focused-source-trust:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/acquisition-source-trust-policy-20260816
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install ruff
+      - name: Run focused source-trust regressions
+        run: |
+          set -euo pipefail
+          python -m ruff check --fix \
+            src/materials_data_analyzer/research_loop/acquisition_source_trust_policy.py \
+            tests/test_acquisition_source_trust_policy.py
+          python -m pytest -q \
+            tests/test_acquisition_source_trust_policy.py \
+            tests/test_acquisition_record_binding.py \
+            tests/test_input_evidence_origin_pack_consumer.py \
+            tests/test_evidence_origin_binding.py \
+            tests/test_program_evidence_origin_binding.py
+          python -m ruff check \
+            src/materials_data_analyzer/research_loop/acquisition_source_trust_policy.py \
+            tests/test_acquisition_source_trust_policy.py
+      - name: Commit Ruff fixes if needed
+        run: |
+          set -euo pipefail
+          git add \
+            src/materials_data_analyzer/research_loop/acquisition_source_trust_policy.py \
+            tests/test_acquisition_source_trust_policy.py
+          if git diff --cached --quiet; then
+            echo "No source/test changes to commit."
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'Polish pinned acquisition source-trust policy'
+          git push origin HEAD:agent/acquisition-source-trust-policy-20260816
