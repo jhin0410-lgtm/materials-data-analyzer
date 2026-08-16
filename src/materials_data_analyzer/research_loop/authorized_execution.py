@@ -44,6 +44,17 @@ from .nasa_target_reference_action import (
     ACTION_TYPE as TARGET_REFERENCE_ACTION_TYPE,
     execute_nasa_target_reference_action_preparsed,
 )
+from .nist_structural_design_simulation_action import (
+    ACTION_TYPE as NIST_STRUCTURAL_ACTION_TYPE,
+    execute_nist_structural_design_simulation_action_preparsed,
+)
+from .nist_structural_pinned_verifier import (
+    verify_nist_structural_design_simulation_report_pinned,
+)
+from .nist_structural_research import (
+    ADAPTER_ID as NIST_STRUCTURAL_ADAPTER_ID,
+    assess_nist_structural_action_authorization,
+)
 from .pinned_execution_verifier import (
     verify_nasa_audit_action_report_pinned,
     verify_nasa_external_data_requirement_report_pinned,
@@ -52,8 +63,9 @@ from .pinned_execution_verifier import (
 )
 
 EXECUTION_SCHEMA_VERSION = "1.0"
-EXECUTION_POLICY_VERSION = "1.7"
+EXECUTION_POLICY_VERSION = "1.8"
 _ACTION_REPORT_FILENAME = "action_result.json"
+_SUPPORTED_ADAPTERS = {"nasa-battery", NIST_STRUCTURAL_ADAPTER_ID}
 
 Executor = Callable[..., dict[str, Any]]
 Verifier = Callable[..., dict[str, Any]]
@@ -75,6 +87,10 @@ _DISPATCH: dict[tuple[str, str], tuple[Executor, Verifier]] = {
         execute_nasa_external_data_requirement_action_preparsed,
         verify_nasa_external_data_requirement_report_pinned,
     ),
+    (NIST_STRUCTURAL_ACTION_TYPE, "1.0"): (
+        execute_nist_structural_design_simulation_action_preparsed,
+        verify_nist_structural_design_simulation_report_pinned,
+    ),
 }
 
 _DISPATCH_COST_UNITS: dict[tuple[str, str], int] = {
@@ -82,6 +98,7 @@ _DISPATCH_COST_UNITS: dict[tuple[str, str], int] = {
     (TARGET_REFERENCE_ACTION_TYPE, "1.0"): 4,
     (PROTOCOL_ACTION_TYPE, "1.0"): 5,
     (EXTERNAL_REQUIREMENT_ACTION_TYPE, "1.0"): 2,
+    (NIST_STRUCTURAL_ACTION_TYPE, "1.0"): 2,
 }
 
 
@@ -477,6 +494,27 @@ def _finish_recovered_transaction(
     )
 
 
+def _current_authorization(
+    adapter_id: str,
+    *,
+    repository_root: Path,
+    research_run: Path,
+    action_registry_path: str | Path,
+) -> dict[str, Any]:
+    if adapter_id == NIST_STRUCTURAL_ADAPTER_ID:
+        return assess_nist_structural_action_authorization(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
+    return assess_current_action_authorization(
+        adapter_id,
+        repository_root=repository_root,
+        research_run=research_run,
+        action_registry_path=action_registry_path,
+    )
+
+
 def execute_authorized_action(
     adapter_id: str,
     *,
@@ -487,9 +525,10 @@ def execute_authorized_action(
     expected_action_type: str | None = None,
 ) -> dict[str, Any]:
     """Execute exactly one explicitly requested, currently authorized typed action."""
-    if adapter_id != "nasa-battery":
+    if adapter_id not in _SUPPORTED_ADAPTERS:
         raise AuthorizedExecutionError(
-            "bounded typed execution is currently implemented only for nasa-battery"
+            "bounded typed execution is implemented only for audited finite adapters: "
+            + ", ".join(sorted(_SUPPORTED_ADAPTERS))
         )
     root = Path(repository_root).expanduser().resolve(strict=True)
     run = Path(research_run).expanduser().resolve(strict=True)
@@ -522,13 +561,13 @@ def execute_authorized_action(
             )
 
         try:
-            authorization = assess_current_action_authorization(
+            authorization = _current_authorization(
                 adapter_id,
                 repository_root=root,
                 research_run=run,
                 action_registry_path=action_registry_path,
             )
-        except ActionAuthorizationError as exc:
+        except (ActionAuthorizationError, ResearchLoopError) as exc:
             raise AuthorizedExecutionError(str(exc)) from exc
         if authorization.get("authorization_status") != "ready_for_explicit_execution_request":
             raise AuthorizedExecutionError(
@@ -569,6 +608,19 @@ def execute_authorized_action(
             registry_path=registry_path,
             registry_sha256=registry_sha,
         )
+        if adapter_id == NIST_STRUCTURAL_ADAPTER_ID:
+            selected_config = selected.get("simulation_config")
+            request_config = request.get("simulation_config")
+            if not isinstance(selected_config, str) or not isinstance(request_config, str):
+                raise AuthorizedExecutionError("NIST structural request must bind simulation_config")
+            if _resolve_request_path(
+                request_config,
+                field="simulation_config",
+                base=request_file.parent,
+            ) != Path(selected_config).expanduser().resolve(strict=True):
+                raise AuthorizedExecutionError(
+                    "NIST structural request simulation_config does not match planner selection"
+                )
         expected_action_directory = _expected_action_directory(run, request_action_id)
 
         before_state = load_research_state(run)
