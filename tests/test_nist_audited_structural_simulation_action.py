@@ -18,6 +18,7 @@ from materials_data_analyzer.research_loop.nist_authenticated_execution import (
     execute_nist_authenticated_action,
 )
 from materials_data_analyzer.research_loop.nist_authenticated_request import (
+    NIST_EXECUTION_POLICY_VERSION,
     NistAuthenticatedRequestError,
     compile_nist_authenticated_request,
     verify_nist_authenticated_request,
@@ -107,6 +108,10 @@ def test_nist_structural_simulation_full_authenticated_typed_chain(
     request = compiled_dir / "execution_request.json"
     manifest = compiled_dir / "authenticated_request_manifest.json"
     assert compiled["authority_boundary"]["execution_authorized"] is False
+    assert (
+        compiled["downstream_contract"]["execution_policy_version"]
+        == NIST_EXECUTION_POLICY_VERSION
+    )
     independently_verified = verify_nist_authenticated_request(
         repository_root=root,
         mission_path=mission,
@@ -119,6 +124,10 @@ def test_nist_structural_simulation_full_authenticated_typed_chain(
         manifest_path=manifest,
     )
     assert independently_verified["physical_evidence_requirement_satisfied"] is False
+    assert (
+        independently_verified["execution_policy_version"]
+        == NIST_EXECUTION_POLICY_VERSION
+    )
 
     execution = execute_nist_authenticated_action(
         repository_root=root,
@@ -135,6 +144,11 @@ def test_nist_structural_simulation_full_authenticated_typed_chain(
     assert execution["authenticated_request_verification"]["request_binding"] == (
         independently_verified["request_binding"]
     )
+    assert (
+        execution["authenticated_request_verification"]["execution_policy_version"]
+        == NIST_EXECUTION_POLICY_VERSION
+    )
+    assert execution["execution_policy_version"] == NIST_EXECUTION_POLICY_VERSION
     assert execution["action_executed"] is True
     assert execution["transaction_recovered"] is False
     assert execution["output_ledger_transaction"] == "cleaned"
@@ -210,6 +224,20 @@ def test_nist_typed_router_rejects_unpinned_execution(tmp_path: Path) -> None:
             request_path=request,
             expected_action_type=ACTION,
         )
+
+
+def test_nist_operational_runner_cannot_bypass_integrated_request_verifier() -> None:
+    source = (_root() / "scripts/run_nist_structural_design_action.py").read_text(
+        encoding="utf-8"
+    )
+    assert "nist_authenticated_execution" in source
+    assert "execute_nist_authenticated_action" in source
+    assert "--manifest" in source
+    assert "--mission" in source
+    assert "--request-delegation-policy" in source
+    assert "--expected-request-sha256" not in source
+    assert "--expected-research-ledger-sha256" not in source
+    assert "from materials_data_analyzer.research_loop.authorized_execution" not in source
 
 
 def test_nist_request_rejects_wrong_spec_and_execution_is_not_cross_adapter(
