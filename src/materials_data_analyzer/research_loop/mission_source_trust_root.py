@@ -144,6 +144,12 @@ def authenticate_mission_source_trust_policy_pin(
     source_trust_policy_bytes: bytes,
 ) -> dict[str, Any]:
     """Bind one exact policy file to a first-class pin under a supplied mission root."""
+    if not isinstance(mission_bytes, bytes):
+        raise MissionSourceTrustRootError("mission_bytes must be exact bytes")
+    if not isinstance(source_trust_policy_bytes, bytes):
+        raise MissionSourceTrustRootError(
+            "source_trust_policy_bytes must be exact bytes"
+        )
     expected_mission_sha = _sha256_text(
         expected_mission_sha256,
         "expected_mission_sha256",
