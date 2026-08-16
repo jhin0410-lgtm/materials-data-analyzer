@@ -35,11 +35,12 @@ def execute_authorized_action(
     expected_request_sha256: str | None = None,
     expected_research_ledger_sha256: str | None = None,
 ) -> dict[str, Any]:
-    """Execute one typed action, optionally pinning the exact NIST request/state handoff.
+    """Execute one bounded typed action.
 
-    The extra SHA pins are deliberately NIST-only. They connect a separately verified
-    machine-authored request to the exact bytes and pre-execution research ledger seen by
-    the executor. The long-standing NASA explicit-request surface is preserved unchanged.
+    NIST execution requires exact request and pre-execution-ledger SHA handoff pins.
+    Mission/policy provenance for those pins is established by the higher-level
+    ``nist_authenticated_execution`` boundary, which runs the independent verifier in
+    the same call before entering this typed executor.
     """
     if adapter_id == _NASA_ADAPTER:
         if expected_action_type == _NIST_ACTION_TYPE:
@@ -62,6 +63,13 @@ def execute_authorized_action(
             expected_action_type=expected_action_type,
         )
     if adapter_id == _NIST_ADAPTER:
+        if (
+            expected_request_sha256 is None
+            or expected_research_ledger_sha256 is None
+        ):
+            raise AuthorizedExecutionError(
+                "NIST typed execution requires exact request and research-ledger SHA pins"
+            )
         from .nist_authorized_execution import execute_nist_authorized_action
 
         return execute_nist_authorized_action(
