@@ -15,8 +15,9 @@ from materials_data_analyzer.research_loop.mission_source_trust_bridge import (
     MissionSourceTrustBridgeError,
     qualify_acquisition_record_under_expected_mission_policy,
 )
-from materials_data_analyzer.research_loop.research_program import build_research_program
-
+from materials_data_analyzer.research_loop.research_program import (
+    build_research_program,
+)
 
 POLICY_ID = "materials-project-structure-records-v1"
 
@@ -487,6 +488,76 @@ def test_downstream_qualification_schema_growth_requires_reaudit(
             mission_bytes=mission,
             expected_mission_sha256=hashlib.sha256(mission).hexdigest(),
             program_state=program,
+            policy_id=POLICY_ID,
+            evidence_bytes=evidence,
+            acquisition_manifest_bytes=manifest,
+            acquisition_declaration_bytes=declaration,
+            source_trust_policy_bytes=policy,
+        )
+
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "mission_bytes",
+        "evidence_bytes",
+        "acquisition_manifest_bytes",
+        "acquisition_declaration_bytes",
+        "source_trust_policy_bytes",
+    ],
+)
+def test_exact_byte_inputs_fail_closed_with_bridge_error(
+    tmp_path: Path,
+    field: str,
+) -> None:
+    mission, program, evidence, manifest, declaration, policy = _program_fixture(tmp_path)
+    values: dict[str, object] = {
+        "mission_bytes": mission,
+        "expected_mission_sha256": hashlib.sha256(mission).hexdigest(),
+        "program_state": program,
+        "policy_id": POLICY_ID,
+        "evidence_bytes": evidence,
+        "acquisition_manifest_bytes": manifest,
+        "acquisition_declaration_bytes": declaration,
+        "source_trust_policy_bytes": policy,
+    }
+    values[field] = "not-bytes"
+    with pytest.raises(
+        MissionSourceTrustBridgeError,
+        match=rf"{field} must be exact bytes",
+    ):
+        qualify_acquisition_record_under_expected_mission_policy(**values)  # type: ignore[arg-type]
+
+
+def test_non_mapping_program_state_fails_closed_with_bridge_error(tmp_path: Path) -> None:
+    mission, _, evidence, manifest, declaration, policy = _program_fixture(tmp_path)
+    with pytest.raises(MissionSourceTrustBridgeError, match="program_state must be an object"):
+        qualify_acquisition_record_under_expected_mission_policy(
+            mission_bytes=mission,
+            expected_mission_sha256=hashlib.sha256(mission).hexdigest(),
+            program_state="not-an-object",  # type: ignore[arg-type]
+            policy_id=POLICY_ID,
+            evidence_bytes=evidence,
+            acquisition_manifest_bytes=manifest,
+            acquisition_declaration_bytes=declaration,
+            source_trust_policy_bytes=policy,
+        )
+
+
+def test_program_projection_comparison_is_type_strict_for_bool_int_alias(
+    tmp_path: Path,
+) -> None:
+    mission, program, evidence, manifest, declaration, policy = _program_fixture(tmp_path)
+    mutated = copy.deepcopy(program)
+    # Exact mission has enabled=False. Python equality treats False == 0, so a normal
+    # dict comparison would accept this type substitution even though JSON semantics differ.
+    mutated["mission"]["workstreams"][0]["enabled"] = 0
+    with pytest.raises(MissionSourceTrustBridgeError, match="normalized mission"):
+        qualify_acquisition_record_under_expected_mission_policy(
+            mission_bytes=mission,
+            expected_mission_sha256=hashlib.sha256(mission).hexdigest(),
+            program_state=mutated,
             policy_id=POLICY_ID,
             evidence_bytes=evidence,
             acquisition_manifest_bytes=manifest,

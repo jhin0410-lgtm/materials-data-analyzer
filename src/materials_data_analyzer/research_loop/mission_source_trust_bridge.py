@@ -92,6 +92,7 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _json_object(raw: bytes, *, field: str) -> dict[str, Any]:
+    raw = _require_exact_bytes(raw, field)
     try:
         value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -130,6 +131,30 @@ def _exact_keys(value: Mapping[str, Any], expected: set[str], *, field: str) -> 
         raise MissionSourceTrustBridgeError(
             f"{field} must use the exact key set; unknown={unknown}, missing={missing}"
         )
+
+
+def _same_json_value(left: object, right: object) -> bool:
+    """Compare JSON-like values without Python bool/int equality aliasing."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        assert isinstance(right, dict)
+        if set(left) != set(right):
+            return False
+        return all(_same_json_value(left[key], right[key]) for key in left)
+    if isinstance(left, list):
+        assert isinstance(right, list)
+        return len(left) == len(right) and all(
+            _same_json_value(left_item, right_item)
+            for left_item, right_item in zip(left, right, strict=True)
+        )
+    return left == right
+
+
+def _require_exact_bytes(value: object, field: str) -> bytes:
+    if not isinstance(value, bytes):
+        raise MissionSourceTrustBridgeError(f"{field} must be exact bytes")
+    return value
 
 
 def _normalized_mission(mission_bytes: bytes) -> dict[str, Any]:
@@ -185,6 +210,8 @@ def _validate_program_projection(
     normalized_mission: Mapping[str, Any],
     expected_mission_sha256: str,
 ) -> None:
+    if not isinstance(program_state, Mapping):
+        raise MissionSourceTrustBridgeError("program_state must be an object")
     if program_state.get("schema_version") != _SUPPORTED_PROGRAM_SCHEMA_VERSION:
         raise MissionSourceTrustBridgeError(
             "program_state schema_version is not the pinned bridge-compatible version"
@@ -208,14 +235,20 @@ def _validate_program_projection(
         )
 
     projected_mission = program_state.get("mission")
-    if not isinstance(projected_mission, dict) or projected_mission != normalized_mission:
+    if not isinstance(projected_mission, dict) or not _same_json_value(
+        projected_mission,
+        normalized_mission,
+    ):
         raise MissionSourceTrustBridgeError(
             "program_state normalized mission does not match the authenticated mission bytes"
         )
 
     expected_pins = normalized_mission["source_trust_policy_pins"]
     projected_pins = program_state.get("source_trust_policy_pins")
-    if not isinstance(projected_pins, list) or projected_pins != expected_pins:
+    if not isinstance(projected_pins, list) or not _same_json_value(
+        projected_pins,
+        expected_pins,
+    ):
         raise MissionSourceTrustBridgeError(
             "program_state projected source trust policy pins do not match the authenticated mission"
         )
@@ -272,6 +305,20 @@ def qualify_acquisition_record_under_expected_mission_policy(
     source_trust_policy_bytes: bytes,
 ) -> dict[str, Any]:
     """Qualify an acquisition record only through a pin in exact mission-rooted bytes."""
+    mission_bytes = _require_exact_bytes(mission_bytes, "mission_bytes")
+    evidence_bytes = _require_exact_bytes(evidence_bytes, "evidence_bytes")
+    acquisition_manifest_bytes = _require_exact_bytes(
+        acquisition_manifest_bytes,
+        "acquisition_manifest_bytes",
+    )
+    acquisition_declaration_bytes = _require_exact_bytes(
+        acquisition_declaration_bytes,
+        "acquisition_declaration_bytes",
+    )
+    source_trust_policy_bytes = _require_exact_bytes(
+        source_trust_policy_bytes,
+        "source_trust_policy_bytes",
+    )
     expected_mission_sha = _sha256_text(
         expected_mission_sha256, "expected_mission_sha256"
     )
