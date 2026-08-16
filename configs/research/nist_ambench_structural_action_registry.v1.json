@@ -1,0 +1,71 @@
+{
+  "actions": [
+    {
+      "action_type": "nist_structural_design_simulation",
+      "allowed_outcomes": [
+        "interaction_structurally_estimable_after_proposed_augmentation",
+        "interaction_remains_structurally_unestimable",
+        "structural_simulation_inconclusive"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "source_script",
+        "name": null,
+        "path": "src/materials_data_analyzer/research_loop/design_simulation.py",
+        "platform": "cross_platform"
+      },
+      "category": "simulation",
+      "cost_units": 2,
+      "expected_outputs": [
+        {
+          "description": "Response-free structural estimability simulation bound to the predeclared NIST AM-Bench design.",
+          "kind": "json",
+          "path": "structural_design_simulation.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "nist_ambench_2018_02_observed_design_frozen",
+        "nine_trace_augmentation_predeclared",
+        "response_values_excluded_from_simulation",
+        "physical_acquisition_requirement_preserved"
+      ],
+      "prohibited_effects": [
+        "response_value_synthesis",
+        "synthetic_trace_substitution",
+        "predictive_model_fit",
+        "causal_effect_estimation",
+        "engineering_optimization",
+        "automatic_experiment_control",
+        "scientific_evidence_promotion",
+        "physical_acquisition_requirement_satisfaction"
+      ],
+      "required_inputs": [
+        {
+          "description": "Tracked response-free NIST AM-Bench Stage 1 structural design simulation specification.",
+          "kind": "json",
+          "name": "simulation_config",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Test whether the predeclared nine-trace augmentation would repair two-factor interaction identifiability as a design-structure question only, without generating empirical responses or replacing the required physical measurements.",
+      "target_blockers": [
+        "interaction_identifiability_unknown_under_proposed_augmentation",
+        "minimum_physical_design_structure_not_verified"
+      ],
+      "verifier_checks": [
+        "simulation_config_checksum_recomputed",
+        "observed_and_proposed_design_recomputed",
+        "interaction_rank_recomputed",
+        "response_values_absent",
+        "no_empirical_evidence_created",
+        "physical_acquisition_requirement_preserved",
+        "ledger_action_and_report_binding_recomputed"
+      ],
+      "version": "1.0"
+    }
+  ],
+  "domain": "nist_ambench_2018_02_stage1_structural_design",
+  "registry_id": "nist-ambench-structural-actions-v1",
+  "schema_version": "1.0"
+}
