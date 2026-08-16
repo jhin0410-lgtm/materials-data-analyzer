@@ -20,9 +20,20 @@ from .kernel import ResearchLoopError
 from .planning_adapter import available_planning_adapters
 from .planning_state import build_research_planning_state
 
-MISSION_SCHEMA_VERSION = "1.1"
+MISSION_SCHEMA_VERSION = "1.2"
+SOURCE_TRUST_MISSION_SCHEMA_VERSION = "1.1"
 LEGACY_MISSION_SCHEMA_VERSION = "1.0"
-PROGRAM_SCHEMA_VERSION = "1.1"
+MISSION_SUPPORTED_SCHEMA_VERSIONS = (
+    LEGACY_MISSION_SCHEMA_VERSION,
+    SOURCE_TRUST_MISSION_SCHEMA_VERSION,
+    MISSION_SCHEMA_VERSION,
+)
+PROGRAM_SCHEMA_VERSION = "1.2"
+LEGACY_PROGRAM_SCHEMA_VERSION = "1.1"
+PROGRAM_SUPPORTED_SCHEMA_VERSIONS = (
+    LEGACY_PROGRAM_SCHEMA_VERSION,
+    PROGRAM_SCHEMA_VERSION,
+)
 REASONING_PROPOSAL_SCHEMA_VERSION = "1.0"
 PROGRAM_POLICY_VERSION = "1.0"
 
@@ -93,11 +104,9 @@ def _canonical_sha256(value: object, field: str) -> str:
     return value
 
 
-def _source_trust_policy_pins(value: object) -> list[dict[str, str]]:
+def _policy_pins(value: object, *, field: str, duplicate_label: str) -> list[dict[str, str]]:
     if not isinstance(value, list) or not value:
-        raise ResearchProgramError(
-            "source_trust_policy_pins must be a non-empty list when provided"
-        )
+        raise ResearchProgramError(f"{field} must be a non-empty list when provided")
     result: list[dict[str, str]] = []
     policy_ids: set[str] = set()
     shas: set[str] = set()
@@ -106,7 +115,7 @@ def _source_trust_policy_pins(value: object) -> list[dict[str, str]]:
             raw,
             required={"policy_id", "sha256"},
             allowed={"policy_id", "sha256"},
-            field=f"source_trust_policy_pins[{index}]",
+            field=f"{field}[{index}]",
         )
         policy_id_raw = item["policy_id"]
         if (
@@ -115,23 +124,35 @@ def _source_trust_policy_pins(value: object) -> list[dict[str, str]]:
             or policy_id_raw != policy_id_raw.strip()
         ):
             raise ResearchProgramError(
-                f"source_trust_policy_pins[{index}].policy_id must be non-empty text without surrounding whitespace"
+                f"{field}[{index}].policy_id must be non-empty text without surrounding whitespace"
             )
-        sha256 = _canonical_sha256(
-            item["sha256"], f"source_trust_policy_pins[{index}].sha256"
-        )
+        sha256 = _canonical_sha256(item["sha256"], f"{field}[{index}].sha256")
         if policy_id_raw in policy_ids:
             raise ResearchProgramError(
-                f"duplicate source trust policy policy_id: {policy_id_raw}"
+                f"duplicate {duplicate_label} policy_id: {policy_id_raw}"
             )
         if sha256 in shas:
-            raise ResearchProgramError(
-                f"duplicate source trust policy sha256: {sha256}"
-            )
+            raise ResearchProgramError(f"duplicate {duplicate_label} sha256: {sha256}")
         policy_ids.add(policy_id_raw)
         shas.add(sha256)
         result.append({"policy_id": policy_id_raw, "sha256": sha256})
     return result
+
+
+def _source_trust_policy_pins(value: object) -> list[dict[str, str]]:
+    return _policy_pins(
+        value,
+        field="source_trust_policy_pins",
+        duplicate_label="source trust policy",
+    )
+
+
+def _request_delegation_policy_pins(value: object) -> list[dict[str, str]]:
+    return _policy_pins(
+        value,
+        field="request_delegation_policy_pins",
+        duplicate_label="request delegation policy",
+    )
 
 
 def _string_list(value: object, field: str, *, allow_empty: bool = False) -> list[str]:
@@ -175,6 +196,28 @@ def _enum(value: object, allowed: set[str], field: str) -> str:
     return text
 
 
+def _reject_cross_namespace_policy_pin_collisions(
+    source_trust_pins: list[dict[str, str]],
+    request_delegation_pins: list[dict[str, str]],
+) -> None:
+    source_ids = {item["policy_id"] for item in source_trust_pins}
+    request_ids = {item["policy_id"] for item in request_delegation_pins}
+    duplicate_ids = sorted(source_ids & request_ids)
+    if duplicate_ids:
+        raise ResearchProgramError(
+            "source-trust and request-delegation policy pin namespaces must not reuse policy_id: "
+            + ", ".join(duplicate_ids)
+        )
+    source_shas = {item["sha256"] for item in source_trust_pins}
+    request_shas = {item["sha256"] for item in request_delegation_pins}
+    duplicate_shas = sorted(source_shas & request_shas)
+    if duplicate_shas:
+        raise ResearchProgramError(
+            "source-trust and request-delegation policy pin namespaces must not reuse sha256: "
+            + ", ".join(duplicate_shas)
+        )
+
+
 def validate_research_mission(value: object) -> dict[str, Any]:
     """Validate a bounded mission that permits goal generation but not invented evidence."""
     mission = _require_exact_keys(
@@ -200,23 +243,28 @@ def validate_research_mission(value: object) -> dict[str, Any]:
             "workstreams",
             "metadata",
             "source_trust_policy_pins",
+            "request_delegation_policy_pins",
         },
         field="research mission",
     )
     mission_schema_version = mission["schema_version"]
-    if mission_schema_version not in {
-        LEGACY_MISSION_SCHEMA_VERSION,
-        MISSION_SCHEMA_VERSION,
-    }:
+    if mission_schema_version not in MISSION_SUPPORTED_SCHEMA_VERSIONS:
         raise ResearchProgramError(
             f"unsupported mission schema_version: {mission_schema_version!r}"
         )
     if (
         "source_trust_policy_pins" in mission
+        and mission_schema_version == LEGACY_MISSION_SCHEMA_VERSION
+    ):
+        raise ResearchProgramError(
+            "source_trust_policy_pins requires mission schema_version 1.1 or later"
+        )
+    if (
+        "request_delegation_policy_pins" in mission
         and mission_schema_version != MISSION_SCHEMA_VERSION
     ):
         raise ResearchProgramError(
-            "source_trust_policy_pins requires mission schema_version 1.1"
+            "request_delegation_policy_pins requires mission schema_version 1.2"
         )
 
     policy = _require_exact_keys(
@@ -311,10 +359,22 @@ def validate_research_mission(value: object) -> dict[str, Any]:
         "autonomy_policy": normalized_policy,
         "workstreams": normalized_workstreams,
     }
+    source_trust_pins: list[dict[str, str]] = []
+    request_delegation_pins: list[dict[str, str]] = []
     if "source_trust_policy_pins" in mission:
-        normalized["source_trust_policy_pins"] = _source_trust_policy_pins(
+        source_trust_pins = _source_trust_policy_pins(
             mission["source_trust_policy_pins"]
         )
+        normalized["source_trust_policy_pins"] = source_trust_pins
+    if "request_delegation_policy_pins" in mission:
+        request_delegation_pins = _request_delegation_policy_pins(
+            mission["request_delegation_policy_pins"]
+        )
+        normalized["request_delegation_policy_pins"] = request_delegation_pins
+    _reject_cross_namespace_policy_pin_collisions(
+        source_trust_pins,
+        request_delegation_pins,
+    )
     if "metadata" in mission:
         if not isinstance(mission["metadata"], dict):
             raise ResearchProgramError("metadata must be an object when provided")
@@ -574,8 +634,13 @@ def build_research_program(
     goals.sort(key=lambda item: (-int(item["priority"]), str(item["goal_id"])))
     active_goals = [goal for goal in goals if goal["status"] != "scope_exhausted"]
     next_step = _program_step_for_goal(active_goals[0]) if active_goals else None
-    return {
-        "schema_version": PROGRAM_SCHEMA_VERSION,
+    program_schema_version = (
+        PROGRAM_SCHEMA_VERSION
+        if mission["schema_version"] == MISSION_SCHEMA_VERSION
+        else LEGACY_PROGRAM_SCHEMA_VERSION
+    )
+    program: dict[str, Any] = {
+        "schema_version": program_schema_version,
         "program_policy_version": PROGRAM_POLICY_VERSION,
         "mission": mission,
         "mission_binding": {
@@ -601,6 +666,11 @@ def build_research_program(
             "scientific_evidence_upgraded": False,
         },
     }
+    if program_schema_version == PROGRAM_SCHEMA_VERSION:
+        program["request_delegation_policy_pins"] = [
+            dict(item) for item in mission.get("request_delegation_policy_pins", [])
+        ]
+    return program
 
 
 def _known_evidence_bindings(program_state: Mapping[str, Any]) -> set[tuple[str, str, str]]:
@@ -699,7 +769,7 @@ def validate_reasoning_proposal(
             {"workstream_id": binding[0], "role": binding[1], "sha256": binding[2]}
         )
 
-    raw_hypotheses = root["new_hypotheses"]
+    raw_hypotheses = root["new_hypeses"] if False else root["new_hypotheses"]
     if not isinstance(raw_hypotheses, list):
         raise ResearchProgramError("reasoning proposal new_hypotheses must be a list")
     hypothesis_ids: set[str] = set()
@@ -831,10 +901,15 @@ def validate_reasoning_proposal_file(
 
 
 __all__ = [
+    "LEGACY_MISSION_SCHEMA_VERSION",
+    "LEGACY_PROGRAM_SCHEMA_VERSION",
     "MISSION_SCHEMA_VERSION",
+    "MISSION_SUPPORTED_SCHEMA_VERSIONS",
     "PROGRAM_POLICY_VERSION",
     "PROGRAM_SCHEMA_VERSION",
+    "PROGRAM_SUPPORTED_SCHEMA_VERSIONS",
     "REASONING_PROPOSAL_SCHEMA_VERSION",
+    "SOURCE_TRUST_MISSION_SCHEMA_VERSION",
     "ResearchProgramError",
     "build_research_program",
     "validate_reasoning_proposal",
