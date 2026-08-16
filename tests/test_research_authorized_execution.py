@@ -573,8 +573,8 @@ def test_empty_request_is_rejected_before_authorization(tmp_path: Path) -> None:
         )
 
 
-def test_non_nasa_adapter_has_no_execution_dispatch(tmp_path: Path) -> None:
-    with pytest.raises(execution.AuthorizedExecutionError, match="only for nasa-battery"):
+def test_unlisted_adapter_has_no_execution_dispatch(tmp_path: Path) -> None:
+    with pytest.raises(execution.AuthorizedExecutionError, match="audited finite adapters"):
         execution.execute_authorized_action(
             "materials-project-external-source",
             repository_root=tmp_path,
