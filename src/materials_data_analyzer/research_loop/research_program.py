@@ -61,23 +61,22 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _load_json(path: Path) -> dict[str, Any]:
+def _load_json_snapshot(path: Path) -> tuple[dict[str, Any], str]:
+    """Read, parse, and hash one immutable byte snapshot of a bound JSON file."""
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            value = json.load(handle, object_pairs_hook=_reject_duplicate_pairs)
-    except json.JSONDecodeError as exc:
-        raise ResearchProgramError(f"invalid JSON in {path}: {exc}") from exc
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ResearchProgramError(f"could not read exact JSON snapshot: {path}") from exc
+    try:
+        value = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_pairs,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ResearchProgramError(f"{path} must contain valid UTF-8 JSON") from exc
     if not isinstance(value, dict):
         raise ResearchProgramError(f"JSON root must be an object: {path}")
-    return value
-
-
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return value, hashlib.sha256(raw).hexdigest()
 
 
 def _nonempty_text(value: object, field: str) -> str:
@@ -327,7 +326,7 @@ def _load_runtime_context(path: Path | None) -> tuple[dict[str, Any], dict[str, 
     if path is None:
         return {"schema_version": "1.0", "workstreams": {}}, None
     resolved = path.expanduser().resolve(strict=True)
-    raw = _load_json(resolved)
+    raw, snapshot_sha256 = _load_json_snapshot(resolved)
     context = _require_exact_keys(
         raw,
         required={"schema_version", "workstreams"},
@@ -354,7 +353,7 @@ def _load_runtime_context(path: Path | None) -> tuple[dict[str, Any], dict[str, 
         }
     return {"schema_version": "1.0", "workstreams": normalized}, {
         "path": str(resolved),
-        "sha256": _sha256_file(resolved),
+        "sha256": snapshot_sha256,
     }
 
 
@@ -514,7 +513,8 @@ def build_research_program(
     """Build a mission-level research agenda from verified domain planning states."""
     root = Path(repository_root).expanduser().resolve(strict=True)
     mission_file = Path(mission_path).expanduser().resolve(strict=True)
-    mission = validate_research_mission(_load_json(mission_file))
+    mission_raw, mission_sha256 = _load_json_snapshot(mission_file)
+    mission = validate_research_mission(mission_raw)
     context_file = (
         Path(runtime_context_path) if runtime_context_path is not None else None
     )
@@ -580,7 +580,7 @@ def build_research_program(
         "mission": mission,
         "mission_binding": {
             "path": str(mission_file),
-            "sha256": _sha256_file(mission_file),
+            "sha256": mission_sha256,
         },
         "source_trust_policy_pins": [
             dict(item) for item in mission.get("source_trust_policy_pins", [])
@@ -822,10 +822,11 @@ def validate_reasoning_proposal_file(
 ) -> dict[str, Any]:
     """Load and validate one reasoning proposal while preserving its exact file binding."""
     path = Path(proposal_path).expanduser().resolve(strict=True)
-    result = validate_reasoning_proposal(_load_json(path), program_state)
+    proposal_raw, proposal_sha256 = _load_json_snapshot(path)
+    result = validate_reasoning_proposal(proposal_raw, program_state)
     return {
         **result,
-        "proposal_binding": {"path": str(path), "sha256": _sha256_file(path)},
+        "proposal_binding": {"path": str(path), "sha256": proposal_sha256},
     }
 
 
