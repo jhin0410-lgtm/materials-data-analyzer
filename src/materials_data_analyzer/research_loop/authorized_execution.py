@@ -146,7 +146,13 @@ def execute_authorized_action_with_failure_classification(
     expected_request_sha256: str | None = None,
     expected_research_ledger_sha256: str | None = None,
 ) -> dict[str, Any]:
-    """Execute once and preserve pre/post-ledger failure classification across routes."""
+    """Execute once and distinguish post-ledger failure from preflight failure.
+
+    This classification stays in the facade intentionally: historically it resolved both
+    ``_action_count`` and ``execute_authorized_action`` from this module. Keeping that lookup
+    behavior preserves existing monkeypatch/extension seams while routing the actual NASA
+    execution through the byte-preserved legacy core.
+    """
     if adapter_id == _NASA_ADAPTER:
         if expected_action_type == _NIST_ACTION_TYPE:
             raise AuthorizedExecutionError(
@@ -159,15 +165,6 @@ def execute_authorized_action_with_failure_classification(
             raise AuthorizedExecutionError(
                 "machine-verifier SHA handoff pins are implemented only for the NIST route"
             )
-        return _call_nasa_with_compat_namespace(
-            _nasa_legacy.execute_authorized_action_with_failure_classification,
-            adapter_id,
-            repository_root=repository_root,
-            research_run=research_run,
-            action_registry_path=action_registry_path,
-            request_path=request_path,
-            expected_action_type=expected_action_type,
-        )
 
     run = Path(research_run).expanduser().resolve(strict=True)
     before_count = _action_count(run, phase="pre-execution")
