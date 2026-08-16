@@ -207,3 +207,18 @@ def test_current_schema_without_policy_pins_remains_valid() -> None:
     normalized = validate_research_mission(mission)
     assert normalized["schema_version"] == "1.1"
     assert "source_trust_policy_pins" not in normalized
+
+
+
+def test_program_shape_change_uses_schema_1_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mission_path = tmp_path / "mission.json"
+    mission_path.write_text(json.dumps(_mission()), encoding="utf-8")
+    monkeypatch.setattr(
+        "materials_data_analyzer.research_loop.research_program.build_research_planning_state",
+        lambda *args, **kwargs: _planning_state(),
+    )
+    program = build_research_program(mission_path, repository_root=tmp_path)
+    assert program["schema_version"] == "1.1"
+    assert "source_trust_policy_pins" in program
