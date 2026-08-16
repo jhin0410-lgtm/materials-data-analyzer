@@ -1,0 +1,24 @@
+{
+  "adapter_id": "nist-ambench-process-characterization",
+  "allowed_actions": [
+    {
+      "action_type": "nist_structural_design_simulation",
+      "action_version": "1.0",
+      "max_cost_units": 1
+    }
+  ],
+  "generic_command_execution": false,
+  "limitations": [
+    "Only the checksum-bound response-free Stage 1 structural design simulation may be requested.",
+    "No response values, synthetic traces, model fitting, prediction, causal inference, optimization, engineering decision, or physical experiment execution is delegated.",
+    "A successful simulation does not satisfy the nine-real-trace evidence requirement or upgrade Diagnostic evidence."
+  ],
+  "max_cost_units_per_request": 1,
+  "metadata": {
+    "purpose": "Bounded machine request delegation for NIST AM-Bench response-free structural design simulation."
+  },
+  "network_access": false,
+  "physical_experiment_execution": false,
+  "policy_id": "nist-ambench-stage1-structural-simulation-request-v1",
+  "schema_version": "1.0"
+}

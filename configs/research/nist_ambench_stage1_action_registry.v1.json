@@ -1,0 +1,76 @@
+{
+  "actions": [
+    {
+      "action_type": "nist_structural_design_simulation",
+      "allowed_outcomes": [
+        "structural_design_audited_physical_evidence_still_required"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "source_script",
+        "name": null,
+        "path": "scripts/run_nist_structural_design_action.py",
+        "platform": "cross_platform"
+      },
+      "category": "simulation",
+      "cost_units": 1,
+      "expected_outputs": [
+        {
+          "description": "Typed action report with request, registry, output, physical-evidence and scientific-boundary bindings.",
+          "kind": "json_report",
+          "path": "action_result.json",
+          "required": true
+        },
+        {
+          "description": "Deterministic response-free structural design simulation result.",
+          "kind": "json_report",
+          "path": "reports/structural_design_simulation.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "frozen_nist_ambench_2018_02_descriptive_case_verified",
+        "stage1_structural_design_spec_checksum_bound",
+        "active_research_run_with_budget",
+        "no_prior_nist_structural_design_simulation_in_run"
+      ],
+      "prohibited_effects": [
+        "synthetic_response_generation",
+        "response_value_substitution",
+        "model_fitting",
+        "prediction",
+        "causal_inference",
+        "optimization",
+        "engineering_decision",
+        "physical_experiment_execution",
+        "scientific_evidence_promotion",
+        "physical_evidence_requirement_satisfaction"
+      ],
+      "required_inputs": [
+        {
+          "description": "Checksum-bound frozen response-free NIST Stage 1 structural design simulation specification.",
+          "kind": "json_file",
+          "name": "simulation_spec",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Verify response-free Stage 1 design-matrix structural estimability before physical acquisition without generating or consuming melt-pool responses.",
+      "target_blockers": [
+        "response_free_design_simulation_pending"
+      ],
+      "verifier_checks": [
+        "exact_request_bytes_pinned",
+        "execution_registry_identity_reverified",
+        "simulation_spec_path_and_sha256_reverified",
+        "deterministic_structural_result_recomputed",
+        "response_free_scientific_boundary_reverified",
+        "nine_real_trace_requirement_remains_unsatisfied",
+        "ledger_action_and_artifact_checksums_reverified"
+      ],
+      "version": "1.0"
+    }
+  ],
+  "domain": "nist_ambench_stage1_structural_design",
+  "registry_id": "nist-ambench-stage1-typed-actions-v1",
+  "schema_version": "1.0"
+}

@@ -1,0 +1,44 @@
+{
+  "autonomy_policy": {
+    "goal_generation": "bounded_autonomous",
+    "network_evidence_search": "disabled",
+    "physical_experiment_execution": "external_only",
+    "reasoning_proposals": "schema_validated",
+    "typed_computational_actions": "explicit_request"
+  },
+  "constraints": [
+    "Never fabricate physical measurements or provenance.",
+    "Never promote structural estimability into predictive, causal, engineering, or physical-validation evidence.",
+    "Physical experiment execution remains external."
+  ],
+  "metadata": {
+    "scope": "NIST typed structural simulation trust-chain acceptance"
+  },
+  "mission": "Investigate the NIST AM-Bench Stage 1 process-design blocker through a bounded response-free structural simulation before external physical acquisition.",
+  "mission_id": "autonomous-materials-research-nist-structural-v1",
+  "request_delegation_policy_pins": [
+    {
+      "policy_id": "nist-ambench-stage1-structural-simulation-request-v1",
+      "sha256": "2828409309acb60f0c7a3108563b06530c14cdbd4a775888f1939e7d0004330b"
+    }
+  ],
+  "schema_version": "1.2",
+  "stop_rules": [
+    "Stop the computational scope after one independently verified structural simulation.",
+    "Do not repeat the same simulation without materially changed verified design evidence."
+  ],
+  "success_criteria": [
+    "The frozen Stage 1 design structure is independently recomputed under a typed action.",
+    "The simulation never consumes or generates melt-pool response values.",
+    "The nine-real-trace physical evidence requirement remains explicit and unsatisfied after execution."
+  ],
+  "workstreams": [
+    {
+      "adapter_id": "nist-ambench-process-characterization",
+      "enabled": true,
+      "priority": 100,
+      "role": "Response-free Stage 1 design-structure audit before external physical acquisition.",
+      "workstream_id": "nist-ambench"
+    }
+  ]
+}

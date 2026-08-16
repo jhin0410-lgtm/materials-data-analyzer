@@ -1,0 +1,34 @@
+{
+  "budget": {
+    "maximum_actions": 1,
+    "maximum_cost_units": 1
+  },
+  "constraints": [
+    "no_synthetic_trace_substitution",
+    "no_response_values_in_structural_simulation",
+    "no_model_fitting_or_prediction",
+    "no_causal_inference_or_optimization",
+    "no_automatic_experiment_control",
+    "no_scientific_evidence_promotion_from_simulation"
+  ],
+  "metadata": {
+    "benchmark": "NIST AM-Bench 2018-02",
+    "issue": "#76",
+    "scope": "response-free structural design audit only"
+  },
+  "metrics": {
+    "primary": "interaction_design_matrix_full_column_rank_after_frozen_stage1_proposal",
+    "secondary": [
+      "interaction_residual_degrees_of_freedom_after_proposal",
+      "physical_evidence_requirement_remains_unsatisfied"
+    ]
+  },
+  "question": "Does the frozen Stage 1 nine-trace augmentation make the two-factor interaction structurally estimable without using or generating response values, while preserving the physical-evidence blocker?",
+  "research_id": "nist-ambench-stage1-structural-simulation-v1",
+  "schema_version": "1.0",
+  "stop_rules": [
+    "stop_after_one_verified_structural_design_simulation",
+    "do_not_repeat_without_materially_changed_verified_design_spec",
+    "physical_stage1_acquisition_remains_external"
+  ]
+}

@@ -1,0 +1,5 @@
+# Provenance-bound research contracts are authenticated by exact file bytes.
+# Force deterministic checkout bytes across Windows/Linux/macOS so Git cannot
+# rewrite mission/policy/registry/spec JSON from LF to CRLF after the blob hash
+# was pinned into another authenticated artifact.
+configs/research/*.json text eol=lf
