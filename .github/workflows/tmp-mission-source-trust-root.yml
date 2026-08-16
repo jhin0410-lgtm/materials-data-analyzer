@@ -26,11 +26,13 @@ jobs:
           python -m ruff check \
             src/materials_data_analyzer/research_loop/mission_source_trust_root.py \
             tests/test_mission_source_trust_root.py \
+            tests/test_mission_source_trust_root_hardening.py \
             src/materials_data_analyzer/research_loop/research_program.py \
             tests/test_research_program_source_trust_policy_pins.py \
             tests/test_research_program_repository_benchmark.py
           python -m pytest -q \
             tests/test_mission_source_trust_root.py \
+            tests/test_mission_source_trust_root_hardening.py \
             tests/test_research_program_source_trust_policy_pins.py \
             tests/test_research_program_repository_benchmark.py \
             tests/test_acquisition_source_trust_policy.py \
