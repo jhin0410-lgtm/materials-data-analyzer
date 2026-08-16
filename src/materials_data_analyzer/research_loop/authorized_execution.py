@@ -1,27 +1,75 @@
-"""Single public typed-execution router.
+"""Single public typed-execution router with a legacy-compatible NASA facade.
 
-NASA execution remains byte-for-byte preserved in the internal legacy core. The only
-additional route is the audited NIST response-free structural simulation. No generic
-command, dynamic callable, subprocess, eval, exec, network, or physical-experiment
-surface is introduced here.
+The NASA implementation remains byte-for-byte preserved in the internal legacy module. This
+facade also preserves the historical module namespace and monkeypatch seams used by tests and
+downstream integrations while adding the audited NIST response-free route.
 """
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+from . import authorized_execution_nasa_legacy as _nasa_legacy
 from .authorized_execution_nasa_legacy import *  # noqa: F401,F403
 from .authorized_execution_nasa_legacy import (
     EXECUTION_POLICY_VERSION,
     _action_count,
     assess_current_action_authorization,
-    execute_authorized_action as _execute_nasa_authorized_action,
 )
 from .kernel import ResearchLoopError
 
 _NASA_ADAPTER = "nasa-battery"
 _NIST_ADAPTER = "nist-ambench-process-characterization"
 _NIST_ACTION_TYPE = "nist_structural_design_simulation"
+_LEGACY_ENTRYPOINTS = {
+    "execute_authorized_action",
+    "execute_authorized_action_with_failure_classification",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Expose the complete historical NASA module namespace lazily.
+
+    The legacy module defines a narrow ``__all__`` but existing tests/integrations also use
+    intentional internal seams such as ``_DISPATCH`` and ``_dispatch_cost_units``. Delegating
+    attribute reads retains that compatibility without copying the legacy implementation.
+    """
+    try:
+        return getattr(_nasa_legacy, name)
+    except AttributeError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+
+
+def _call_nasa_with_compat_namespace(
+    function: Callable[..., dict[str, Any]],
+    /,
+    *args: Any,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Temporarily project facade monkeypatches into the preserved legacy module.
+
+    Before this facade existed, monkeypatching a symbol on ``authorized_execution`` changed
+    the global resolved by the executor function itself. Splitting the implementation into a
+    legacy module would otherwise silently break that behavior. Only names that already exist
+    in the legacy module are projected, and every projected value is restored after the call.
+    """
+    restored: dict[str, Any] = {}
+    facade_globals = globals()
+    for name, legacy_value in vars(_nasa_legacy).items():
+        if name.startswith("__") or name in _LEGACY_ENTRYPOINTS:
+            continue
+        if name not in facade_globals:
+            continue
+        facade_value = facade_globals[name]
+        if facade_value is legacy_value:
+            continue
+        restored[name] = legacy_value
+        setattr(_nasa_legacy, name, facade_value)
+    try:
+        return function(*args, **kwargs)
+    finally:
+        for name, value in restored.items():
+            setattr(_nasa_legacy, name, value)
 
 
 def execute_authorized_action(
@@ -54,7 +102,8 @@ def execute_authorized_action(
             raise AuthorizedExecutionError(
                 "machine-verifier SHA handoff pins are implemented only for the NIST route"
             )
-        return _execute_nasa_authorized_action(
+        return _call_nasa_with_compat_namespace(
+            _nasa_legacy.execute_authorized_action,
             adapter_id,
             repository_root=repository_root,
             research_run=research_run,
@@ -82,7 +131,8 @@ def execute_authorized_action(
             expected_research_ledger_sha256=expected_research_ledger_sha256,
         )
     raise AuthorizedExecutionError(
-        f"bounded typed execution is not implemented for adapter_id={adapter_id!r}"
+        "bounded typed execution is currently implemented only for nasa-battery "
+        "or the audited nist-ambench-process-characterization route"
     )
 
 
@@ -98,6 +148,24 @@ def execute_authorized_action_with_failure_classification(
     expected_research_ledger_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Execute once and preserve pre/post-ledger failure classification across routes."""
+    if adapter_id == _NASA_ADAPTER:
+        if (
+            expected_request_sha256 is not None
+            or expected_research_ledger_sha256 is not None
+        ):
+            raise AuthorizedExecutionError(
+                "machine-verifier SHA handoff pins are implemented only for the NIST route"
+            )
+        return _call_nasa_with_compat_namespace(
+            _nasa_legacy.execute_authorized_action_with_failure_classification,
+            adapter_id,
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+            request_path=request_path,
+            expected_action_type=expected_action_type,
+        )
+
     run = Path(research_run).expanduser().resolve(strict=True)
     before_count = _action_count(run, phase="pre-execution")
     try:
