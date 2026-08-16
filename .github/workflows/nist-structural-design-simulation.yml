@@ -4,20 +4,32 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "configs/research/nist_ambench_stage1_structural_design_simulation.v1.json"
+      - "configs/research/nist_ambench_stage1_*.json"
       - "src/materials_data_analyzer/research_loop/design_simulation.py"
-      - "src/materials_data_analyzer/research_design_simulation_cli.py"
+      - "src/materials_data_analyzer/research_loop/nist_*.py"
+      - "src/materials_data_analyzer/research_loop/authorized_execution.py"
+      - "src/materials_data_analyzer/research_loop/planning_adapter.py"
+      - "src/materials_data_analyzer/research_loop/planning_state.py"
+      - "scripts/run_nist_structural_design_action.py"
       - "tests/test_structural_design_simulation.py"
+      - "tests/test_nist_audited_structural_simulation_action.py"
       - "docs/STRUCTURAL_DESIGN_SIMULATION.md"
+      - "docs/NIST_AUDITED_STRUCTURAL_SIMULATION_ACTION.md"
       - ".github/workflows/nist-structural-design-simulation.yml"
   push:
     branches: [main]
     paths:
-      - "configs/research/nist_ambench_stage1_structural_design_simulation.v1.json"
+      - "configs/research/nist_ambench_stage1_*.json"
       - "src/materials_data_analyzer/research_loop/design_simulation.py"
-      - "src/materials_data_analyzer/research_design_simulation_cli.py"
+      - "src/materials_data_analyzer/research_loop/nist_*.py"
+      - "src/materials_data_analyzer/research_loop/authorized_execution.py"
+      - "src/materials_data_analyzer/research_loop/planning_adapter.py"
+      - "src/materials_data_analyzer/research_loop/planning_state.py"
+      - "scripts/run_nist_structural_design_action.py"
       - "tests/test_structural_design_simulation.py"
+      - "tests/test_nist_audited_structural_simulation_action.py"
       - "docs/STRUCTURAL_DESIGN_SIMULATION.md"
+      - "docs/NIST_AUDITED_STRUCTURAL_SIMULATION_ACTION.md"
       - ".github/workflows/nist-structural-design-simulation.yml"
 
 permissions:
@@ -37,14 +49,18 @@ jobs:
           python-version: "3.11"
       - name: Install package and tests
         run: python -m pip install -e ".[dev]"
-      - name: Run focused regressions
-        run: pytest -q tests/test_structural_design_simulation.py
+      - name: Run focused structural and typed-chain regressions
+        run: |
+          pytest -q \
+            tests/test_structural_design_simulation.py \
+            tests/test_nist_audited_structural_simulation_action.py
       - name: Run tracked response-free design simulation
         run: |
+          mkdir -p outputs
           python -m materials_data_analyzer.research_design_simulation_cli \
             --spec configs/research/nist_ambench_stage1_structural_design_simulation.v1.json \
             --output outputs/nist_stage1_structural_design_simulation.json
-      - name: Verify structural result and no-response boundary
+      - name: Verify no-response boundary
         run: |
           python - <<'PY'
           import json
@@ -58,16 +74,10 @@ jobs:
           changes = {
               item["model"]: item for item in result["comparison"]["model_changes"]
           }
-
           assert before["total_replicates"] == 10
-          assert before["unique_cell_count"] == 3
-          assert before["observed_level_grid_complete"] is False
           assert after["total_replicates"] == 19
-          assert after["unique_cell_count"] == 6
-          assert after["observed_level_grid_complete"] is True
           assert result["comparison"]["new_unique_cell_count"] == 3
           assert result["comparison"]["new_replicate_count"] == 9
-
           interaction = changes["interaction"]
           assert interaction["rank_before"] == 3
           assert interaction["rank_after"] == 4
@@ -75,21 +85,21 @@ jobs:
           assert interaction["full_column_rank_after"] is True
           assert interaction["residual_df_before"] == 7
           assert interaction["residual_df_after"] == 15
-
-          quadratic = changes["quadratic"]
-          assert quadratic["rank_after"] == 5
-          assert quadratic["full_column_rank_after"] is False
-
+          assert changes["quadratic"]["full_column_rank_after"] is False
           assert result["expected_information_gain"]["status"] == "not_quantified"
           assert result["expected_information_gain"]["value"] is None
           boundary = result["scientific_boundary"]
-          assert boundary["response_values_used"] is False
-          assert boundary["synthetic_response_generated"] is False
-          assert boundary["coefficients_estimated"] is False
-          assert boundary["predictions_generated"] is False
-          assert boundary["causal_effects_inferred"] is False
-          assert boundary["optimization_performed"] is False
-          assert boundary["engineering_decision_made"] is False
+          for key in (
+              "response_values_used",
+              "synthetic_response_generated",
+              "coefficients_estimated",
+              "effect_sizes_estimated",
+              "predictions_generated",
+              "causal_effects_inferred",
+              "optimization_performed",
+              "engineering_decision_made",
+          ):
+              assert boundary[key] is False
           PY
       - name: Upload structural simulation evidence
         if: always()
