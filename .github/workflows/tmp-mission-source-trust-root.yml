@@ -1,0 +1,37 @@
+name: Temporary mission source-trust root gate
+
+on:
+  push:
+    branches:
+      - agent/mission-source-trust-root-20260816
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install ruff
+      - name: Focused provenance gate
+        run: |
+          python -m ruff check \
+            src/materials_data_analyzer/research_loop/mission_source_trust_root.py \
+            tests/test_mission_source_trust_root.py \
+            src/materials_data_analyzer/research_loop/research_program.py \
+            tests/test_research_program_source_trust_policy_pins.py \
+            tests/test_research_program_repository_benchmark.py
+          python -m pytest -q \
+            tests/test_mission_source_trust_root.py \
+            tests/test_research_program_source_trust_policy_pins.py \
+            tests/test_research_program_repository_benchmark.py \
+            tests/test_acquisition_source_trust_policy.py \
+            tests/test_acquisition_record_binding.py
