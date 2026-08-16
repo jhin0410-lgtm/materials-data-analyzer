@@ -7,12 +7,14 @@ from pathlib import Path
 
 import pytest
 
-import materials_data_analyzer.research_loop.research_program as research_program
+from materials_data_analyzer.research_loop import research_program
 from materials_data_analyzer.research_loop.mission_source_trust_root_binding import (
     MissionSourceTrustRootBindingError,
     qualify_acquisition_record_under_supplied_mission_root,
 )
-from materials_data_analyzer.research_loop.research_program import build_research_program
+from materials_data_analyzer.research_loop.research_program import (
+    build_research_program,
+)
 
 
 def _json_bytes(value: object) -> bytes:
