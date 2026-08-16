@@ -11,7 +11,10 @@ from pathlib import Path
 from typing import Any
 
 from .authorized_execution import execute_authorized_action_with_failure_classification
-from .nist_authenticated_request import verify_nist_authenticated_request
+from .nist_authenticated_request import (
+    NistAuthenticatedRequestError,
+    verify_nist_authenticated_request,
+)
 
 ADAPTER_ID = "nist-ambench-process-characterization"
 ACTION_TYPE = "nist_structural_design_simulation"
@@ -50,14 +53,20 @@ def execute_nist_authenticated_action(
         or verified.get("physical_experiment_execution_authorized") is not False
         or verified.get("scientific_evidence_upgraded") is not False
     ):
-        raise RuntimeError("NIST authenticated-request verifier returned an unsafe receipt")
+        raise NistAuthenticatedRequestError(
+            "NIST authenticated-request verifier returned an unsafe receipt"
+        )
     request_binding = verified.get("request_binding")
     if not isinstance(request_binding, dict):
-        raise RuntimeError("NIST authenticated-request verifier omitted request binding")
+        raise NistAuthenticatedRequestError(
+            "NIST authenticated-request verifier omitted request binding"
+        )
     request_sha = request_binding.get("sha256")
     ledger_sha = verified.get("ledger_sha256")
     if not isinstance(request_sha, str) or not isinstance(ledger_sha, str):
-        raise RuntimeError("NIST authenticated-request verifier omitted SHA handoff pins")
+        raise NistAuthenticatedRequestError(
+            "NIST authenticated-request verifier omitted SHA handoff pins"
+        )
 
     execution = execute_authorized_action_with_failure_classification(
         ADAPTER_ID,
