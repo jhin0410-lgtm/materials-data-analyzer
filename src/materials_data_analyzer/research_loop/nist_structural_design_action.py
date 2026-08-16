@@ -325,6 +325,7 @@ def execute_nist_structural_design_action_preparsed(
     ) as staging:
         staged_result = staging / OUTPUT_RELATIVE_PATH
         _write_json(staged_result, preflight["result"])
+        staged_result_record = _file_record(staged_result)
         report = {
             "schema_version": REPORT_SCHEMA_VERSION,
             "execution_status": "completed",
@@ -346,8 +347,8 @@ def execute_nist_structural_design_action_preparsed(
             "output": {
                 "relative_path": OUTPUT_RELATIVE_PATH,
                 "path": str(result_path),
-                "bytes": staged_result.stat().st_size,
-                "sha256": _sha256_file(staged_result),
+                "bytes": staged_result_record["bytes"],
+                "sha256": staged_result_record["sha256"],
             },
             "physical_evidence_requirement": {
                 "satisfied": False,
