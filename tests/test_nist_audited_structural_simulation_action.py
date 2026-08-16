@@ -14,6 +14,9 @@ from materials_data_analyzer.research_loop.authorized_execution import (
     execute_authorized_action,
 )
 from materials_data_analyzer.research_loop.kernel import initialize_research_loop
+from materials_data_analyzer.research_loop.nist_authenticated_execution import (
+    execute_nist_authenticated_action,
+)
 from materials_data_analyzer.research_loop.nist_authenticated_request import (
     NistAuthenticatedRequestError,
     compile_nist_authenticated_request,
@@ -28,6 +31,7 @@ from materials_data_analyzer.research_loop.planning_state import (
 
 ADAPTER = "nist-ambench-process-characterization"
 ACTION = "nist_structural_design_simulation"
+POLICY_ID = "nist-ambench-stage1-structural-simulation-request-v1"
 
 
 def _root() -> Path:
@@ -93,7 +97,7 @@ def test_nist_structural_simulation_full_authenticated_typed_chain(
         repository_root=root,
         mission_path=mission,
         expected_mission_sha256=expected_mission_sha,
-        policy_id="nist-ambench-stage1-structural-simulation-request-v1",
+        policy_id=POLICY_ID,
         request_delegation_policy_path=policy,
         research_run=run,
         action_registry_path=registry,
@@ -103,28 +107,33 @@ def test_nist_structural_simulation_full_authenticated_typed_chain(
     request = compiled_dir / "execution_request.json"
     manifest = compiled_dir / "authenticated_request_manifest.json"
     assert compiled["authority_boundary"]["execution_authorized"] is False
-    verified_request = verify_nist_authenticated_request(
+    independently_verified = verify_nist_authenticated_request(
         repository_root=root,
         mission_path=mission,
         expected_mission_sha256=expected_mission_sha,
-        policy_id="nist-ambench-stage1-structural-simulation-request-v1",
+        policy_id=POLICY_ID,
         request_delegation_policy_path=policy,
         research_run=run,
         action_registry_path=registry,
         request_path=request,
         manifest_path=manifest,
     )
-    assert verified_request["physical_evidence_requirement_satisfied"] is False
+    assert independently_verified["physical_evidence_requirement_satisfied"] is False
 
-    execution = execute_authorized_action(
-        ADAPTER,
+    execution = execute_nist_authenticated_action(
         repository_root=root,
+        mission_path=mission,
+        expected_mission_sha256=expected_mission_sha,
+        policy_id=POLICY_ID,
+        request_delegation_policy_path=policy,
         research_run=run,
         action_registry_path=registry,
         request_path=request,
-        expected_action_type=ACTION,
-        expected_request_sha256=verified_request["request_binding"]["sha256"],
-        expected_research_ledger_sha256=verified_request["ledger_sha256"],
+        manifest_path=manifest,
+    )
+    assert execution["machine_authenticated_execution"] is True
+    assert execution["authenticated_request_verification"]["request_binding"] == (
+        independently_verified["request_binding"]
     )
     assert execution["action_executed"] is True
     assert execution["transaction_recovered"] is False
@@ -181,6 +190,28 @@ def test_nist_structural_simulation_full_authenticated_typed_chain(
     assert after_state["claim_boundary"]["evidence_level"] == "Diagnostic"
 
 
+def test_nist_typed_router_rejects_unpinned_execution(tmp_path: Path) -> None:
+    root = _root()
+    objective = (
+        root / "configs/research/nist_ambench_stage1_research_objective.v1.json"
+    )
+    registry = root / "configs/research/nist_ambench_stage1_action_registry.v1.json"
+    run = tmp_path / "run"
+    initialize_research_loop(objective, run)
+    request = tmp_path / "request.json"
+    request.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(AuthorizedExecutionError, match="requires exact request"):
+        execute_authorized_action(
+            ADAPTER,
+            repository_root=root,
+            research_run=run,
+            action_registry_path=registry,
+            request_path=request,
+            expected_action_type=ACTION,
+        )
+
+
 def test_nist_request_rejects_wrong_spec_and_execution_is_not_cross_adapter(
     tmp_path: Path,
 ) -> None:
@@ -205,7 +236,7 @@ def test_nist_request_rejects_wrong_spec_and_execution_is_not_cross_adapter(
             repository_root=root,
             mission_path=mission,
             expected_mission_sha256=expected_mission_sha,
-            policy_id="nist-ambench-stage1-structural-simulation-request-v1",
+            policy_id=POLICY_ID,
             request_delegation_policy_path=policy,
             research_run=run,
             action_registry_path=registry,
