@@ -153,7 +153,10 @@ def _directory(value: str | Path, field: str) -> Path:
 
 
 def _repo_file(value: object, root: Path, field: str) -> Path:
-    candidate = Path(_text(value, field)).expanduser()
+    if isinstance(value, Path):
+        candidate = value.expanduser()
+    else:
+        candidate = Path(_text(value, field)).expanduser()
     if not candidate.is_absolute():
         candidate = root / candidate
     path = candidate.resolve(strict=True)
