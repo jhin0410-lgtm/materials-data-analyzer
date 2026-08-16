@@ -12,6 +12,9 @@ from materials_data_analyzer.research_loop.autonomous_inquiry import (
     AutonomousInquiryError,
     build_autonomous_inquiry_plan,
 )
+from materials_data_analyzer.research_loop.critic_inquiry_adapter import (
+    adapt_scientific_critic_report,
+)
 from materials_data_analyzer.research_loop.kernel import ResearchLoopError
 from materials_data_analyzer.research_loop.research_program import build_research_program
 
@@ -55,7 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--critic-report",
         type=Path,
-        help="Optional previously generated deterministic scientific-critic report JSON.",
+        help="Optional current hardened scientific-critic report JSON.",
     )
     parser.add_argument(
         "--validated-reasoning-proposal",
@@ -81,7 +84,11 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         repository_root=args.repository_root,
         runtime_context_path=args.context,
     )
-    critic = _load_json_object(args.critic_report) if args.critic_report else None
+    critic = (
+        adapt_scientific_critic_report(_load_json_object(args.critic_report))
+        if args.critic_report
+        else None
+    )
     proposal = (
         _load_json_object(args.validated_reasoning_proposal)
         if args.validated_reasoning_proposal
