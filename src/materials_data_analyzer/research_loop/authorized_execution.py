@@ -131,8 +131,7 @@ def execute_authorized_action(
             expected_research_ledger_sha256=expected_research_ledger_sha256,
         )
     raise AuthorizedExecutionError(
-        "bounded typed execution is currently implemented only for nasa-battery "
-        "or the audited nist-ambench-process-characterization route"
+        "bounded typed execution is currently implemented only for nasa-battery"
     )
 
 
