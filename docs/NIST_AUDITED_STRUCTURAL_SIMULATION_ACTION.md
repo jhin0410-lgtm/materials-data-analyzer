@@ -1,7 +1,7 @@
 # NIST AM-Bench Audited Structural Simulation Action
 
-The Stage 1 process-design simulator is now reachable through a bounded typed execution
-path rather than only as a standalone diagnostic CLI.
+The Stage 1 process-design simulator is reachable through a bounded typed execution path
+rather than only as a standalone diagnostic CLI.
 
 ## What the action proves
 
@@ -27,14 +27,30 @@ The executable path is:
 4. the mission-rooted request-delegation policy authenticates exact policy bytes under an
    externally supplied mission SHA-256;
 5. the compiler binds the exact Stage 1 spec SHA-256 into one deterministic request;
-6. an independent request verifier re-authorizes the current planner/registry/ledger/spec;
-7. `authorized_execution.execute_authorized_action` is the public execution router;
-8. the typed NIST action invokes `simulate_design_structure_file` directly, never a shell;
-9. the pinned verifier independently recomputes the structural result and ledger bindings;
-10. replanning refuses to repeat the same simulation.
+6. an independent request verifier re-authorizes the current planner, registry, research
+   ledger, request bytes, and frozen simulation spec;
+7. the verifier's exact request SHA-256 and pre-execution research-ledger SHA-256 are passed
+   into the NIST executor; stale or altered handoffs fail closed;
+8. `authorized_execution.execute_authorized_action` is the only public typed-execution
+   router, and a NIST action cannot be routed through the NASA adapter;
+9. the common persistent research-ledger lock and recoverable output-to-ledger transaction
+   journal cover authorization, typed execution, ledger commit, pinned verification, and
+   cleanup;
+10. the typed NIST action invokes `simulate_design_structure_file` directly, never a shell,
+    and verifies that the simulator-consumed spec snapshot matches the request-pinned SHA;
+11. the pinned verifier independently recomputes the structural result and verifies the
+    checksum-bound report, output, immutable input, and ledger action;
+12. an interrupted post-publication or post-ledger-commit attempt is recovered from the
+    checksum-bound transaction rather than re-executed, and replanning then refuses to repeat
+    the same simulation.
+
+The dedicated runner `scripts/run_nist_structural_design_action.py` requires both
+`--expected-request-sha256` and `--expected-research-ledger-sha256`; these values are the
+corresponding outputs of independent authenticated-request verification. This keeps the
+machine-authenticated path distinct from an unpinned manual Python API call.
 
 NASA execution remains in its byte-preserved internal core and is reached through the same
-public router. Cross-adapter action execution is rejected.
+public router. Cross-adapter action execution is rejected before NASA planning is entered.
 
 ## Scientific boundary
 
