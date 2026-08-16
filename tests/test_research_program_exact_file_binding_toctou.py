@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-import materials_data_analyzer.research_loop.research_program as research_program
+from materials_data_analyzer.research_loop import research_program
 from materials_data_analyzer.research_loop.research_program import (
     ResearchProgramError,
     build_research_program,
