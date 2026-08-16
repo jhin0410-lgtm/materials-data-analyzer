@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from materials_data_analyzer.research_loop.autonomous_inquiry import AutonomousInquiryError
+from materials_data_analyzer.research_loop.critic_inquiry_adapter import (
+    adapt_scientific_critic_report,
+)
 from materials_data_analyzer.research_loop.kernel import ResearchLoopError
 from materials_data_analyzer.research_loop.research_program import build_research_program
 from materials_data_analyzer.research_loop.self_directed_research import (
@@ -51,7 +54,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mission", required=True, type=Path)
     parser.add_argument("--repository-root", required=True, type=Path)
     parser.add_argument("--context", type=Path)
-    parser.add_argument("--critic-report", type=Path)
+    parser.add_argument(
+        "--critic-report",
+        type=Path,
+        help="Optional current hardened scientific-critic report JSON.",
+    )
     parser.add_argument("--validated-reasoning-proposal", type=Path)
     parser.add_argument("--previous-plan", type=Path)
     parser.add_argument("--budget-units", type=float, default=8.0)
@@ -72,9 +79,14 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         repository_root=args.repository_root,
         runtime_context_path=args.context,
     )
+    critic = (
+        adapt_scientific_critic_report(_load_json(args.critic_report))
+        if args.critic_report
+        else None
+    )
     return build_self_directed_research_plan(
         program,
-        critic_report=_load_json(args.critic_report) if args.critic_report else None,
+        critic_report=critic,
         validated_reasoning_proposal=(
             _load_json(args.validated_reasoning_proposal)
             if args.validated_reasoning_proposal
