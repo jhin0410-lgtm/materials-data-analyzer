@@ -6,13 +6,16 @@ on:
       - agent/rooted-acquisition-trust-hardening-20260816
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   focused:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: agent/rooted-acquisition-trust-hardening-20260816
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -23,7 +26,7 @@ jobs:
           python -m pip install ruff
       - name: Run rooted acquisition provenance gate
         run: |
-          python -m ruff check \
+          python -m ruff check --fix \
             src/materials_data_analyzer/research_loop/mission_source_trust_root_binding.py \
             tests/test_mission_source_trust_root_binding.py
           python -m pytest -q \
@@ -32,3 +35,19 @@ jobs:
             tests/test_acquisition_record_binding.py \
             tests/test_research_program_source_trust_policy_pins.py \
             tests/test_research_program_exact_file_binding_toctou.py
+          python -m ruff check \
+            src/materials_data_analyzer/research_loop/mission_source_trust_root_binding.py \
+            tests/test_mission_source_trust_root_binding.py
+      - name: Commit verified formatting
+        run: |
+          git add \
+            src/materials_data_analyzer/research_loop/mission_source_trust_root_binding.py \
+            tests/test_mission_source_trust_root_binding.py
+          if git diff --cached --quiet; then
+            echo "No formatting changes to commit."
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "Format rooted acquisition trust regressions"
+          git push origin HEAD:agent/rooted-acquisition-trust-hardening-20260816
