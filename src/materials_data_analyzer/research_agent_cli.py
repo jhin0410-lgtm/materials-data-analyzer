@@ -41,9 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m materials_data_analyzer.research_agent_cli",
         description=(
-            "Build one critic-aware self-directed research iteration from the current mission, "
-            "verified program state, optional hardened scientific-critic report, and optional "
-            "validated domain reasoning proposal. No action is executed by this command."
+            "Build one critic- and evidence-aware self-directed research iteration from the "
+            "current mission and verified inputs. No action is executed by this command."
         ),
     )
     parser.add_argument("--mission", required=True, type=Path)
@@ -51,6 +50,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--context", type=Path)
     parser.add_argument("--scientific-critic-report", type=Path)
     parser.add_argument("--validated-reasoning-proposal", type=Path)
+    parser.add_argument(
+        "--characterization-evidence-assessment",
+        action="append",
+        type=Path,
+        default=[],
+        help=(
+            "Repeatable L0-L8 assessment JSON produced by materials-characterization-analyzer. "
+            "Each assessment is independently reverified before it can influence planning."
+        ),
+    )
     parser.add_argument("--previous-plan", type=Path)
     parser.add_argument("--budget-units", type=float, default=8.0)
     parser.add_argument("--minimum-utility", type=float, default=0.01)
@@ -77,6 +86,9 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             if args.validated_reasoning_proposal
             else None
         ),
+        characterization_evidence_assessments=[
+            _load_json(path) for path in args.characterization_evidence_assessment
+        ],
         previous_plan=_load_json(args.previous_plan) if args.previous_plan else None,
         budget_units=args.budget_units,
         minimum_utility=args.minimum_utility,
