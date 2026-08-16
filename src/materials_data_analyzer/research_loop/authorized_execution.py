@@ -148,6 +148,10 @@ def execute_authorized_action_with_failure_classification(
 ) -> dict[str, Any]:
     """Execute once and preserve pre/post-ledger failure classification across routes."""
     if adapter_id == _NASA_ADAPTER:
+        if expected_action_type == _NIST_ACTION_TYPE:
+            raise AuthorizedExecutionError(
+                "the NIST structural action cannot be routed through the NASA adapter"
+            )
         if (
             expected_request_sha256 is not None
             or expected_research_ledger_sha256 is not None
