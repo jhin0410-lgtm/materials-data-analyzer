@@ -69,11 +69,13 @@ def _sha256_file(path: Path) -> str:
 
 
 def _file_record(path: Path) -> dict[str, Any]:
+    """Bind one file from one byte snapshot rather than separate stat/hash reads."""
     resolved = path.resolve(strict=True)
+    data = resolved.read_bytes()
     return {
         "path": str(resolved),
-        "bytes": resolved.stat().st_size,
-        "sha256": _sha256_file(resolved),
+        "bytes": len(data),
+        "sha256": _sha256_bytes(data),
     }
 
 
@@ -141,11 +143,15 @@ def _validate_request(value: Mapping[str, Any], *, base: Path) -> dict[str, Any]
         "schema_version": REQUEST_SCHEMA_VERSION,
         "action_id": action_id,
         "action_type": ACTION_TYPE,
-        "research_run": _resolve_path(value["research_run"], field="research_run", base=base),
+        "research_run": _resolve_path(
+            value["research_run"], field="research_run", base=base
+        ),
         "simulation_spec": _resolve_path(
             value["simulation_spec"], field="simulation_spec", base=base
         ),
-        "expected_simulation_spec_sha256": value["expected_simulation_spec_sha256"],
+        "expected_simulation_spec_sha256": value[
+            "expected_simulation_spec_sha256"
+        ],
         "registry": _resolve_path(value["registry"], field="registry", base=base),
         "repository_root": _resolve_path(
             value["repository_root"], field="repository_root", base=base
@@ -174,12 +180,17 @@ def _verify_result_boundary(result: Mapping[str, Any]) -> None:
     before = result.get("before")
     after = result.get("after_proposal")
     if not isinstance(before, Mapping) or not isinstance(after, Mapping):
-        raise NistStructuralDesignActionError("simulation before/after summaries are missing")
+        raise NistStructuralDesignActionError(
+            "simulation before/after summaries are missing"
+        )
     before_grid = before.get("grid")
     after_grid = after.get("grid")
     if not isinstance(before_grid, Mapping) or not isinstance(after_grid, Mapping):
         raise NistStructuralDesignActionError("simulation grid summaries are missing")
-    if before_grid.get("total_replicates") != 10 or after_grid.get("total_replicates") != 19:
+    if (
+        before_grid.get("total_replicates") != 10
+        or after_grid.get("total_replicates") != 19
+    ):
         raise NistStructuralDesignActionError("NIST structural replicate counts drifted")
     changes = comparison.get("model_changes")
     if not isinstance(changes, list):
@@ -206,7 +217,11 @@ def _verify_result_boundary(result: Mapping[str, Any]) -> None:
     ):
         raise NistStructuralDesignActionError("quadratic structural limitation drifted")
     gain = result.get("expected_information_gain")
-    if not isinstance(gain, Mapping) or gain.get("status") != "not_quantified" or gain.get("value") is not None:
+    if (
+        not isinstance(gain, Mapping)
+        or gain.get("status") != "not_quantified"
+        or gain.get("value") is not None
+    ):
         raise NistStructuralDesignActionError(
             "structural simulation must not claim quantified information gain"
         )
@@ -217,18 +232,22 @@ def _preflight(request_path: Path, request_value: Mapping[str, Any]) -> dict[str
     run = request["research_run"]
     root = request["repository_root"]
     if not run.is_dir() or not root.is_dir():
-        raise NistStructuralDesignActionError("research_run/repository_root must be directories")
+        raise NistStructuralDesignActionError(
+            "research_run/repository_root must be directories"
+        )
     _ensure_within(request["simulation_spec"], root, field="simulation_spec")
     expected_spec = (root / EXPECTED_SPEC_RELATIVE_PATH).resolve(strict=True)
     if request["simulation_spec"] != expected_spec:
-        raise NistStructuralDesignActionError("request is not bound to the frozen NIST Stage 1 spec")
-    if _sha256_file(expected_spec) != request["expected_simulation_spec_sha256"]:
-        raise NistStructuralDesignActionError("NIST simulation spec bytes drifted")
+        raise NistStructuralDesignActionError(
+            "request is not bound to the frozen NIST Stage 1 spec"
+        )
     state = load_research_state(run)
     if state.get("status") != "active":
         raise NistStructuralDesignActionError("research run is not active")
     if any(item.get("action_type") == ACTION_TYPE for item in state.get("actions", [])):
-        raise NistStructuralDesignActionError("structural simulation may execute only once per run")
+        raise NistStructuralDesignActionError(
+            "structural simulation may execute only once per run"
+        )
     registry = load_action_registry(request["registry"], repository_root=root)
     if registry["registry_sha256"] != request["expected_registry_sha256"]:
         raise NistStructuralDesignActionError("execution registry binding drifted")
@@ -240,11 +259,34 @@ def _preflight(request_path: Path, request_value: Mapping[str, Any]) -> dict[str
     ):
         raise NistStructuralDesignActionError("registered action contract drifted")
     binding = contract.get("binding")
-    if not isinstance(binding, Mapping) or binding.get("kind") != "source_script" or binding.get("path") != EXPECTED_BINDING_PATH:
+    if (
+        not isinstance(binding, Mapping)
+        or binding.get("kind") != "source_script"
+        or binding.get("path") != EXPECTED_BINDING_PATH
+    ):
         raise NistStructuralDesignActionError("NIST typed-action binding drifted")
-    if state["budget"]["actions_remaining"] <= 0 or state["budget"]["cost_units_remaining"] < 1:
-        raise NistStructuralDesignActionError("research budget cannot fund structural simulation")
+    if (
+        state["budget"]["actions_remaining"] <= 0
+        or state["budget"]["cost_units_remaining"] < 1
+    ):
+        raise NistStructuralDesignActionError(
+            "research budget cannot fund structural simulation"
+        )
+
     result = simulate_design_structure_file(expected_spec)
+    expected_spec_binding = {
+        "path": str(expected_spec),
+        "sha256": request["expected_simulation_spec_sha256"],
+    }
+    if result.get("simulation_spec_binding") != expected_spec_binding:
+        raise NistStructuralDesignActionError(
+            "simulation did not consume the exact request-pinned NIST spec bytes"
+        )
+    spec_record = _file_record(expected_spec)
+    if spec_record["sha256"] != request["expected_simulation_spec_sha256"]:
+        raise NistStructuralDesignActionError(
+            "NIST simulation spec changed after the simulation snapshot"
+        )
     _verify_result_boundary(result)
     return {
         "request": request,
@@ -252,6 +294,7 @@ def _preflight(request_path: Path, request_value: Mapping[str, Any]) -> dict[str
         "registry": registry,
         "contract": contract,
         "result": result,
+        "spec_record": spec_record,
     }
 
 
@@ -298,7 +341,7 @@ def execute_nist_structural_design_action_preparsed(
                 "registry_sha256": preflight["registry"]["registry_sha256"],
             },
             "research_run": str(run),
-            "immutable_inputs": [_file_record(request["simulation_spec"])],
+            "immutable_inputs": [preflight["spec_record"]],
             "simulation_result": preflight["result"],
             "output": {
                 "relative_path": OUTPUT_RELATIVE_PATH,
@@ -310,14 +353,28 @@ def execute_nist_structural_design_action_preparsed(
                 "satisfied": False,
                 "required_real_trace_count": 9,
                 "required_new_conditions": [
-                    {"actual_laser_power_w": 137.9, "scan_speed_mm_s": 800.0, "minimum_traces": 3},
-                    {"actual_laser_power_w": 137.9, "scan_speed_mm_s": 1200.0, "minimum_traces": 3},
-                    {"actual_laser_power_w": 179.2, "scan_speed_mm_s": 400.0, "minimum_traces": 3},
+                    {
+                        "actual_laser_power_w": 137.9,
+                        "scan_speed_mm_s": 800.0,
+                        "minimum_traces": 3,
+                    },
+                    {
+                        "actual_laser_power_w": 137.9,
+                        "scan_speed_mm_s": 1200.0,
+                        "minimum_traces": 3,
+                    },
+                    {
+                        "actual_laser_power_w": 179.2,
+                        "scan_speed_mm_s": 400.0,
+                        "minimum_traces": 3,
+                    },
                 ],
                 "synthetic_or_simulated_trace_substitution_allowed": False,
             },
             "scientific_evidence_upgraded": False,
-            "maximum_allowed_use_after_action": "descriptive_and_structural_design_diagnostic",
+            "maximum_allowed_use_after_action": (
+                "descriptive_and_structural_design_diagnostic"
+            ),
         }
         _write_json(staging / ACTION_REPORT_FILENAME, report)
     final_state = append_action(
