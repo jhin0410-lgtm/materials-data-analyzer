@@ -51,9 +51,20 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Run focused structural and typed-chain regressions
         run: |
-          pytest -q \
+          mkdir -p outputs
+          set -o pipefail
+          pytest -vv \
             tests/test_structural_design_simulation.py \
-            tests/test_nist_audited_structural_simulation_action.py
+            tests/test_nist_audited_structural_simulation_action.py \
+            2>&1 | tee outputs/nist_focused_pytest.txt
+      - name: Upload focused regression diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nist-focused-regression-diagnostics
+          path: outputs/nist_focused_pytest.txt
+          if-no-files-found: warn
+          retention-days: 30
       - name: Run tracked response-free design simulation
         run: |
           mkdir -p outputs
