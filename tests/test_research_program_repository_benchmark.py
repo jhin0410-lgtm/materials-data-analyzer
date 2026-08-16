@@ -19,9 +19,11 @@ def test_tracked_autonomous_mission_projects_real_repository_workstreams() -> No
         repository_root=repository_root,
     )
 
-    assert program["schema_version"] == "1.0"
+    assert program["schema_version"] == "1.1"
     assert program["program_policy_version"] == "1.0"
     assert program["mission"]["mission_id"] == "autonomous-materials-research-v1"
+    assert program["mission"]["schema_version"] == "1.0"
+    assert program["source_trust_policy_pins"] == []
     assert program["autonomy_boundary"] == {
         "goal_generation_performed": True,
         "scientific_hypotheses_invented": False,
