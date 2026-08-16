@@ -1,0 +1,36 @@
+{
+  "budget": {
+    "maximum_actions": 1,
+    "maximum_cost_units": 2
+  },
+  "constraints": [
+    "no_synthetic_trace_substitution",
+    "no_response_value_synthesis",
+    "no_predictive_or_causal_model_fit",
+    "no_automatic_experiment_control",
+    "no_scientific_evidence_promotion_from_simulation",
+    "preserve_authoritative_process_and_metrology_lineage"
+  ],
+  "metadata": {
+    "current_evidence_level": "Diagnostic",
+    "scientific_scope": "NIST AM-Bench 2018-02 Stage 1 response-free structural design analysis",
+    "physical_data_blocker": "nine new measured traces across three missing power-speed cells"
+  },
+  "metrics": {
+    "primary": "interaction_design_full_column_rank",
+    "secondary": [
+      "unique_design_cells",
+      "interaction_residual_degrees_of_freedom",
+      "quadratic_design_rank"
+    ]
+  },
+  "question": "Can the predeclared nine-trace physical augmentation make the NIST AM-Bench two-factor interaction structurally estimable without inventing response evidence or satisfying the physical-acquisition requirement?",
+  "research_id": "nist-ambench-2018-02-stage1-structural-research-v1",
+  "schema_version": "1.0",
+  "stop_rules": [
+    "structural_simulation_completed",
+    "physical_evidence_required",
+    "budget_exhausted",
+    "scientific_contract_violation"
+  ]
+}
