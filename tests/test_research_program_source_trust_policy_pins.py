@@ -73,6 +73,7 @@ def test_legacy_mission_without_policy_pins_remains_valid() -> None:
 
 def test_mission_normalizes_first_class_policy_pins() -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = [_pin()]
     normalized = validate_research_mission(mission)
     assert normalized["source_trust_policy_pins"] == [_pin()]
@@ -80,6 +81,7 @@ def test_mission_normalizes_first_class_policy_pins() -> None:
 
 def test_policy_pin_rejects_uppercase_sha() -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = [_pin(sha256="A" * 64)]
     with pytest.raises(ResearchProgramError, match="lowercase SHA-256"):
         validate_research_mission(mission)
@@ -87,6 +89,7 @@ def test_policy_pin_rejects_uppercase_sha() -> None:
 
 def test_policy_pin_rejects_surrounding_policy_id_whitespace() -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = [_pin(policy_id=" mp-local-v1 ")]
     with pytest.raises(ResearchProgramError, match="surrounding whitespace"):
         validate_research_mission(mission)
@@ -94,6 +97,7 @@ def test_policy_pin_rejects_surrounding_policy_id_whitespace() -> None:
 
 def test_policy_pin_rejects_unknown_fields() -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     pin = {**_pin(), "provider_authenticated": True}
     mission["source_trust_policy_pins"] = [pin]
     with pytest.raises(ResearchProgramError, match="unknown keys"):
@@ -102,6 +106,7 @@ def test_policy_pin_rejects_unknown_fields() -> None:
 
 def test_policy_pin_rejects_duplicate_policy_ids() -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = [_pin(), _pin(sha256="b" * 64)]
     with pytest.raises(ResearchProgramError, match="duplicate source trust policy policy_id"):
         validate_research_mission(mission)
@@ -109,6 +114,7 @@ def test_policy_pin_rejects_duplicate_policy_ids() -> None:
 
 def test_policy_pin_rejects_duplicate_policy_shas() -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = [_pin(), _pin(policy_id="alias")]
     with pytest.raises(ResearchProgramError, match="duplicate source trust policy sha256"):
         validate_research_mission(mission)
@@ -116,6 +122,7 @@ def test_policy_pin_rejects_duplicate_policy_shas() -> None:
 
 def test_policy_pin_field_cannot_be_empty_when_explicitly_present() -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = []
     with pytest.raises(ResearchProgramError, match="non-empty list"):
         validate_research_mission(mission)
@@ -136,6 +143,7 @@ def test_program_exports_normalized_policy_pins_and_exact_mission_sha(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = [_pin()]
     raw = (json.dumps(mission, sort_keys=True) + "\n").encode()
     mission_path = tmp_path / "mission.json"
@@ -170,6 +178,7 @@ def test_changing_policy_pin_changes_exact_mission_binding(
         lambda *args, **kwargs: _planning_state(),
     )
     mission = _mission()
+    mission["schema_version"] = "1.1"
     mission["source_trust_policy_pins"] = [_pin(sha256="a" * 64)]
     first = tmp_path / "first.json"
     first.write_text(json.dumps(mission, sort_keys=True), encoding="utf-8")
@@ -182,3 +191,19 @@ def test_changing_policy_pin_changes_exact_mission_binding(
 
     assert first_program["mission_binding"]["sha256"] != second_program["mission_binding"]["sha256"]
     assert first_program["source_trust_policy_pins"] != second_program["source_trust_policy_pins"]
+
+
+
+def test_legacy_schema_cannot_smuggle_policy_pins() -> None:
+    mission = _mission()
+    mission["source_trust_policy_pins"] = [_pin()]
+    with pytest.raises(ResearchProgramError, match="requires mission schema_version 1.1"):
+        validate_research_mission(mission)
+
+
+def test_current_schema_without_policy_pins_remains_valid() -> None:
+    mission = _mission()
+    mission["schema_version"] = "1.1"
+    normalized = validate_research_mission(mission)
+    assert normalized["schema_version"] == "1.1"
+    assert "source_trust_policy_pins" not in normalized

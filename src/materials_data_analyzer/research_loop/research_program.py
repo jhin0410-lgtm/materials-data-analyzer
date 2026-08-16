@@ -20,7 +20,8 @@ from .kernel import ResearchLoopError
 from .planning_adapter import available_planning_adapters
 from .planning_state import build_research_planning_state
 
-MISSION_SCHEMA_VERSION = "1.0"
+MISSION_SCHEMA_VERSION = "1.1"
+LEGACY_MISSION_SCHEMA_VERSION = "1.0"
 PROGRAM_SCHEMA_VERSION = "1.0"
 REASONING_PROPOSAL_SCHEMA_VERSION = "1.0"
 PROGRAM_POLICY_VERSION = "1.0"
@@ -203,9 +204,20 @@ def validate_research_mission(value: object) -> dict[str, Any]:
         },
         field="research mission",
     )
-    if mission["schema_version"] != MISSION_SCHEMA_VERSION:
+    mission_schema_version = mission["schema_version"]
+    if mission_schema_version not in {
+        LEGACY_MISSION_SCHEMA_VERSION,
+        MISSION_SCHEMA_VERSION,
+    }:
         raise ResearchProgramError(
-            f"unsupported mission schema_version: {mission['schema_version']!r}"
+            f"unsupported mission schema_version: {mission_schema_version!r}"
+        )
+    if (
+        "source_trust_policy_pins" in mission
+        and mission_schema_version != MISSION_SCHEMA_VERSION
+    ):
+        raise ResearchProgramError(
+            "source_trust_policy_pins requires mission schema_version 1.1"
         )
 
     policy = _require_exact_keys(
@@ -291,7 +303,7 @@ def validate_research_mission(value: object) -> dict[str, Any]:
         )
 
     normalized: dict[str, Any] = {
-        "schema_version": MISSION_SCHEMA_VERSION,
+        "schema_version": mission_schema_version,
         "mission_id": _nonempty_text(mission["mission_id"], "mission_id"),
         "mission": _nonempty_text(mission["mission"], "mission"),
         "success_criteria": _string_list(mission["success_criteria"], "success_criteria"),
