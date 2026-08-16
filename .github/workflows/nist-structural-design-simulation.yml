@@ -12,7 +12,7 @@ on:
       - "src/materials_data_analyzer/research_loop/planning_state.py"
       - "scripts/run_nist_structural_design_action.py"
       - "tests/test_structural_design_simulation.py"
-      - "tests/test_nist_audited_structural_simulation_action.py"
+      - "tests/test_nist_*.py"
       - "docs/STRUCTURAL_DESIGN_SIMULATION.md"
       - "docs/NIST_AUDITED_STRUCTURAL_SIMULATION_ACTION.md"
       - ".github/workflows/nist-structural-design-simulation.yml"
@@ -27,7 +27,7 @@ on:
       - "src/materials_data_analyzer/research_loop/planning_state.py"
       - "scripts/run_nist_structural_design_action.py"
       - "tests/test_structural_design_simulation.py"
-      - "tests/test_nist_audited_structural_simulation_action.py"
+      - "tests/test_nist_*.py"
       - "docs/STRUCTURAL_DESIGN_SIMULATION.md"
       - "docs/NIST_AUDITED_STRUCTURAL_SIMULATION_ACTION.md"
       - ".github/workflows/nist-structural-design-simulation.yml"
@@ -56,6 +56,7 @@ jobs:
           pytest -vv \
             tests/test_structural_design_simulation.py \
             tests/test_nist_audited_structural_simulation_action.py \
+            tests/test_nist_authorized_execution_transaction.py \
             2>&1 | tee outputs/nist_focused_pytest.txt
       - name: Upload focused regression diagnostics
         if: always()
