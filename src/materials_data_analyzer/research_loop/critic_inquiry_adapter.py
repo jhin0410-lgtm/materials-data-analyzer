@@ -17,6 +17,18 @@ CRITIC_INQUIRY_ADAPTER_SCHEMA_VERSION = "1.0"
 CRITIC_INQUIRY_ADAPTER_POLICY_VERSION = "1.0"
 
 
+def _project_action(action: Mapping[str, Any]) -> dict[str, Any]:
+    projected = dict(action)
+    if action.get("availability_asserted") is not True:
+        projected["feasibility_score"] = 0.0
+        projected["availability_asserted"] = False
+        projected["availability_boundary"] = (
+            "The scientific critic did not establish that required data, capability, or "
+            "execution surface is available; ranking must not treat this action as executable."
+        )
+    return projected
+
+
 def adapt_scientific_critic_report(report: Mapping[str, Any]) -> dict[str, Any]:
     """Project one current critic report without creating or changing scientific content."""
     target_reports = report.get("target_reports")
@@ -60,7 +72,7 @@ def adapt_scientific_critic_report(report: Mapping[str, Any]) -> dict[str, Any]:
             {
                 "target_node_id": target_id.strip(),
                 "alternatives": [dict(item) for item in alternatives],
-                "proposed_actions": [dict(item) for item in actions],
+                "proposed_actions": [_project_action(item) for item in actions],
                 "critic_findings": [dict(item) for item in findings],
                 "stop_recommendation": (
                     dict(raw["stop_recommendation"])
