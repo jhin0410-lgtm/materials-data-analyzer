@@ -76,6 +76,26 @@ new = '''def _json_object(raw: bytes, *, field: str) -> dict[str, Any]:
 '''
 text = replace_once(text, old, new, "json-byte-boundary")
 
+old = '''def _validate_program_projection(
+    program_state: Mapping[str, Any],
+    *,
+    normalized_mission: Mapping[str, Any],
+    expected_mission_sha256: str,
+) -> None:
+    if program_state.get("schema_version") != _SUPPORTED_PROGRAM_SCHEMA_VERSION:
+'''
+new = '''def _validate_program_projection(
+    program_state: Mapping[str, Any],
+    *,
+    normalized_mission: Mapping[str, Any],
+    expected_mission_sha256: str,
+) -> None:
+    if not isinstance(program_state, Mapping):
+        raise MissionSourceTrustBridgeError("program_state must be an object")
+    if program_state.get("schema_version") != _SUPPORTED_PROGRAM_SCHEMA_VERSION:
+'''
+text = replace_once(text, old, new, "program-state-type")
+
 old = '''    projected_mission = program_state.get("mission")
     if not isinstance(projected_mission, dict) or projected_mission != normalized_mission:
         raise MissionSourceTrustBridgeError(
@@ -163,6 +183,21 @@ def test_exact_byte_inputs_fail_closed_with_bridge_error(
         match=rf"{field} must be exact bytes",
     ):
         qualify_acquisition_record_under_expected_mission_policy(**values)  # type: ignore[arg-type]
+
+
+def test_non_mapping_program_state_fails_closed_with_bridge_error(tmp_path: Path) -> None:
+    mission, _, evidence, manifest, declaration, policy = _program_fixture(tmp_path)
+    with pytest.raises(MissionSourceTrustBridgeError, match="program_state must be an object"):
+        qualify_acquisition_record_under_expected_mission_policy(
+            mission_bytes=mission,
+            expected_mission_sha256=hashlib.sha256(mission).hexdigest(),
+            program_state="not-an-object",  # type: ignore[arg-type]
+            policy_id=POLICY_ID,
+            evidence_bytes=evidence,
+            acquisition_manifest_bytes=manifest,
+            acquisition_declaration_bytes=declaration,
+            source_trust_policy_bytes=policy,
+        )
 
 
 def test_program_projection_comparison_is_type_strict_for_bool_int_alias(
