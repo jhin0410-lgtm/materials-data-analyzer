@@ -12,14 +12,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from .kernel import ResearchLoopError
 from .planning_adapter import available_planning_adapters
 from .planning_state import build_research_planning_state
 
-MISSION_SCHEMA_VERSION = "1.0"
+MISSION_SCHEMA_VERSION = "1.1"
+LEGACY_MISSION_SCHEMA_VERSION = "1.0"
 PROGRAM_SCHEMA_VERSION = "1.0"
 REASONING_PROPOSAL_SCHEMA_VERSION = "1.0"
 PROGRAM_POLICY_VERSION = "1.0"
@@ -82,6 +84,55 @@ def _nonempty_text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ResearchProgramError(f"{field} must be a non-empty string")
     return value.strip()
+
+
+def _canonical_sha256(value: object, field: str) -> str:
+    if not isinstance(value, str) or len(value) != 64:
+        raise ResearchProgramError(f"{field} must be a lowercase SHA-256 hex digest")
+    if any(char not in "0123456789abcdef" for char in value):
+        raise ResearchProgramError(f"{field} must be a lowercase SHA-256 hex digest")
+    return value
+
+
+def _source_trust_policy_pins(value: object) -> list[dict[str, str]]:
+    if not isinstance(value, list) or not value:
+        raise ResearchProgramError(
+            "source_trust_policy_pins must be a non-empty list when provided"
+        )
+    result: list[dict[str, str]] = []
+    policy_ids: set[str] = set()
+    shas: set[str] = set()
+    for index, raw in enumerate(value):
+        item = _require_exact_keys(
+            raw,
+            required={"policy_id", "sha256"},
+            allowed={"policy_id", "sha256"},
+            field=f"source_trust_policy_pins[{index}]",
+        )
+        policy_id_raw = item["policy_id"]
+        if (
+            not isinstance(policy_id_raw, str)
+            or not policy_id_raw
+            or policy_id_raw != policy_id_raw.strip()
+        ):
+            raise ResearchProgramError(
+                f"source_trust_policy_pins[{index}].policy_id must be non-empty text without surrounding whitespace"
+            )
+        sha256 = _canonical_sha256(
+            item["sha256"], f"source_trust_policy_pins[{index}].sha256"
+        )
+        if policy_id_raw in policy_ids:
+            raise ResearchProgramError(
+                f"duplicate source trust policy policy_id: {policy_id_raw}"
+            )
+        if sha256 in shas:
+            raise ResearchProgramError(
+                f"duplicate source trust policy sha256: {sha256}"
+            )
+        policy_ids.add(policy_id_raw)
+        shas.add(sha256)
+        result.append({"policy_id": policy_id_raw, "sha256": sha256})
+    return result
 
 
 def _string_list(value: object, field: str, *, allow_empty: bool = False) -> list[str]:
@@ -149,12 +200,24 @@ def validate_research_mission(value: object) -> dict[str, Any]:
             "autonomy_policy",
             "workstreams",
             "metadata",
+            "source_trust_policy_pins",
         },
         field="research mission",
     )
-    if mission["schema_version"] != MISSION_SCHEMA_VERSION:
+    mission_schema_version = mission["schema_version"]
+    if mission_schema_version not in {
+        LEGACY_MISSION_SCHEMA_VERSION,
+        MISSION_SCHEMA_VERSION,
+    }:
         raise ResearchProgramError(
-            f"unsupported mission schema_version: {mission['schema_version']!r}"
+            f"unsupported mission schema_version: {mission_schema_version!r}"
+        )
+    if (
+        "source_trust_policy_pins" in mission
+        and mission_schema_version != MISSION_SCHEMA_VERSION
+    ):
+        raise ResearchProgramError(
+            "source_trust_policy_pins requires mission schema_version 1.1"
         )
 
     policy = _require_exact_keys(
@@ -240,7 +303,7 @@ def validate_research_mission(value: object) -> dict[str, Any]:
         )
 
     normalized: dict[str, Any] = {
-        "schema_version": MISSION_SCHEMA_VERSION,
+        "schema_version": mission_schema_version,
         "mission_id": _nonempty_text(mission["mission_id"], "mission_id"),
         "mission": _nonempty_text(mission["mission"], "mission"),
         "success_criteria": _string_list(mission["success_criteria"], "success_criteria"),
@@ -249,6 +312,10 @@ def validate_research_mission(value: object) -> dict[str, Any]:
         "autonomy_policy": normalized_policy,
         "workstreams": normalized_workstreams,
     }
+    if "source_trust_policy_pins" in mission:
+        normalized["source_trust_policy_pins"] = _source_trust_policy_pins(
+            mission["source_trust_policy_pins"]
+        )
     if "metadata" in mission:
         if not isinstance(mission["metadata"], dict):
             raise ResearchProgramError("metadata must be an object when provided")
@@ -515,6 +582,9 @@ def build_research_program(
             "path": str(mission_file),
             "sha256": _sha256_file(mission_file),
         },
+        "source_trust_policy_pins": [
+            dict(item) for item in mission.get("source_trust_policy_pins", [])
+        ],
         "runtime_context_binding": context_binding,
         "workstreams": workstream_states,
         "generated_goals": goals,
