@@ -21,6 +21,7 @@ from .kernel import ResearchLoopError
 
 _NASA_ADAPTER = "nasa-battery"
 _NIST_ADAPTER = "nist-ambench-process-characterization"
+_NIST_ACTION_TYPE = "nist_structural_design_simulation"
 
 
 def execute_authorized_action(
@@ -41,9 +42,16 @@ def execute_authorized_action(
     the executor. The long-standing NASA explicit-request surface is preserved unchanged.
     """
     if adapter_id == _NASA_ADAPTER:
-        if expected_request_sha256 is not None or expected_research_ledger_sha256 is not None:
+        if expected_action_type == _NIST_ACTION_TYPE:
             raise AuthorizedExecutionError(
-                "machine-verifier SHA handoff pins are currently implemented only for the NIST route"
+                "the NIST structural action cannot be routed through the NASA adapter"
+            )
+        if (
+            expected_request_sha256 is not None
+            or expected_research_ledger_sha256 is not None
+        ):
+            raise AuthorizedExecutionError(
+                "machine-verifier SHA handoff pins are implemented only for the NIST route"
             )
         return _execute_nasa_authorized_action(
             adapter_id,
