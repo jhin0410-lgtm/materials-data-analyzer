@@ -769,7 +769,7 @@ def validate_reasoning_proposal(
             {"workstream_id": binding[0], "role": binding[1], "sha256": binding[2]}
         )
 
-    raw_hypotheses = root["new_hypeses"] if False else root["new_hypotheses"]
+    raw_hypotheses = root["new_hypotheses"]
     if not isinstance(raw_hypotheses, list):
         raise ResearchProgramError("reasoning proposal new_hypotheses must be a list")
     hypothesis_ids: set[str] = set()
