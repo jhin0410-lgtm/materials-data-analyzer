@@ -36,13 +36,35 @@ def _fixture() -> tuple[bytes, bytes, bytes, bytes, str]:
         "evidence_role": "external_structure_record",
         "manifest_evidence_sha256_pointer": "/artifact/sha256",
         "manifest_claim_bindings": [
-            {"claim": "source_system", "json_pointer": "/source/system", "expected_value": "Materials Project"},
-            {"claim": "source_version", "json_pointer": "/source/version", "expected_value": "2026.08.01"},
-            {"claim": "retrieval_endpoint", "json_pointer": "/source/endpoint", "expected_value": "materials.summary.search"},
-            {"claim": "retrieval_status", "json_pointer": "/retrieval/status", "expected_value": "success"},
-            {"claim": "network_performed", "json_pointer": "/retrieval/network_performed", "expected_value": True},
+            {
+                "claim": "source_system",
+                "json_pointer": "/source/system",
+                "expected_value": "Materials Project",
+            },
+            {
+                "claim": "source_version",
+                "json_pointer": "/source/version",
+                "expected_value": "2026.08.01",
+            },
+            {
+                "claim": "retrieval_endpoint",
+                "json_pointer": "/source/endpoint",
+                "expected_value": "materials.summary.search",
+            },
+            {
+                "claim": "retrieval_status",
+                "json_pointer": "/retrieval/status",
+                "expected_value": "success",
+            },
+            {
+                "claim": "network_performed",
+                "json_pointer": "/retrieval/network_performed",
+                "expected_value": True,
+            },
         ],
-        "limitations": ["Manifest records are local provenance, not provider credentials."],
+        "limitations": [
+            "Manifest records are local provenance, not provider credentials."
+        ],
     }
     declaration_bytes = _json_bytes(declaration)
     policy = {
@@ -53,18 +75,46 @@ def _fixture() -> tuple[bytes, bytes, bytes, bytes, str]:
                 "rule_id": "mp-summary-success",
                 "evidence_role": "external_structure_record",
                 "required_manifest_claims": [
-                    {"claim": "source_system", "json_pointer": "/source/system", "allowed_values": ["Materials Project"]},
-                    {"claim": "source_version", "json_pointer": "/source/version", "allowed_values": ["2026.08.01"]},
-                    {"claim": "retrieval_endpoint", "json_pointer": "/source/endpoint", "allowed_values": ["materials.summary.search"]},
-                    {"claim": "retrieval_status", "json_pointer": "/retrieval/status", "allowed_values": ["success"]},
-                    {"claim": "network_performed", "json_pointer": "/retrieval/network_performed", "allowed_values": [True]},
+                    {
+                        "claim": "source_system",
+                        "json_pointer": "/source/system",
+                        "allowed_values": ["Materials Project"],
+                    },
+                    {
+                        "claim": "source_version",
+                        "json_pointer": "/source/version",
+                        "allowed_values": ["2026.08.01"],
+                    },
+                    {
+                        "claim": "retrieval_endpoint",
+                        "json_pointer": "/source/endpoint",
+                        "allowed_values": ["materials.summary.search"],
+                    },
+                    {
+                        "claim": "retrieval_status",
+                        "json_pointer": "/retrieval/status",
+                        "allowed_values": ["success"],
+                    },
+                    {
+                        "claim": "network_performed",
+                        "json_pointer": "/retrieval/network_performed",
+                        "allowed_values": [True],
+                    },
                 ],
             }
         ],
-        "limitations": ["Local policy qualification is not external provider authentication."],
+        "limitations": [
+            "Local policy qualification is not external provider authentication."
+        ],
     }
     policy_bytes = _json_bytes(policy)
-    return evidence, manifest_bytes, declaration_bytes, policy_bytes, hashlib.sha256(policy_bytes).hexdigest()
+    return (
+        evidence,
+        manifest_bytes,
+        declaration_bytes,
+        policy_bytes,
+        hashlib.sha256(policy_bytes).hexdigest(),
+    )
 
 
 def _qualify() -> dict[str, object]:
@@ -137,7 +187,10 @@ def test_rejects_policy_claim_pointer_substitution() -> None:
     obj = json.loads(policy)
     obj["rules"][0]["required_manifest_claims"][0]["json_pointer"] = "/source/version"
     mutated = _json_bytes(obj)
-    with pytest.raises(AcquisitionSourceTrustPolicyError, match="does not satisfy any"):
+    with pytest.raises(
+        AcquisitionSourceTrustPolicyError,
+        match="(JSON pointers must be unique|does not satisfy any)",
+    ):
         qualify_acquisition_record_under_pinned_policy(
             evidence_bytes=evidence,
             acquisition_manifest_bytes=manifest,
@@ -195,7 +248,9 @@ def test_rule_must_pin_evidence_role() -> None:
 def test_rule_must_constrain_all_base_recorded_claims() -> None:
     evidence, manifest, declaration, policy, _ = _fixture()
     obj = json.loads(policy)
-    obj["rules"][0]["required_manifest_claims"] = obj["rules"][0]["required_manifest_claims"][:-1]
+    obj["rules"][0]["required_manifest_claims"] = obj["rules"][0][
+        "required_manifest_claims"
+    ][:-1]
     mutated = _json_bytes(obj)
     with pytest.raises(AcquisitionSourceTrustPolicyError, match="missing=.*network_performed"):
         qualify_acquisition_record_under_pinned_policy(
@@ -244,7 +299,10 @@ def test_duplicate_typed_allowed_values_fail_closed() -> None:
 
 def test_duplicate_json_keys_in_policy_fail_closed() -> None:
     evidence, manifest, declaration, _, _ = _fixture()
-    duplicate = b'{"schema_version":"1.0","schema_version":"1.0","policy_id":"x","rules":[],"limitations":["x"]}'
+    duplicate = (
+        b'{"schema_version":"1.0","schema_version":"1.0","policy_id":"x",'
+        b'"rules":[],"limitations":["x"]}'
+    )
     with pytest.raises(AcquisitionSourceTrustPolicyError, match="duplicate JSON key"):
         qualify_acquisition_record_under_pinned_policy(
             evidence_bytes=evidence,
