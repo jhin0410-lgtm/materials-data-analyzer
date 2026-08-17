@@ -20,6 +20,7 @@ from materials_data_analyzer.characterization_use_contract import (
     evaluate_characterization_use,
 )
 
+from .autonomous_evidence_loop import INSUFFICIENT_EVIDENCE
 from .cross_source_scientific_reasoning import (
     AnalysisTraits,
     ComparabilityContext,
@@ -93,7 +94,7 @@ def _phase_a_acceptance(result: Mapping[str, Any]) -> dict[str, Any]:
         accepted == 0
         and scientific_changed is False
         and physical_authorized is False
-        and terminal == "Insufficient evidence"
+        and terminal == INSUFFICIENT_EVIDENCE
     )
     if not passed:
         raise ValueError(
