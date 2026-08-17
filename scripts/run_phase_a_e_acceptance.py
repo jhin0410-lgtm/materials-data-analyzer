@@ -115,7 +115,7 @@ def _prepare_output(path: Path) -> None:
 
 
 def run_acceptance(output_dir: str | Path) -> dict[str, Path]:
-    output = Path(output_dir)
+    output = Path(output_dir).expanduser().resolve()
     _prepare_output(output)
     phase_a_dir = output / "00_phase_a_trust_replay"
     representative_dir = output / "01_real_in625_representative_workflow"
