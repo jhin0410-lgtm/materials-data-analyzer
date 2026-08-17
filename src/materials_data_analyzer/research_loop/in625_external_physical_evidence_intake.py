@@ -1,10 +1,9 @@
 """Fail-closed intake for cross-source physical IN625 LPBF evidence.
 
-This layer validates record identity, source binding, provenance strength, and
-comparability without treating numeric process proximity as experimental
-identity. It is intentionally separate from the NIST AMB2018-02 Stage 1 intake:
-only records already classified as exact-benchmark-compatible may ever be
-forwarded to that stricter contract.
+Records are admitted only when their source identity, experiment family, machine,
+material state, power semantics, calibration semantics, and process coordinate
+are already declared by the source registry. Numerical proximity or equal
+energy density never creates experimental identity.
 """
 from __future__ import annotations
 
@@ -32,7 +31,7 @@ ALLOWED_RESPONSE_UNITS = {
 
 
 class PhysicalEvidenceIntakeError(ValueError):
-    """Raised when a physical-evidence record fails provenance validation."""
+    """Raised when a cross-source record violates the provenance contract."""
 
 
 def _required_string(record: dict[str, Any], key: str, label: str) -> str:
@@ -67,11 +66,7 @@ def _relative_posix_path(value: Any, label: str) -> PurePosixPath:
     return path
 
 
-def _verify_artifact(
-    binding: Any,
-    root: Path,
-    label: str,
-) -> dict[str, Any]:
+def _verify_artifact(binding: Any, root: Path, label: str) -> dict[str, Any]:
     if not isinstance(binding, dict):
         raise PhysicalEvidenceIntakeError(f"{label} must be an object.")
     relative = _relative_posix_path(binding.get("path"), label)
@@ -124,6 +119,13 @@ def _candidate_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {candidate["candidate_id"]: candidate for candidate in validated["candidates"]}
 
 
+def _declared_process_points(candidate: dict[str, Any]) -> set[tuple[float, float]]:
+    return {
+        (float(point["laser_power_w"]), float(point["scan_speed_mm_s"]))
+        for point in candidate["process_points"]
+    }
+
+
 def _validate_record(
     record: Any,
     index: int,
@@ -134,7 +136,7 @@ def _validate_record(
     if not isinstance(record, dict):
         raise PhysicalEvidenceIntakeError(f"{label} must be an object.")
     out = dict(record)
-    required = (
+    for key in (
         "record_id",
         "candidate_id",
         "experiment_family_id",
@@ -147,8 +149,7 @@ def _validate_record(
         "calibration_binding",
         "response_name",
         "response_unit",
-    )
-    for key in required:
+    ):
         out[key] = _required_string(record, key, label)
 
     candidate = candidates.get(out["candidate_id"])
@@ -156,26 +157,20 @@ def _validate_record(
         raise PhysicalEvidenceIntakeError(
             f"{label} references unknown candidate_id {out['candidate_id']!r}."
         )
-    if out["experiment_family_id"] != candidate["experiment_family_id"]:
-        raise PhysicalEvidenceIntakeError(
-            f"{label} experiment_family_id differs from source registry."
-        )
-    if out["machine_id"] != candidate["machine_id"]:
-        raise PhysicalEvidenceIntakeError(f"{label} machine_id differs from source registry.")
+    bindings = {
+        "experiment_family_id": "experiment_family_id",
+        "machine_id": "machine_id",
+        "material_state": "material_state",
+        "power_semantics": "power_semantics",
+        "calibration_binding": "calibration_binding",
+    }
+    for record_key, candidate_key in bindings.items():
+        if out[record_key] != candidate[candidate_key]:
+            raise PhysicalEvidenceIntakeError(
+                f"{label} {record_key} differs from source registry."
+            )
     if out["material"] != "IN625":
         raise PhysicalEvidenceIntakeError(f"{label} material must be exactly IN625.")
-    if out["material_state"] != candidate["material_state"]:
-        raise PhysicalEvidenceIntakeError(
-            f"{label} material_state differs from source registry."
-        )
-    if out["power_semantics"] != candidate["power_semantics"]:
-        raise PhysicalEvidenceIntakeError(
-            f"{label} power_semantics differs from source registry."
-        )
-    if out["calibration_binding"] != candidate["calibration_binding"]:
-        raise PhysicalEvidenceIntakeError(
-            f"{label} calibration_binding differs from source registry."
-        )
 
     out["laser_power_w"] = _finite(
         record.get("laser_power_w"), f"{label}.laser_power_w", positive=True
@@ -183,6 +178,13 @@ def _validate_record(
     out["scan_speed_mm_s"] = _finite(
         record.get("scan_speed_mm_s"), f"{label}.scan_speed_mm_s", positive=True
     )
+    point = (out["laser_power_w"], out["scan_speed_mm_s"])
+    declared_points = _declared_process_points(candidate)
+    if point not in declared_points:
+        raise PhysicalEvidenceIntakeError(
+            f"{label} process point {point} is not declared by the source registry."
+        )
+
     out["response_value"] = _finite(
         record.get("response_value"), f"{label}.response_value"
     )
@@ -203,9 +205,8 @@ def _validate_record(
         )
     out["independent_physical_replicate"] = independent
 
-    extraction_mode = candidate["extraction_mode"]
     artifact = record.get("source_artifact")
-    if extraction_mode == "raw_dataset":
+    if candidate["extraction_mode"] == "raw_dataset":
         if artifact is None:
             raise PhysicalEvidenceIntakeError(
                 f"{label} raw_dataset evidence requires source_artifact bytes."
@@ -219,7 +220,6 @@ def _validate_record(
         )
 
     out["evidence_stratum"] = classify_candidate(candidate)
-    point = (out["laser_power_w"], out["scan_speed_mm_s"])
     out["is_exact_stage1_coordinate"] = point in NIST_STAGE1_TARGETS
     out["eligible_for_issue_76"] = (
         out["evidence_stratum"] == "exact_benchmark_compatible"
@@ -238,7 +238,7 @@ def validate_physical_evidence_records(
     registry: dict[str, Any],
     intake_root: str | Path,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Validate cross-source records and return records plus scientific audit."""
+    """Validate records and report replication, confounding, and #76 support."""
     try:
         candidates = _candidate_map(registry)
     except PhysicalEvidenceRegistryError as exc:
@@ -255,9 +255,6 @@ def validate_physical_evidence_records(
     if len(record_ids) != len(set(record_ids)):
         raise PhysicalEvidenceIntakeError("record_id values must be unique.")
 
-    # A response measured repeatedly on one physical track is not an independent
-    # physical replicate. Multiple source representations of the same experiment
-    # family also cannot create new replication.
     physical_keys: dict[tuple[str, str, str], list[str]] = defaultdict(list)
     for record in validated:
         key = (
@@ -281,12 +278,11 @@ def validate_physical_evidence_records(
         target: set() for target in NIST_STAGE1_TARGETS
     }
     for record in validated:
-        if not record["eligible_for_issue_76"]:
-            continue
-        target = (record["laser_power_w"], record["scan_speed_mm_s"])
-        stage1_units[target].add(
-            (record["experiment_family_id"], record["replication_unit_id"])
-        )
+        if record["eligible_for_issue_76"]:
+            target = (record["laser_power_w"], record["scan_speed_mm_s"])
+            stage1_units[target].add(
+                (record["experiment_family_id"], record["replication_unit_id"])
+            )
     stage1_cells = []
     for target, required in NIST_STAGE1_TARGETS.items():
         observed = len(stage1_units[target])
@@ -318,6 +314,7 @@ def validate_physical_evidence_records(
             len(machine_ids) == 1
             and len(material_states) == 1
             and len(power_semantics) == 1
+            and len(experiment_families) == 1
             and not overlaps
         ),
         "required_explicit_model_factors": {
@@ -334,7 +331,7 @@ def validate_physical_evidence_records(
             "repeated_measurements_on_one_track_are_independent": False,
         },
         "scientific_boundary": {
-            "source_registry_controls_comparability": True,
+            "source_registry_controls_process_coordinates": True,
             "record_self_declaration_can_upgrade_source_stratum": False,
             "different_machine_settings_can_be_relabelled_as_ammt_calibrated_power": False,
             "duplicate_publication_and_repository_views_can_double_count": False,
