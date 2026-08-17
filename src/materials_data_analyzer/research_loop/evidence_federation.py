@@ -1,9 +1,9 @@
 """Federated scientific-evidence classification without scientific promotion.
 
 The federation layer lets heterogeneous sources participate in one research episode while
-preserving their different epistemic strength.  It never converts discovery metadata,
+preserving their different epistemic strength. It never converts discovery metadata,
 reported literature values, digitized figures, simulations, or reference context into raw
-experimental evidence.  Claim eligibility remains the responsibility of downstream
+experimental evidence. Claim eligibility remains the responsibility of downstream
 scientific gates.
 """
 from __future__ import annotations
@@ -75,13 +75,7 @@ def _choice(value: object, field: str) -> str:
 
 def canonical_sha256(value: object) -> str:
     try:
-        raw = json.dumps(
-            value,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("utf-8")
+        raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     except (TypeError, ValueError) as exc:
         raise EvidenceFederationError("value must be canonical-JSON serializable") from exc
     return hashlib.sha256(raw).hexdigest()
@@ -173,6 +167,8 @@ def maximum_evidence_use(candidate: FederatedEvidenceCandidate) -> dict[str, Any
         blockers.append("reuse_not_explicitly_allowed")
     if trust.comparability in {"incompatible", "unresolved"}:
         blockers.append("comparability_not_established")
+    if trust.source_authority == "unknown":
+        blockers.append("source_authority_unknown")
     if candidate.evidence_class in {
         EvidenceClass.E0_RAW_EXPERIMENTAL,
         EvidenceClass.E1_PROCESSED_EXPERIMENTAL,
@@ -182,16 +178,14 @@ def maximum_evidence_use(candidate: FederatedEvidenceCandidate) -> dict[str, Any
             blockers.append("sample_identity_not_exact")
         if trust.acquisition_identity not in {"exact", "not_applicable"}:
             blockers.append("acquisition_identity_not_exact")
+        if trust.calibration == "unknown":
+            blockers.append("calibration_status_unknown")
     external_validation_eligible = (
         not blockers
         and trust.independence == "independent"
         and trust.comparability == "exact"
         and candidate.evidence_class
-        in {
-            EvidenceClass.E0_RAW_EXPERIMENTAL,
-            EvidenceClass.E1_PROCESSED_EXPERIMENTAL,
-            EvidenceClass.E2_PUBLICATION_SUPPLEMENT,
-        }
+        in {EvidenceClass.E0_RAW_EXPERIMENTAL, EvidenceClass.E1_PROCESSED_EXPERIMENTAL, EvidenceClass.E2_PUBLICATION_SUPPLEMENT}
     )
     return {
         "candidate_id": candidate.candidate_id,
