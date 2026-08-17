@@ -38,7 +38,7 @@ from .trusted_source_discovery import (
 )
 
 AUTONOMOUS_EVIDENCE_LOOP_SCHEMA_VERSION = "1.0"
-AUTONOMOUS_EVIDENCE_LOOP_POLICY_VERSION = "1.0"
+AUTONOMOUS_EVIDENCE_LOOP_POLICY_VERSION = "1.1"
 
 SUPPORTED = "supported"
 CONTRADICTED = "contradicted"
@@ -332,6 +332,7 @@ def run_autonomous_evidence_loop(
             break
 
         accepted_intakes: list[dict[str, Any]] = []
+        intake_results: list[dict[str, Any]] = []
         acquisition_summaries: list[dict[str, Any]] = []
         for candidate_index, candidate in enumerate(actionable):
             product_id = str(candidate["product_id"])
@@ -386,13 +387,25 @@ def run_autonomous_evidence_loop(
                     raise AutonomousEvidenceLoopError(
                         "intake_handler scientific_status_changed must be boolean"
                     )
-                if intake.get("accepted_for_analysis") is True:
-                    accepted_intakes.append(intake)
-                elif intake.get("accepted_for_analysis") is not False:
+                accepted = intake.get("accepted_for_analysis")
+                if accepted not in {False, True}:
                     raise AutonomousEvidenceLoopError(
                         "intake_handler accepted_for_analysis must be boolean"
                     )
+                intake_results.append(
+                    {
+                        "product_id": product_id,
+                        "candidate_id": receipt.get("candidate_id"),
+                        "artifact_path": receipt.get("artifact_path"),
+                        "artifact_sha256": receipt.get("artifact_sha256"),
+                        "accepted_for_analysis": accepted,
+                        "intake": intake,
+                    }
+                )
+                if accepted is True:
+                    accepted_intakes.append(intake)
         iteration_record["acquisition"] = acquisition_summaries
+        iteration_record["intake_results"] = intake_results
         iteration_record["accepted_intake_count"] = len(accepted_intakes)
 
         if not accepted_intakes:
