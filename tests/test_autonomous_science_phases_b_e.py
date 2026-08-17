@@ -16,6 +16,7 @@ from materials_data_analyzer.research_loop.cross_source_scientific_reasoning imp
     detect_verified_directional_contradiction,
     select_next_analysis,
 )
+from materials_data_analyzer.research_loop.design_simulation import simulate_design_structure
 from materials_data_analyzer.research_loop.epistemic_graph import validate_epistemic_graph
 from materials_data_analyzer.research_loop.sample_identity_binding import (
     SampleBinding,
@@ -25,6 +26,7 @@ from materials_data_analyzer.research_loop.sample_identity_binding import (
 )
 from materials_data_analyzer.research_loop.scientific_evidence_normalization import (
     MaterialComposition,
+    MaterialIdentity,
     NormalizedMeasurement,
     ProvenanceLocator,
     ScientificEvidenceNormalizationError,
@@ -39,7 +41,6 @@ from materials_data_analyzer.research_loop.scientific_simulation_registry import
     select_structural_design_candidate,
     structural_design_sensitivity,
 )
-from materials_data_analyzer.research_loop.design_simulation import simulate_design_structure
 
 
 ARTIFACT_SHA = hashlib.sha256(b"source-artifact").hexdigest()
@@ -115,7 +116,9 @@ def eligibility(*, allowed: bool = True) -> CharacterizationUseEligibility:
     )
 
 
-def test_phase_b_normalization_emits_existing_epistemic_evidence_node(tmp_path: Path) -> None:
+def test_phase_b_normalization_emits_existing_epistemic_evidence_node(
+    tmp_path: Path,
+) -> None:
     node = evidence_node()
     graph = {
         "schema_version": "1.0",
@@ -130,18 +133,56 @@ def test_phase_b_normalization_emits_existing_epistemic_evidence_node(tmp_path: 
     metadata = validated["nodes"][0]["metadata"]
     assert metadata["semantic_inference_performed"] is False
     assert metadata["material"]["basis"] == "mass_percent"
+    assert metadata["material_composition_known"] is True
+    assert metadata["composition_inferred"] is False
     with pytest.raises(ScientificEvidenceNormalizationError, match="basis"):
         MaterialComposition("bad", "unknown", {"Ni": 1.0})
     with pytest.raises(ScientificEvidenceNormalizationError, match="exceeds"):
         MaterialComposition("bad", "mass_fraction", {"Ni": 1.1})
 
 
+def test_phase_b_source_declared_identity_does_not_infer_missing_composition() -> None:
+    identity = MaterialIdentity("IN625", "IN625", "source_declared_label")
+    normalized = NormalizedMeasurement(
+        material=identity,
+        sample_id="nist-trace-1",
+        property_name="melt_pool_width_mean",
+        value=147.9,
+        unit="um",
+        method="source_reported_table",
+        instrument_model="model_not_declared",
+        calibration_id=None,
+        process_signature="AMMT",
+        standard_uncertainty=None,
+        provenance=provenance("sample_id=nist-trace-1"),
+    )
+    metadata = normalized.metadata()
+    assert metadata["material_identity_kind"] == "source_declared_identity"
+    assert metadata["material_composition_known"] is False
+    assert metadata["composition_inferred"] is False
+    assert "components" not in metadata["material"]
+
+
 def test_phase_c_contradiction_requires_comparability_independence_and_explicit_units() -> None:
     left_context = ComparabilityContext(
-        material().material_id, "effect", "MPa", "lpbf:p1", "a", "ca", "src-a", "g-a"
+        material().material_id,
+        "effect",
+        "MPa",
+        "lpbf:p1",
+        "a",
+        "ca",
+        "src-a",
+        "g-a",
     )
     right_context = ComparabilityContext(
-        material().material_id, "effect", "GPa", "lpbf:p1", "b", "cb", "src-b", "g-b"
+        material().material_id,
+        "effect",
+        "GPa",
+        "lpbf:p1",
+        "b",
+        "cb",
+        "src-b",
+        "g-b",
     )
     assert not assess_comparability(left_context, right_context).comparable
     contradiction, decision = detect_verified_directional_contradiction(
@@ -151,10 +192,18 @@ def test_phase_c_contradiction_requires_comparability_independence_and_explicit_
     )
     assert decision.comparable and contradiction
     same_group = ComparabilityContext(
-        material().material_id, "effect", "MPa", "lpbf:p1", None, None, "src-b", "g-a"
+        material().material_id,
+        "effect",
+        "MPa",
+        "lpbf:p1",
+        None,
+        None,
+        "src-b",
+        "g-a",
     )
     contradiction, decision = detect_verified_directional_contradiction(
-        EffectEstimate(left_context, 10.0, 1.0), EffectEstimate(same_group, -10.0, 1.0)
+        EffectEstimate(left_context, 10.0, 1.0),
+        EffectEstimate(same_group, -10.0, 1.0),
     )
     assert not contradiction
     assert "independence_not_demonstrated" in decision.reasons
@@ -165,15 +214,31 @@ def test_phase_c_uncertainty_and_analysis_selection_are_bounded() -> None:
         UncertaintyComponent("measurement", 3.0, "instrument"),
         UncertaintyComponent("model", 4.0, "validation"),
     )
-    assert combine_uncertainty(parts, independence_explicitly_established=True) == 5.0
-    assert combine_uncertainty(parts, independence_explicitly_established=False) == 7.0
-    assert select_next_analysis(AnalysisTraits(20, 2, "continuous")).analysis_type == "bounded_regression"
+    assert combine_uncertainty(
+        parts, independence_explicitly_established=True
+    ) == 5.0
+    assert combine_uncertainty(
+        parts, independence_explicitly_established=False
+    ) == 7.0
+    unresolved = select_next_analysis(AnalysisTraits(20, 2, "continuous"))
+    assert unresolved.analysis_type == "design_identifiability_audit"
+    verified = select_next_analysis(
+        AnalysisTraits(20, 2, "continuous", design_identifiable=True)
+    )
+    assert verified.analysis_type == "bounded_regression"
     assert not select_next_analysis(AnalysisTraits(2, 1, "continuous")).executable
 
 
 def test_phase_d_characterization_respects_policy_and_sample_identity() -> None:
     identities = SampleIdentityRegistry()
-    identities.bind(SampleBinding("specimen-1", "fov-1", "field_of_view", provenance("binding")))
+    identities.bind(
+        SampleBinding(
+            "specimen-1",
+            "fov-1",
+            "field_of_view",
+            provenance("binding"),
+        )
+    )
     normalized = normalize_characterization_measurement(
         modality="xrd",
         sample_id="fov-1",
@@ -191,13 +256,28 @@ def test_phase_d_characterization_respects_policy_and_sample_identity() -> None:
     )
     assert normalized.sample_id == "specimen-1"
     with pytest.raises(SampleIdentityBindingError, match="ambiguous"):
-        identities.bind(SampleBinding("specimen-2", "fov-1", "field_of_view", provenance("other")))
+        identities.bind(
+            SampleBinding(
+                "specimen-2",
+                "fov-1",
+                "field_of_view",
+                provenance("other"),
+            )
+        )
     with pytest.raises(SampleIdentityBindingError, match="blocks"):
         normalize_characterization_measurement(
-            modality="xrd", sample_id="fov-1", property_name="peak_position",
-            value=44.5, unit="deg", material=material(), instrument_model="fixture",
-            calibration_id=None, process_signature=None, standard_uncertainty=None,
-            provenance=provenance(), eligibility=eligibility(allowed=False),
+            modality="xrd",
+            sample_id="fov-1",
+            property_name="peak_position",
+            value=44.5,
+            unit="deg",
+            material=material(),
+            instrument_model="fixture",
+            calibration_id=None,
+            process_signature=None,
+            standard_uncertainty=None,
+            provenance=provenance(),
+            eligibility=eligibility(allowed=False),
             identity_registry=identities,
         )
 
@@ -206,11 +286,24 @@ def design_config(*, proposed: list[dict[str, object]]) -> dict[str, object]:
     return {
         "schema_version": "1.0",
         "simulation_id": "fixture-design",
-        "research_question": "Which predeclared cells improve structural estimability?",
-        "factors": [{"name": "power", "unit": "W"}, {"name": "speed", "unit": "mm/s"}],
+        "research_question": (
+            "Which predeclared cells improve structural estimability?"
+        ),
+        "factors": [
+            {"name": "power", "unit": "W"},
+            {"name": "speed", "unit": "mm/s"},
+        ],
         "observed_cells": [
-            {"cell_id": "o1", "factor_values": {"power": 0.0, "speed": 0.0}, "replicates": 1},
-            {"cell_id": "o2", "factor_values": {"power": 1.0, "speed": 0.0}, "replicates": 1},
+            {
+                "cell_id": "o1",
+                "factor_values": {"power": 0.0, "speed": 0.0},
+                "replicates": 1,
+            },
+            {
+                "cell_id": "o2",
+                "factor_values": {"power": 1.0, "speed": 0.0},
+                "replicates": 1,
+            },
         ],
         "proposed_cells": proposed,
         "models": ["main_effects"],
@@ -233,12 +326,22 @@ def test_phase_e_reuses_existing_simulator_and_does_not_create_second_executor()
     assert not hasattr(registry, "execute")
     node = evidence_node()
     graph = {
-        "nodes": [node, {"node_id": "claim:fixture", "node_type": "claim", "statement": "fixture"}]
+        "nodes": [
+            node,
+            {
+                "node_id": "claim:fixture",
+                "node_type": "claim",
+                "statement": "fixture",
+            },
+        ]
     }
     action = compile_simulation_action_candidate(
         registry,
         SimulationPlanningRequest(
-            "sim-plan-1", contract.solver_id, (str(node["node_id"]),), "claim:fixture"
+            "sim-plan-1",
+            contract.solver_id,
+            (str(node["node_id"]),),
+            "claim:fixture",
         ),
         graph,
     )
@@ -251,22 +354,39 @@ def test_phase_e_reuses_existing_simulator_and_does_not_create_second_executor()
 def test_phase_e_structural_sensitivity_and_priority_do_not_fabricate_eig() -> None:
     new_cell = StructuralDesignCandidate(
         "new-cell",
-        design_config(proposed=[
-            {"cell_id": "p1", "factor_values": {"power": 0.0, "speed": 1.0}, "replicates": 1}
-        ]),
+        design_config(
+            proposed=[
+                {
+                    "cell_id": "p1",
+                    "factor_values": {"power": 0.0, "speed": 1.0},
+                    "replicates": 1,
+                }
+            ]
+        ),
         1.0,
     )
     replicate = StructuralDesignCandidate(
         "replicate",
-        design_config(proposed=[
-            {"cell_id": "p2", "factor_values": {"power": 0.0, "speed": 0.0}, "replicates": 1}
-        ]),
+        design_config(
+            proposed=[
+                {
+                    "cell_id": "p2",
+                    "factor_values": {"power": 0.0, "speed": 0.0},
+                    "replicates": 1,
+                }
+            ]
+        ),
         1.0,
     )
     assessments = structural_design_sensitivity((new_cell, replicate))
     assert assessments[0].rank_gain > assessments[1].rank_gain
-    selected = select_structural_design_candidate((new_cell, replicate), remaining_budget=2.0)
+    selected = select_structural_design_candidate(
+        (new_cell, replicate), remaining_budget=2.0
+    )
     assert selected["selected_candidate_id"] == "new-cell"
-    assert selected["expected_information_gain"] == {"status": "not_quantified", "value": None}
+    assert selected["expected_information_gain"] == {
+        "status": "not_quantified",
+        "value": None,
+    }
     assert selected["physical_experiment_execution_authorized"] is False
     assert selected["scientific_status_upgrade_authorized"] is False

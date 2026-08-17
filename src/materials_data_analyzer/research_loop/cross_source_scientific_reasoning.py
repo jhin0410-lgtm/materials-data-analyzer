@@ -7,7 +7,7 @@ from typing import Mapping
 
 from .kernel import ResearchLoopError
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 
 class CrossSourceReasoningError(ResearchLoopError):
@@ -112,7 +112,9 @@ class UncertaintyComponent:
         }:
             raise CrossSourceReasoningError("unsupported uncertainty category")
         if not self.source.strip():
-            raise CrossSourceReasoningError("uncertainty source must be non-empty")
+            raise CrossSourceReasoningError(
+                "uncertainty source must be non-empty"
+            )
         if (
             not math.isfinite(self.standard_uncertainty)
             or self.standard_uncertainty < 0
@@ -195,6 +197,7 @@ class AnalysisTraits:
     target_kind: str
     group_count: int = 0
     repeated_measure_groups: int = 0
+    design_identifiable: bool | None = None
 
     def __post_init__(self) -> None:
         for field in (
@@ -210,6 +213,12 @@ class AnalysisTraits:
                 )
         if self.target_kind not in {"continuous", "categorical", "none"}:
             raise CrossSourceReasoningError("unsupported target_kind")
+        if self.design_identifiable is not None and not isinstance(
+            self.design_identifiable, bool
+        ):
+            raise CrossSourceReasoningError(
+                "design_identifiable must be boolean or None"
+            )
 
 
 @dataclass(frozen=True)
@@ -227,12 +236,32 @@ def select_next_analysis(traits: AnalysisTraits) -> AnalysisRecommendation:
             "existing_data_reanalysis",
             "group_aware_repeated_measure_analysis",
             True,
-            ("repeated_measure_structure_detected", "group_aware_split_required"),
+            (
+                "repeated_measure_structure_detected",
+                "group_aware_split_required",
+            ),
+        )
+    if (
+        traits.target_kind == "continuous"
+        and traits.n_numeric_predictors >= 1
+        and traits.n_samples >= 5
+        and traits.design_identifiable is not True
+    ):
+        return AnalysisRecommendation(
+            "existing_data_reanalysis",
+            "design_identifiability_audit",
+            True,
+            (
+                "numeric_predictor_available",
+                "design_identifiability_not_verified",
+                "regression_blocked_until_design_rank_is_verified",
+            ),
         )
     if (
         traits.target_kind == "continuous"
         and traits.n_numeric_predictors >= 1
         and traits.n_samples >= 8
+        and traits.design_identifiable is True
     ):
         return AnalysisRecommendation(
             "existing_data_reanalysis",
@@ -242,6 +271,7 @@ def select_next_analysis(traits: AnalysisTraits) -> AnalysisRecommendation:
                 "continuous_target",
                 "numeric_predictor_available",
                 "minimum_sample_contract_met",
+                "design_identifiability_verified",
             ),
         )
     if (

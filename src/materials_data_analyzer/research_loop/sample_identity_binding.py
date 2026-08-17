@@ -3,18 +3,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from materials_data_analyzer.characterization_use_contract import CharacterizationUseEligibility
+from materials_data_analyzer.characterization_use_contract import (
+    CharacterizationUseEligibility,
+)
 
 from .kernel import ResearchLoopError
 from .scientific_evidence_normalization import (
-    MaterialComposition,
+    MaterialDescriptor,
     NormalizedMeasurement,
     ProvenanceLocator,
 )
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 _RELATIONSHIPS = {"specimen", "aliquot", "field_of_view"}
-_MODALITIES = {"xrd", "sem", "tem", "raman", "eds", "saed"}
+_MODALITIES = {
+    "xrd",
+    "sem",
+    "tem",
+    "raman",
+    "eds",
+    "saed",
+    "optical_microscopy",
+    "optical_microscopy_metrology",
+}
 
 
 class SampleIdentityBindingError(ResearchLoopError):
@@ -35,7 +46,9 @@ class SampleBinding:
             raise SampleIdentityBindingError("sample binding cannot self-reference")
         relationship = self.relationship.strip().lower()
         if relationship not in _RELATIONSHIPS:
-            raise SampleIdentityBindingError("unsupported sample binding relationship")
+            raise SampleIdentityBindingError(
+                "unsupported sample binding relationship"
+            )
         object.__setattr__(self, "relationship", relationship)
 
 
@@ -46,8 +59,9 @@ class SampleIdentityRegistry:
     def bind(self, binding: SampleBinding) -> None:
         existing = self._by_child.get(binding.child_sample_id)
         if existing is not None and existing != binding:
-            raise SampleIdentityBindingError("child sample has ambiguous physical parentage")
-        # Resolve before insertion so a proposed parent that already descends from the child fails.
+            raise SampleIdentityBindingError(
+                "child sample has ambiguous physical parentage"
+            )
         current = binding.parent_sample_id
         seen = {binding.child_sample_id}
         while current in self._by_child:
@@ -83,7 +97,7 @@ def normalize_characterization_measurement(
     property_name: str,
     value: float,
     unit: str,
-    material: MaterialComposition,
+    material: MaterialDescriptor,
     instrument_model: str,
     calibration_id: str | None,
     process_signature: str | None,
@@ -95,13 +109,21 @@ def normalize_characterization_measurement(
     """Normalize characterization only after the existing producer policy allows use."""
     modality = modality.strip().lower()
     if modality not in _MODALITIES:
-        raise SampleIdentityBindingError("unsupported characterization modality")
+        raise SampleIdentityBindingError(
+            "unsupported characterization modality"
+        )
     if not eligibility.allowed:
-        raise SampleIdentityBindingError("characterization downstream-use policy blocks this evidence")
+        raise SampleIdentityBindingError(
+            "characterization downstream-use policy blocks this evidence"
+        )
     if eligibility.review_status != "reviewed":
-        raise SampleIdentityBindingError("characterization evidence requires reviewed status")
+        raise SampleIdentityBindingError(
+            "characterization evidence requires reviewed status"
+        )
     if eligibility.evidence_level not in {"Supported", "Diagnostic"}:
-        raise SampleIdentityBindingError("characterization evidence level is not usable for normalization")
+        raise SampleIdentityBindingError(
+            "characterization evidence level is not usable for normalization"
+        )
     canonical_sample = (
         identity_registry.canonical_sample_id(sample_id)
         if identity_registry is not None
@@ -123,6 +145,9 @@ def normalize_characterization_measurement(
 
 
 __all__ = [
-    "SCHEMA_VERSION", "SampleBinding", "SampleIdentityBindingError", "SampleIdentityRegistry",
+    "SCHEMA_VERSION",
+    "SampleBinding",
+    "SampleIdentityBindingError",
+    "SampleIdentityRegistry",
     "normalize_characterization_measurement",
 ]
