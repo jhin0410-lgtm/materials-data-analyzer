@@ -37,6 +37,7 @@ from .kernel import ResearchLoopError
 PUBLIC_ACQUISITION_CANDIDATE_SCHEMA_VERSION = "1.0"
 PUBLIC_ACQUISITION_RECEIPT_SCHEMA_VERSION = "1.0"
 DEFAULT_MAX_AUTO_ARTIFACT_BYTES = 2 * 1024 * 1024 * 1024
+DEFAULT_MAX_AUTO_BATCH_BYTES = 4 * 1024 * 1024 * 1024
 
 AUTO = "AUTO"
 REVIEW_REQUIRED = "REVIEW_REQUIRED"
@@ -323,26 +324,65 @@ def plan_public_acquisition_queue(
     candidates: Sequence[object],
     *,
     max_auto_bytes: int = DEFAULT_MAX_AUTO_ARTIFACT_BYTES,
+    max_total_auto_bytes: int = DEFAULT_MAX_AUTO_BATCH_BYTES,
 ) -> dict[str, Any]:
-    """Partition candidates so humans see only exceptional acquisitions."""
+    """Partition candidates so humans see only exceptional acquisitions.
 
+    Per-artifact and total automatic byte budgets are enforced before execution. Once the
+    total budget is exhausted, otherwise-safe candidates are routed to REVIEW_REQUIRED
+    rather than silently downloading an unbounded product.
+    """
+
+    if (
+        isinstance(max_total_auto_bytes, bool)
+        or not isinstance(max_total_auto_bytes, int)
+        or max_total_auto_bytes <= 0
+    ):
+        raise PublicAcquisitionError("max_total_auto_bytes must be a positive integer")
+    normalized = [
+        normalize_public_acquisition_candidate(candidate) for candidate in candidates
+    ]
     planned = [
         assess_public_acquisition_candidate(candidate, max_auto_bytes=max_auto_bytes)
-        for candidate in candidates
+        for candidate in normalized
     ]
     ids = [item["candidate_id"] for item in planned]
     if len(ids) != len(set(ids)):
-        raise PublicAcquisitionError("candidate_id values must be unique in an acquisition queue")
+        raise PublicAcquisitionError(
+            "candidate_id values must be unique in an acquisition queue"
+        )
+
+    automatic_bytes = 0
+    budgeted: list[dict[str, Any]] = []
+    for item, candidate in zip(planned, normalized, strict=True):
+        if item["decision"] != AUTO:
+            budgeted.append(item)
+            continue
+        proposed = automatic_bytes + candidate["expected_size_bytes"]
+        if proposed > max_total_auto_bytes:
+            budgeted.append(
+                {
+                    "candidate_id": item["candidate_id"],
+                    "decision": REVIEW_REQUIRED,
+                    "reason_codes": ["automatic_batch_budget_exceeded"],
+                }
+            )
+            continue
+        automatic_bytes = proposed
+        budgeted.append(item)
+
     by_decision = {
-        decision: [item for item in planned if item["decision"] == decision]
+        decision: [item for item in budgeted if item["decision"] == decision]
         for decision in (AUTO, REVIEW_REQUIRED, BLOCKED)
     }
     return {
         "schema_version": "1.0",
-        "candidate_count": len(planned),
+        "candidate_count": len(budgeted),
         "auto_count": len(by_decision[AUTO]),
         "review_required_count": len(by_decision[REVIEW_REQUIRED]),
         "blocked_count": len(by_decision[BLOCKED]),
+        "auto_bytes": automatic_bytes,
+        "max_total_auto_bytes": max_total_auto_bytes,
         "auto": by_decision[AUTO],
         "review_required": by_decision[REVIEW_REQUIRED],
         "blocked": by_decision[BLOCKED],
@@ -650,6 +690,7 @@ __all__ = [
     "BLOCKED",
     "REVIEW_REQUIRED",
     "DEFAULT_MAX_AUTO_ARTIFACT_BYTES",
+    "DEFAULT_MAX_AUTO_BATCH_BYTES",
     "FetchResult",
     "PUBLIC_ACQUISITION_CANDIDATE_SCHEMA_VERSION",
     "PUBLIC_ACQUISITION_RECEIPT_SCHEMA_VERSION",
