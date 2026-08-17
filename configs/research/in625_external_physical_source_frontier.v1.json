@@ -1,0 +1,157 @@
+{
+  "schema_version": "1.0",
+  "frontier_id": "in625-external-physical-source-frontier-v1",
+  "scientific_scope": "Authoritative or primary-source leads for additional IN625 LPBF physical evidence that are not yet promoted into the ingestion-ready source registry. Frontier inclusion is discovery state only.",
+  "candidates": [
+    {
+      "candidate_id": "nist-m3c37q-commercial-lpbf-thermography",
+      "authority": "NIST Public Data Repository",
+      "identifier": "10.18434/M3C37Q",
+      "source_reference": "https://doi.org/10.18434/M3C37Q",
+      "physical_origin": "physical",
+      "machine": "commercial EOS M270 LPBF system",
+      "material": "IN625 substrate and powder",
+      "material_states": [
+        "bare_plate_single_track",
+        "single_hand_spread_powder_layer_single_track",
+        "bare_plate_multi_track",
+        "single_hand_spread_powder_layer_multi_track"
+      ],
+      "verified_process_support": [
+        {
+          "source_file": "20170215_PowderPlate6_Bare_SingleLine_195W_800mmPs.zip",
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 800.0,
+          "material_state": "bare_plate_single_track"
+        }
+      ],
+      "responses": [
+        "radiant_temperature",
+        "melt_pool_length",
+        "cooling_rate"
+      ],
+      "authoritative_files": [
+        "20170213_PowderPlate1_SingleLine.zip",
+        "20170213_PowderPlate2_Pad.zip",
+        "20170215_PowderPlate6_Bare_SingleLine_195W_800mmPs.zip",
+        "20170215_PowderPlate7_Bare_Pad_195W_800mmPs.zip",
+        "DataSetOverviewAndTempProfiles.xlsx",
+        "RawCameraData.zip"
+      ],
+      "digest_support": "NIST/Data.gov publishes .sha256 sidecars for the downloadable files.",
+      "acquisition_status": "authoritative_raw_public_download_blocked_in_current_execution_environment",
+      "promotion_requirements": [
+        "Acquire exact bytes plus NIST-published SHA-256 sidecar.",
+        "Audit workbook rows and camera/temperature semantics.",
+        "Split bare and powder records before ingestion.",
+        "Use response-specific contracts; do not treat thermographic length as cross-sectional width/depth.",
+        "Retain EOS M270 machine identity and commercial-machine power semantics."
+      ],
+      "issue_76_eligible": false
+    },
+    {
+      "candidate_id": "nist-m31931-amb2018-02-cbm-thermography",
+      "authority": "NIST Public Data Repository / AM-Bench",
+      "identifier": "10.18434/M31931",
+      "source_reference": "https://doi.org/10.18434/M31931",
+      "physical_origin": "physical",
+      "machine": "AMB2018-02 commercial build machine (modified EOS M270)",
+      "material": "IN625 bare plate",
+      "material_states": [
+        "bare_plate_single_track"
+      ],
+      "verified_process_support": [
+        {
+          "laser_power_w": 150.0,
+          "scan_speed_mm_s": 400.0,
+          "power_semantics": "CBM expected power"
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 800.0,
+          "power_semantics": "CBM expected power"
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 1200.0,
+          "power_semantics": "CBM expected power"
+        }
+      ],
+      "responses": [
+        "radiant_temperature",
+        "melt_pool_length",
+        "cooling_rate"
+      ],
+      "authoritative_files": [
+        "CHAL-AMB2018-02-DataSet.mat",
+        "RadiantTemperatureVideos.zip",
+        "RawCameraData.zip",
+        "TemperatureProfilePlots.zip"
+      ],
+      "acquisition_status": "authoritative_raw_public_not_yet_ingested_by_cross_source_layer",
+      "promotion_requirements": [
+        "Bind file bytes and checksums/version metadata.",
+        "Bind track-level replication from the NIST dataset structures.",
+        "Keep CBM and AMMT as separate machines and calibration semantics.",
+        "Use thermographic response definitions rather than cross-sectional geometry assumptions."
+      ],
+      "issue_76_eligible": false
+    },
+    {
+      "candidate_id": "lee-peng-shin-choi-2019-alloy625-m2",
+      "authority": "Science and Technology of Advanced Materials / ORNL-associated authors",
+      "identifier": "10.1080/14686996.2019.1671140",
+      "source_reference": "https://doi.org/10.1080/14686996.2019.1671140",
+      "physical_origin": "physical",
+      "machine": "Concept Laser M2",
+      "material": "Alloy 625 powder",
+      "material_states": [
+        "powder_single_track"
+      ],
+      "verified_parameter_levels": {
+        "laser_power_w": [120.0, 180.0, 240.0],
+        "scan_speed_mm_s": [200.0, 400.0, 600.0, 800.0, 1000.0],
+        "beam_diameter_um": [50.0, 100.0, 150.0],
+        "layer_thickness_um": [25.0, 50.0]
+      },
+      "alloy625_dataset_count": 175,
+      "responses": [
+        "melt_pool_width",
+        "melt_pool_depth",
+        "melt_pool_area_substrate",
+        "melt_pool_height",
+        "melt_pool_area_above_substrate"
+      ],
+      "supplementary_material": "TSTA_A_1671140_SM7755.pdf",
+      "acquisition_status": "open_primary_article_and_supplement_available_row_matrix_not_yet_bound",
+      "promotion_requirements": [
+        "Extract or acquire row-level 175-case Alloy 625 matrix from an authoritative author/supplement source.",
+        "Do not assume the listed parameter levels form a Cartesian product.",
+        "Bind track identity and independent-replication semantics.",
+        "Retain Concept Laser M2, powder state, beam diameter, and layer thickness as explicit model factors."
+      ],
+      "issue_76_eligible": false
+    },
+    {
+      "candidate_id": "emmanuel-yang-yeung-zhang-2026-ammt-images",
+      "authority": "2026 author preprint",
+      "identifier": "arXiv:2606.23851",
+      "source_reference": "https://arxiv.org/abs/2606.23851",
+      "physical_origin": "physical_image_claim_in_publication",
+      "machine": "NIST AMMT",
+      "material": "nickel superalloy 625",
+      "reported_image_count": 1200,
+      "responses": [
+        "melt_pool_image_normal_abnormal_label"
+      ],
+      "acquisition_status": "publication_found_authoritative_raw_dataset_location_unresolved",
+      "promotion_requirements": [
+        "Locate author-controlled or institutional raw image dataset.",
+        "Establish image-to-run/track/process-condition provenance.",
+        "Audit label generation and parent-disjoint train/test semantics.",
+        "Do not infer AMB2018-02 Stage 1 geometry evidence from image-classification use."
+      ],
+      "issue_76_eligible": false
+    }
+  ]
+}
