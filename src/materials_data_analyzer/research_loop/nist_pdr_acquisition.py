@@ -1,9 +1,8 @@
-"""NIST Public Data Repository adapter for automatic public-data acquisition.
+"""NIST Public Data Repository adapter for bounded automatic acquisition.
 
-The adapter consumes exact NERDm JSON metadata, discovers downloadable DataFile
-components, and emits generic acquisition candidates. It does not infer scientific
-comparability from repository metadata. Machine, calibration, process-condition, and
-replicate semantics remain the responsibility of downstream scientific intake.
+NERDm metadata is the authority for exact repository file identity. The adapter turns
+public NIST DataFile components into the generic acquisition-candidate contract; it does
+not infer materials-science comparability from repository metadata.
 """
 
 from __future__ import annotations
@@ -49,7 +48,9 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def _json_object(raw: bytes) -> dict[str, Any]:
     try:
-        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs
+        )
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise NistPdrAcquisitionError("NERDm metadata must be valid UTF-8 JSON") from exc
     if not isinstance(value, dict):
@@ -77,7 +78,7 @@ def _product_id(value: object) -> str:
 
 
 def nist_pdr_metadata_endpoint(product_id: str) -> str:
-    """Return the machine-readable NERDm endpoint for a PDR product identifier."""
+    """Return the content-negotiated NERDm endpoint for one PDR product."""
 
     normalized = _product_id(product_id)
     return f"https://{NIST_PDR_HOST}/od/id/{quote(normalized, safe='')}"
@@ -85,7 +86,7 @@ def nist_pdr_metadata_endpoint(product_id: str) -> str:
 
 def _metadata_identifiers(metadata: Mapping[str, Any]) -> list[str]:
     values: list[str] = []
-    for field in ("@id", "doi", "identifier"):
+    for field in ("@id", "doi", "identifier", "ediid"):
         value = metadata.get(field)
         if isinstance(value, str):
             values.append(value)
@@ -102,19 +103,25 @@ def _metadata_identifiers(metadata: Mapping[str, Any]) -> list[str]:
 def _require_product_identity(metadata: Mapping[str, Any], product_id: str) -> None:
     needle = product_id.lower()
     identifiers = _metadata_identifiers(metadata)
-    if not identifiers or not any(needle in value.lower() for value in identifiers):
+    if not identifiers or not any(needle in item.lower() for item in identifiers):
         raise NistPdrAcquisitionError(
             "NERDm metadata does not bind the requested product_id in its identifiers"
         )
 
 
 def _require_public_resource(metadata: Mapping[str, Any]) -> None:
+    access_level = metadata.get("accessLevel")
+    if access_level is not None:
+        if access_level != "public":
+            raise NistPdrAcquisitionError(
+                f"NERDm accessLevel is not public: {access_level!r}"
+            )
+        return
     types = metadata.get("@type")
     type_values = types if isinstance(types, list) else []
-    access_level = metadata.get("accessLevel")
-    if "nrdp:PublicDataResource" not in type_values and access_level != "public":
+    if "nrdp:PublicDataResource" not in type_values:
         raise NistPdrAcquisitionError(
-            "NERDm resource is not explicitly marked as a public data resource"
+            "NERDm resource is not explicitly marked as public"
         )
 
 
@@ -127,7 +134,7 @@ def _source_version(metadata: Mapping[str, Any]) -> str:
     )
 
 
-def _downloadable_components(metadata: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+def _datafile_components(metadata: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     components = metadata.get("components")
     if not isinstance(components, list):
         raise NistPdrAcquisitionError("NERDm metadata components must be a list")
@@ -136,15 +143,39 @@ def _downloadable_components(metadata: Mapping[str, Any]) -> list[Mapping[str, A
         if not isinstance(component, Mapping):
             continue
         types = component.get("@type")
-        if not isinstance(types, list):
-            continue
-        if "nrdp:DataFile" in types and "nrdp:DownloadableFile" in types:
+        type_values = types if isinstance(types, list) else []
+        # DataFile inherits DownloadableFile in NERDm, so the inherited type need not
+        # appear separately in @type. Requiring both would reject valid NERDm records.
+        if "nrdp:DataFile" in type_values and component.get("downloadURL") is not None:
             result.append(component)
     if not result:
         raise NistPdrAcquisitionError(
             "NERDm metadata contains no downloadable DataFile components"
         )
     return result
+
+
+def _component_size(component: Mapping[str, Any], *, filepath: str) -> int:
+    value = component.get("size")
+    if isinstance(value, bool):
+        raise NistPdrAcquisitionError(
+            f"component {filepath!r} size must be a positive integer"
+        )
+    if isinstance(value, int):
+        size = value
+    elif isinstance(value, str) and value.isdigit():
+        # Some NIST examples serialize byte counts as decimal strings even though the
+        # NERDm reference type is integer. Normalize without accepting units/decimals.
+        size = int(value)
+    else:
+        raise NistPdrAcquisitionError(
+            f"component {filepath!r} size must be an integer byte count"
+        )
+    if size <= 0:
+        raise NistPdrAcquisitionError(
+            f"component {filepath!r} size must be positive"
+        )
+    return size
 
 
 def _component_checksum(component: Mapping[str, Any], *, filepath: str) -> str:
@@ -171,6 +202,27 @@ def _component_checksum(component: Mapping[str, Any], *, filepath: str) -> str:
     return digest
 
 
+def _validate_nist_url(value: object, *, field: str) -> str:
+    text = _strict_text(value, field)
+    parsed = urlparse(text)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise NistPdrAcquisitionError(f"{field} contains an invalid port") from exc
+    if (
+        parsed.scheme.lower() != "https"
+        or (parsed.hostname or "").lower() != NIST_PDR_HOST
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or parsed.fragment
+    ):
+        raise NistPdrAcquisitionError(
+            f"{field} is outside exact NIST PDR HTTPS"
+        )
+    return text
+
+
 def _component_candidate(
     *,
     metadata: Mapping[str, Any],
@@ -180,27 +232,9 @@ def _component_candidate(
     evidence_role: str,
 ) -> dict[str, Any]:
     filepath = _strict_text(component.get("filepath"), "component.filepath")
-    retrieval_endpoint = _strict_text(
-        component.get("downloadURL"), f"component {filepath!r}.downloadURL"
+    retrieval_endpoint = _validate_nist_url(
+        component.get("downloadURL"), field=f"component {filepath!r}.downloadURL"
     )
-    parsed = urlparse(retrieval_endpoint)
-    if (
-        parsed.scheme.lower() != "https"
-        or (parsed.hostname or "").lower() != NIST_PDR_HOST
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.port not in (None, 443)
-    ):
-        raise NistPdrAcquisitionError(
-            f"component {filepath!r} downloadURL is outside exact NIST PDR HTTPS"
-        )
-    size = component.get("size")
-    if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
-        raise NistPdrAcquisitionError(
-            f"component {filepath!r} size must be a positive integer"
-        )
-    digest = _component_checksum(component, filepath=filepath)
-    metadata_sha = hashlib.sha256(metadata_bytes).hexdigest()
     candidate = {
         "schema_version": "1.0",
         "candidate_id": f"nist-pdr:{product_id}:{filepath}",
@@ -208,11 +242,11 @@ def _component_candidate(
         "source_system": NIST_PDR_SOURCE_SYSTEM,
         "source_version": _source_version(metadata),
         "metadata_endpoint": nist_pdr_metadata_endpoint(product_id),
-        "metadata_sha256": metadata_sha,
+        "metadata_sha256": hashlib.sha256(metadata_bytes).hexdigest(),
         "artifact_path": filepath,
         "retrieval_endpoint": retrieval_endpoint,
-        "expected_sha256": digest,
-        "expected_size_bytes": size,
+        "expected_sha256": _component_checksum(component, filepath=filepath),
+        "expected_size_bytes": _component_size(component, filepath=filepath),
         "allowed_hosts": [NIST_PDR_HOST],
         "access": {
             "publicly_accessible": True,
@@ -222,9 +256,9 @@ def _component_candidate(
             "rights_status": "public_repository",
         },
         "limitations": [
-            "NERDm file metadata establishes repository-level file identity/integrity, not machine/process comparability.",
+            "NERDm file metadata establishes repository file identity/integrity, not scientific comparability.",
             "Automatic acquisition does not relabel programmed power as calibrated actual power.",
-            "Downstream scientific intake must preserve machine, material state, calibration, spot size, and replicate identity.",
+            "Downstream intake must preserve machine, material state, calibration, spot size, and replicate identity.",
         ],
     }
     return normalize_public_acquisition_candidate(candidate)
@@ -257,7 +291,7 @@ def discover_nist_pdr_candidates(
 
     candidates: list[dict[str, Any]] = []
     seen_paths: set[str] = set()
-    for component in _downloadable_components(metadata):
+    for component in _datafile_components(metadata):
         filepath = _strict_text(component.get("filepath"), "component.filepath")
         if filepath in seen_paths:
             raise NistPdrAcquisitionError(
@@ -294,7 +328,7 @@ def fetch_nist_pdr_metadata(
     fetcher: PublicFetcher = fetch_https_bytes,
     timeout_seconds: float = 60.0,
 ) -> FetchResult:
-    """Fetch exact NERDm bytes for one public NIST PDR product."""
+    """Fetch exact NERDm bytes using JSON content negotiation."""
 
     endpoint = nist_pdr_metadata_endpoint(product_id)
     result = fetcher(
@@ -306,16 +340,11 @@ def fetch_nist_pdr_metadata(
     )
     if not isinstance(result, FetchResult):
         raise NistPdrAcquisitionError("fetcher must return FetchResult")
-    if result.status_code < 200 or result.status_code >= 300:
+    if not 200 <= result.status_code < 300:
         raise NistPdrAcquisitionError(
             f"NERDm metadata fetch returned status {result.status_code}"
         )
-    if result.final_url != endpoint:
-        parsed = urlparse(result.final_url)
-        if parsed.scheme.lower() != "https" or (parsed.hostname or "").lower() != NIST_PDR_HOST:
-            raise NistPdrAcquisitionError(
-                "NERDm metadata fetch redirected outside NIST PDR"
-            )
+    _validate_nist_url(result.final_url, field="NERDm metadata final URL")
     return result
 
 
@@ -335,9 +364,7 @@ def plan_nist_pdr_product_acquisition(
         filepaths=filepaths,
         evidence_role=evidence_role,
     )
-    return plan_public_acquisition_queue(
-        candidates, max_auto_bytes=max_auto_bytes
-    )
+    return plan_public_acquisition_queue(candidates, max_auto_bytes=max_auto_bytes)
 
 
 def acquire_nist_pdr_file(
@@ -351,20 +378,17 @@ def acquire_nist_pdr_file(
     timeout_seconds: float = 60.0,
     max_auto_bytes: int = DEFAULT_MAX_AUTO_ARTIFACT_BYTES,
 ) -> dict[str, Any]:
-    """Fetch metadata, resolve one exact PDR file, acquire it, and bind provenance."""
+    """Fetch metadata, resolve one exact file, acquire it, and bind provenance."""
 
     metadata_result = fetch_nist_pdr_metadata(
-        product_id,
-        fetcher=fetcher,
-        timeout_seconds=timeout_seconds,
+        product_id, fetcher=fetcher, timeout_seconds=timeout_seconds
     )
-    candidates = discover_nist_pdr_candidates(
+    candidate = discover_nist_pdr_candidates(
         metadata_bytes=metadata_result.body,
         product_id=product_id,
         filepaths=[filepath],
         evidence_role=evidence_role,
-    )
-    candidate = candidates[0]
+    )[0]
     return acquire_public_artifact(
         candidate=candidate,
         metadata_bytes=metadata_result.body,
@@ -387,17 +411,10 @@ def acquire_nist_pdr_auto_candidates(
     timeout_seconds: float = 60.0,
     max_auto_bytes: int = DEFAULT_MAX_AUTO_ARTIFACT_BYTES,
 ) -> dict[str, Any]:
-    """Acquire every AUTO file in one product plan without per-file human approval.
-
-    REVIEW_REQUIRED and BLOCKED candidates are returned in the exception queue and are
-    never executed. Each automatically acquired file receives its own transactional
-    provenance package so one failed file cannot corrupt a previously verified package.
-    """
+    """Acquire every AUTO file in one plan without per-file human approval."""
 
     metadata_result = fetch_nist_pdr_metadata(
-        product_id,
-        fetcher=fetcher,
-        timeout_seconds=timeout_seconds,
+        product_id, fetcher=fetcher, timeout_seconds=timeout_seconds
     )
     candidates = discover_nist_pdr_candidates(
         metadata_bytes=metadata_result.body,
@@ -405,10 +422,7 @@ def acquire_nist_pdr_auto_candidates(
         filepaths=filepaths,
         evidence_role=evidence_role,
     )
-    queue = plan_public_acquisition_queue(
-        candidates,
-        max_auto_bytes=max_auto_bytes,
-    )
+    queue = plan_public_acquisition_queue(candidates, max_auto_bytes=max_auto_bytes)
     auto_ids = {item["candidate_id"] for item in queue["auto"]}
     root = Path(output_root)
     receipts: list[dict[str, Any]] = []
@@ -433,18 +447,10 @@ def acquire_nist_pdr_auto_candidates(
             )
         except PublicAcquisitionError as exc:
             failures.append(
-                {
-                    "candidate_id": candidate["candidate_id"],
-                    "error": str(exc),
-                }
+                {"candidate_id": candidate["candidate_id"], "error": str(exc)}
             )
             continue
-        receipts.append(
-            {
-                **receipt,
-                "package_directory": package_dir.as_posix(),
-            }
-        )
+        receipts.append({**receipt, "package_directory": package_dir.as_posix()})
 
     return {
         "schema_version": "1.0",
@@ -456,7 +462,7 @@ def acquire_nist_pdr_auto_candidates(
         "automatic_execution_failed": len(failures),
         "receipts": receipts,
         "failures": failures,
-        "all_auto_succeeded": len(failures) == 0,
+        "all_auto_succeeded": not failures,
         "human_review_required": queue["review_required"],
         "blocked": queue["blocked"],
     }
