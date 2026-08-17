@@ -104,20 +104,82 @@ def _design_record(
     matrix: np.ndarray,
     parameter_names: list[str],
     n_conditions: int,
+    n_samples: int,
+    *,
+    include_sample_residual_df: bool = False,
 ) -> dict[str, Any]:
     rank = int(np.linalg.matrix_rank(matrix))
     parameter_count = int(matrix.shape[1])
-    residual_df = int(n_conditions - rank)
-    return {
+    condition_residual_df = int(n_conditions - rank)
+    sample_residual_df = int(n_samples - rank)
+    record = {
         "name": name,
         "parameter_names": parameter_names,
         "parameter_count": parameter_count,
         "matrix_rank": rank,
         "full_column_rank": rank == parameter_count,
-        "condition_level_residual_df": residual_df,
+        "condition_level_residual_df": condition_residual_df,
         "identifiable_from_observed_conditions": rank == parameter_count,
-        "model_adequacy_test_available": residual_df > 0,
+        "model_adequacy_test_available": condition_residual_df > 0,
     }
+    if include_sample_residual_df:
+        record["sample_level_residual_df"] = sample_residual_df
+    return record
+
+
+def _blocking_reasons(
+    *,
+    n_conditions: int,
+    full_factorial_size: int,
+    designs: dict[str, dict[str, Any]],
+    direct_power: bool,
+    direct_speed: bool,
+) -> list[str]:
+    reasons: list[str] = []
+    if n_conditions < full_factorial_size:
+        if n_conditions == 3:
+            reasons.append("Only 3 unique process conditions are observed.")
+        else:
+            reasons.append(
+                f"Only {n_conditions} of {full_factorial_size} observed-level "
+                "power-speed combinations are present."
+            )
+    if designs["main_effects"]["condition_level_residual_df"] <= 0:
+        reasons.append(
+            "The main-effects design is saturated at the condition level, "
+            "leaving zero lack-of-fit degrees of freedom."
+        )
+    if not direct_power:
+        reasons.append(
+            "No scan speed is observed at both laser-power levels, so a direct "
+            "matched-speed power contrast is unavailable."
+        )
+    if not direct_speed:
+        reasons.append(
+            "No laser-power level contains multiple scan speeds, so a direct "
+            "within-power speed contrast is unavailable."
+        )
+
+    interaction_identifiable = designs["main_effects_plus_interaction"][
+        "identifiable_from_observed_conditions"
+    ]
+    quadratic_identifiable = designs["quadratic_response_surface"][
+        "identifiable_from_observed_conditions"
+    ]
+    if not interaction_identifiable and not quadratic_identifiable:
+        reasons.append(
+            "The interaction and quadratic response-surface designs are rank deficient."
+        )
+    elif not interaction_identifiable:
+        reasons.append("The interaction design is rank deficient.")
+    elif not quadratic_identifiable:
+        reasons.append("The quadratic response-surface design is rank deficient.")
+
+    reasons.append(
+        "No held-out process condition, machine, material, or geometry is "
+        "available for predictive validation."
+    )
+    return reasons
 
 
 def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
@@ -152,12 +214,15 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
             main,
             ["intercept", POWER, SPEED],
             n_conditions,
+            n_samples,
         ),
         "main_effects_plus_interaction": _design_record(
             "intercept + power + speed + power*speed",
             interaction,
             ["intercept", POWER, SPEED, f"{POWER}:{SPEED}"],
             n_conditions,
+            n_samples,
+            include_sample_residual_df=True,
         ),
         "quadratic_response_surface": _design_record(
             "intercept + power + speed + interaction + power^2 + speed^2",
@@ -171,6 +236,8 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
                 f"{SPEED}^2",
             ],
             n_conditions,
+            n_samples,
+            include_sample_residual_df=True,
         ),
     }
 
@@ -192,14 +259,73 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
     direct_speed_contrast_available = any(
         value >= 2 for value in speed_overlap_by_power.values()
     )
+    interaction_identifiable = bool(
+        designs["main_effects_plus_interaction"][
+            "identifiable_from_observed_conditions"
+        ]
+    )
+    quadratic_identifiable = bool(
+        designs["quadratic_response_surface"][
+            "identifiable_from_observed_conditions"
+        ]
+    )
+    complete_factorial = n_conditions == full_factorial_size
 
-    blocking_reasons = [
-        f"Only {n_conditions} unique process conditions are observed.",
-        "The main-effects design is saturated at the condition level, leaving zero lack-of-fit degrees of freedom.",
-        "No scan speed is observed at both laser-power levels, so a direct matched-speed power contrast is unavailable.",
-        "The interaction and quadratic response-surface designs are rank deficient.",
-        "No held-out process condition, machine, material, or geometry is available for predictive validation.",
-    ]
+    blocking_reasons = _blocking_reasons(
+        n_conditions=n_conditions,
+        full_factorial_size=full_factorial_size,
+        designs=designs,
+        direct_power=direct_power_contrast_available,
+        direct_speed=direct_speed_contrast_available,
+    )
+
+    if interaction_identifiable:
+        interaction_readiness = (
+            "structurally_estimable_but_not_scientifically_validated"
+        )
+    else:
+        interaction_readiness = "not_identifiable"
+    if quadratic_identifiable:
+        curvature_readiness = (
+            "structurally_estimable_but_not_scientifically_validated"
+        )
+    else:
+        curvature_readiness = "not_identifiable"
+
+    if interaction_identifiable and complete_factorial:
+        strongest = (
+            f"{n_samples} trace-level observations cover all {n_conditions} "
+            "observed-level power-speed conditions with replication and a "
+            "full-rank main-effects-plus-interaction design."
+        )
+        primary_limitation = (
+            "Interaction is structurally estimable, but algebraic estimability "
+            "does not establish a response effect, causality, predictive validity, "
+            "or process optimization readiness; no held-out validation is available."
+        )
+        closeout_result = (
+            "crossed_design_makes_interaction_structurally_estimable_"
+            "while_scientific_modeling_gate_remains_active"
+        )
+    else:
+        strongest = (
+            f"{n_samples} trace-level observations provide replicated measurements "
+            f"at {n_conditions} explicit IN625 AMMT conditions."
+        )
+        if n_conditions == 3:
+            primary_limitation = (
+                "Three incompletely crossed power-speed combinations saturate a "
+                "two-factor main-effects design and cannot identify interaction, "
+                "curvature, or validated causal effects."
+            )
+        else:
+            primary_limitation = (
+                "The observed power-speed support does not provide a full-rank "
+                "interaction design with independent predictive validation."
+            )
+        closeout_result = (
+            "diagnostic_design_audit_blocks_predictive_and_causal_modeling"
+        )
 
     audit = {
         "schema_version": "1.0",
@@ -238,10 +364,19 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
         "confounding_diagnostics": {
             "sample_level_power_speed_pearson_correlation": power_speed_corr_sample,
             "condition_level_power_speed_pearson_correlation": power_speed_corr_condition,
-            "complete_factorial_crossing": n_conditions == full_factorial_size,
+            "complete_factorial_crossing": complete_factorial,
             "power_and_speed_effects_independently_validated": False,
         },
         "design_models": designs,
+        "structural_estimability": {
+            "main_effects_estimable": bool(
+                designs["main_effects"]["identifiable_from_observed_conditions"]
+            ),
+            "interaction_estimable": interaction_identifiable,
+            "curvature_estimable": quadratic_identifiable,
+            "estimability_is_evidence_of_effect": False,
+            "estimability_is_scientific_validation": False,
+        },
         "support_bounds": {
             POWER: {"minimum": min(power_levels), "maximum": max(power_levels)},
             SPEED: {"minimum": min(speed_levels), "maximum": max(speed_levels)},
@@ -252,8 +387,8 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
             "descriptive_condition_comparison": "supported",
             "within_condition_variability_estimation": "supported",
             "main_effect_coefficient_fitting": "algebraically_estimable_but_not_scientifically_validated",
-            "interaction_estimation": "not_identifiable",
-            "curvature_estimation": "not_identifiable",
+            "interaction_estimation": interaction_readiness,
+            "curvature_estimation": curvature_readiness,
             "causal_effect_separation": "unsupported",
             "predictive_validation": "not_ready",
             "process_optimization": "not_ready",
@@ -268,29 +403,23 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
             "missing_conditions_inferred": False,
         },
         "scientific_closeout": {
-            "result": "diagnostic_design_audit_blocks_predictive_and_causal_modeling",
-            "strongest_evidence": (
-                "Ten trace-level observations provide replicated measurements at "
-                "three explicit IN625 AMMT conditions."
-            ),
-            "primary_limitation": (
-                "Three incompletely crossed power-speed combinations saturate a "
-                "two-factor main-effects design and cannot identify interaction, "
-                "curvature, or validated causal effects."
-            ),
+            "result": closeout_result,
+            "strongest_evidence": strongest,
+            "primary_limitation": primary_limitation,
             "evidence_that_would_change_the_conclusion": (
-                "Additional independently traceable conditions that cross power and "
-                "speed at shared levels, include center or curvature points, retain "
-                "replication, and provide held-out validation."
+                "Purpose-specific response evidence, independently traceable "
+                "replication, curvature support when needed, and genuinely held-out "
+                "validation from an independent run, day, build, machine, material, "
+                "or geometry as required by the intended claim."
             ),
             "suitable_for": [
-                "descriptive comparison of the three observed conditions",
+                "descriptive comparison of observed conditions",
                 "within-condition repeatability review",
                 "experimental-design gap identification",
+                "structural estimability auditing",
             ],
             "unsuitable_for": [
-                "causal separation of laser power and scan speed",
-                "interaction or curvature claims",
+                "causal attribution without a separate scientific design review",
                 "predictive generalization",
                 "process optimization",
                 "engineering release decisions",
@@ -305,13 +434,15 @@ def build_report(audit: dict[str, Any]) -> str:
     factors = audit["factor_support"]
     models = audit["design_models"]
     reasons = "\n".join(f"- {reason}" for reason in audit["blocking_reasons"])
+    interaction = models["main_effects_plus_interaction"]
     return f"""# NIST AM-Bench 2018-02 Process-Design Identifiability Audit
 
 ## Decision
 
 **{readiness['overall']}**
 
-The case supports descriptive comparison and repeatability review, but it is not ready for predictive, causal, interaction, curvature, or optimization claims.
+The audit separates structural estimability from evidence of an effect and from
+scientific validation. No response coefficient is fitted by this workflow.
 
 ## Design Support
 
@@ -322,16 +453,19 @@ The case supports descriptive comparison and repeatability review, but it is not
 - Scan-speed levels: `{factors[SPEED]['level_count']}`
 - Full-factorial coverage: `{factors['observed_factorial_condition_count']} / {factors['full_factorial_condition_count']}`
 - Matched-speed power contrast available: `{str(factors['direct_matched_speed_power_contrast_available']).lower()}`
+- Interaction structurally estimable: `{str(audit['structural_estimability']['interaction_estimable']).lower()}`
+- Interaction sample-level residual df: `{interaction['sample_level_residual_df']}`
 
 ## Identifiability
 
-| Candidate design | Parameters | Rank | Residual df at unique conditions | Identifiable |
-|---|---:|---:|---:|---|
-| Main effects | {models['main_effects']['parameter_count']} | {models['main_effects']['matrix_rank']} | {models['main_effects']['condition_level_residual_df']} | {models['main_effects']['identifiable_from_observed_conditions']} |
-| Main effects + interaction | {models['main_effects_plus_interaction']['parameter_count']} | {models['main_effects_plus_interaction']['matrix_rank']} | {models['main_effects_plus_interaction']['condition_level_residual_df']} | {models['main_effects_plus_interaction']['identifiable_from_observed_conditions']} |
-| Quadratic response surface | {models['quadratic_response_surface']['parameter_count']} | {models['quadratic_response_surface']['matrix_rank']} | {models['quadratic_response_surface']['condition_level_residual_df']} | {models['quadratic_response_surface']['identifiable_from_observed_conditions']} |
+| Candidate design | Parameters | Rank | Residual df at unique conditions | Residual df at trace level | Identifiable |
+|---|---:|---:|---:|---:|---|
+| Main effects | {models['main_effects']['parameter_count']} | {models['main_effects']['matrix_rank']} | {models['main_effects']['condition_level_residual_df']} | {audit['sample_count'] - models['main_effects']['matrix_rank']} | {models['main_effects']['identifiable_from_observed_conditions']} |
+| Main effects + interaction | {interaction['parameter_count']} | {interaction['matrix_rank']} | {interaction['condition_level_residual_df']} | {interaction['sample_level_residual_df']} | {interaction['identifiable_from_observed_conditions']} |
+| Quadratic response surface | {models['quadratic_response_surface']['parameter_count']} | {models['quadratic_response_surface']['matrix_rank']} | {models['quadratic_response_surface']['condition_level_residual_df']} | {models['quadratic_response_surface']['sample_level_residual_df']} | {models['quadratic_response_surface']['identifiable_from_observed_conditions']} |
 
-The main-effects matrix is algebraically full rank but saturated across the three unique conditions, so model adequacy or curvature cannot be tested. Algebraic estimability is not equivalent to scientifically validated independent effects.
+Algebraic estimability is not equivalent to a measured effect, causal evidence,
+predictive validity, or scientific readiness.
 
 ## Blocking Reasons
 
