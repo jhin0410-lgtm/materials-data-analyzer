@@ -17,7 +17,6 @@ from .kernel import ResearchLoopError
 from .nist_pdr_acquisition import acquire_nist_pdr_auto_candidates
 from .public_data_acquisition import (
     DEFAULT_MAX_AUTO_ARTIFACT_BYTES,
-    FetchResult,
     PublicFetcher,
     fetch_https_bytes,
 )
