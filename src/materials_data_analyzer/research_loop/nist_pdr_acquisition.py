@@ -376,11 +376,98 @@ def acquire_nist_pdr_file(
     )
 
 
+def acquire_nist_pdr_auto_candidates(
+    *,
+    product_id: str,
+    output_root: str | Path,
+    filepaths: Sequence[str] | None = None,
+    evidence_role: str = "source_artifact",
+    fetcher: PublicFetcher = fetch_https_bytes,
+    overwrite: bool = False,
+    timeout_seconds: float = 60.0,
+    max_auto_bytes: int = DEFAULT_MAX_AUTO_ARTIFACT_BYTES,
+) -> dict[str, Any]:
+    """Acquire every AUTO file in one product plan without per-file human approval.
+
+    REVIEW_REQUIRED and BLOCKED candidates are returned in the exception queue and are
+    never executed. Each automatically acquired file receives its own transactional
+    provenance package so one failed file cannot corrupt a previously verified package.
+    """
+
+    metadata_result = fetch_nist_pdr_metadata(
+        product_id,
+        fetcher=fetcher,
+        timeout_seconds=timeout_seconds,
+    )
+    candidates = discover_nist_pdr_candidates(
+        metadata_bytes=metadata_result.body,
+        product_id=product_id,
+        filepaths=filepaths,
+        evidence_role=evidence_role,
+    )
+    queue = plan_public_acquisition_queue(
+        candidates,
+        max_auto_bytes=max_auto_bytes,
+    )
+    auto_ids = {item["candidate_id"] for item in queue["auto"]}
+    root = Path(output_root)
+    receipts: list[dict[str, Any]] = []
+    failures: list[dict[str, str]] = []
+
+    for index, candidate in enumerate(candidates):
+        if candidate["candidate_id"] not in auto_ids:
+            continue
+        package_key = hashlib.sha256(
+            candidate["candidate_id"].encode("utf-8")
+        ).hexdigest()[:16]
+        package_dir = root / f"{index:04d}-{package_key}"
+        try:
+            receipt = acquire_public_artifact(
+                candidate=candidate,
+                metadata_bytes=metadata_result.body,
+                output_dir=package_dir,
+                fetcher=fetcher,
+                overwrite=overwrite,
+                timeout_seconds=timeout_seconds,
+                max_auto_bytes=max_auto_bytes,
+            )
+        except PublicAcquisitionError as exc:
+            failures.append(
+                {
+                    "candidate_id": candidate["candidate_id"],
+                    "error": str(exc),
+                }
+            )
+            continue
+        receipts.append(
+            {
+                **receipt,
+                "package_directory": package_dir.as_posix(),
+            }
+        )
+
+    return {
+        "schema_version": "1.0",
+        "product_id": _product_id(product_id),
+        "metadata_sha256": hashlib.sha256(metadata_result.body).hexdigest(),
+        "queue": queue,
+        "automatic_execution_attempted": len(auto_ids),
+        "automatic_execution_succeeded": len(receipts),
+        "automatic_execution_failed": len(failures),
+        "receipts": receipts,
+        "failures": failures,
+        "all_auto_succeeded": len(failures) == 0,
+        "human_review_required": queue["review_required"],
+        "blocked": queue["blocked"],
+    }
+
+
 __all__ = [
     "NIST_PDR_HOST",
     "NIST_PDR_METADATA_MAX_BYTES",
     "NIST_PDR_SOURCE_SYSTEM",
     "NistPdrAcquisitionError",
+    "acquire_nist_pdr_auto_candidates",
     "acquire_nist_pdr_file",
     "discover_nist_pdr_candidates",
     "fetch_nist_pdr_metadata",
