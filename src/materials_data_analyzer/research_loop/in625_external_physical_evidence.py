@@ -11,6 +11,11 @@ A physically real experiment from another machine can be valuable external
 validation without becoming an AMMT trace. Numerical proximity, energy-density
 similarity, or a shared alloy name never upgrades cross-machine evidence to the
 exact benchmark stratum.
+
+The registry is a discovery/screening layer. Even metadata for an exact source
+cannot complete issue #76: scientific completion authority lives exclusively in
+the source-bound record intake where artifact bytes and physical replication
+identities are validated.
 """
 from __future__ import annotations
 
@@ -99,6 +104,7 @@ def _validate_process_points(candidate: dict[str, Any], label: str) -> list[dict
     if not isinstance(raw, list):
         raise PhysicalEvidenceRegistryError(f"{label}.process_points must be a list.")
     result: list[dict[str, Any]] = []
+    seen: set[tuple[float, float]] = set()
     for index, point in enumerate(raw):
         point_label = f"{label}.process_points[{index}]"
         if not isinstance(point, dict):
@@ -110,6 +116,12 @@ def _validate_process_points(candidate: dict[str, Any], label: str) -> list[dict
         out["scan_speed_mm_s"] = _finite_positive(
             point.get("scan_speed_mm_s"), f"{point_label}.scan_speed_mm_s"
         )
+        process_key = (out["laser_power_w"], out["scan_speed_mm_s"])
+        if process_key in seen:
+            raise PhysicalEvidenceRegistryError(
+                f"{label}.process_points contains duplicate coordinate {process_key}."
+            )
+        seen.add(process_key)
         if "independent_track_count" in point:
             count = point["independent_track_count"]
             if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
@@ -157,7 +169,9 @@ def validate_candidate(candidate: Any, index: int) -> dict[str, Any]:
             f"{label}.provenance_checks must be a non-empty object."
         )
     out["provenance_checks"] = {
-        str(key): _required_string({"value": value}, "value", f"{label}.provenance_checks")
+        str(key): _required_string(
+            {"value": value}, "value", f"{label}.provenance_checks"
+        )
         for key, value in checks.items()
     }
 
@@ -239,9 +253,6 @@ def classify_candidate(candidate: dict[str, Any]) -> str:
     if exact:
         return "exact_benchmark_compatible"
 
-    # Publication-derived physical evidence remains useful, but its provenance
-    # strength is lower than source-bound raw bytes regardless of geometric
-    # similarity to the benchmark.
     if extraction_mode in PUBLICATION_EXTRACTION_MODES:
         return "publication_derived_physical"
 
@@ -255,7 +266,11 @@ def classify_candidate(candidate: dict[str, Any]) -> str:
 
 
 def candidate_stage1_support(candidate: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate exact #76 support; nearby points and P/v similarity never count."""
+    """Screen candidate metadata for potential exact #76 support.
+
+    Counts here are discovery metadata only. They never constitute scientific
+    completion; actual eligible traces are counted only by the record intake.
+    """
     stratum = classify_candidate(candidate)
     counts = {target: 0 for target in NIST_STAGE1_TARGETS}
     if stratum == "exact_benchmark_compatible":
@@ -264,8 +279,6 @@ def candidate_stage1_support(candidate: dict[str, Any]) -> dict[str, Any]:
             if key not in counts:
                 continue
             count = point.get("independent_track_count")
-            # Missing replication semantics fail closed. A mean, a repeated
-            # measurement, or a single publication row is not three tracks.
             if isinstance(count, int) and not isinstance(count, bool) and count > 0:
                 counts[key] += count
 
@@ -277,17 +290,23 @@ def candidate_stage1_support(candidate: dict[str, Any]) -> dict[str, Any]:
                 "actual_laser_power_w": target[0],
                 "scan_speed_mm_s": target[1],
                 "required_independent_traces": required,
-                "eligible_independent_traces": observed,
-                "complete": observed >= required,
+                "candidate_metadata_independent_trace_count": observed,
+                "eligible_independent_traces": 0,
+                "candidate_metadata_complete": observed >= required,
+                "complete": False,
             }
         )
+    metadata_complete = all(cell["candidate_metadata_complete"] for cell in cells)
     return {
         "candidate_id": candidate["candidate_id"],
         "experiment_family_id": candidate["experiment_family_id"],
         "evidence_stratum": stratum,
         "eligible_for_issue_76": stratum == "exact_benchmark_compatible",
         "cells": cells,
-        "candidate_completes_stage1": all(cell["complete"] for cell in cells),
+        "candidate_metadata_completes_stage1": metadata_complete,
+        "candidate_completes_stage1": False,
+        "scientific_stage1_complete": False,
+        "scientific_completion_authority": "source_bound_record_intake_only",
     }
 
 
@@ -318,15 +337,18 @@ def build_support_matrix(registry: dict[str, Any]) -> list[dict[str, Any]]:
             if point is not None:
                 row.update(point)
                 key = (float(point["laser_power_w"]), float(point["scan_speed_mm_s"]))
-                row["is_exact_stage1_coordinate"] = key in NIST_STAGE1_TARGETS
-                row["counts_for_stage1"] = (
+                metadata_match = (
                     stratum == "exact_benchmark_compatible"
                     and key in NIST_STAGE1_TARGETS
                     and isinstance(point.get("independent_track_count"), int)
                     and not isinstance(point.get("independent_track_count"), bool)
                 )
+                row["is_exact_stage1_coordinate"] = key in NIST_STAGE1_TARGETS
+                row["candidate_metadata_supports_stage1_coordinate"] = metadata_match
+                row["counts_for_stage1"] = False
             else:
                 row["is_exact_stage1_coordinate"] = False
+                row["candidate_metadata_supports_stage1_coordinate"] = False
                 row["counts_for_stage1"] = False
             rows.append(row)
     return rows
@@ -348,10 +370,10 @@ def experiment_family_overlaps(registry: dict[str, Any]) -> list[dict[str, Any]]
     ]
 
 
-def _aggregate_stage1_by_independent_family(
+def _aggregate_stage1_metadata_by_independent_family(
     candidates: list[dict[str, Any]],
 ) -> dict[tuple[float, float], int]:
-    """Count an experiment family once even if paper + repository both expose it."""
+    """Aggregate discovery metadata once per physical experiment family."""
     family_counts: dict[str, dict[tuple[float, float], int]] = defaultdict(
         lambda: {target: 0 for target in NIST_STAGE1_TARGETS}
     )
@@ -365,12 +387,9 @@ def _aggregate_stage1_by_independent_family(
                 float(cell["actual_laser_power_w"]),
                 float(cell["scan_speed_mm_s"]),
             )
-            # Duplicate source representations of one experiment family may
-            # differ in reporting completeness. Max preserves evidence without
-            # double-counting the physical tracks.
             family_counts[family][key] = max(
                 family_counts[family][key],
-                int(cell["eligible_independent_traces"]),
+                int(cell["candidate_metadata_independent_trace_count"]),
             )
 
     totals = {target: 0 for target in NIST_STAGE1_TARGETS}
@@ -389,19 +408,24 @@ def registry_audit(registry: dict[str, Any]) -> dict[str, Any]:
     }
     counts = Counter(classifications.values())
     overlaps = experiment_family_overlaps(validated)
-    stage1_totals = _aggregate_stage1_by_independent_family(candidates)
+    stage1_metadata_totals = _aggregate_stage1_metadata_by_independent_family(candidates)
     stage1_cells = []
     for target, required in NIST_STAGE1_TARGETS.items():
-        observed = stage1_totals[target]
+        observed = stage1_metadata_totals[target]
         stage1_cells.append(
             {
                 "actual_laser_power_w": target[0],
                 "scan_speed_mm_s": target[1],
                 "required_independent_traces": required,
-                "eligible_independent_traces": observed,
-                "complete": observed >= required,
+                "candidate_metadata_independent_trace_count": observed,
+                "eligible_independent_traces": 0,
+                "candidate_metadata_complete": observed >= required,
+                "complete": False,
             }
         )
+    metadata_support_complete = all(
+        cell["candidate_metadata_complete"] for cell in stage1_cells
+    )
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -418,7 +442,10 @@ def registry_audit(registry: dict[str, Any]) -> dict[str, Any]:
         "support_matrix": build_support_matrix(validated),
         "issue_76_stage1": {
             "cells": stage1_cells,
-            "complete": all(cell["complete"] for cell in stage1_cells),
+            "candidate_metadata_support_complete": metadata_support_complete,
+            "complete": False,
+            "scientific_stage1_complete": False,
+            "scientific_completion_authority": "source_bound_record_intake_only",
             "nearby_power_or_speed_counts_as_exact": False,
             "equal_energy_density_counts_as_exact": False,
             "cross_machine_power_relabeling_allowed": False,
@@ -426,6 +453,7 @@ def registry_audit(registry: dict[str, Any]) -> dict[str, Any]:
         },
         "scientific_boundary": {
             "registry_inclusion_is_scientific_admissibility": False,
+            "registry_metadata_can_complete_issue_76": False,
             "physical_origin_can_be_proven_by_self_declaration": False,
             "machine_and_material_state_are_explicit_model_factors": True,
             "paper_and_repository_views_of_same_experiment_are_independent": False,
