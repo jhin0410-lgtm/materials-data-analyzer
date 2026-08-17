@@ -18,7 +18,11 @@ POLICY_PATH = ROOT / "configs" / "research" / "trusted_source_discovery_policy.v
 POLICY_SHA = "494757ff5a3924b364da11d5364afed22cc45c1c70a59fa35669000050f70ec8"
 
 
-def _program(*, pinned: bool = True, provider_gap: str = "Independent raw source dataset with checksum"):
+def _program(
+    *,
+    pinned: bool = True,
+    provider_gap: str = "Independent raw source dataset with checksum",
+):
     mission = {
         "autonomy_policy": {
             "goal_generation": "bounded_autonomous",
@@ -96,7 +100,9 @@ def test_unknown_provider_never_inherits_standing_nist_authorization():
 
 
 def test_non_search_selected_action_cannot_be_routed_through_discovery_policy():
-    program = _program("Predeclared sensitivity and residual robustness analysis")
+    program = _program(
+        provider_gap="Predeclared sensitivity and residual robustness analysis"
+    )
     plan = build_self_directed_research_plan(program)
     assert plan["selected_next_action"]["action_class"] == "sensitivity_analysis"
     with pytest.raises(TrustedDiscoveryAuthorizationError, match="only external_evidence_search"):
