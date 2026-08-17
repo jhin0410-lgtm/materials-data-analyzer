@@ -98,6 +98,53 @@
       "issue_76_eligible": false
     },
     {
+      "candidate_id": "weaver-schlenoff-deisenroth-moylan-2023-eos-m290-gasflow",
+      "authority": "NIST-authored Rapid Prototyping Journal publication",
+      "identifier": "10.1108/RPJ-10-2022-0366",
+      "source_reference": "https://doi.org/10.1108/RPJ-10-2022-0366",
+      "physical_origin": "physical",
+      "machine": "EOS M290",
+      "material": "virgin EOS Nickel alloy 625 powder, lot M341901",
+      "material_states": [
+        "powder_on_built_surface_single_track_top_layer",
+        "powder_on_built_surface_single_track_multilayer_channel"
+      ],
+      "laser_power_w": 285.0,
+      "reported_scan_speed_semantics": {
+        "methods_table_1_mm_s": [300.0, 960.0, 1200.0],
+        "results_table_2_and_figures_mm_s": [300.0, 960.0, 1500.0],
+        "status": "internal_publication_conflict_unresolved"
+      },
+      "reported_track_measurements": {
+        "per_scan_speed": 280,
+        "total": 840
+      },
+      "responses": [
+        "melt_pool_width",
+        "melt_pool_height",
+        "melt_pool_area"
+      ],
+      "measurement_semantics": {
+        "width": "widest horizontal distance",
+        "height": "largest vertical distance including material above and below the original top surface",
+        "height_is_not_bare_plate_depth": true,
+        "image_pixel_size_um": 0.93,
+        "reported_user_selection_uncertainty_width_um": 1.86,
+        "reported_user_selection_uncertainty_depth_reference_um": 5.58
+      },
+      "aggregate_results_available": true,
+      "row_level_dataset_location": "not_found_in_authoritative_public_sources_during_2026-08-17_search",
+      "acquisition_status": "authoritative_publication_available_row_level_dataset_and_scan_speed_conflict_unresolved",
+      "promotion_requirements": [
+        "Resolve the Table 1 1200 mm/s versus Results/Table 2/Figures 1500 mm/s inconsistency from an authoritative correction, raw build file, or author response.",
+        "Acquire row-level track measurements with build position, scan direction, sample type, and failure/no-track state.",
+        "Preserve melt_pool_height as distinct from bare-plate melt_pool_depth.",
+        "Preserve zero/no-track observations as censor/failure states rather than silently dropping them.",
+        "Retain EOS M290, powder-on-built-surface state, gas-flow location, and scan direction as explicit factors."
+      ],
+      "issue_76_eligible": false
+    },
+    {
       "candidate_id": "lee-peng-shin-choi-2019-alloy625-m2",
       "authority": "Science and Technology of Advanced Materials / ORNL-associated authors",
       "identifier": "10.1080/14686996.2019.1671140",
