@@ -35,15 +35,38 @@ class EvidenceClass(str, Enum):
 
 
 _ALLOWED = {
-    "source_authority": {"authoritative", "repository_curated", "peer_reviewed", "declared", "unknown"},
-    "representation": {"raw", "processed", "supplementary", "table", "digitized", "narrative", "computational", "reference"},
+    "source_authority": {
+        "authoritative",
+        "repository_curated",
+        "peer_reviewed",
+        "declared",
+        "unknown",
+    },
+    "representation": {
+        "raw",
+        "processed",
+        "supplementary",
+        "table",
+        "digitized",
+        "narrative",
+        "computational",
+        "reference",
+    },
     "sample_identity": {"exact", "partial", "unknown", "not_applicable"},
     "acquisition_identity": {"exact", "partial", "unknown", "not_applicable"},
     "calibration": {"traceable", "reported", "unknown", "not_applicable"},
     "independence": {"independent", "same_source", "unresolved", "not_applicable"},
     "comparability": {"exact", "adjacent", "incompatible", "unresolved"},
     "reuse": {"allowed", "restricted", "unknown"},
-    "extraction": {"native", "underlying_data", "table", "digitized", "narrative", "computational", "reference"},
+    "extraction": {
+        "native",
+        "underlying_data",
+        "table",
+        "digitized",
+        "narrative",
+        "computational",
+        "reference",
+    },
 }
 
 _MAXIMUM_USE = {
@@ -69,15 +92,25 @@ def _text(value: object, field: str) -> str:
 def _choice(value: object, field: str) -> str:
     text = _text(value, field)
     if text not in _ALLOWED[field]:
-        raise EvidenceFederationError(f"{field} must be one of {sorted(_ALLOWED[field])}")
+        raise EvidenceFederationError(
+            f"{field} must be one of {sorted(_ALLOWED[field])}"
+        )
     return text
 
 
 def canonical_sha256(value: object) -> str:
     try:
-        raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        raw = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
     except (TypeError, ValueError) as exc:
-        raise EvidenceFederationError("value must be canonical-JSON serializable") from exc
+        raise EvidenceFederationError(
+            "value must be canonical-JSON serializable"
+        ) from exc
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -118,8 +151,12 @@ class FederatedEvidenceCandidate:
             raise EvidenceFederationError("trust must be EvidenceTrustVector")
         if self.artifact_sha256 is not None:
             digest = self.artifact_sha256.lower()
-            if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
-                raise EvidenceFederationError("artifact_sha256 must be lowercase SHA-256")
+            if len(digest) != 64 or any(
+                character not in "0123456789abcdef" for character in digest
+            ):
+                raise EvidenceFederationError(
+                    "artifact_sha256 must be lowercase SHA-256"
+                )
             object.__setattr__(self, "artifact_sha256", digest)
         normalized_related: list[str] = []
         for value in self.related_identifiers:
@@ -151,7 +188,9 @@ class FederatedEvidenceCandidate:
             "source_locator": self.source_locator,
             "artifact_sha256": self.artifact_sha256,
             "related_identifiers": list(self.related_identifiers),
-            "maximum_use_before_additional_review": _MAXIMUM_USE[self.evidence_class],
+            "maximum_use_before_additional_review": _MAXIMUM_USE[
+                self.evidence_class
+            ],
             "requires_scientific_intake": True,
             "scientific_status_changed": False,
             "search_or_catalog_hit_is_scientific_evidence": False,
@@ -185,14 +224,20 @@ def maximum_evidence_use(candidate: FederatedEvidenceCandidate) -> dict[str, Any
         and trust.independence == "independent"
         and trust.comparability == "exact"
         and candidate.evidence_class
-        in {EvidenceClass.E0_RAW_EXPERIMENTAL, EvidenceClass.E1_PROCESSED_EXPERIMENTAL, EvidenceClass.E2_PUBLICATION_SUPPLEMENT}
+        in {
+            EvidenceClass.E0_RAW_EXPERIMENTAL,
+            EvidenceClass.E1_PROCESSED_EXPERIMENTAL,
+            EvidenceClass.E2_PUBLICATION_SUPPLEMENT,
+        }
     )
     return {
         "candidate_id": candidate.candidate_id,
         "maximum_use": base,
         "blocker_codes": blockers,
         "external_validation_eligible_before_scientific_intake": False,
-        "could_become_external_validation_eligible_after_intake": external_validation_eligible,
+        "could_become_external_validation_eligible_after_intake": (
+            external_validation_eligible
+        ),
         "scientific_status_changed": False,
     }
 
