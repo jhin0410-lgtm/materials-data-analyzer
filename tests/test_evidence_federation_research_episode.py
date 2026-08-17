@@ -14,6 +14,7 @@ from materials_data_analyzer.research_loop.evidence_federation import (
 )
 from materials_data_analyzer.research_loop.research_episode import (
     ResearchEpisodeError,
+    canonical_sha256,
     checkpoint_episode,
     create_research_episode,
     record_episode_iteration,
@@ -74,7 +75,8 @@ def test_figure_digitization_stays_diagnostic() -> None:
         ),
         source_locator="figure:5",
     )
-    assert maximum_evidence_use(candidate)["maximum_use"] == "diagnostic_quantitative_only"
+    result = maximum_evidence_use(candidate)
+    assert result["maximum_use"] == "diagnostic_quantitative_only"
 
 
 def test_unknown_reuse_blocks_stronger_use() -> None:
@@ -97,16 +99,18 @@ def test_invalid_trust_vector_fails_closed() -> None:
 
 
 def test_episode_checkpoint_resume_and_iteration(tmp_path: Path) -> None:
-    state = create_research_episode(
+    initial = create_research_episode(
         episode_id="in625-evidence-federation",
-        research_question="What IN625 evidence can resolve the current process-property gap?",
+        research_question=(
+            "What IN625 evidence can resolve the current process-property gap?"
+        ),
         mission_id="in625-autonomous-research",
         objectives=["find independent evidence", "preserve provenance"],
         max_iterations=5,
         cost_budget=10,
     )
     state = record_episode_iteration(
-        state,
+        initial,
         planner_record={"selected_action": "external_evidence_search", "score": 1.0},
         artifact_refs=["discovery:sha256:" + "1" * 64],
         cost_units=1,
@@ -121,6 +125,7 @@ def test_episode_checkpoint_resume_and_iteration(tmp_path: Path) -> None:
     resumed = resume_episode(path)
     assert resumed == state
     assert resumed["iteration"] == 1
+    assert resumed["parent_checkpoint_sha256"] == canonical_sha256(initial)
     assert resumed["action_history"][0]["planner_record_sha256"]
     assert envelope["state_sha256"]
 
