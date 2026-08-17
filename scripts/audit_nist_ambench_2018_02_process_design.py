@@ -105,22 +105,26 @@ def _design_record(
     parameter_names: list[str],
     n_conditions: int,
     n_samples: int,
+    *,
+    include_sample_residual_df: bool = False,
 ) -> dict[str, Any]:
     rank = int(np.linalg.matrix_rank(matrix))
     parameter_count = int(matrix.shape[1])
     condition_residual_df = int(n_conditions - rank)
     sample_residual_df = int(n_samples - rank)
-    return {
+    record = {
         "name": name,
         "parameter_names": parameter_names,
         "parameter_count": parameter_count,
         "matrix_rank": rank,
         "full_column_rank": rank == parameter_count,
         "condition_level_residual_df": condition_residual_df,
-        "sample_level_residual_df": sample_residual_df,
         "identifiable_from_observed_conditions": rank == parameter_count,
         "model_adequacy_test_available": condition_residual_df > 0,
     }
+    if include_sample_residual_df:
+        record["sample_level_residual_df"] = sample_residual_df
+    return record
 
 
 def _blocking_reasons(
@@ -218,6 +222,7 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
             ["intercept", POWER, SPEED, f"{POWER}:{SPEED}"],
             n_conditions,
             n_samples,
+            include_sample_residual_df=True,
         ),
         "quadratic_response_surface": _design_record(
             "intercept + power + speed + interaction + power^2 + speed^2",
@@ -232,6 +237,7 @@ def audit_process_design(table: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, A
             ],
             n_conditions,
             n_samples,
+            include_sample_residual_df=True,
         ),
     }
 
@@ -454,7 +460,7 @@ scientific validation. No response coefficient is fitted by this workflow.
 
 | Candidate design | Parameters | Rank | Residual df at unique conditions | Residual df at trace level | Identifiable |
 |---|---:|---:|---:|---:|---|
-| Main effects | {models['main_effects']['parameter_count']} | {models['main_effects']['matrix_rank']} | {models['main_effects']['condition_level_residual_df']} | {models['main_effects']['sample_level_residual_df']} | {models['main_effects']['identifiable_from_observed_conditions']} |
+| Main effects | {models['main_effects']['parameter_count']} | {models['main_effects']['matrix_rank']} | {models['main_effects']['condition_level_residual_df']} | {audit['sample_count'] - models['main_effects']['matrix_rank']} | {models['main_effects']['identifiable_from_observed_conditions']} |
 | Main effects + interaction | {interaction['parameter_count']} | {interaction['matrix_rank']} | {interaction['condition_level_residual_df']} | {interaction['sample_level_residual_df']} | {interaction['identifiable_from_observed_conditions']} |
 | Quadratic response surface | {models['quadratic_response_surface']['parameter_count']} | {models['quadratic_response_surface']['matrix_rank']} | {models['quadratic_response_surface']['condition_level_residual_df']} | {models['quadratic_response_surface']['sample_level_residual_df']} | {models['quadratic_response_surface']['identifiable_from_observed_conditions']} |
 
