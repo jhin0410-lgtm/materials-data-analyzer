@@ -5,6 +5,9 @@ from pathlib import Path
 from materials_data_analyzer.research_loop import build_research_program
 
 
+TRUST_POLICY_SHA = "494757ff5a3924b364da11d5364afed22cc45c1c70a59fa35669000050f70ec8"
+
+
 def test_tracked_autonomous_mission_projects_real_repository_workstreams() -> None:
     repository_root = Path(__file__).resolve().parents[1]
     mission = (
@@ -22,8 +25,13 @@ def test_tracked_autonomous_mission_projects_real_repository_workstreams() -> No
     assert program["schema_version"] == "1.1"
     assert program["program_policy_version"] == "1.0"
     assert program["mission"]["mission_id"] == "autonomous-materials-research-v1"
-    assert program["mission"]["schema_version"] == "1.0"
-    assert program["source_trust_policy_pins"] == []
+    assert program["mission"]["schema_version"] == "1.1"
+    assert program["source_trust_policy_pins"] == [
+        {
+            "policy_id": "trusted-source-discovery-v1",
+            "sha256": TRUST_POLICY_SHA,
+        }
+    ]
     assert program["autonomy_boundary"] == {
         "goal_generation_performed": True,
         "scientific_hypotheses_invented": False,

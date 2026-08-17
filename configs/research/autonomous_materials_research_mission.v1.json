@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "mission_id": "autonomous-materials-research-v1",
   "mission": "Continuously investigate materials and process questions by generating bounded research goals from verified evidence gaps, proposing falsifiable hypotheses, selecting the next defensible data, analysis, simulation, replication, or experiment-design action, and iterating until the evidence supports a bounded conclusion or a declared stop condition is reached.",
   "success_criteria": [
@@ -15,7 +15,7 @@
     "Do not relabel mission priority scores as expected information gain.",
     "Do not tune a model, preprocessing rule, threshold, or scientific protocol on a frozen external evaluation set.",
     "Do not infer causal, mechanistic, phase, chemical-state, or engineering-readiness claims beyond the verified evidence boundary.",
-    "Network evidence acquisition requires a separately authorized path and physical experiment execution remains external to this program."
+    "Network evidence discovery may run only through an exact checksum-pinned trusted-source policy; any provider or action outside that policy requires separate authorization, and physical experiment execution remains external."
   ],
   "stop_rules": [
     "Stop the current scope when no verified positive-value action remains under the bounded domain planner.",
@@ -30,6 +30,12 @@
     "network_evidence_search": "explicit_authorization",
     "physical_experiment_execution": "external_only"
   },
+  "source_trust_policy_pins": [
+    {
+      "policy_id": "trusted-source-discovery-v1",
+      "sha256": "494757ff5a3924b364da11d5364afed22cc45c1c70a59fa35669000050f70ec8"
+    }
+  ],
   "workstreams": [
     {
       "workstream_id": "nist-ambench",
@@ -63,6 +69,14 @@
   "metadata": {
     "intended_system": "provenance-aware autonomous materials research system",
     "autonomy_scope": "goal generation and planning from verified state; execution remains bounded by existing authorization contracts",
-    "created_for": "research-program control-plane benchmark"
+    "created_for": "research-program control-plane benchmark",
+    "trusted_source_discovery": {
+      "standing_authorization": "checksum_pinned_policy",
+      "human_review_mode": "exception_only",
+      "provider_allowlist": [
+        "nist_rmm"
+      ],
+      "scientific_intake_remains_separate": true
+    }
   }
 }
