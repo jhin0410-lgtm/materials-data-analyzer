@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "trusted-source-discovery-v1",
+  "purpose": "Standing authorization for bounded public catalog discovery from exact allow-listed research repositories; scientific intake remains separately gated.",
+  "providers": [
+    {
+      "provider_id": "nist_rmm",
+      "base_endpoint": "https://data.nist.gov/rmm/records",
+      "allowed_hosts": [
+        "data.nist.gov"
+      ],
+      "authorization_scope": "public_catalog_search_only",
+      "human_review_mode": "exception_only"
+    }
+  ],
+  "boundaries": {
+    "authentication_allowed": false,
+    "interactive_terms_allowed": false,
+    "arbitrary_web_crawling_allowed": false,
+    "scientific_status_upgrade_allowed": false,
+    "physical_experiment_execution_allowed": false,
+    "network_failure_counts_as_negative_scientific_evidence": false
+  }
+}
