@@ -66,52 +66,73 @@ def _relative_posix_path(value: Any, label: str) -> PurePosixPath:
     return path
 
 
-def _verify_artifact(binding: Any, root: Path, label: str) -> dict[str, Any]:
-    if not isinstance(binding, dict):
-        raise PhysicalEvidenceIntakeError(f"{label} must be an object.")
-    relative = _relative_posix_path(binding.get("path"), label)
-    expected_sha = binding.get("sha256")
-    expected_size = binding.get("size_bytes")
-    if not isinstance(expected_sha, str) or not re.fullmatch(
-        r"[0-9a-fA-F]{64}", expected_sha
-    ):
-        raise PhysicalEvidenceIntakeError(f"{label}.sha256 is invalid.")
-    if (
-        isinstance(expected_size, bool)
-        or not isinstance(expected_size, int)
-        or expected_size < 0
-    ):
-        raise PhysicalEvidenceIntakeError(
-            f"{label}.size_bytes must be a non-negative integer."
-        )
+class _ArtifactVerifier:
+    """Read each unique source artifact once and verify every declared binding."""
 
-    candidate = root.joinpath(*relative.parts)
-    if candidate.is_symlink():
-        raise PhysicalEvidenceIntakeError(f"{label} may not reference a symlink.")
-    try:
-        resolved = candidate.resolve(strict=True)
-    except FileNotFoundError as exc:
-        raise PhysicalEvidenceIntakeError(
-            f"{label} does not exist: {relative.as_posix()}."
-        ) from exc
-    try:
-        resolved.relative_to(root)
-    except ValueError as exc:
-        raise PhysicalEvidenceIntakeError(f"{label} resolves outside intake root.") from exc
-    if not resolved.is_file():
-        raise PhysicalEvidenceIntakeError(f"{label} must reference a regular file.")
+    def __init__(self, root: Path):
+        self.root = root.resolve(strict=True)
+        self._cache: dict[str, dict[str, Any]] = {}
 
-    payload = resolved.read_bytes()
-    observed_sha = hashlib.sha256(payload).hexdigest()
-    if observed_sha.lower() != expected_sha.lower():
-        raise PhysicalEvidenceIntakeError(f"{label} checksum mismatch.")
-    if len(payload) != expected_size:
-        raise PhysicalEvidenceIntakeError(f"{label} size mismatch.")
-    return {
-        "path": relative.as_posix(),
-        "sha256": observed_sha,
-        "size_bytes": len(payload),
-    }
+    def verify(self, binding: Any, label: str) -> dict[str, Any]:
+        if not isinstance(binding, dict):
+            raise PhysicalEvidenceIntakeError(f"{label} must be an object.")
+        relative = _relative_posix_path(binding.get("path"), label)
+        expected_sha = binding.get("sha256")
+        expected_size = binding.get("size_bytes")
+        if not isinstance(expected_sha, str) or not re.fullmatch(
+            r"[0-9a-fA-F]{64}", expected_sha
+        ):
+            raise PhysicalEvidenceIntakeError(f"{label}.sha256 is invalid.")
+        if (
+            isinstance(expected_size, bool)
+            or not isinstance(expected_size, int)
+            or expected_size < 0
+        ):
+            raise PhysicalEvidenceIntakeError(
+                f"{label}.size_bytes must be a non-negative integer."
+            )
+
+        key = relative.as_posix()
+        observed = self._cache.get(key)
+        if observed is None:
+            candidate = self.root.joinpath(*relative.parts)
+            if candidate.is_symlink():
+                raise PhysicalEvidenceIntakeError(
+                    f"{label} may not reference a symlink."
+                )
+            try:
+                resolved = candidate.resolve(strict=True)
+            except FileNotFoundError as exc:
+                raise PhysicalEvidenceIntakeError(
+                    f"{label} does not exist: {key}."
+                ) from exc
+            try:
+                resolved.relative_to(self.root)
+            except ValueError as exc:
+                raise PhysicalEvidenceIntakeError(
+                    f"{label} resolves outside intake root."
+                ) from exc
+            if not resolved.is_file():
+                raise PhysicalEvidenceIntakeError(
+                    f"{label} must reference a regular file."
+                )
+            payload = resolved.read_bytes()
+            observed = {
+                "path": key,
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "size_bytes": len(payload),
+            }
+            self._cache[key] = observed
+
+        if observed["sha256"].lower() != expected_sha.lower():
+            raise PhysicalEvidenceIntakeError(f"{label} checksum mismatch.")
+        if observed["size_bytes"] != expected_size:
+            raise PhysicalEvidenceIntakeError(f"{label} size mismatch.")
+        return dict(observed)
+
+    @property
+    def verified_artifacts(self) -> list[dict[str, Any]]:
+        return [dict(self._cache[key]) for key in sorted(self._cache)]
 
 
 def _candidate_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -130,7 +151,7 @@ def _validate_record(
     record: Any,
     index: int,
     candidates: dict[str, dict[str, Any]],
-    root: Path,
+    verifier: _ArtifactVerifier,
 ) -> dict[str, Any]:
     label = f"records[{index}]"
     if not isinstance(record, dict):
@@ -179,15 +200,11 @@ def _validate_record(
         record.get("scan_speed_mm_s"), f"{label}.scan_speed_mm_s", positive=True
     )
     point = (out["laser_power_w"], out["scan_speed_mm_s"])
-    declared_points = _declared_process_points(candidate)
-    if point not in declared_points:
+    if point not in _declared_process_points(candidate):
         raise PhysicalEvidenceIntakeError(
             f"{label} process point {point} is not declared by the source registry."
         )
 
-    out["response_value"] = _finite(
-        record.get("response_value"), f"{label}.response_value"
-    )
     expected_unit = ALLOWED_RESPONSE_UNITS.get(out["response_name"])
     if expected_unit is None:
         raise PhysicalEvidenceIntakeError(
@@ -197,6 +214,11 @@ def _validate_record(
         raise PhysicalEvidenceIntakeError(
             f"{label} response_unit must be {expected_unit!r} for {out['response_name']}."
         )
+    # Every currently admitted response is a physical length and therefore must
+    # be strictly positive. Signed/zero observables require a separate schema.
+    out["response_value"] = _finite(
+        record.get("response_value"), f"{label}.response_value", positive=True
+    )
 
     independent = record.get("independent_physical_replicate")
     if not isinstance(independent, bool):
@@ -211,12 +233,12 @@ def _validate_record(
             raise PhysicalEvidenceIntakeError(
                 f"{label} raw_dataset evidence requires source_artifact bytes."
             )
-        out["source_artifact"] = _verify_artifact(
-            artifact, root, f"{label}.source_artifact"
+        out["source_artifact"] = verifier.verify(
+            artifact, f"{label}.source_artifact"
         )
     elif artifact is not None:
-        out["source_artifact"] = _verify_artifact(
-            artifact, root, f"{label}.source_artifact"
+        out["source_artifact"] = verifier.verify(
+            artifact, f"{label}.source_artifact"
         )
 
     out["evidence_stratum"] = classify_candidate(candidate)
@@ -243,11 +265,11 @@ def validate_physical_evidence_records(
         candidates = _candidate_map(registry)
     except PhysicalEvidenceRegistryError as exc:
         raise PhysicalEvidenceIntakeError(str(exc)) from exc
-    root = Path(intake_root).resolve(strict=True)
     if not isinstance(records, list) or not records:
         raise PhysicalEvidenceIntakeError("records must be a non-empty list.")
+    verifier = _ArtifactVerifier(Path(intake_root))
     validated = [
-        _validate_record(record, index, candidates, root)
+        _validate_record(record, index, candidates, verifier)
         for index, record in enumerate(records)
     ]
 
@@ -304,6 +326,7 @@ def validate_physical_evidence_records(
     )
     return validated, {
         "record_count": len(validated),
+        "verified_source_artifacts": verifier.verified_artifacts,
         "independent_experiment_family_count": len(experiment_families),
         "experiment_families": experiment_families,
         "machine_ids": machine_ids,
@@ -335,5 +358,7 @@ def validate_physical_evidence_records(
             "record_self_declaration_can_upgrade_source_stratum": False,
             "different_machine_settings_can_be_relabelled_as_ammt_calibrated_power": False,
             "duplicate_publication_and_repository_views_can_double_count": False,
+            "raw_artifact_bytes_are_read_once_per_unique_path": True,
+            "admitted_length_responses_must_be_positive": True,
         },
     }
