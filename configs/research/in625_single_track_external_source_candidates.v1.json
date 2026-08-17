@@ -1,0 +1,368 @@
+{
+  "schema_version": "1.0",
+  "registry_id": "in625-single-track-external-physical-sources-v1",
+  "scientific_scope": "Provenance-stratified physical evidence for IN625 LPBF single-track and melt-pool validation. Registry inclusion is not scientific admissibility and does not authorize NIST AMB2018-02 Stage 1 closure.",
+  "target_material": "IN625",
+  "nist_stage1_target_cells": [
+    {
+      "actual_laser_power_w": 137.9,
+      "scan_speed_mm_s": 800.0,
+      "minimum_independent_traces": 3
+    },
+    {
+      "actual_laser_power_w": 137.9,
+      "scan_speed_mm_s": 1200.0,
+      "minimum_independent_traces": 3
+    },
+    {
+      "actual_laser_power_w": 179.2,
+      "scan_speed_mm_s": 400.0,
+      "minimum_independent_traces": 3
+    }
+  ],
+  "candidates": [
+    {
+      "candidate_id": "nist-amb2018-02-mds2-3830",
+      "title": "AM Bench 2018 optical microscopy of AMMT IN625 single tracks",
+      "authority": "NIST",
+      "source_reference": "https://doi.org/10.18434/mds2-3830",
+      "doi": "10.18434/mds2-3830",
+      "access_date": "2026-08-17",
+      "acquisition_status": "authoritative_raw_public",
+      "extraction_mode": "raw_dataset",
+      "physical_origin": "physical",
+      "experiment_family_id": "nist-amb2018-02-ammt",
+      "machine_id": "nist-ammt",
+      "material_state": "bare_plate",
+      "power_semantics": "achieved_calibrated_actual",
+      "calibration_binding": "authoritative_for_this_experiment",
+      "spot_size_semantics": "D4sigma_170_um",
+      "characterization": "cross_section_optical_microscopy",
+      "replication_semantics": "independent_tracks",
+      "process_points": [
+        {
+          "laser_power_w": 137.9,
+          "scan_speed_mm_s": 400.0,
+          "independent_track_count": 3
+        },
+        {
+          "laser_power_w": 179.2,
+          "scan_speed_mm_s": 800.0,
+          "independent_track_count": 3
+        },
+        {
+          "laser_power_w": 179.2,
+          "scan_speed_mm_s": 1200.0,
+          "independent_track_count": 4
+        }
+      ],
+      "comparability_class": "exact_benchmark",
+      "provenance_checks": {
+        "source_identity": "confirmed",
+        "machine": "confirmed",
+        "material": "confirmed",
+        "power": "confirmed",
+        "speed": "confirmed",
+        "optics": "confirmed",
+        "calibration": "confirmed",
+        "characterization": "confirmed",
+        "raw_artifact_identity": "confirmed"
+      },
+      "notes": [
+        "This source is exact AMB2018-02 AMMT baseline evidence, but it contains only the frozen 10 tracks and none of the three missing Stage 1 cells.",
+        "Exact benchmark compatibility does not imply Stage 1 completion."
+      ]
+    },
+    {
+      "candidate_id": "nist-mds2-2923-single-track-cross-sections",
+      "title": "Single-track cross-sectional micrographs and melt-pool measurements on IN625/IN718",
+      "authority": "NIST",
+      "source_reference": "https://doi.org/10.18434/mds2-2923",
+      "doi": "10.18434/mds2-2923",
+      "access_date": "2026-08-17",
+      "acquisition_status": "authoritative_raw_public_workbook_download_blocked_in_execution_environment",
+      "extraction_mode": "raw_dataset",
+      "physical_origin": "physical",
+      "experiment_family_id": "nist-mds2-2923-in625",
+      "machine_id": "multiple_lpbf_machines",
+      "material_state": "bare_plate",
+      "power_semantics": "machine_setting",
+      "calibration_binding": "mixed_or_unresolved_at_row_level",
+      "spot_size_semantics": "varied_D4sigma_or_machine_specific",
+      "characterization": "cross_section_optical_microscopy_width_depth",
+      "replication_semantics": "row_level_audit_pending",
+      "process_points": [],
+      "comparability_class": "machine_stratified",
+      "provenance_checks": {
+        "source_identity": "confirmed",
+        "machine": "row_level_pending",
+        "material": "confirmed",
+        "power": "row_level_pending",
+        "speed": "row_level_pending",
+        "optics": "row_level_pending",
+        "calibration": "row_level_pending",
+        "characterization": "confirmed",
+        "raw_artifact_identity": "authoritative_listing_confirmed_bytes_not_acquired"
+      },
+      "notes": [
+        "NIST describes this dataset as supplemental to AM Bench 2018/2022 and reports three LPBF machines, varied laser power, scan speed and spot diameter.",
+        "The Master_TrackList_Measurements.xlsx workbook is the authority for row-level conditions; exact Stage 1 target support must remain false until those rows and calibration semantics are audited.",
+        "Do not relabel commercial-machine settings as AMMT calibrated actual power."
+      ]
+    },
+    {
+      "candidate_id": "weaver-heigel-lane-2021-spot-size",
+      "title": "Laser spot size and scaling laws for laser beam additive manufacturing",
+      "authority": "NIST authors / Journal of Materials Processing Technology",
+      "source_reference": "https://doi.org/10.1016/j.jmapro.2021.10.053",
+      "doi": "10.1016/j.jmapro.2021.10.053",
+      "access_date": "2026-08-17",
+      "acquisition_status": "author_publication_available_associated_raw_repository_mds2_2923",
+      "extraction_mode": "author_table",
+      "physical_origin": "physical",
+      "experiment_family_id": "nist-mds2-2923-in625",
+      "machine_id": "eos_m270_and_nist_ammt",
+      "material_state": "bare_plate",
+      "power_semantics": "machine_setting_with_machine_specific_context",
+      "calibration_binding": "not_sufficient_for_issue_76_from_publication_alone",
+      "spot_size_semantics": "D4sigma_50_to_322_um",
+      "characterization": "thermography_cross_section_optical_microscopy",
+      "replication_semantics": "two_cross_section_measurements_per_track_reported",
+      "process_points": [],
+      "comparability_class": "machine_stratified",
+      "provenance_checks": {
+        "source_identity": "confirmed",
+        "machine": "confirmed",
+        "material": "confirmed",
+        "power": "confirmed_at_publication_level",
+        "speed": "confirmed_at_publication_level",
+        "optics": "confirmed",
+        "calibration": "insufficient_for_issue_76",
+        "characterization": "confirmed",
+        "raw_artifact_identity": "associated_repository_exists"
+      },
+      "notes": [
+        "This publication overlaps the mds2-2923 experiment family and must not be counted as an independent physical source when the repository rows represent the same tracks.",
+        "Repeated cross-section measurements of one track are not independent physical replicates."
+      ]
+    },
+    {
+      "candidate_id": "criales-arisoy-et-al-2017-eos-m270",
+      "title": "Laser powder bed fusion of nickel alloy 625: process effects on melt-pool size and shape",
+      "authority": "Rutgers/NIST authors / International Journal of Machine Tools and Manufacture",
+      "source_reference": "https://doi.org/10.1016/j.ijmachtools.2017.03.004",
+      "doi": "10.1016/j.ijmachtools.2017.03.004",
+      "access_date": "2026-08-17",
+      "acquisition_status": "author_publication_data_tables_available_no_authoritative_raw_repository_found",
+      "extraction_mode": "author_table",
+      "physical_origin": "physical",
+      "experiment_family_id": "criales-2017-eos-m270-in625",
+      "machine_id": "eos_m270",
+      "material_state": "powder_multilayer_coupon",
+      "power_semantics": "machine_setting",
+      "calibration_binding": "not_reported_as_amb2018_ammt_calibration",
+      "spot_size_semantics": "source_specific",
+      "characterization": "digital_optical_microscopy_melt_pool_width_depth",
+      "replication_semantics": "coupon_level_and_repeated_melt_pool_measurements",
+      "process_points": [
+        {
+          "laser_power_w": 169.0,
+          "scan_speed_mm_s": 875.0
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 875.0
+        },
+        {
+          "laser_power_w": 182.0,
+          "scan_speed_mm_s": 875.0
+        },
+        {
+          "laser_power_w": 182.0,
+          "scan_speed_mm_s": 725.0
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 800.0
+        },
+        {
+          "laser_power_w": 182.0,
+          "scan_speed_mm_s": 800.0
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 725.0
+        },
+        {
+          "laser_power_w": 169.0,
+          "scan_speed_mm_s": 725.0
+        },
+        {
+          "laser_power_w": 169.0,
+          "scan_speed_mm_s": 800.0
+        }
+      ],
+      "comparability_class": "adjacent_process_state",
+      "provenance_checks": {
+        "source_identity": "confirmed",
+        "machine": "confirmed",
+        "material": "confirmed",
+        "power": "confirmed",
+        "speed": "confirmed",
+        "optics": "partial",
+        "calibration": "not_amb2018_equivalent",
+        "characterization": "confirmed",
+        "raw_artifact_identity": "publication_only"
+      },
+      "notes": [
+        "Physical IN625 melt-pool measurements are useful for external trend/model checks.",
+        "Powder/multilayer coupon state and machine-specific optics make this adjacent evidence, not an AMMT missing-cell substitute."
+      ]
+    },
+    {
+      "candidate_id": "shrestha-chou-2021-eos-m270-single-track",
+      "title": "Transient and steady-state regions from IN625 single-track LPBF deposition",
+      "authority": "University authors / Journal of Manufacturing Processes",
+      "source_reference": "https://doi.org/10.1016/j.jmapro.2020.11.023",
+      "doi": "10.1016/j.jmapro.2020.11.023",
+      "access_date": "2026-08-17",
+      "acquisition_status": "author_publication_available_no_authoritative_raw_repository_found",
+      "extraction_mode": "author_figure",
+      "physical_origin": "physical",
+      "experiment_family_id": "shrestha-chou-2021-in625",
+      "machine_id": "eos_m270",
+      "material_state": "powder_single_layer_track",
+      "power_semantics": "machine_setting",
+      "calibration_binding": "not_amb2018_ammt",
+      "spot_size_semantics": "not_yet_bound_in_registry",
+      "characterization": "white_light_interferometry_and_metallography",
+      "replication_semantics": "track_lengths_and_conditions_reported_independence_not_yet_audited",
+      "process_points": [
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 400.0
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 800.0
+        }
+      ],
+      "comparability_class": "adjacent_process_state",
+      "provenance_checks": {
+        "source_identity": "confirmed",
+        "machine": "confirmed",
+        "material": "confirmed",
+        "power": "confirmed",
+        "speed": "confirmed",
+        "optics": "partial",
+        "calibration": "not_amb2018_equivalent",
+        "characterization": "confirmed",
+        "raw_artifact_identity": "publication_only"
+      },
+      "notes": [
+        "The tracks are physical IN625 single tracks but use a powder layer and EOS M270 rather than bare-plate AMMT conditions.",
+        "195 W/400 mm/s is not equivalent to 179.2 W/400 mm/s merely because it is nearby."
+      ]
+    },
+    {
+      "candidate_id": "li-guo-zhao-2017-lab-slm",
+      "title": "Interfacial phenomena and characteristics in single-track SLM of Inconel 625",
+      "authority": "Author publication / Journal of Materials Processing Technology",
+      "source_reference": "https://doi.org/10.1016/j.jmatprotec.2016.12.033",
+      "doi": "10.1016/j.jmatprotec.2016.12.033",
+      "access_date": "2026-08-17",
+      "acquisition_status": "author_publication_available_no_authoritative_raw_repository_found",
+      "extraction_mode": "author_table",
+      "physical_origin": "physical",
+      "experiment_family_id": "li-guo-zhao-2017-in625",
+      "machine_id": "lab_made_slm_facility",
+      "material_state": "powder_single_track",
+      "power_semantics": "machine_setting",
+      "calibration_binding": "not_amb2018_ammt",
+      "spot_size_semantics": "fixed_source_specific",
+      "characterization": "single_track_geometry_surface_integrity_microstructure",
+      "replication_semantics": "not_yet_audited",
+      "process_points": [],
+      "comparability_class": "adjacent_process_state",
+      "provenance_checks": {
+        "source_identity": "confirmed",
+        "machine": "confirmed_at_facility_level",
+        "material": "confirmed",
+        "power": "broad_range_reported_exact_matrix_pending",
+        "speed": "broad_range_reported_exact_matrix_pending",
+        "optics": "partial",
+        "calibration": "not_amb2018_equivalent",
+        "characterization": "confirmed",
+        "raw_artifact_identity": "publication_only"
+      },
+      "notes": [
+        "Useful physical process-map evidence, but exact row-level conditions and replication require full-table extraction before model ingestion."
+      ]
+    },
+    {
+      "candidate_id": "ghosh-et-al-2018-seven-bare-tracks",
+      "title": "Single-Track Melt-Pool Measurements and Microstructures in Inconel 625",
+      "authority": "NIST authors / JOM",
+      "source_reference": "https://doi.org/10.1007/s11837-018-2771-x",
+      "doi": "10.1007/s11837-018-2771-x",
+      "access_date": "2026-08-17",
+      "acquisition_status": "authoritative_nist_publication_available_no_separate_raw_repository_bound",
+      "extraction_mode": "author_figure",
+      "physical_origin": "physical",
+      "experiment_family_id": "nist-pre-ambench-seven-bare-tracks",
+      "machine_id": "commercial_lpbf_ndyag",
+      "material_state": "bare_plate",
+      "power_semantics": "machine_setting",
+      "calibration_binding": "not_amb2018_ammt",
+      "spot_size_semantics": "gaussian_1e2_radius_70_um_model_context",
+      "characterization": "thermography_clsm_cross_section_sem",
+      "replication_semantics": "seven_distinct_tracks_one_per_design_point",
+      "process_points": [
+        {
+          "laser_power_w": 49.0,
+          "scan_speed_mm_s": 200.0
+        },
+        {
+          "laser_power_w": 122.0,
+          "scan_speed_mm_s": 200.0
+        },
+        {
+          "laser_power_w": 122.0,
+          "scan_speed_mm_s": 500.0
+        },
+        {
+          "laser_power_w": 122.0,
+          "scan_speed_mm_s": 800.0
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 200.0
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 500.0
+        },
+        {
+          "laser_power_w": 195.0,
+          "scan_speed_mm_s": 800.0
+        }
+      ],
+      "comparability_class": "machine_stratified",
+      "provenance_checks": {
+        "source_identity": "confirmed",
+        "machine": "commercial_machine_only",
+        "material": "confirmed",
+        "power": "confirmed",
+        "speed": "confirmed",
+        "optics": "partial",
+        "calibration": "not_amb2018_equivalent",
+        "characterization": "confirmed",
+        "raw_artifact_identity": "publication_only"
+      },
+      "notes": [
+        "Seven well-separated 4 mm tracks on a polished and vacuum-annealed solid IN625 plate provide useful bare-plate process-response evidence.",
+        "The paper reports P values 49/122/195 W and V values 200/500/800 mm/s across seven combinations; it is publication-derived and not AMMT-calibration evidence."
+      ]
+    }
+  ]
+}
