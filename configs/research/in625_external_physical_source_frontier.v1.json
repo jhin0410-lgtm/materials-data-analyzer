@@ -4,6 +4,51 @@
   "scientific_scope": "Authoritative or primary-source leads for additional IN625 LPBF physical evidence that are not yet promoted into the ingestion-ready source registry. Frontier inclusion is discovery state only.",
   "candidates": [
     {
+      "candidate_id": "nist-mds2-2923-cross-sectional-micrographs",
+      "authority": "NIST Public Data Repository / AM-Bench",
+      "identifier": "10.18434/mds2-2923",
+      "source_reference": "https://data.nist.gov/od/id/mds2-2923",
+      "physical_origin": "physical",
+      "machine": "three LPBF machines; row-level machine identity must be taken from the authoritative workbook and retained",
+      "material": "IN625 and IN718 bare plates; IN625 subset is relevant to this frontier",
+      "material_states": [
+        "bare_plate_single_track"
+      ],
+      "responses": [
+        "melt_pool_width",
+        "melt_pool_depth"
+      ],
+      "authoritative_files": [
+        "2923_README.txt",
+        "Master_TrackList_Measurements.xlsx",
+        "Micrographs/"
+      ],
+      "repository_metadata_interface": {
+        "format": "NIST NERDm JSON",
+        "metadata_endpoint": "https://data.nist.gov/od/id/mds2-2923",
+        "download_contract": "nrdp:DataFile + nrdp:DownloadableFile component with downloadURL, size, and SHA-256 checksum"
+      },
+      "automatic_acquisition_plan": {
+        "adapter": "nist_pdr",
+        "product_id": "mds2-2923",
+        "filepaths": [
+          "2923_README.txt",
+          "Master_TrackList_Measurements.xlsx"
+        ],
+        "approval_mode": "automatic_when_public_checksum_bound_policy_passes",
+        "human_review_is_exception_only": true
+      },
+      "acquisition_status": "authoritative_public_machine_downloadable_path_implemented_live_bytes_not_yet_authenticated_in_this_environment",
+      "promotion_requirements": [
+        "Acquire exact NERDm metadata plus README/workbook bytes and verify NIST-published SHA-256 and size.",
+        "Audit workbook Data and Summary sheets before creating row-level scientific records.",
+        "Preserve machine, programmed-power/calibration semantics, spot diameter, plate/track identity, and repeated-measurement structure.",
+        "Acquire only relevant raw micrographs after workbook identity mapping is established; do not bulk-download images by filename guess.",
+        "Keep AMMT, EOS M270, and EOS M290 evidence machine-stratified and do not relabel programmed power as AMMT calibrated actual power."
+      ],
+      "issue_76_eligible": false
+    },
+    {
       "candidate_id": "nist-m3c37q-commercial-lpbf-thermography",
       "authority": "NIST Public Data Repository",
       "identifier": "10.18434/M3C37Q",
@@ -111,8 +156,16 @@
       ],
       "laser_power_w": 285.0,
       "reported_scan_speed_semantics": {
-        "methods_table_1_mm_s": [300.0, 960.0, 1200.0],
-        "results_table_2_and_figures_mm_s": [300.0, 960.0, 1500.0],
+        "methods_table_1_mm_s": [
+          300.0,
+          960.0,
+          1200.0
+        ],
+        "results_table_2_and_figures_mm_s": [
+          300.0,
+          960.0,
+          1500.0
+        ],
         "status": "internal_publication_conflict_unresolved"
       },
       "reported_track_measurements": {
@@ -156,10 +209,27 @@
         "powder_single_track"
       ],
       "verified_parameter_levels": {
-        "laser_power_w": [120.0, 180.0, 240.0],
-        "scan_speed_mm_s": [200.0, 400.0, 600.0, 800.0, 1000.0],
-        "beam_diameter_um": [50.0, 100.0, 150.0],
-        "layer_thickness_um": [25.0, 50.0]
+        "laser_power_w": [
+          120.0,
+          180.0,
+          240.0
+        ],
+        "scan_speed_mm_s": [
+          200.0,
+          400.0,
+          600.0,
+          800.0,
+          1000.0
+        ],
+        "beam_diameter_um": [
+          50.0,
+          100.0,
+          150.0
+        ],
+        "layer_thickness_um": [
+          25.0,
+          50.0
+        ]
       },
       "alloy625_dataset_count": 175,
       "responses": [
