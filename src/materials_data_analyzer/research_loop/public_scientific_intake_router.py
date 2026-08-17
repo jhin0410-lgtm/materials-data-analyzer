@@ -10,12 +10,16 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from .in625_nist_2923_mapping_proposal import (
+    Nist2923MappingProposalError,
+    propose_nist_2923_workbook_mapping,
+)
 from .xlsx_structural_intake import (
     XlsxStructuralIntakeError,
     structural_intake_acquired_xlsx,
 )
 
-PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION = "1.0"
+PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION = "1.1"
 
 
 def route_public_scientific_intake(
@@ -44,11 +48,30 @@ def route_public_scientific_intake(
                 "reason_codes": ["xlsx_structural_intake_failed"],
                 "error": str(exc),
             }
-        return {
+        routed = {
             "schema_version": PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION,
             "adapter": "xlsx_structural_intake",
             **dict(result),
         }
+        candidate_id = receipt.get("candidate_id")
+        if (
+            isinstance(candidate_id, str)
+            and "mds2-2923" in candidate_id
+            and isinstance(artifact_path, str)
+            and Path(artifact_path).name == "Master_TrackList_Measurements.xlsx"
+        ):
+            try:
+                routed["domain_mapping_proposal"] = propose_nist_2923_workbook_mapping(
+                    result["workbook_structure"]
+                )
+            except (Nist2923MappingProposalError, KeyError) as exc:
+                routed["domain_mapping_proposal"] = {
+                    "status": "proposal_failed",
+                    "accepted_for_analysis": False,
+                    "scientific_status_changed": False,
+                    "error": str(exc),
+                }
+        return routed
     return {
         "schema_version": PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION,
         "decision": "requires_domain_scientific_intake",
