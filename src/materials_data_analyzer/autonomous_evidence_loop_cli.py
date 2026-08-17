@@ -11,17 +11,20 @@ from materials_data_analyzer.research_loop.autonomous_evidence_loop import (
     ACQUISITION_BLOCKED,
     AutonomousEvidenceLoopError,
 )
+from materials_data_analyzer.research_loop.public_data_acquisition import (
+    DEFAULT_MAX_AUTO_ARTIFACT_BYTES,
+    DEFAULT_MAX_AUTO_BATCH_BYTES,
+    PublicAcquisitionError,
+)
+from materials_data_analyzer.research_loop.public_scientific_intake_router import (
+    route_public_scientific_intake,
+)
 from materials_data_analyzer.research_loop.trusted_discovery_authorization import (
     TrustedDiscoveryAuthorizationError,
     run_mission_authorized_evidence_loop,
 )
 from materials_data_analyzer.research_loop.trusted_source_discovery import (
     TrustedSourceDiscoveryError,
-)
-from materials_data_analyzer.research_loop.public_data_acquisition import (
-    DEFAULT_MAX_AUTO_ARTIFACT_BYTES,
-    DEFAULT_MAX_AUTO_BATCH_BYTES,
-    PublicAcquisitionError,
 )
 
 _MIB = 1024 * 1024
@@ -60,7 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Run one bounded trusted-source research loop selected by the self-directed "
             "planner. Exact mission-pinned policy bytes satisfy the planner's explicit "
-            "network authorization gate; unknown providers and scientific intake remain fail-closed."
+            "network authorization gate; unknown providers and scientific semantics remain fail-closed."
         ),
     )
     parser.add_argument("--program-state", required=True, type=Path)
@@ -102,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
             self_directed_plan,
             trusted_policy_bytes=trusted_policy_bytes,
             output_root=args.output_root,
+            intake_handler=route_public_scientific_intake,
             max_iterations=args.max_iterations,
             max_records_per_iteration=args.max_records_per_iteration,
             max_files_per_product=args.max_files_per_product,
