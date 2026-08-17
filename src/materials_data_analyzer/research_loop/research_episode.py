@@ -1,8 +1,8 @@
 """Persistent, checksum-bound research episodes for resumable autonomous inquiry.
 
-An episode is a control-plane checkpoint.  It records references to planner/evidence
+An episode is a control-plane checkpoint. It records references to planner/evidence
 artifacts and unresolved blockers but never reinterprets those artifacts or upgrades a
-scientific claim.  Checkpoints are canonical-JSON hashed and atomically replaced.
+scientific claim. Checkpoints are canonical-JSON hashed and atomically replaced.
 """
 from __future__ import annotations
 
@@ -32,7 +32,12 @@ def _text(value: object, field: str) -> str:
     return value
 
 
-def _unique_text_list(value: object, field: str, *, allow_empty: bool = True) -> list[str]:
+def _unique_text_list(
+    value: object,
+    field: str,
+    *,
+    allow_empty: bool = True,
+) -> list[str]:
     if not isinstance(value, list):
         raise ResearchEpisodeError(f"{field} must be a list")
     if not allow_empty and not value:
@@ -56,7 +61,9 @@ def _canonical_bytes(value: object) -> bytes:
             allow_nan=False,
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
-        raise ResearchEpisodeError("episode state must be canonical-JSON serializable") from exc
+        raise ResearchEpisodeError(
+            "episode state must be canonical-JSON serializable"
+        ) from exc
 
 
 def canonical_sha256(value: object) -> str:
@@ -79,9 +86,17 @@ def create_research_episode(
     max_iterations: int,
     cost_budget: float,
 ) -> dict[str, Any]:
-    if isinstance(max_iterations, bool) or not isinstance(max_iterations, int) or max_iterations < 1:
+    if (
+        isinstance(max_iterations, bool)
+        or not isinstance(max_iterations, int)
+        or max_iterations < 1
+    ):
         raise ResearchEpisodeError("max_iterations must be a positive integer")
-    if isinstance(cost_budget, bool) or not isinstance(cost_budget, (int, float)) or cost_budget < 0:
+    if (
+        isinstance(cost_budget, bool)
+        or not isinstance(cost_budget, (int, float))
+        or cost_budget < 0
+    ):
         raise ResearchEpisodeError("cost_budget must be non-negative")
     objective_list = [_text(item, "objective") for item in objectives]
     if not objective_list or len(set(objective_list)) != len(objective_list):
@@ -115,15 +130,29 @@ def validate_episode_state(value: object) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ResearchEpisodeError("episode state must be an object")
     required = {
-        "schema_version", "episode_id", "research_question", "mission_id", "objectives",
-        "status", "iteration", "budgets", "hypothesis_refs", "evidence_refs",
-        "unresolved_gaps", "review_queue", "action_history", "blockers", "conclusion",
+        "schema_version",
+        "episode_id",
+        "research_question",
+        "mission_id",
+        "objectives",
+        "status",
+        "iteration",
+        "budgets",
+        "hypothesis_refs",
+        "evidence_refs",
+        "unresolved_gaps",
+        "review_queue",
+        "action_history",
+        "blockers",
+        "conclusion",
         "parent_checkpoint_sha256",
     }
     unknown = sorted(set(value) - required)
     missing = sorted(required - set(value))
     if missing or unknown:
-        raise ResearchEpisodeError(f"episode keys mismatch; missing={missing}, unknown={unknown}")
+        raise ResearchEpisodeError(
+            f"episode keys mismatch; missing={missing}, unknown={unknown}"
+        )
     if value["schema_version"] != RESEARCH_EPISODE_SCHEMA_VERSION:
         raise ResearchEpisodeError("unsupported episode schema_version")
     for field in ("episode_id", "research_question", "mission_id"):
@@ -136,10 +165,18 @@ def validate_episode_state(value: object) -> dict[str, Any]:
     if isinstance(iteration, bool) or not isinstance(iteration, int) or iteration < 0:
         raise ResearchEpisodeError("iteration must be a non-negative integer")
     budgets = value["budgets"]
-    if not isinstance(budgets, dict) or set(budgets) != {"max_iterations", "cost_budget", "cost_consumed"}:
+    if not isinstance(budgets, dict) or set(budgets) != {
+        "max_iterations",
+        "cost_budget",
+        "cost_consumed",
+    }:
         raise ResearchEpisodeError("budgets has invalid keys")
     max_iterations = budgets["max_iterations"]
-    if isinstance(max_iterations, bool) or not isinstance(max_iterations, int) or max_iterations < 1:
+    if (
+        isinstance(max_iterations, bool)
+        or not isinstance(max_iterations, int)
+        or max_iterations < 1
+    ):
         raise ResearchEpisodeError("budgets.max_iterations must be positive")
     for field in ("cost_budget", "cost_consumed"):
         raw = budgets[field]
@@ -147,18 +184,30 @@ def validate_episode_state(value: object) -> dict[str, Any]:
             raise ResearchEpisodeError(f"budgets.{field} must be non-negative")
     if float(budgets["cost_consumed"]) > float(budgets["cost_budget"]):
         raise ResearchEpisodeError("cost_consumed cannot exceed cost_budget")
-    for field in ("hypothesis_refs", "evidence_refs", "unresolved_gaps", "review_queue", "blockers"):
+    for field in (
+        "hypothesis_refs",
+        "evidence_refs",
+        "unresolved_gaps",
+        "review_queue",
+        "blockers",
+    ):
         _unique_text_list(value[field], field)
     history = value["action_history"]
     if not isinstance(history, list):
         raise ResearchEpisodeError("action_history must be a list")
     for index, item in enumerate(history):
         if not isinstance(item, dict) or set(item) != {
-            "iteration", "planner_record_sha256", "artifact_refs", "cost_units", "status"
+            "iteration",
+            "planner_record_sha256",
+            "artifact_refs",
+            "cost_units",
+            "status",
         }:
             raise ResearchEpisodeError(f"action_history[{index}] has invalid keys")
         if item["iteration"] != index + 1:
-            raise ResearchEpisodeError("action_history iteration sequence is not contiguous")
+            raise ResearchEpisodeError(
+                "action_history iteration sequence is not contiguous"
+            )
         _sha(item["planner_record_sha256"], "planner_record_sha256")
         _unique_text_list(item["artifact_refs"], "artifact_refs")
         cost = item["cost_units"]
@@ -189,25 +238,32 @@ def record_episode_iteration(
     conclusion: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     current = validate_episode_state(dict(state))
+    parent_checkpoint_sha = canonical_sha256(current)
     if current["status"] in {"concluded", "stopped"}:
         raise ResearchEpisodeError("terminal episode cannot record another iteration")
     next_iteration = current["iteration"] + 1
     if next_iteration > current["budgets"]["max_iterations"]:
         raise ResearchEpisodeError("episode max_iterations exhausted")
-    if isinstance(cost_units, bool) or not isinstance(cost_units, (int, float)) or cost_units < 0:
+    if (
+        isinstance(cost_units, bool)
+        or not isinstance(cost_units, (int, float))
+        or cost_units < 0
+    ):
         raise ResearchEpisodeError("cost_units must be non-negative")
     new_cost = float(current["budgets"]["cost_consumed"]) + float(cost_units)
     if new_cost > float(current["budgets"]["cost_budget"]):
         raise ResearchEpisodeError("episode cost budget would be exceeded")
     current["iteration"] = next_iteration
     current["budgets"]["cost_consumed"] = new_cost
-    current["action_history"].append({
-        "iteration": next_iteration,
-        "planner_record_sha256": canonical_sha256(planner_record),
-        "artifact_refs": [_text(item, "artifact_ref") for item in artifact_refs],
-        "cost_units": float(cost_units),
-        "status": _text(status, "iteration status"),
-    })
+    current["action_history"].append(
+        {
+            "iteration": next_iteration,
+            "planner_record_sha256": canonical_sha256(planner_record),
+            "artifact_refs": [_text(item, "artifact_ref") for item in artifact_refs],
+            "cost_units": float(cost_units),
+            "status": _text(status, "iteration status"),
+        }
+    )
     for ref in evidence_refs:
         text = _text(ref, "evidence_ref")
         if text not in current["evidence_refs"]:
@@ -224,7 +280,10 @@ def record_episode_iteration(
             raise ResearchEpisodeError("invalid episode_status")
         current["status"] = episode_status
     if conclusion is not None:
-        current["conclusion"] = json.loads(_canonical_bytes(conclusion).decode("utf-8"))
+        current["conclusion"] = json.loads(
+            _canonical_bytes(conclusion).decode("utf-8")
+        )
+    current["parent_checkpoint_sha256"] = parent_checkpoint_sha
     return validate_episode_state(current)
 
 
@@ -247,7 +306,9 @@ def checkpoint_episode(path: Path, state: Mapping[str, Any]) -> dict[str, Any]:
             tmp.unlink(missing_ok=True)
         except OSError:
             pass
-        raise ResearchEpisodeError(f"could not write episode checkpoint: {target}") from exc
+        raise ResearchEpisodeError(
+            f"could not write episode checkpoint: {target}"
+        ) from exc
     return envelope
 
 
@@ -257,12 +318,19 @@ def resume_episode(path: Path) -> dict[str, Any]:
         raw = target.read_bytes()
         envelope = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ResearchEpisodeError(f"could not read episode checkpoint: {target}") from exc
+        raise ResearchEpisodeError(
+            f"could not read episode checkpoint: {target}"
+        ) from exc
     if not isinstance(envelope, dict) or set(envelope) != {
-        "checkpoint_schema_version", "state_sha256", "state"
+        "checkpoint_schema_version",
+        "state_sha256",
+        "state",
     }:
         raise ResearchEpisodeError("episode checkpoint envelope is invalid")
-    if envelope["checkpoint_schema_version"] != RESEARCH_EPISODE_CHECKPOINT_SCHEMA_VERSION:
+    if (
+        envelope["checkpoint_schema_version"]
+        != RESEARCH_EPISODE_CHECKPOINT_SCHEMA_VERSION
+    ):
         raise ResearchEpisodeError("unsupported checkpoint schema_version")
     state = validate_episode_state(envelope["state"])
     expected = _sha(envelope["state_sha256"], "state_sha256")
