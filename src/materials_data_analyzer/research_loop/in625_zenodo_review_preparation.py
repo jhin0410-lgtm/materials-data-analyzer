@@ -8,6 +8,7 @@ convert path names or file-name tokens into sample identity, calibration, or sup
 """
 from __future__ import annotations
 
+import hashlib
 from collections import defaultdict
 from collections.abc import Mapping
 from pathlib import PurePosixPath
@@ -34,6 +35,13 @@ def _mapping(value: object, field: str) -> Mapping[str, Any]:
 def _text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip() or value != value.strip():
         raise In625ZenodoReviewPreparationError(f"{field} must be non-empty trimmed text")
+    return value
+
+
+def _raw_text(value: object, field: str) -> str:
+    """Validate byte-derived UTF-8 text without normalizing its edge whitespace."""
+    if not isinstance(value, str) or not value.strip():
+        raise In625ZenodoReviewPreparationError(f"{field} must be non-empty text")
     return value
 
 
@@ -119,18 +127,63 @@ def prepare_in625_zenodo_review_packet(
     for index, raw_member in enumerate(read_members):
         member = _mapping(raw_member, f"selected_text_readout.members[{index}]")
         path = _text(member.get("path"), "selected text path")
-        digest = _sha(member.get("sha256"), "selected text sha256")
+        declared_digest = _sha(member.get("sha256"), "selected text sha256")
         inventoried = inventory_by_path.get(path)
-        if inventoried is None or inventoried.get("text_sha256") != digest:
+        if inventoried is None:
+            raise In625ZenodoReviewPreparationError("selected text witness is absent from inventory")
+        inventoried_digest = _sha(inventoried.get("text_sha256"), "inventory text sha256")
+        if inventoried_digest != declared_digest:
             raise In625ZenodoReviewPreparationError("selected text witness differs from inventory")
-        text = _text(member.get("text"), "selected text body")
+
+        text = _raw_text(member.get("text"), "selected text body")
+        text_bytes = text.encode("utf-8")
+        observed_digest = hashlib.sha256(text_bytes).hexdigest()
+        if observed_digest != declared_digest:
+            raise In625ZenodoReviewPreparationError(
+                "selected text body SHA-256 differs from declared witness"
+            )
+
+        declared_size = member.get("size_bytes")
+        if isinstance(declared_size, bool) or not isinstance(declared_size, int) or declared_size < 0:
+            raise In625ZenodoReviewPreparationError("selected text size_bytes is invalid")
+        observed_size = len(text_bytes)
+        if declared_size != observed_size:
+            raise In625ZenodoReviewPreparationError(
+                "selected text body size differs from declared witness"
+            )
+        inventoried_size = inventoried.get("uncompressed_size_bytes")
+        if inventoried_size is not None:
+            if (
+                isinstance(inventoried_size, bool)
+                or not isinstance(inventoried_size, int)
+                or inventoried_size < 0
+            ):
+                raise In625ZenodoReviewPreparationError("inventory text size is invalid")
+            if inventoried_size != observed_size:
+                raise In625ZenodoReviewPreparationError(
+                    "selected text body size differs from inventory"
+                )
+
+        declared_line_count = member.get("line_count")
+        if (
+            isinstance(declared_line_count, bool)
+            or not isinstance(declared_line_count, int)
+            or declared_line_count < 0
+        ):
+            raise In625ZenodoReviewPreparationError("selected text line_count is invalid")
+        observed_line_count = len(text.splitlines())
+        if declared_line_count != observed_line_count:
+            raise In625ZenodoReviewPreparationError(
+                "selected text body line count differs from declared witness"
+            )
+
         text_witnesses.append(
             {
                 "path": path,
                 "archive_family_candidate": _archive_family(path),
-                "sha256": digest,
-                "size_bytes": member.get("size_bytes"),
-                "line_count": member.get("line_count"),
+                "sha256": observed_digest,
+                "size_bytes": observed_size,
+                "line_count": observed_line_count,
                 "text_sha256_reverified": True,
                 "text_preview": text[:4000],
                 "preview_truncated": len(text) > 4000,
