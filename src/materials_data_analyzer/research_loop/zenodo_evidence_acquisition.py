@@ -21,7 +21,7 @@ from .kernel import ResearchLoopError
 from .public_data_acquisition import FetchResult, PublicFetcher, fetch_https_bytes
 
 ZENODO_ACQUISITION_SCHEMA_VERSION = "1.0"
-ZENODO_ACQUISITION_POLICY_VERSION = "1.0"
+ZENODO_ACQUISITION_POLICY_VERSION = "1.1"
 ZENODO_HOST = "zenodo.org"
 ZENODO_RECORD_ENDPOINT = f"https://{ZENODO_HOST}/api/records"
 ZENODO_METADATA_MAX_BYTES = 32 * 1024 * 1024
@@ -40,6 +40,12 @@ _AUTO_LICENSE_IDS = {
     "cc-by-4.0",
     "cc-by-sa-3.0",
     "cc-by-sa-4.0",
+}
+# Zenodo's legacy controlled vocabulary uses ``cc-zero`` for Creative Commons
+# Zero 1.0 Universal. Preserve that exact source ID separately and canonicalize
+# only for policy evaluation so source vocabulary is never silently rewritten.
+_LICENSE_CANONICAL_ALIASES = {
+    "cc-zero": "cc0-1.0",
 }
 _REVIEW_LICENSE_PREFIXES = (
     "cc-by-nc-",
@@ -179,6 +185,15 @@ def _license_ids(metadata: Mapping[str, Any]) -> list[str]:
                     normalized = candidate.strip().lower()
                     if normalized not in result:
                         result.append(normalized)
+    return sorted(result)
+
+
+def _canonical_license_ids(source_license_ids: Sequence[str]) -> list[str]:
+    result: list[str] = []
+    for source_id in source_license_ids:
+        canonical = _LICENSE_CANONICAL_ALIASES.get(source_id, source_id)
+        if canonical not in result:
+            result.append(canonical)
     return sorted(result)
 
 
@@ -328,7 +343,8 @@ def normalize_zenodo_record_metadata(
     )
     title = _text(metadata.get("title") or record.get("title"), "record title")
     assert title is not None
-    license_ids = _license_ids(metadata)
+    source_license_ids = _license_ids(metadata)
+    license_ids = _canonical_license_ids(source_license_ids)
     access_decision, access_reasons = _access_status(record, metadata)
     license_decision, license_reasons = _license_decision(license_ids)
     if BLOCKED in {access_decision, license_decision}:
@@ -357,6 +373,7 @@ def normalize_zenodo_record_metadata(
         "title": title,
         "record_metadata_url": request,
         "record_metadata_sha256": hashlib.sha256(metadata_bytes).hexdigest(),
+        "source_license_ids": source_license_ids,
         "license_ids": license_ids,
         "record_decision": record_decision,
         "record_reason_codes": sorted(set(access_reasons + license_reasons)),
@@ -565,6 +582,7 @@ def acquire_zenodo_files(
         "record_title": normalized_record.get("title"),
         "record_metadata_url": normalized_record.get("record_metadata_url"),
         "record_metadata_sha256": observed_metadata_sha,
+        "source_license_ids": normalized_record.get("source_license_ids"),
         "license_ids": normalized_record.get("license_ids"),
         "files": acquired,
         "source_checksum_preserved_without_algorithm_relabeling": True,

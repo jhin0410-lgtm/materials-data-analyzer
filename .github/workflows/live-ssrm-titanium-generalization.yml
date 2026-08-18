@@ -1,0 +1,160 @@
+name: Live SSRM titanium generalization
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/live-ssrm-titanium-generalization.yml"
+      - "configs/research/ssrm_titanium_zenodo_episode.v1.json"
+      - "scripts/run_live_ssrm_titanium_zenodo.py"
+      - "scripts/audit_live_ssrm_titanium.py"
+      - "src/materials_data_analyzer/research_loop/safe_archive_inventory.py"
+      - "src/materials_data_analyzer/research_loop/ssrm_titanium_zenodo_episode.py"
+      - "src/materials_data_analyzer/research_loop/ssrm_titanium_scientific_intake.py"
+      - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
+      - "tests/test_safe_archive_inventory.py"
+      - "tests/test_ssrm_titanium_zenodo_episode.py"
+      - "tests/test_zenodo_evidence_acquisition.py"
+
+permissions:
+  contents: read
+
+jobs:
+  live-ssrm-acquisition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package and focused regressions
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+          python -m pytest -q \
+            tests/test_ssrm_titanium_zenodo_episode.py \
+            tests/test_zenodo_evidence_acquisition.py \
+            tests/test_safe_archive_inventory.py
+
+      - name: Acquire exact Zenodo archive and build bounded inventory
+        run: |
+          python scripts/run_live_ssrm_titanium_zenodo.py \
+            --config configs/research/ssrm_titanium_zenodo_episode.v1.json \
+            --output outputs/ssrm-titanium
+
+      - name: Verify exact acquisition and license provenance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/ssrm-titanium")
+          summary = json.loads((root / "ssrm_titanium_episode_summary.json").read_text(encoding="utf-8"))
+          inventory = json.loads((root / "archive_inventory.json").read_text(encoding="utf-8"))
+          normalized = json.loads((root / "zenodo_record_normalized.json").read_text(encoding="utf-8"))
+          manifest = json.loads((root / "acquisition" / "zenodo_acquisition_manifest.json").read_text(encoding="utf-8"))
+
+          assert summary["record_id"] == "18504064"
+          assert summary["doi"] == "10.5281/zenodo.18504064"
+          assert summary["source_license_ids"] == ["cc-zero"]
+          assert summary["license_ids"] == ["cc0-1.0"]
+          assert summary["archive_file"] == "SSRM of Ti, Ti6Al4V, Ti5553.zip"
+          assert summary["source_checksum_algorithm"] == "md5"
+          assert summary["source_checksum_digest"] == "86894af4aff1cc9f1e762ae2a0f5042c"
+          assert summary["archive_sha256"] == "182527c95e93a051a275d3a485b2c7d56018cb63a607d9e0f6ba55d3e7e9a020"
+          assert summary["archive_member_count"] == 63
+          assert summary["bulk_extraction_performed"] is False
+          assert summary["scientific_status_changed"] is False
+          assert summary["requires_scientific_intake"] is True
+
+          assert normalized["policy_version"] == "1.1"
+          assert normalized["source_license_ids"] == ["cc-zero"]
+          assert normalized["license_ids"] == ["cc0-1.0"]
+          assert normalized["record_decision"] == "AUTO"
+          assert normalized["download_success_is_scientific_validation"] is False
+          assert manifest["source_license_ids"] == ["cc-zero"]
+          assert manifest["license_ids"] == ["cc0-1.0"]
+          assert inventory["archive_sha256"] == summary["archive_sha256"]
+          assert inventory["bulk_extraction_performed"] is False
+          assert inventory["scientific_status_changed"] is False
+          PY
+
+      - name: Execute exact scientific intake and second-pass source audit
+        run: |
+          python scripts/audit_live_ssrm_titanium.py \
+            --episode-root outputs/ssrm-titanium \
+            --output outputs/ssrm-titanium/intake
+
+      - name: Verify bounded live research-cycle snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/ssrm-titanium/intake")
+          summary = json.loads((root / "ssrm_scientific_intake_summary.json").read_text(encoding="utf-8"))
+          initial = json.loads((root / "ssrm_initial_intake.json").read_text(encoding="utf-8"))
+          reanalysis = json.loads((root / "ssrm_second_pass_reanalysis.json").read_text(encoding="utf-8"))
+          sequence = json.loads((root / "ssrm_episode_sequence.json").read_text(encoding="utf-8"))
+
+          assert summary["archive_sha256"] == "182527c95e93a051a275d3a485b2c7d56018cb63a607d9e0f6ba55d3e7e9a020"
+          assert summary["elemental_condition_count"] == 18
+          assert summary["elemental_source_measurement_rows"] == 36
+          assert summary["eds_point_count"] == 100
+          assert summary["raman_offset_copy_pairs"] == 18
+          assert summary["logger_span_hours"] == {
+              "Ti": 40.25,
+              "Ti6Al4V": 45.65,
+              "Ti5553": 45.35,
+          }
+          assert summary["full_bounded_research_cycle_completed"] is True
+          assert summary["scientific_status_changed"] is False
+
+          elemental = initial["elemental_nitrogen"]
+          assert elemental["measurement_independence_established"] is False
+          assert elemental["condition_count"] == 18
+          assert elemental["descriptive_source_mean_trends"]["Ti"]["initial_to_600min_increase"] is True
+          assert elemental["descriptive_source_mean_trends"]["Ti6Al4V"]["600min_source_mean_n_percent"] == 0.29
+          assert elemental["descriptive_source_mean_trends"]["Ti5553"]["600min_source_mean_n_percent"] == 0.19
+          assert initial["eds_line_scan"]["processed_distance_nk_exactly_reproduces_raw"] is True
+          assert initial["eds_line_scan"]["line_scan_is_not_independent_specimen_replication"] is True
+
+          for material, item in initial["raman_processed_representation"].items():
+              assert item["display_column_pair_count"] == 6
+              assert item["independent_replicate_count_established"] is False
+              assert all(pair["second_column_is_deterministic_plot_offset_copy"] for pair in item["paired_columns"])
+
+          for item in initial["temperature_pressure_loggers"].values():
+              assert item["logger_span_exceeds_declared_milling_duration"] is True
+              assert item["active_milling_window_established"] is False
+              assert item["full_trace_mean_not_interpreted_as_10h_milling_mean"] is True
+
+          assert initial["descriptive_result"]["source_reported_elemental_n_mean_increases_initial_to_600min_for_all_materials"] is True
+          assert initial["descriptive_result"]["causal_milling_time_effect_established"] is False
+          assert initial["bounded_next_action"]["action_type"] == "process_window_and_lineage_audit"
+
+          assert reanalysis["bounded_stop"] is True
+          assert reanalysis["exact_description_reaudit"]["logger_active_window_explicitly_marked"] is False
+          assert reanalysis["exact_description_reaudit"]["cross_technique_identical_aliquot_explicitly_defined"] is False
+          assert all(item["executed_in_this_episode"] is False for item in reanalysis["future_followups"])
+          assert reanalysis["scientific_status_changed"] is False
+
+          assert sequence["next_action_type"] == "process_window_and_lineage_audit"
+          assert sequence["persisted_reanalysis_sha256"] == reanalysis["reanalysis_sha256"]
+          assert sequence["bounded_stop"] is True
+          assert sequence["future_followups_kept_unexecuted"] is True
+          assert sequence["full_bounded_research_cycle_completed"] is True
+          assert sequence["scientific_status_changed"] is False
+          PY
+
+      - name: Upload exact SSRM research-cycle evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ssrm-titanium-live-acquisition
+          path: outputs/ssrm-titanium/
+          if-no-files-found: warn
+          retention-days: 30
