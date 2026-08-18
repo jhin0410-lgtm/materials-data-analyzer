@@ -45,7 +45,14 @@ def _config(md5: str) -> dict:
             "process_family": "self-shearing reactive milling under nitrogen",
             "declared_nitrogen_pressure_bar": 50,
             "declared_max_process_time_hours": 10,
-            "modalities_to_audit": ["temperature_and_pressure", "SEM", "EDS", "XRD", "Raman", "elemental_nitrogen_analysis"],
+            "modalities_to_audit": [
+                "temperature_and_pressure",
+                "SEM",
+                "EDS",
+                "XRD",
+                "Raman",
+                "elemental_nitrogen_analysis",
+            ],
         },
         "scientific_boundaries": {
             "filename_is_sample_identity": False,
@@ -64,15 +71,18 @@ def _metadata(archive: bytes) -> bytes:
         "metadata": {
             "title": "Dataset for mechanical nitriding",
             "access_right": "open",
-            "license": {"id": "cc0-1.0"},
+            "license": {"id": "cc-zero"},
         },
         "files": [
             {
                 "key": ARCHIVE_NAME,
                 "size": len(archive),
-                "checksum": "md5:" + hashlib.md5(archive, usedforsecurity=False).hexdigest(),
+                "checksum": "md5:"
+                + hashlib.md5(archive, usedforsecurity=False).hexdigest(),
                 "links": {
-                    "self": "https://zenodo.org/api/records/18504064/files/archive/content"
+                    "self": (
+                        "https://zenodo.org/api/records/18504064/files/archive/content"
+                    )
                 },
             }
         ],
@@ -112,8 +122,12 @@ def test_episode_acquires_and_inventories_without_scientific_promotion(
                     "source_checksum_algorithm": "md5",
                     "source_checksum_digest": md5,
                     "local_sha256": hashlib.sha256(archive).hexdigest(),
-                    "download_url": "https://zenodo.org/api/records/18504064/files/archive/content",
-                    "final_url": "https://zenodo.org/api/records/18504064/files/archive/content",
+                    "download_url": (
+                        "https://zenodo.org/api/records/18504064/files/archive/content"
+                    ),
+                    "final_url": (
+                        "https://zenodo.org/api/records/18504064/files/archive/content"
+                    ),
                 }
             ]
         }
@@ -125,6 +139,7 @@ def test_episode_acquires_and_inventories_without_scientific_promotion(
 
     assert result["record_id"] == "18504064"
     assert result["doi"] == "10.5281/zenodo.18504064"
+    assert result["source_license_ids"] == ["cc-zero"]
     assert result["license_ids"] == ["cc0-1.0"]
     assert result["source_checksum_algorithm"] == "md5"
     assert result["source_checksum_digest"] == md5
