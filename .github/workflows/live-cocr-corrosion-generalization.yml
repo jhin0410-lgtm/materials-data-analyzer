@@ -1,0 +1,69 @@
+name: Live Co-Cr corrosion generalization
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/live-cocr-corrosion-generalization.yml"
+      - "configs/research/cocr_corrosion_zenodo_episode.v1.json"
+      - "scripts/run_live_cocr_corrosion_zenodo.py"
+      - "src/materials_data_analyzer/research_loop/cocr_corrosion_zenodo_episode.py"
+      - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
+
+permissions:
+  contents: read
+
+jobs:
+  acquire-electrochemistry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+      - name: Acquire checksum-bound electrochemical XLSX files
+        run: |
+          python scripts/run_live_cocr_corrosion_zenodo.py \
+            --config configs/research/cocr_corrosion_zenodo_episode.v1.json \
+            --output outputs/cocr-corrosion
+      - name: Verify acquisition boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("outputs/cocr-corrosion")
+          summary = json.loads((root / "cocr_corrosion_episode_summary.json").read_text(encoding="utf-8"))
+          normalized = json.loads((root / "zenodo_record_normalized.json").read_text(encoding="utf-8"))
+          assert summary["record_id"] == "21253453"
+          assert summary["doi"] == "10.5281/zenodo.21253453"
+          assert summary["acquired_file_count"] == 6
+          assert {item["key"] for item in summary["acquired_files"]} == {
+              "EIS CONTROL RAW DATA.xlsx",
+              "EIS WEAR RAW DATA.xlsx",
+              "lpr control cocr.xlsx",
+              "LPR WEAR.xlsx",
+              "LPR_Control_Converted.xlsx",
+              "PDP CONTROL VS WEAR.xlsx",
+          }
+          assert normalized["record_decision"] == "AUTO"
+          assert summary["repeat_independence_audited"] is False
+          assert summary["reference_electrode_audited"] is False
+          assert summary["equivalent_circuit_model_validated"] is False
+          assert summary["microscopy_linkage_audited"] is False
+          assert summary["scientific_support_established"] is False
+          assert summary["scientific_status_changed"] is False
+          assert summary["requires_scientific_intake"] is True
+          PY
+      - name: Upload exact electrochemistry evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cocr-corrosion-live-acquisition
+          path: outputs/cocr-corrosion/
+          if-no-files-found: warn
+          retention-days: 30
