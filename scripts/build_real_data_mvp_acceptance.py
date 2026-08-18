@@ -182,11 +182,36 @@ def _nist_episode(
 
 
 def _nasa_episode(*, repository: Path, output: Path) -> dict[str, Any]:
-    source = repository / "data" / "processed" / "kaggle_nasa_battery_cycle_summary_analysis_ready.csv"
-    forecast_path = repository / "data" / "processed" / "battery_v2_6_1_generalization_forecast_summary.json"
-    lineage_path = repository / "data" / "processed" / "battery_v2_3_5_source_lineage_summary.json"
-    closeout_path = repository / "data" / "processed" / "battery_v2_6_14_external_evidence_line_closeout_summary.json"
-    stage11_path = repository / "data" / "processed" / "battery_v2_6_11_external_cohort_next_source_selection_summary.json"
+    source = (
+        repository
+        / "data"
+        / "processed"
+        / "kaggle_nasa_battery_cycle_summary_analysis_ready.csv"
+    )
+    forecast_path = (
+        repository
+        / "data"
+        / "processed"
+        / "battery_v2_6_1_generalization_forecast_summary.json"
+    )
+    lineage_path = (
+        repository
+        / "data"
+        / "processed"
+        / "battery_v2_3_5_source_lineage_summary.json"
+    )
+    closeout_path = (
+        repository
+        / "data"
+        / "processed"
+        / "battery_v2_6_14_external_evidence_line_closeout_summary.json"
+    )
+    stage11_path = (
+        repository
+        / "data"
+        / "processed"
+        / "battery_v2_6_11_external_cohort_next_source_selection_summary.json"
+    )
 
     forecast = _json(forecast_path)
     lineage = _json(lineage_path)
@@ -206,7 +231,9 @@ def _nasa_episode(*, repository: Path, output: Path) -> dict[str, Any]:
     if forecast["leakage_checks"]["status"] != "passed":
         raise RuntimeError("NASA leakage checks are no longer passing")
     if forecast["baseline_comparison"]["mae_improvement_percent"] >= 0:
-        raise RuntimeError("NASA registered ridge benchmark no longer underperforms persistence")
+        raise RuntimeError(
+            "NASA registered ridge benchmark no longer underperforms persistence"
+        )
     if closeout["verified_stage_count"] != 13 or closeout["stage_checksum_failures"]:
         raise RuntimeError("NASA v2.6 evidence-line checksum closeout changed")
     if closeout["decision"]["overall_status"] != (
@@ -215,7 +242,9 @@ def _nasa_episode(*, repository: Path, output: Path) -> dict[str, Any]:
         raise RuntimeError("NASA v2.6 terminal decision changed")
     if closeout["next_action"]["v2_6_status"] != "closed":
         raise RuntimeError("NASA v2.6 evidence line is not closed")
-    if stage11.get("decision_status") != "next_source_candidate_selected_gate_not_passed":
+    if stage11["selection_decision"]["overall_status"] != (
+        "next_source_candidate_selected_gate_not_passed"
+    ):
         raise RuntimeError("NASA Stage 11 next-source selection changed")
 
     decision = {
@@ -236,9 +265,13 @@ def _nasa_episode(*, repository: Path, output: Path) -> dict[str, Any]:
     decision_path = output / "nasa_battery_next_action.json"
     decision_sha = _write_json(decision_path, decision)
 
-    ridge = next(item for item in forecast["aggregate_metrics"] if item["model"] == "ridge")
+    ridge = next(
+        item for item in forecast["aggregate_metrics"] if item["model"] == "ridge"
+    )
     persistence = next(
-        item for item in forecast["aggregate_metrics"] if item["model"] == "persistence"
+        item
+        for item in forecast["aggregate_metrics"]
+        if item["model"] == "persistence"
     )
     return {
         "episode_id": "nasa-battery-v2-6-evidence-line",
@@ -332,7 +365,10 @@ def _rwgs_episode(
         raise RuntimeError("RWGS expected Ni anomaly is no longer present")
     if row.get("sem_quantitative_segmentation_status") != "blocked_method_mismatch":
         raise RuntimeError("RWGS SEM method-mismatch blocker changed")
-    if row.get("identical_physical_aliquot_confirmed", "").lower() not in {"false", "0"}:
+    if row.get("identical_physical_aliquot_confirmed", "").lower() not in {
+        "false",
+        "0",
+    }:
         raise RuntimeError("RWGS aliquot identity unexpectedly became confirmed")
     if row.get("nominal_composition_confirmed", "").lower() not in {"false", "0"}:
         raise RuntimeError("RWGS nominal composition unexpectedly became confirmed")
@@ -340,7 +376,9 @@ def _rwgs_episode(
     bundle_sha = _sha256(bundle_manifest_path)
     expected_bundle_sha = manifest.get("input_bundle", {}).get("sha256")
     if expected_bundle_sha != bundle_sha:
-        raise RuntimeError("RWGS consumer manifest is not bound to exact producer bundle bytes")
+        raise RuntimeError(
+            "RWGS consumer manifest is not bound to exact producer bundle bytes"
+        )
 
     decision = {
         "schema_version": "1.0",
@@ -452,9 +490,17 @@ def build_acceptance(
     output.mkdir(parents=True, exist_ok=True)
 
     reports = [
-        _nist_episode(repository=repository, representative=representative, output=output),
+        _nist_episode(
+            repository=repository,
+            representative=representative,
+            output=output,
+        ),
         _nasa_episode(repository=repository, output=output),
-        _rwgs_episode(consumer_root=rwgs_consumer, bundle_manifest_path=bundle, output=output),
+        _rwgs_episode(
+            consumer_root=rwgs_consumer,
+            bundle_manifest_path=bundle,
+            output=output,
+        ),
     ]
     episode_paths: list[Path] = []
     for report in reports:
@@ -466,7 +512,9 @@ def build_acceptance(
     if suite["mvp_acceptance_passed"] is not True:
         raise RuntimeError(f"real-data MVP acceptance failed: {suite}")
     if suite["full_cycle_count"] != 3:
-        raise RuntimeError("real-data MVP must contain exactly three qualifying full cycles")
+        raise RuntimeError(
+            "real-data MVP must contain exactly three qualifying full cycles"
+        )
     if suite["full_cycle_family_count"] != 3:
         raise RuntimeError("real-data MVP episode families are not materially different")
     if suite["full_cycle_modality_count"] < 2:
@@ -489,7 +537,9 @@ def build_acceptance(
         "episode_families": sorted(
             evaluation["episode_family_id"] for evaluation in suite["evaluations"]
         ),
-        "modalities": sorted(evaluation["modality"] for evaluation in suite["evaluations"]),
+        "modalities": sorted(
+            evaluation["modality"] for evaluation in suite["evaluations"]
+        ),
         "evidence_classes": sorted(
             evaluation["evidence_class"] for evaluation in suite["evaluations"]
         ),
