@@ -144,7 +144,7 @@ jobs:
             --manifest outputs/nist-mds2-2923/intake/micrograph_manifest.json \
             --output-root outputs/nist-mds2-2923/micrograph-verification \
             --timeout-seconds 180 \
-            --max-auto-mib 16
+            --max-auto-mib 32
 
       - name: Verify raw-micrograph live acquisition boundary
         run: |
