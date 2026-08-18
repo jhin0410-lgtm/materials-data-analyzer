@@ -164,12 +164,13 @@ def run_ssrm_titanium_zenodo_episode(
         if normalized["record_decision"] != AUTO:
             raise SsrmTitaniumZenodoEpisodeError(
                 "Zenodo record is not AUTO under existing policy: "
+                f"source_license_ids={normalized['source_license_ids']}, "
                 f"license_ids={normalized['license_ids']}, "
                 f"reason_codes={normalized['record_reason_codes']}"
             )
         if normalized["license_ids"] != [zenodo["required_license"]]:
             raise SsrmTitaniumZenodoEpisodeError(
-                f"Zenodo license changed: {normalized['license_ids']}"
+                f"Zenodo canonical license changed: {normalized['license_ids']}"
             )
         files = [
             item
@@ -217,6 +218,7 @@ def run_ssrm_titanium_zenodo_episode(
             "episode_id": cfg["episode_id"],
             "record_id": normalized["record_id"],
             "doi": normalized["doi"],
+            "source_license_ids": normalized["source_license_ids"],
             "license_ids": normalized["license_ids"],
             "record_metadata_sha256": normalized["record_metadata_sha256"],
             "archive_file": zenodo["selected_archive"],
