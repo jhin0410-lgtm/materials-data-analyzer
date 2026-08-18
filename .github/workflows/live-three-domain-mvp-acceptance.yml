@@ -5,9 +5,11 @@ on:
   pull_request:
     paths:
       - "src/materials_data_analyzer/research_loop/live_real_data_mvp.py"
+      - "src/materials_data_analyzer/research_loop/live_real_data_mvp_sequence.py"
       - "src/materials_data_analyzer/research_loop/real_data_episode_acceptance.py"
       - "scripts/run_live_real_data_mvp_acceptance.py"
       - "tests/test_live_real_data_mvp.py"
+      - "tests/test_live_real_data_mvp_sequence.py"
       - ".github/workflows/live-three-domain-mvp-acceptance.yml"
 
 permissions:
@@ -62,7 +64,11 @@ jobs:
 
       - name: Run deterministic MVP compiler regressions
         working-directory: materials-data-analyzer
-        run: python -m pytest -q tests/test_real_data_episode_acceptance.py tests/test_live_real_data_mvp.py
+        run: |
+          python -m pytest -q \
+            tests/test_real_data_episode_acceptance.py \
+            tests/test_live_real_data_mvp.py \
+            tests/test_live_real_data_mvp_sequence.py
 
       - name: Acquire official NASA PCoE battery archive
         shell: pwsh
@@ -155,6 +161,7 @@ jobs:
           path = Path("materials-data-analyzer/outputs/live-mvp/acceptance/live_real_data_mvp_acceptance.json")
           result = json.loads(path.read_text(encoding="utf-8"))
           suite = result["suite_acceptance"]
+          sequence = result["sequence_binding"]
           assert suite["mvp_acceptance_passed"] is True
           assert suite["episode_count"] == 3
           assert suite["valid_episode_count"] == 3
@@ -166,15 +173,23 @@ jobs:
           assert suite["scientific_status_changed"] is False
           assert suite["execution_authorized_here"] is False
           assert suite["human_review_synthesized_here"] is False
+          assert sequence["weakness_to_action_to_reanalysis_bound"] is True
+          assert sequence["future_followups_kept_separate_from_completed_reanalysis"] is True
+          assert sequence["scientific_status_changed"] is False
+          assert sequence["execution_authorized_here"] is False
           assert result["scientific_status_changed"] is False
           assert result["execution_authorized_here"] is False
           assert result["human_review_synthesized_here"] is False
           assert result["issue_76_status_changed_here"] is False
           for episode in result["episode_reports"]:
               assert episode["real_source_binding"]["synthetic"] is False
-              assert episode["iteration_count"] >= 2
+              assert episode["iteration_count"] == 2
               assert episode["scientific_status_changed"] is False
               assert episode["scientific_promotion_authorized"] is False
+              assert episode["reanalysis_record"]["iteration"] == 2
+              assert episode["reanalysis_record"]["triggering_decision_sha256"] == episode["next_action_decision"]["decision_report_sha256"]
+              assert episode["reanalysis_record"]["result_artifact_sha256"] == episode["observed_artifacts"][episode["reanalysis_record"]["result_artifact_observed_key"]]
+              assert episode["post_stop_followup"]["executed_in_this_episode"] is False
           print(json.dumps({
               "result_sha256": result["result_sha256"],
               "suite_sha256": suite["suite_sha256"],
@@ -182,6 +197,7 @@ jobs:
               "family_count": suite["full_cycle_family_count"],
               "modality_count": suite["full_cycle_modality_count"],
               "evidence_class_count": suite["full_cycle_evidence_class_count"],
+              "weakness_to_action_to_reanalysis_bound": sequence["weakness_to_action_to_reanalysis_bound"],
           }, indent=2, sort_keys=True))
           PY
 
