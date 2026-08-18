@@ -28,11 +28,11 @@ def test_sofc_config_pins_exact_source_files_and_boundaries() -> None:
     assert all(value is False for value in cfg["scientific_boundaries"].values())
 
 
-def test_sofc_config_rejects_checksum_drift() -> None:
+def test_sofc_config_rejects_invalid_checksum_format() -> None:
     value = _config()
-    value["zenodo"]["selected_files"]["Dataset.zip"] = "0" * 32
-    cfg = validate_sofc_config(value)
-    assert cfg["zenodo"]["selected_files"]["Dataset.zip"] == "0" * 32
+    value["zenodo"]["selected_files"]["Dataset.zip"] = "0" * 31
+    with pytest.raises(SofcMicropatterningZenodoEpisodeError):
+        validate_sofc_config(value)
 
 
 def test_sofc_config_rejects_automatic_scientific_promotion() -> None:
