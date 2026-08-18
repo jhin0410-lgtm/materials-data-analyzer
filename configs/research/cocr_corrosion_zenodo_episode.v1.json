@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "episode_id": "zenodo-cocr-knee-corrosion-generalization",
+  "research_question": "How do the public control and in-vivo-wear electrochemical records differ, and what conclusions remain blocked by repeat identity, reference-electrode, preprocessing, and surface-lineage uncertainty?",
+  "zenodo": {
+    "record_id": 21253453,
+    "version_doi": "10.5281/zenodo.21253453",
+    "selected_files": {
+      "EIS CONTROL RAW DATA.xlsx": "4be9a722c9b3a368333dc7a18b6ab860",
+      "EIS WEAR RAW DATA.xlsx": "3cc2a95c15308b3ca87cb25dbc02065d",
+      "lpr control cocr.xlsx": "5b0ae749d76b37c7a059684db91779f1",
+      "LPR WEAR.xlsx": "1f131699ea70c6407cdab8427baea8e6",
+      "LPR_Control_Converted.xlsx": "52bbefbbdb119a3ed401fc21766ddaf5",
+      "PDP CONTROL VS WEAR.xlsx": "a863cb3ad8fd67e870c9bf6d566f9233"
+    }
+  },
+  "scientific_boundaries": {
+    "control_and_wear_repeat_independence_assumed": false,
+    "reference_electrode_assumed": false,
+    "equivalent_circuit_model_assumed": false,
+    "converted_lpr_treated_as_independent_measurement": false,
+    "microscopy_surface_linkage_assumed": false,
+    "automatic_scientific_promotion": false,
+    "model_training_authorized_on_acquisition": false
+  }
+}
