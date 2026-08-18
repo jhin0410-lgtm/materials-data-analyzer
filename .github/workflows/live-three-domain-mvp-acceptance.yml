@@ -1,0 +1,229 @@
+name: Live three-domain research MVP acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/materials_data_analyzer/research_loop/live_real_data_mvp.py"
+      - "src/materials_data_analyzer/research_loop/live_real_data_mvp_sequence.py"
+      - "src/materials_data_analyzer/research_loop/real_data_episode_acceptance.py"
+      - "scripts/run_live_real_data_mvp_acceptance.py"
+      - "tests/test_live_real_data_mvp.py"
+      - "tests/test_live_real_data_mvp_sequence.py"
+      - ".github/workflows/live-three-domain-mvp-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-three-domain-mvp-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-live-three-domain-mvp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    env:
+      DWCNT_MCA_COMMIT: 09a7e02b46924c44b9798ebab146281af50a28d7
+      RWGS_MCA_COMMIT: fb85c4eb3d57a209c70f0db1de40421158af2270
+    steps:
+      - name: Check out materials-data-analyzer
+        uses: actions/checkout@v7
+        with:
+          path: materials-data-analyzer
+
+      - name: Check out pinned DWCNT producer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: ${{ env.DWCNT_MCA_COMMIT }}
+          path: mca-dwcnt
+
+      - name: Check out pinned RWGS producer
+        uses: actions/checkout@v7
+        with:
+          repository: jhin0410-lgtm/materials-characterization-analyzer
+          ref: ${{ env.RWGS_MCA_COMMIT }}
+          path: mca-rwgs
+
+      - name: Verify exact producer commits
+        shell: bash
+        run: |
+          test "$(git -C mca-dwcnt rev-parse HEAD)" = "${DWCNT_MCA_COMMIT}"
+          test "$(git -C mca-rwgs rev-parse HEAD)" = "${RWGS_MCA_COMMIT}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install consumer and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "materials-data-analyzer[dev]"
+
+      - name: Run deterministic MVP compiler regressions
+        working-directory: materials-data-analyzer
+        run: |
+          python -m pytest -q \
+            tests/test_real_data_episode_acceptance.py \
+            tests/test_live_real_data_mvp.py \
+            tests/test_live_real_data_mvp_sequence.py
+
+      - name: Acquire official NASA PCoE battery archive
+        shell: pwsh
+        run: |
+          ./materials-data-analyzer/scripts/download_nasa_pcoe_battery_dataset.ps1 `
+            -OutputDirectory "materials-data-analyzer/outputs/live-mvp/nasa/raw"
+
+      - name: Run NASA battery analysis and protocol re-audit
+        shell: pwsh
+        run: |
+          ./materials-data-analyzer/scripts/run_nasa_pcoe_battery_pipeline.ps1 `
+            -PythonExecutable "python" `
+            -RawDirectory "materials-data-analyzer/outputs/live-mvp/nasa/raw" `
+            -ImportOutput "materials-data-analyzer/outputs/live-mvp/nasa/import" `
+            -AnalysisOutput "materials-data-analyzer/outputs/live-mvp/nasa/analysis"
+
+      - name: Install pinned DWCNT producer
+        run: python -m pip install -e mca-dwcnt
+
+      - name: Discover and download public DWCNT source subset
+        run: |
+          python mca-dwcnt/scripts/discover_public_carbon_multimodal.py \
+            --config mca-dwcnt/case_studies/public_carbon_multimodal/case_config.json \
+            --output mca-dwcnt/outputs/public-carbon-case/discovery \
+            --download
+
+      - name: Run public DWCNT analysis and explicit TGA re-review
+        run: |
+          python mca-dwcnt/scripts/execute_public_carbon_multimodal_case.py \
+            --config mca-dwcnt/case_studies/public_carbon_multimodal/case_config.json \
+            --discovery mca-dwcnt/outputs/public-carbon-case/discovery \
+            --output mca-dwcnt/outputs/public-carbon-case/result
+          python mca-dwcnt/scripts/export_public_carbon_handoff_bundle.py \
+            --config mca-dwcnt/case_studies/public_carbon_multimodal/case_config.json \
+            --result mca-dwcnt/outputs/public-carbon-case/result
+
+      - name: Consume checksum-bound DWCNT handoff
+        run: |
+          python materials-data-analyzer/scripts/consume_characterization_handoff_bundle.py \
+            --bundle-manifest mca-dwcnt/outputs/public-carbon-case/result/characterization_handoff_bundle.json \
+            --output materials-data-analyzer/outputs/live-mvp/dwcnt/consumer
+
+      - name: Install pinned RWGS producer
+        run: python -m pip install -e mca-rwgs
+
+      - name: Discover and download public RWGS sources
+        run: |
+          python mca-rwgs/scripts/discover_public_rwgs_xrd_sem_eds.py \
+            --config mca-rwgs/case_studies/public_rwgs_xrd_sem_eds/discovery_config.json \
+            --output mca-rwgs/outputs/public-rwgs-case/discovery
+
+      - name: Run public RWGS diagnostic characterization
+        run: |
+          python mca-rwgs/scripts/run_public_rwgs_xrd_sem_eds_case.py \
+            --config mca-rwgs/case_studies/public_rwgs_xrd_sem_eds/case_config.json \
+            --discovery mca-rwgs/outputs/public-rwgs-case/discovery \
+            --output mca-rwgs/outputs/public-rwgs-case/result
+          python mca-rwgs/scripts/export_public_rwgs_handoff_bundle.py \
+            --config mca-rwgs/case_studies/public_rwgs_xrd_sem_eds/case_config.json \
+            --result mca-rwgs/outputs/public-rwgs-case/result
+
+      - name: Independently validate and consume RWGS handoff
+        run: |
+          mca validate-handoff \
+            --bundle mca-rwgs/outputs/public-rwgs-case/result/handoff_bundle \
+            --output mca-rwgs/outputs/public-rwgs-case/handoff-validation
+          mda-characterization-import \
+            --bundle-manifest mca-rwgs/outputs/public-rwgs-case/result/handoff_bundle/characterization_handoff_bundle.json \
+            --output materials-data-analyzer/outputs/live-mvp/rwgs/consumer
+
+      - name: Compile canonical live research episodes and MVP acceptance
+        run: |
+          python materials-data-analyzer/scripts/run_live_real_data_mvp_acceptance.py \
+            --nasa-raw materials-data-analyzer/outputs/live-mvp/nasa/raw \
+            --nasa-import materials-data-analyzer/outputs/live-mvp/nasa/import \
+            --nasa-analysis materials-data-analyzer/outputs/live-mvp/nasa/analysis \
+            --dwcnt-producer-result mca-dwcnt/outputs/public-carbon-case/result \
+            --dwcnt-consumer-output materials-data-analyzer/outputs/live-mvp/dwcnt/consumer \
+            --rwgs-producer-result mca-rwgs/outputs/public-rwgs-case/result \
+            --rwgs-producer-validation mca-rwgs/outputs/public-rwgs-case/handoff-validation \
+            --rwgs-consumer-output materials-data-analyzer/outputs/live-mvp/rwgs/consumer \
+            --output materials-data-analyzer/outputs/live-mvp/acceptance
+
+      - name: Verify Issue 165 acceptance and scientific boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("materials-data-analyzer/outputs/live-mvp/acceptance/live_real_data_mvp_acceptance.json")
+          result = json.loads(path.read_text(encoding="utf-8"))
+          suite = result["suite_acceptance"]
+          sequence = result["sequence_binding"]
+          assert suite["mvp_acceptance_passed"] is True
+          assert suite["episode_count"] == 3
+          assert suite["valid_episode_count"] == 3
+          assert suite["full_cycle_count"] == 3
+          assert suite["full_cycle_family_count"] == 3
+          assert suite["full_cycle_modality_count"] >= 2
+          assert suite["full_cycle_evidence_class_count"] >= 2
+          assert suite["materially_different_full_cycles"] is True
+          assert suite["scientific_status_changed"] is False
+          assert suite["execution_authorized_here"] is False
+          assert suite["human_review_synthesized_here"] is False
+          assert sequence["weakness_to_action_to_reanalysis_bound"] is True
+          assert sequence["future_followups_kept_separate_from_completed_reanalysis"] is True
+          assert sequence["scientific_status_changed"] is False
+          assert sequence["execution_authorized_here"] is False
+          assert result["scientific_status_changed"] is False
+          assert result["execution_authorized_here"] is False
+          assert result["human_review_synthesized_here"] is False
+          assert result["issue_76_status_changed_here"] is False
+          for episode in result["episode_reports"]:
+              assert episode["real_source_binding"]["synthetic"] is False
+              assert episode["iteration_count"] == 2
+              assert episode["scientific_status_changed"] is False
+              assert episode["scientific_promotion_authorized"] is False
+              assert episode["reanalysis_record"]["iteration"] == 2
+              assert episode["reanalysis_record"]["triggering_decision_sha256"] == episode["next_action_decision"]["decision_report_sha256"]
+              assert episode["reanalysis_record"]["result_artifact_sha256"] == episode["observed_artifacts"][episode["reanalysis_record"]["result_artifact_observed_key"]]
+              assert episode["post_stop_followup"]["executed_in_this_episode"] is False
+          print(json.dumps({
+              "result_sha256": result["result_sha256"],
+              "suite_sha256": suite["suite_sha256"],
+              "full_cycle_count": suite["full_cycle_count"],
+              "family_count": suite["full_cycle_family_count"],
+              "modality_count": suite["full_cycle_modality_count"],
+              "evidence_class_count": suite["full_cycle_evidence_class_count"],
+              "weakness_to_action_to_reanalysis_bound": sequence["weakness_to_action_to_reanalysis_bound"],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload bounded live acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: live-three-domain-mvp-acceptance
+          path: |
+            materials-data-analyzer/outputs/live-mvp/acceptance
+            materials-data-analyzer/outputs/live-mvp/nasa/raw/retrieval_receipt.json
+            materials-data-analyzer/outputs/live-mvp/nasa/import/nasa_pcoe_import_manifest.json
+            materials-data-analyzer/outputs/live-mvp/nasa/analysis/reports
+            materials-data-analyzer/outputs/live-mvp/nasa/analysis/tables/battery_diagnostic_priority.csv
+            mca-dwcnt/outputs/public-carbon-case/result/case_source_manifest.json
+            mca-dwcnt/outputs/public-carbon-case/result/case_analysis_manifest.json
+            mca-dwcnt/outputs/public-carbon-case/result/comparability_matrix.csv
+            mca-dwcnt/outputs/public-carbon-case/result/case_summary.json
+            mca-dwcnt/outputs/public-carbon-case/result/characterization_handoff_bundle.json
+            mca-dwcnt/outputs/public-carbon-case/result/analyses/tga/tga_case_candidate_review.csv
+            materials-data-analyzer/outputs/live-mvp/dwcnt/consumer
+            mca-rwgs/outputs/public-rwgs-case/result/selected_source_manifest.json
+            mca-rwgs/outputs/public-rwgs-case/result/characterization_manifest.json
+            mca-rwgs/outputs/public-rwgs-case/result/comparability_matrix.csv
+            mca-rwgs/outputs/public-rwgs-case/result/handoff_bundle/characterization_handoff_bundle.json
+            mca-rwgs/outputs/public-rwgs-case/handoff-validation
+            materials-data-analyzer/outputs/live-mvp/rwgs/consumer
+          if-no-files-found: error
+          retention-days: 30
