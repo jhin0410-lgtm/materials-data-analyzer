@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "episode_id": "zenodo-sofc-ceramic-micropatterning-generalization",
+  "research_question": "What process/pattern/geometry-to-morphology or device-performance relationships are explicitly supported by the released SOFC ceramic micropatterning bytes, and which links remain blocked by sample/image/replicate lineage?",
+  "zenodo": {
+    "record_id": 19902643,
+    "version_doi": "10.5281/zenodo.19902643",
+    "selected_files": {
+      "Dataset.zip": "c6e3baaf591ad542750df43cc770aa36",
+      "readme.txt": "284ec97e4fbddc2342681ca5298e8c89"
+    }
+  },
+  "scientific_boundaries": {
+    "filename_is_sample_identity": false,
+    "image_count_is_independent_n": false,
+    "csv_row_count_is_independent_n": false,
+    "sem_to_performance_join_by_order_or_filename": false,
+    "derived_analysis_is_independent_physical_evidence": false,
+    "automatic_scientific_promotion": false,
+    "model_training_authorized_on_acquisition": false
+  }
+}
