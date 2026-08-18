@@ -5,10 +5,11 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
-from materials_data_analyzer.research_loop.ssrm_titanium_scientific_intake import (
-    SsrmTitaniumScientificIntakeError,
-    audit_ssrm_titanium_archive,
+import materials_data_analyzer.research_loop.ssrm_titanium_scientific_intake as intake
+from materials_data_analyzer.research_loop.ssrm_titanium_description_contract import (
+    validate_ssrm_description_contract,
 )
 
 ARCHIVE_NAME = "SSRM of Ti, Ti6Al4V, Ti5553.zip"
@@ -55,7 +56,16 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("archive SHA-256 differs from acquisition manifest")
         if manifest.get("scientific_status_changed") is not False:
             raise ValueError("acquisition manifest changed scientific status")
-        result = audit_ssrm_titanium_archive(body)
+
+        # The source workbook binds aliases through explicit same-row file-name and
+        # physical-description pairs.  Scope the correction to this source intake;
+        # filename text by itself remains insufficient evidence of sample identity.
+        with patch.object(
+            intake,
+            "_description_contract",
+            validate_ssrm_description_contract,
+        ):
+            result = intake.audit_ssrm_titanium_archive(body)
         if result["initial_intake"]["archive_sha256"] != observed_sha:
             raise ValueError("scientific intake is not bound to exact archive bytes")
     except (
@@ -64,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         TypeError,
         KeyError,
         json.JSONDecodeError,
-        SsrmTitaniumScientificIntakeError,
+        intake.SsrmTitaniumScientificIntakeError,
     ) as exc:
         print(f"SSRM titanium scientific intake failed closed: {exc}", file=sys.stderr)
         return 2
@@ -75,6 +85,12 @@ def main(argv: list[str] | None = None) -> int:
     _write(args.output / "ssrm_episode_sequence.json", result["episode_sequence"])
     compact = {
         "archive_sha256": observed_sha,
+        "alias_binding_basis": result["initial_intake"]["description_contract"][
+            "alias_binding_basis"
+        ],
+        "filename_alone_used_as_sample_identity": result["initial_intake"][
+            "description_contract"
+        ]["filename_alone_used_as_sample_identity"],
         "elemental_condition_count": result["initial_intake"]["elemental_nitrogen"][
             "condition_count"
         ],
