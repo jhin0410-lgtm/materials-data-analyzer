@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "episode_id": "zenodo-ssrm-titanium-nitriding-generalization",
+  "research_question": "What process-to-characterization evidence can be established for nitrogen reactive self-shearing milling of Ti, Ti6Al4V, and Ti5553 powders without inferring sample identity or cross-technique aliquot equivalence?",
+  "zenodo": {
+    "record_id": 18504064,
+    "version_doi": "10.5281/zenodo.18504064",
+    "selected_archive": "SSRM of Ti, Ti6Al4V, Ti5553.zip",
+    "expected_source_checksum_algorithm": "md5",
+    "expected_source_checksum_digest": "86894af4aff1cc9f1e762ae2a0f5042c",
+    "required_license": "cc0-1.0"
+  },
+  "source_scope": {
+    "materials": ["Ti", "Ti6Al4V", "Ti5553"],
+    "process_family": "self-shearing reactive milling under nitrogen",
+    "declared_nitrogen_pressure_bar": 50,
+    "declared_max_process_time_hours": 10,
+    "modalities_to_audit": [
+      "temperature_and_pressure",
+      "SEM",
+      "EDS",
+      "XRD",
+      "Raman",
+      "elemental_nitrogen_analysis"
+    ]
+  },
+  "scientific_boundaries": {
+    "filename_is_sample_identity": false,
+    "cross_technique_identical_aliquot_assumed": false,
+    "replicate_independence_assumed": false,
+    "automatic_scientific_promotion": false,
+    "model_training_authorized_on_acquisition": false
+  }
+}
