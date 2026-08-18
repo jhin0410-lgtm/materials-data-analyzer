@@ -10,6 +10,10 @@ from materials_data_analyzer.research_loop.nist_amb2025_03_fatigue_intake import
     NistAmb202503FatigueIntakeError,
     audit_amb2025_03_fatigue,
 )
+from materials_data_analyzer.research_loop.nist_amb2025_03_metadata_contract import (
+    NistAmb202503MetadataContractError,
+    validate_amb2025_03_metadata,
+)
 
 FATIGUE_WORKBOOK = "calibration_data/fatigue_testing/fatigue_800hip.xlsx"
 FATIGUE_README = "calibration_data/fatigue_testing/readme.txt"
@@ -69,6 +73,25 @@ def _exact_artifact(report: dict, artifact_path: str) -> tuple[bytes, dict]:
     return body, receipt
 
 
+def _exact_source_metadata(receipt: dict, acquisition: dict) -> bytes:
+    package = Path(str(receipt.get("package_directory", "")))
+    source = package / "source_metadata.json"
+    try:
+        body = source.read_bytes()
+    except OSError as exc:
+        raise LiveAmb202503AuditError(
+            f"could not read exact NERDm metadata from {source}: {exc}"
+        ) from exc
+    observed = hashlib.sha256(body).hexdigest()
+    expected_receipt = receipt.get("metadata_sha256")
+    expected_acquisition = acquisition.get("metadata_sha256")
+    if observed != expected_receipt or observed != expected_acquisition:
+        raise LiveAmb202503AuditError(
+            "exact source_metadata.json does not match acquisition/receipt metadata SHA-256"
+        )
+    return body
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--acquisition-root", type=Path, required=True)
@@ -89,11 +112,14 @@ def main(argv: list[str] | None = None) -> int:
             raise LiveAmb202503AuditError("frontier acquisition changed scientific status")
         workbook_bytes, workbook_receipt = _exact_artifact(frontier, FATIGUE_WORKBOOK)
         readme_bytes, readme_receipt = _exact_artifact(frontier, FATIGUE_README)
+        metadata_bytes = _exact_source_metadata(workbook_receipt, acquisition)
+        source_scope = validate_amb2025_03_metadata(metadata_bytes)
         report = audit_amb2025_03_fatigue(
             workbook_bytes=workbook_bytes,
             readme_bytes=readme_bytes,
         )
         report.pop("report_sha256", None)
+        report["source_scope_contract"] = source_scope
         report["acquisition_binding"] = {
             "frontier_candidate_id": frontier.get("frontier_candidate_id"),
             "metadata_sha256": acquisition.get("metadata_sha256"),
@@ -109,7 +135,11 @@ def main(argv: list[str] | None = None) -> int:
         summary = {
             "dataset": "NIST AMB2025-03 Ti-6Al-4V 800HIP fatigue",
             "doi": report["source"]["doi"],
+            "source_version": source_scope["source_version"],
+            "metadata_sha256": source_scope["metadata_sha256"],
             "workbook_sha256": report["source"]["workbook_sha256"],
+            "one_build_declared": source_scope["one_build_declared"],
+            "post_build_conditions": source_scope["post_build_conditions"],
             "test_rows": report["fatigue_inventory"]["test_rows"],
             "valid_failure_or_runout_specimens": report["fatigue_inventory"][
                 "valid_failure_or_runout_specimens"
@@ -139,6 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     except (
         LiveAmb202503AuditError,
         NistAmb202503FatigueIntakeError,
+        NistAmb202503MetadataContractError,
         KeyError,
         TypeError,
         ValueError,
