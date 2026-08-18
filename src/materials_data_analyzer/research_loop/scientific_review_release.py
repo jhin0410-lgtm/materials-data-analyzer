@@ -273,6 +273,19 @@ def verify_review_release(
         raise ScientificReviewReleaseError("review use lists are invalid")
     allowed = _uses(decision["allowed_uses"], "allowed_uses")
     excluded = _uses(decision["excluded_uses"], "excluded_uses")
+    if set(allowed) & set(excluded):
+        raise ScientificReviewReleaseError(
+            "allowed_uses and excluded_uses must not overlap"
+        )
+    requested = set(validated_request["requested_uses"])
+    if not set(allowed).issubset(requested):
+        raise ScientificReviewReleaseError(
+            "allowed_uses must be a subset of requested_uses"
+        )
+    if decision_text == "rejected" and allowed:
+        raise ScientificReviewReleaseError("rejected review cannot allow downstream uses")
+    if decision_text == "approved" and not allowed:
+        raise ScientificReviewReleaseError("approved review must allow at least one use")
     notes = _text(decision["review_notes"], "review_notes")
     release_without_id = {
         "schema_version": SCIENTIFIC_REVIEW_RELEASE_SCHEMA_VERSION,
