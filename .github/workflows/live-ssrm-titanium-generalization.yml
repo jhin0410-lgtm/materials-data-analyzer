@@ -53,9 +53,11 @@ jobs:
           summary = json.loads((root / "ssrm_titanium_episode_summary.json").read_text(encoding="utf-8"))
           inventory = json.loads((root / "archive_inventory.json").read_text(encoding="utf-8"))
           normalized = json.loads((root / "zenodo_record_normalized.json").read_text(encoding="utf-8"))
+          manifest = json.loads((root / "acquisition" / "zenodo_acquisition_manifest.json").read_text(encoding="utf-8"))
 
           assert summary["record_id"] == "18504064"
           assert summary["doi"] == "10.5281/zenodo.18504064"
+          assert summary["source_license_ids"] == ["cc-zero"]
           assert summary["license_ids"] == ["cc0-1.0"]
           assert summary["archive_file"] == "SSRM of Ti, Ti6Al4V, Ti5553.zip"
           assert summary["source_checksum_algorithm"] == "md5"
@@ -71,8 +73,13 @@ jobs:
           assert summary["scientific_status_changed"] is False
           assert summary["requires_scientific_intake"] is True
 
+          assert normalized["policy_version"] == "1.1"
+          assert normalized["source_license_ids"] == ["cc-zero"]
+          assert normalized["license_ids"] == ["cc0-1.0"]
           assert normalized["record_decision"] == "AUTO"
           assert normalized["download_success_is_scientific_validation"] is False
+          assert manifest["source_license_ids"] == ["cc-zero"]
+          assert manifest["license_ids"] == ["cc0-1.0"]
           assert inventory["archive_sha256"] == summary["archive_sha256"]
           assert inventory["bulk_extraction_performed"] is False
           assert inventory["scientific_status_changed"] is False
