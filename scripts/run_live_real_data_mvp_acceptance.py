@@ -10,6 +10,10 @@ from materials_data_analyzer.research_loop.live_real_data_mvp import (
     LiveRealDataMvpError,
     build_live_real_data_mvp_suite,
 )
+from materials_data_analyzer.research_loop.live_real_data_mvp_sequence import (
+    LiveMvpSequenceError,
+    bind_live_episode_sequence,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -39,7 +43,15 @@ def main(argv: list[str] | None = None) -> int:
             rwgs_producer_validation=args.rwgs_producer_validation,
             rwgs_consumer_output=args.rwgs_consumer_output,
         )
-    except (LiveRealDataMvpError, OSError, ValueError, TypeError, KeyError) as exc:
+        result = bind_live_episode_sequence(result)
+    except (
+        LiveRealDataMvpError,
+        LiveMvpSequenceError,
+        OSError,
+        ValueError,
+        TypeError,
+        KeyError,
+    ) as exc:
         print(f"live real-data MVP acceptance failed closed: {exc}", file=sys.stderr)
         return 2
 
