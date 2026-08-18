@@ -6,11 +6,15 @@ on:
     paths:
       - ".github/workflows/live-nist-mds2-2923-acquisition.yml"
       - "configs/research/in625_external_physical_source_frontier.v1.json"
+      - "scripts/audit_live_nist_mds2_2923.py"
+      - "scripts/verify_live_nist_mds2_2923_micrographs.py"
       - "src/materials_data_analyzer/public_acquisition_cli.py"
       - "src/materials_data_analyzer/research_loop/frontier_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_scientific_intake.py"
       - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
       - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
       - "tests/test_in625_mds2_2923_acquisition_frontier.py"
+      - "tests/test_nist_mds2_2923_scientific_intake.py"
       - "tests/test_nist_pdr_acquisition.py"
       - "tests/test_nist_pdr_nerdm_compatibility.py"
       - "tests/test_public_data_acquisition.py"
@@ -19,9 +23,9 @@ permissions:
   contents: read
 
 jobs:
-  live-acquisition:
+  live-acquisition-intake:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
 
@@ -34,10 +38,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]" -c constraints-release.txt
 
-      - name: Run deterministic NIST acquisition regressions
+      - name: Run deterministic NIST acquisition and intake regressions
         run: |
           python -m pytest -q \
             tests/test_in625_mds2_2923_acquisition_frontier.py \
+            tests/test_nist_mds2_2923_scientific_intake.py \
             tests/test_nist_pdr_acquisition.py \
             tests/test_nist_pdr_nerdm_compatibility.py \
             tests/test_public_data_acquisition.py
@@ -84,19 +89,92 @@ jobs:
               body = artifact.read_bytes()
               assert len(body) == receipt["artifact_size_bytes"]
               assert hashlib.sha256(body).hexdigest() == receipt["artifact_sha256"]
-          print(json.dumps({
-              "authenticated_artifact_count": len(receipts),
-              "artifact_paths": sorted(expected_paths),
-              "scientific_status_changed": False,
-              "requires_scientific_intake": True,
-          }, indent=2))
           PY
 
-      - name: Upload exact acquisition packages
+      - name: Audit exact workbook rows and prepare scientific review request
+        run: |
+          python scripts/audit_live_nist_mds2_2923.py \
+            --acquisition-root outputs/nist-mds2-2923 \
+            --output outputs/nist-mds2-2923/intake
+
+      - name: Verify exact live intake snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/nist-mds2-2923/intake")
+          summary = json.loads((root / "scientific_intake_summary.json").read_text(encoding="utf-8"))
+          report = json.loads((root / "scientific_intake_report.json").read_text(encoding="utf-8"))
+          request = json.loads((root / "scientific_review_request.json").read_text(encoding="utf-8"))
+
+          assert summary["in625_measurement_rows"] == 178
+          assert summary["in625_physical_tracks"] == 106
+          assert summary["data_process_spot_groups"] == 73
+          assert summary["summary_process_spot_groups"] == 64
+          assert summary["summary_missing_groups"] == 9
+          assert summary["summary_missing_measurement_rows"] == 20
+          assert summary["source_track_metadata_conflicts"] == 1
+          assert summary["bound_micrographs"] == 178
+          assert summary["bound_micrograph_total_size_bytes"] == 948262052
+          assert summary["issue_76_exact_target_cells_satisfied"] == 0
+          assert summary["issue_76_eligible"] is False
+          assert summary["human_scientific_review_decision_created"] is False
+          assert summary["scientific_support_established"] is False
+          assert summary["scientific_status_changed"] is False
+
+          inventory = report["in625_inventory"]
+          assert inventory["machine_measurement_counts"] == {"AMMT": 34, "EOS M270": 144}
+          assert inventory["machine_physical_track_counts"] == {"AMMT": 34, "EOS M270": 72}
+          assert inventory["measurements_per_physical_track_distribution"] == {"1": 34, "2": 72}
+          assert report["micrograph_binding"]["nerdm_datafile_count"] == 444
+          assert report["micrograph_binding"]["nerdm_in625_micrograph_count"] == 356
+          assert report["micrograph_binding"]["workbook_extension_claim_mismatch_count"] == 178
+          assert len(report["source"]["source_anomalies"]) == 4
+          assert report["measurement_semantics"]["calibration_conversion_performed"] is False
+          assert report["issue_76"]["eligible"] is False
+          assert request["requested_uses"] == ["descriptive_analysis", "scientific_intake"]
+          assert request["scientific_status_changed"] is False
+          PY
+
+      - name: Acquire and verify every workbook-bound IN625 micrograph
+        run: |
+          python scripts/verify_live_nist_mds2_2923_micrographs.py \
+            --acquisition-root outputs/nist-mds2-2923 \
+            --manifest outputs/nist-mds2-2923/intake/micrograph_manifest.json \
+            --output-root outputs/nist-mds2-2923/micrograph-verification \
+            --timeout-seconds 180 \
+            --max-auto-mib 16
+
+      - name: Verify raw-micrograph live acquisition boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("outputs/nist-mds2-2923/micrograph-verification/micrograph_live_verification_summary.json")
+          result = json.loads(path.read_text(encoding="utf-8"))
+          assert result["requested_file_count"] == 178
+          assert result["verified_file_count"] == 178
+          assert result["verified_total_size_bytes"] == 948262052
+          assert result["all_workbook_bound_micrographs_verified"] is True
+          assert all(item["recorded_acquisition_provenance_authenticated"] is True for item in result["files"])
+          assert result["raw_bytes_persisted_in_job_workspace"] is True
+          assert result["raw_bytes_committed_to_repository"] is False
+          assert result["scientific_status_changed"] is False
+          assert result["scientific_support_established"] is False
+          assert result["issue_76_eligible"] is False
+          PY
+
+      - name: Upload bounded acquisition and scientific-intake evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: nist-mds2-2923-live-acquisition
-          path: outputs/nist-mds2-2923/
+          name: nist-mds2-2923-live-intake
+          path: |
+            outputs/nist-mds2-2923/frontier_acquisition_report.json
+            outputs/nist-mds2-2923/packages/
+            outputs/nist-mds2-2923/intake/*.json
+            outputs/nist-mds2-2923/micrograph-verification/micrograph_live_verification_summary.json
           if-no-files-found: warn
           retention-days: 30
