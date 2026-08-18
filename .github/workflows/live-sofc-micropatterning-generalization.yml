@@ -7,7 +7,9 @@ on:
       - ".github/workflows/live-sofc-micropatterning-generalization.yml"
       - "configs/research/sofc_micropatterning_zenodo_episode.v1.json"
       - "scripts/run_live_sofc_micropatterning_zenodo.py"
+      - "scripts/audit_live_sofc_micropatterning.py"
       - "src/materials_data_analyzer/research_loop/sofc_micropatterning_zenodo_episode.py"
+      - "src/materials_data_analyzer/research_loop/sofc_micropatterning_scientific_intake.py"
       - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
       - "src/materials_data_analyzer/research_loop/safe_archive_inventory.py"
       - "tests/test_sofc_micropatterning_zenodo_episode.py"
@@ -56,11 +58,38 @@ jobs:
           assert summary["scientific_status_changed"] is False
           assert summary["requires_scientific_intake"] is True
           PY
-      - name: Upload exact SOFC acquisition evidence
+      - name: Execute exact scientific intake and bounded second pass
+        run: |
+          python scripts/audit_live_sofc_micropatterning.py \
+            --episode-root outputs/sofc-micropatterning \
+            --output outputs/sofc-micropatterning/intake
+      - name: Verify bounded research-cycle snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("outputs/sofc-micropatterning/intake")
+          summary = json.loads((root / "sofc_scientific_intake_summary.json").read_text(encoding="utf-8"))
+          initial = json.loads((root / "sofc_initial_intake.json").read_text(encoding="utf-8"))
+          second = json.loads((root / "sofc_second_pass_reanalysis.json").read_text(encoding="utf-8"))
+          sequence = json.loads((root / "sofc_episode_sequence.json").read_text(encoding="utf-8"))
+          assert summary["full_bounded_research_cycle_completed"] is True
+          assert summary["scientific_status_changed"] is False
+          assert summary["independent_cell_or_specimen_ids_present"] is False
+          assert summary["sem_to_electrochemistry_cell_join_recovered"] is False
+          assert summary["iv_summary_information_truncation_present"] is True
+          assert summary["iv_summary_stale_column_anomaly"]["condition"] == "600_flat"
+          assert summary["fit_identifiability_warning_present"] is True
+          assert initial["selected_next_action"] == "raw_derived_reconciliation_and_cell_lineage_audit"
+          assert second["terminal_decision"] == "bounded_stop_source_bytes_exhausted_for_requested_lineage_and_model_validity"
+          assert sequence["geometry_to_performance_causal_claim_authorized"] is False
+          assert sequence["sem_to_performance_mechanism_claim_authorized"] is False
+          PY
+      - name: Upload exact SOFC research-cycle evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: sofc-micropatterning-live-acquisition
+          name: sofc-micropatterning-live-research-cycle
           path: outputs/sofc-micropatterning/
           if-no-files-found: warn
           retention-days: 30
