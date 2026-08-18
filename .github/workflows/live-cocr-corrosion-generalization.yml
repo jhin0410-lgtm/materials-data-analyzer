@@ -7,7 +7,9 @@ on:
       - ".github/workflows/live-cocr-corrosion-generalization.yml"
       - "configs/research/cocr_corrosion_zenodo_episode.v1.json"
       - "scripts/run_live_cocr_corrosion_zenodo.py"
+      - "scripts/audit_live_cocr_corrosion.py"
       - "src/materials_data_analyzer/research_loop/cocr_corrosion_zenodo_episode.py"
+      - "src/materials_data_analyzer/research_loop/cocr_corrosion_scientific_intake.py"
       - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
 
 permissions:
@@ -59,7 +61,34 @@ jobs:
           assert summary["scientific_status_changed"] is False
           assert summary["requires_scientific_intake"] is True
           PY
-      - name: Upload exact electrochemistry evidence
+      - name: Execute scientific intake and bounded second pass
+        run: |
+          python scripts/audit_live_cocr_corrosion.py \
+            --episode-root outputs/cocr-corrosion \
+            --output outputs/cocr-corrosion/intake
+      - name: Verify bounded research-cycle snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("outputs/cocr-corrosion/intake/cocr_scientific_intake_summary.json")
+          report = json.loads(p.read_text(encoding="utf-8"))
+          assert report["eis_control_acquisitions"] == 10
+          assert report["eis_wear_acquisitions"] == 11
+          assert report["eis_points_per_acquisition"] == 56
+          assert report["common_eis_times_h"] == [0, 40, 60, 80, 100, 120, 140, 170]
+          assert report["lpr_control_traces"] == 10
+          assert report["lpr_wear_traces"] == 11
+          assert report["lpr_points_per_trace"] == 21
+          assert report["common_lpr_times_h"] == [0, 40, 60, 80, 100, 120, 140, 170]
+          assert abs(report["converted_control_potential_shift_v"] - 0.044) < 1e-12
+          assert abs(report["converted_control_current_factor"] - (50 / 43)) < 1e-12
+          assert report["converted_control_is_independent_measurement"] is False
+          assert report["replicate_independence_established"] is False
+          assert report["full_bounded_research_cycle_completed"] is True
+          assert report["scientific_status_changed"] is False
+          PY
+      - name: Upload exact electrochemistry research-cycle evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
