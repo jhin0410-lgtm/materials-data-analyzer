@@ -547,7 +547,7 @@ def _fit_audit(rows: list[list[Any]], structure: str) -> dict[str, Any]:
         temperature = int(temperature_match.group(1))
         error_percentages = []
         for index, header in enumerate(current_header):
-            if isinstance(header, str) and header.endswith("Error%") and index < len(row) and row[index] is not None:
+            if isinstance(header, str) and header.endswith("(Error%)") and index < len(row) and row[index] is not None:
                 error_percentages.append(_decimal(row[index], f"{structure} fitting error%"))
         if not error_percentages:
             raise SofcMicropatterningScientificIntakeError("fitting workbook lacks parameter errors")
