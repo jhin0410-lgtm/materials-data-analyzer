@@ -25,7 +25,7 @@ permissions:
 jobs:
   live-acquisition-intake:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -137,14 +137,15 @@ jobs:
           assert request["scientific_status_changed"] is False
           PY
 
-      - name: Acquire and verify every workbook-bound IN625 micrograph
+      - name: Live-verify raw micrographs across every explicit sample block
         run: |
           python scripts/verify_live_nist_mds2_2923_micrographs.py \
             --acquisition-root outputs/nist-mds2-2923 \
             --manifest outputs/nist-mds2-2923/intake/micrograph_manifest.json \
             --output-root outputs/nist-mds2-2923/micrograph-verification \
             --timeout-seconds 180 \
-            --max-auto-mib 32
+            --max-auto-mib 32 \
+            --max-attempts-per-block 4
 
       - name: Verify raw-micrograph live acquisition boundary
         run: |
@@ -154,10 +155,16 @@ jobs:
 
           path = Path("outputs/nist-mds2-2923/micrograph-verification/micrograph_live_verification_summary.json")
           result = json.loads(path.read_text(encoding="utf-8"))
-          assert result["requested_file_count"] == 178
-          assert result["verified_file_count"] == 178
-          assert result["verified_total_size_bytes"] == 948262052
-          assert result["all_workbook_bound_micrographs_verified"] is True
+          assert result["metadata_bound_file_count"] == 178
+          assert result["metadata_bound_total_size_bytes"] == 948262052
+          assert result["explicit_sample_block_count"] == 7
+          assert result["live_verified_sample_block_count"] == 7
+          assert result["representative_sample_blocks_live_verified"] is True
+          assert result["live_verified_file_count"] == 7
+          assert result["all_workbook_bound_micrographs_metadata_bound"] is True
+          assert result["all_workbook_bound_micrographs_live_verified"] is False
+          assert result["full_raw_acquisition_required_for_workbook_published_width_depth_use"] is False
+          assert result["full_raw_acquisition_required_for_image_remeasurement"] is True
           assert all(item["recorded_acquisition_provenance_authenticated"] is True for item in result["files"])
           assert result["raw_bytes_persisted_in_job_workspace"] is True
           assert result["raw_bytes_committed_to_repository"] is False
