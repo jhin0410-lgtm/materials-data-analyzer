@@ -11,6 +11,9 @@ import materials_data_analyzer.research_loop.ssrm_titanium_scientific_intake as 
 from materials_data_analyzer.research_loop.ssrm_titanium_description_contract import (
     validate_ssrm_description_contract,
 )
+from materials_data_analyzer.research_loop.ssrm_titanium_logger_contract import (
+    audit_ssrm_logger_with_source_unavailable_tokens,
+)
 
 ARCHIVE_NAME = "SSRM of Ti, Ti6Al4V, Ti5553.zip"
 
@@ -57,13 +60,18 @@ def main(argv: list[str] | None = None) -> int:
         if manifest.get("scientific_status_changed") is not False:
             raise ValueError("acquisition manifest changed scientific status")
 
-        # The source workbook binds aliases through explicit same-row file-name and
-        # physical-description pairs.  Scope the correction to this source intake;
-        # filename text by itself remains insufficient evidence of sample identity.
+        # Both adaptations are source-specific and exact.  The description workbook
+        # supplies aliases through same-row file/physical-description pairs, and the
+        # Ti logger explicitly uses paired ``**`` tokens for two unavailable P/T rows.
+        # Neither path infers sample identity or imputes missing measurements.
         with patch.object(
             intake,
             "_description_contract",
             validate_ssrm_description_contract,
+        ), patch.object(
+            intake,
+            "_logger_audit",
+            audit_ssrm_logger_with_source_unavailable_tokens,
         ):
             result = intake.audit_ssrm_titanium_archive(body)
         if result["initial_intake"]["archive_sha256"] != observed_sha:
@@ -108,6 +116,16 @@ def main(argv: list[str] | None = None) -> int:
                 "temperature_pressure_loggers"
             ].items()
         },
+        "logger_source_unavailable_pair_rows": {
+            material: item["source_unavailable_pair_row_count"]
+            for material, item in result["initial_intake"][
+                "temperature_pressure_loggers"
+            ].items()
+        },
+        "logger_unavailable_rows_imputed": any(
+            item["source_unavailable_rows_interpolated_or_imputed"]
+            for item in result["initial_intake"]["temperature_pressure_loggers"].values()
+        ),
         "full_bounded_research_cycle_completed": result["episode_sequence"][
             "full_bounded_research_cycle_completed"
         ],
