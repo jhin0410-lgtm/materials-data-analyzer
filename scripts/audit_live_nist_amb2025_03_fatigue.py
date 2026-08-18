@@ -29,6 +29,12 @@ def _load_json(path: Path) -> dict:
     return value
 
 
+def _canonical_bytes(value: dict) -> bytes:
+    return (
+        json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+
+
 def _exact_artifact(report: dict, artifact_path: str) -> tuple[bytes, dict]:
     acquisition = report.get("acquisition")
     if not isinstance(acquisition, dict):
@@ -87,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
             workbook_bytes=workbook_bytes,
             readme_bytes=readme_bytes,
         )
+        report.pop("report_sha256", None)
         report["acquisition_binding"] = {
             "frontier_candidate_id": frontier.get("frontier_candidate_id"),
             "metadata_sha256": acquisition.get("metadata_sha256"),
@@ -98,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
             ).hexdigest(),
             "recorded_acquisition_provenance_authenticated": True,
         }
+        report["report_sha256"] = hashlib.sha256(_canonical_bytes(report)).hexdigest()
         summary = {
             "dataset": "NIST AMB2025-03 Ti-6Al-4V 800HIP fatigue",
             "doi": report["source"]["doi"],
@@ -126,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
             ]["condition_specific_censored_sn_analysis"]["eligible"],
             "scientific_support_established": report["scientific_support_established"],
             "scientific_status_changed": report["scientific_status_changed"],
+            "report_sha256": report["report_sha256"],
         }
     except (
         LiveAmb202503AuditError,
@@ -139,13 +148,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     args.output.mkdir(parents=True, exist_ok=True)
-    (args.output / "fatigue_scientific_intake_report.json").write_text(
-        json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
-        encoding="utf-8",
+    (args.output / "fatigue_scientific_intake_report.json").write_bytes(
+        _canonical_bytes(report)
     )
-    (args.output / "fatigue_scientific_intake_summary.json").write_text(
-        json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
-        encoding="utf-8",
+    (args.output / "fatigue_scientific_intake_summary.json").write_bytes(
+        _canonical_bytes(summary)
     )
     print(json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False))
     return 0
