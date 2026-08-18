@@ -9,10 +9,12 @@ on:
       - "scripts/audit_live_nist_amb2025_03_fatigue.py"
       - "src/materials_data_analyzer/public_acquisition_cli.py"
       - "src/materials_data_analyzer/research_loop/frontier_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/nist_amb2025_03_answer_audit.py"
       - "src/materials_data_analyzer/research_loop/nist_amb2025_03_fatigue_intake.py"
       - "src/materials_data_analyzer/research_loop/nist_amb2025_03_metadata_contract.py"
       - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
       - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "tests/test_nist_amb2025_03_answer_audit.py"
       - "tests/test_nist_amb2025_03_fatigue_intake.py"
       - "tests/test_nist_amb2025_03_metadata_contract.py"
       - "tests/test_post_mvp_generalization_frontier.py"
@@ -42,6 +44,7 @@ jobs:
       - name: Run deterministic acquisition and fatigue-intake regressions
         run: |
           python -m pytest -q \
+            tests/test_nist_amb2025_03_answer_audit.py \
             tests/test_nist_amb2025_03_fatigue_intake.py \
             tests/test_nist_amb2025_03_metadata_contract.py \
             tests/test_post_mvp_generalization_frontier.py \
@@ -142,13 +145,13 @@ jobs:
           )
           PY
 
-      - name: Audit exact fatigue rows and censoring semantics
+      - name: Audit exact fatigue rows and execute bounded second-pass evidence audit
         run: |
           python scripts/audit_live_nist_amb2025_03_fatigue.py \
             --acquisition-root outputs/nist-amb2025-03 \
             --output outputs/nist-amb2025-03/intake
 
-      - name: Verify exact live fatigue intake snapshot
+      - name: Verify exact live fatigue research-cycle snapshot
         run: |
           python - <<'PY'
           import json
@@ -157,6 +160,8 @@ jobs:
           root = Path("outputs/nist-amb2025-03/intake")
           summary = json.loads((root / "fatigue_scientific_intake_summary.json").read_text(encoding="utf-8"))
           report = json.loads((root / "fatigue_scientific_intake_report.json").read_text(encoding="utf-8"))
+          reanalysis = json.loads((root / "fatigue_second_pass_reanalysis.json").read_text(encoding="utf-8"))
+          sequence = json.loads((root / "fatigue_episode_sequence.json").read_text(encoding="utf-8"))
 
           assert summary["source_version"] == "1.1.1"
           assert summary["metadata_sha256"] == "77afc27dbb8b853191064cca3833fa25021bcab6b7640561a854bfb937ad7761"
@@ -173,6 +178,9 @@ jobs:
           assert summary["cycles_column_vs_exact_note_discrepancy_count"] == 5
           assert summary["naive_uncensored_cycles_regression_eligible"] is False
           assert summary["condition_specific_censored_sn_analysis_eligible"] is False
+          assert summary["both_condition_answer_datafile_discovered"] is True
+          assert summary["both_condition_answer_source_sha256_bound"] is False
+          assert summary["full_bounded_research_cycle_completed"] is True
           assert summary["scientific_support_established"] is False
           assert summary["scientific_status_changed"] is False
 
@@ -198,7 +206,30 @@ jobs:
           assert report["analysis_eligibility"]["hip_vs_vac_fatigue_treatment_comparison"]["eligible"] is False
           assert report["analysis_eligibility"]["build_generalized_treatment_effect"]["eligible"] is False
           assert report["bounded_next_action"]["action_type"] == "runout_censor_semantics_audit"
-          assert report["scientific_status_changed"] is False
+
+          runout_reaudit = reanalysis["runout_censor_reanalysis"]
+          assert runout_reaudit["source_note"] == "10M runout"
+          assert runout_reaudit["exact_10m_definition_found_in_acquired_fatigue_readme"] is False
+          assert runout_reaudit["censor_cycles_exact_after"] is None
+          assert runout_reaudit["resolution_status"] == "unresolved_without_inference"
+
+          answer = reanalysis["adjacent_answer_data_provenance_audit"]
+          assert answer["answer_artifact"]["filepath"] == "answers_data/fatigue_both_conditions.xlsx"
+          assert answer["answer_artifact"]["size_bytes"] == 25018
+          assert answer["answer_artifact"]["public_datafile_discovered"] is True
+          assert answer["answer_artifact"]["source_checksum"] is None
+          assert answer["answer_artifact"]["source_sha256_bound"] is False
+          assert answer["automatic_acquisition_eligible"] is False
+          assert answer["automatic_acquisition_decision"] == "REVIEW_REQUIRED_SOURCE_INTEGRITY"
+          assert answer["bounded_stop"] is True
+          assert answer["scientific_status_changed"] is False
+
+          assert sequence["next_action_type"] == "runout_censor_semantics_audit"
+          assert sequence["persisted_reanalysis_sha256"] == reanalysis["reanalysis_sha256"]
+          assert sequence["bounded_stop"] is True
+          assert sequence["future_followups_kept_unexecuted"] is True
+          assert sequence["full_bounded_research_cycle_completed"] is True
+          assert sequence["scientific_status_changed"] is False
           PY
 
       - name: Upload exact acquisition and scientific-intake evidence
