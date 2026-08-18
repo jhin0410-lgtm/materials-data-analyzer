@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "episode_id": "in625-zenodo-20503603-publication-evidence",
+  "mission_id": "in625-independent-public-evidence",
+  "research_question": "What independently published LPBF Inconel 625 evidence is available for build-orientation and heat-treatment effects on mechanical, tribological, and corrosion responses?",
+  "objectives": [
+    "acquire trustworthy publication-linked original data without weakening source rights or checksum semantics",
+    "inventory quantitative CSV/TXT evidence without inferring missing sample or acquisition identities",
+    "separate conclusions supported by this independent episode from the unresolved exact AMMT Stage 1 requirement"
+  ],
+  "query_aliases": [
+    "Inconel 625 LPBF build orientation heat treatment mechanical properties",
+    "Alloy 625 laser powder bed fusion heat treatment corrosion wear",
+    "nickel alloy 625 additive manufacturing supplementary dataset"
+  ],
+  "providers": [
+    "nist_rmm",
+    "datacite",
+    "zenodo",
+    "crossref"
+  ],
+  "zenodo": {
+    "record_id": 20503603,
+    "version_doi": "10.5281/zenodo.20503603",
+    "related_article_doi": "10.1016/j.jmrt.2026.05.163",
+    "selected_files": [
+      "README - Dataset description.txt",
+      "Dataset.zip"
+    ],
+    "archive_file": "Dataset.zip"
+  },
+  "scientific_boundaries": {
+    "issue_76_eligible": false,
+    "automatic_scientific_promotion": false,
+    "publication_supplement_evidence_class": "E2_publication_supplement",
+    "external_validation_requires_sample_acquisition_lineage": true,
+    "figure_or_table_values_must_preserve_extraction_route": true
+  },
+  "episode_budget": {
+    "max_iterations": 20,
+    "cost_budget": 100.0
+  }
+}
