@@ -1,0 +1,66 @@
+name: Live SOFC micropatterning generalization
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/live-sofc-micropatterning-generalization.yml"
+      - "configs/research/sofc_micropatterning_zenodo_episode.v1.json"
+      - "scripts/run_live_sofc_micropatterning_zenodo.py"
+      - "src/materials_data_analyzer/research_loop/sofc_micropatterning_zenodo_episode.py"
+      - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/safe_archive_inventory.py"
+      - "tests/test_sofc_micropatterning_zenodo_episode.py"
+
+permissions:
+  contents: read
+
+jobs:
+  acquire-sofc-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install package and focused contract tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+          python -m pytest -q tests/test_sofc_micropatterning_zenodo_episode.py tests/test_zenodo_evidence_acquisition.py tests/test_safe_archive_inventory.py
+      - name: Acquire exact Zenodo files and inventory archive
+        run: |
+          python scripts/run_live_sofc_micropatterning_zenodo.py \
+            --config configs/research/sofc_micropatterning_zenodo_episode.v1.json \
+            --output outputs/sofc-micropatterning
+      - name: Verify acquisition-only scientific boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("outputs/sofc-micropatterning")
+          summary = json.loads((root / "sofc_micropatterning_episode_summary.json").read_text(encoding="utf-8"))
+          inventory = json.loads((root / "archive_inventory.json").read_text(encoding="utf-8"))
+          normalized = json.loads((root / "zenodo_record_normalized.json").read_text(encoding="utf-8"))
+          assert summary["record_id"] == "19902643"
+          assert summary["doi"] == "10.5281/zenodo.19902643"
+          assert summary["acquired_file_count"] == 2
+          assert normalized["record_decision"] == "AUTO"
+          assert inventory["archive_sha256"] == summary["archive_sha256"]
+          assert inventory["bulk_extraction_performed"] is False
+          assert summary["sample_image_lineage_audited"] is False
+          assert summary["replicate_independence_established"] is False
+          assert summary["derived_representation_audited"] is False
+          assert summary["scientific_support_established"] is False
+          assert summary["scientific_status_changed"] is False
+          assert summary["requires_scientific_intake"] is True
+          PY
+      - name: Upload exact SOFC acquisition evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: sofc-micropatterning-live-acquisition
+          path: outputs/sofc-micropatterning/
+          if-no-files-found: warn
+          retention-days: 30
