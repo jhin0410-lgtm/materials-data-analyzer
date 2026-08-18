@@ -68,10 +68,24 @@ def test_public_cc_by_record_is_auto_eligible_but_not_scientific_evidence() -> N
         expected_doi="10.5281/zenodo.20503603",
     )
     assert record["record_decision"] == AUTO
+    assert record["source_license_ids"] == ["cc-by-4.0"]
     assert record["license_ids"] == ["cc-by-4.0"]
     assert record["scientific_status_changed"] is False
     assert record["download_success_is_scientific_validation"] is False
     assert record["files"][0]["source_checksum_algorithm"] == "md5"
+
+
+def test_legacy_cc_zero_is_canonicalized_without_erasing_source_vocabulary() -> None:
+    body = b"x,y\n1,2\n"
+    record = normalize_zenodo_record_metadata(
+        metadata_bytes=_metadata(body=body, license_id="cc-zero"),
+        request_url=zenodo_record_url(20503603),
+    )
+    assert record["source_license_ids"] == ["cc-zero"]
+    assert record["license_ids"] == ["cc0-1.0"]
+    assert record["record_decision"] == AUTO
+    assert record["record_reason_codes"] == []
+    assert record["scientific_status_changed"] is False
 
 
 def test_noncommercial_license_routes_to_review() -> None:
@@ -139,7 +153,7 @@ def test_file_and_batch_budgets_route_to_review() -> None:
 
 def test_acquisition_preserves_source_md5_and_computes_local_sha256(tmp_path: Path) -> None:
     body = b"x,y\n1,2\n"
-    metadata = _metadata(body=body)
+    metadata = _metadata(body=body, license_id="cc-zero")
     record = normalize_zenodo_record_metadata(
         metadata_bytes=metadata,
         request_url=zenodo_record_url(20503603),
@@ -169,11 +183,15 @@ def test_acquisition_preserves_source_md5_and_computes_local_sha256(tmp_path: Pa
     ).hexdigest()
     assert file_record["local_sha256"] == hashlib.sha256(body).hexdigest()
     assert result["source_checksum_preserved_without_algorithm_relabeling"] is True
+    assert result["source_license_ids"] == ["cc-zero"]
+    assert result["license_ids"] == ["cc0-1.0"]
     assert result["scientific_status_changed"] is False
     assert (output / "files" / "data.csv").read_bytes() == body
     manifest = json.loads(
         (output / "zenodo_acquisition_manifest.json").read_text(encoding="utf-8")
     )
+    assert manifest["source_license_ids"] == ["cc-zero"]
+    assert manifest["license_ids"] == ["cc0-1.0"]
     assert manifest["requires_scientific_intake"] is True
 
 
