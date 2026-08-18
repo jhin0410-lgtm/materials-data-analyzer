@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "frontier_id": "post-mvp-real-data-generalization-frontier-v1",
+  "scientific_scope": "New public experimental datasets used to test post-MVP external validity of the existing provenance-aware autonomous research loop. Frontier inclusion and successful acquisition do not establish scientific support.",
+  "candidates": [
+    {
+      "candidate_id": "nist-amb2025-03-ti64-fatigue",
+      "authority": "NIST Public Data Repository / AM-Bench 2025",
+      "identifier": "10.18434/mds2-3734",
+      "source_reference": "https://data.nist.gov/od/id/mds2-3734",
+      "physical_origin": "physical",
+      "material": "PBF-L Ti-6Al-4V",
+      "experiment_family": "high_cycle_rotating_bending_fatigue",
+      "source_design": {
+        "build_count_declared": 1,
+        "post_build_conditions": [
+          "800HIP",
+          "800VAC"
+        ],
+        "fatigue_mode": "fully_reversed_four_point_rotating_bending_R_minus_1",
+        "standard": "ISO 1143",
+        "independence_warning": "Specimens originate from one PBF-L build; specimen count must not be relabeled as independent build replication."
+      },
+      "responses": [
+        "fatigue_cycles_or_runout",
+        "applied_stress",
+        "tensile_properties",
+        "residual_stress_or_strain",
+        "surface_roughness",
+        "solid_chemistry"
+      ],
+      "repository_metadata_interface": {
+        "format": "NIST NERDm JSON",
+        "metadata_endpoint": "https://data.nist.gov/od/id/mds2-3734",
+        "download_contract": "nrdp:DataFile + nrdp:DownloadableFile component with downloadURL, size, and SHA-256 checksum"
+      },
+      "authoritative_files": [
+        "calibration_data/build_and_powder_details/readme.txt",
+        "calibration_data/fatigue_testing/fatigue_800hip.xlsx",
+        "calibration_data/fatigue_testing/readme.txt",
+        "calibration_data/heat_treatment/AMBench2025_PostProcessing_PBFL_Ti6Al4V.xlsx",
+        "calibration_data/heat_treatment/readme.txt",
+        "calibration_data/profilometry/profilometry.xlsx",
+        "calibration_data/profilometry/readme.txt",
+        "calibration_data/solid_chemistry/solid_chemistry.xlsx",
+        "calibration_data/solid_chemistry/readme.txt",
+        "calibration_data/tensile_testing/tensile_properties.xlsx",
+        "calibration_data/tensile_testing/readme.txt",
+        "calibration_data/x-ray_diffraction/readme.txt"
+      ],
+      "automatic_acquisition_plan": {
+        "adapter": "nist_pdr",
+        "product_id": "mds2-3734",
+        "filepaths": [
+          "calibration_data/build_and_powder_details/readme.txt",
+          "calibration_data/fatigue_testing/fatigue_800hip.xlsx",
+          "calibration_data/fatigue_testing/readme.txt",
+          "calibration_data/heat_treatment/AMBench2025_PostProcessing_PBFL_Ti6Al4V.xlsx",
+          "calibration_data/heat_treatment/readme.txt",
+          "calibration_data/profilometry/profilometry.xlsx",
+          "calibration_data/profilometry/readme.txt",
+          "calibration_data/solid_chemistry/solid_chemistry.xlsx",
+          "calibration_data/solid_chemistry/readme.txt",
+          "calibration_data/tensile_testing/tensile_properties.xlsx",
+          "calibration_data/tensile_testing/readme.txt",
+          "calibration_data/x-ray_diffraction/readme.txt"
+        ],
+        "approval_mode": "automatic_when_public_checksum_bound_policy_passes",
+        "human_review_is_exception_only": true
+      },
+      "scientific_intake_requirements": [
+        "Reconstruct exact fatigue workbook schema before defining specimen-level records.",
+        "Preserve failure versus runout/censoring semantics exactly as published.",
+        "Preserve one-build origin and do not equate fatigue specimens with independent manufacturing replicates.",
+        "Keep 800HIP and 800VAC treatment semantics separate and bind treatment history from the authoritative workbook/readme.",
+        "Do not fit S-N, lifetime, crack-initiation, or treatment-effect models until specimen identity, censoring, stress units, and independence are audited.",
+        "Calibration/acquisition success must not change scientific status."
+      ],
+      "campaign_issue": 173,
+      "scientific_status_changed": false
+    }
+  ]
+}

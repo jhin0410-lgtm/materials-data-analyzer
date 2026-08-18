@@ -28,6 +28,8 @@ from .public_data_acquisition import (
 
 NIST_PDR_SOURCE_SYSTEM = "NIST Public Data Repository (PDR/NERDm)"
 NIST_PDR_HOST = "data.nist.gov"
+NIST_PDR_OAR_CACHE_HOST = "nist-oar-cache.s3.amazonaws.com"
+NIST_PDR_ARTIFACT_ALLOWED_HOSTS = [NIST_PDR_HOST, NIST_PDR_OAR_CACHE_HOST]
 NIST_PDR_METADATA_MAX_BYTES = 32 * 1024 * 1024
 _PRODUCT_ID_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -247,7 +249,10 @@ def _component_candidate(
         "retrieval_endpoint": retrieval_endpoint,
         "expected_sha256": _component_checksum(component, filepath=filepath),
         "expected_size_bytes": _component_size(component, filepath=filepath),
-        "allowed_hosts": [NIST_PDR_HOST],
+        # NERDm remains authoritative for the initial download URL. Some current PDR
+        # files are delivered by an HTTPS redirect to NIST's exact OAR cache bucket;
+        # the final bytes must still match the NERDm SHA-256 and size exactly.
+        "allowed_hosts": list(NIST_PDR_ARTIFACT_ALLOWED_HOSTS),
         "access": {
             "publicly_accessible": True,
             "authentication_required": False,
@@ -257,6 +262,7 @@ def _component_candidate(
         },
         "limitations": [
             "NERDm file metadata establishes repository file identity/integrity, not scientific comparability.",
+            "The initial artifact URL must remain exact NIST PDR HTTPS; the exact NIST OAR cache host is accepted only as a checksum-bound delivery redirect.",
             "Automatic acquisition does not relabel programmed power as calibrated actual power.",
             "Downstream intake must preserve machine, material state, calibration, spot size, and replicate identity.",
         ],
@@ -469,8 +475,10 @@ def acquire_nist_pdr_auto_candidates(
 
 
 __all__ = [
+    "NIST_PDR_ARTIFACT_ALLOWED_HOSTS",
     "NIST_PDR_HOST",
     "NIST_PDR_METADATA_MAX_BYTES",
+    "NIST_PDR_OAR_CACHE_HOST",
     "NIST_PDR_SOURCE_SYSTEM",
     "NistPdrAcquisitionError",
     "acquire_nist_pdr_auto_candidates",

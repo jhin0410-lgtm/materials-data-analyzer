@@ -7,6 +7,9 @@ from pathlib import Path
 import pytest
 
 from materials_data_analyzer.research_loop.nist_pdr_acquisition import (
+    NIST_PDR_ARTIFACT_ALLOWED_HOSTS,
+    NIST_PDR_HOST,
+    NIST_PDR_OAR_CACHE_HOST,
     NistPdrAcquisitionError,
     acquire_nist_pdr_file,
     discover_nist_pdr_candidates,
@@ -71,6 +74,9 @@ def test_nerdm_component_is_checksum_bound_auto_candidate() -> None:
     assert candidate["expected_sha256"] == hashlib.sha256(artifact).hexdigest()
     assert candidate["expected_size_bytes"] == len(artifact)
     assert candidate["access"]["authentication_required"] is False
+    assert candidate["retrieval_endpoint"].startswith(f"https://{NIST_PDR_HOST}/")
+    assert candidate["allowed_hosts"] == NIST_PDR_ARTIFACT_ALLOWED_HOSTS
+    assert NIST_PDR_OAR_CACHE_HOST in candidate["allowed_hosts"]
 
 
 def test_product_plan_does_not_require_per_file_approval() -> None:
@@ -112,12 +118,18 @@ def test_duplicate_downloadable_filepath_is_rejected() -> None:
         )
 
 
-def test_live_path_fetches_metadata_then_exact_artifact(tmp_path: Path) -> None:
+def test_live_path_keeps_metadata_on_nist_and_allows_checksum_bound_cache_redirect(
+    tmp_path: Path,
+) -> None:
     artifact = b"xlsx-row-level-bytes"
     metadata = _metadata(artifact)
     metadata_url = "https://data.nist.gov/od/id/mds2-2923"
     artifact_url = (
         "https://data.nist.gov/od/ds/ark:/88434/mds2-2923/"
+        "Master_TrackList_Measurements.xlsx"
+    )
+    cache_url = (
+        "https://nist-oar-cache.s3.amazonaws.com/mds2-2923/"
         "Master_TrackList_Measurements.xlsx"
     )
     calls: list[str] = []
@@ -130,15 +142,16 @@ def test_live_path_fetches_metadata_then_exact_artifact(tmp_path: Path) -> None:
         timeout_seconds: float,
         headers: dict[str, str],
     ) -> FetchResult:
-        assert allowed_hosts == ["data.nist.gov"]
         calls.append(url)
         if url == metadata_url:
+            assert allowed_hosts == [NIST_PDR_HOST]
             assert headers["Accept"] == "application/json"
             return FetchResult(metadata, 200, url, "application/json")
         if url == artifact_url:
+            assert allowed_hosts == NIST_PDR_ARTIFACT_ALLOWED_HOSTS
             assert headers["Accept"] == "*/*"
             assert max_bytes == len(artifact) + 1
-            return FetchResult(artifact, 200, url, "application/octet-stream")
+            return FetchResult(artifact, 200, cache_url, "application/octet-stream")
         raise AssertionError(url)
 
     output = tmp_path / "mds2-2923-workbook"
