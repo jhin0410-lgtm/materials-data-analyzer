@@ -19,7 +19,6 @@ from platform_core.output_safety import transactional_output_directory
 from .safe_archive_inventory import inspect_zip_archive
 from .zenodo_evidence_acquisition import (
     AUTO,
-    ZenodoEvidenceAcquisitionError,
     acquire_zenodo_files,
     fetch_zenodo_record_metadata,
     normalize_zenodo_record_metadata,
@@ -164,7 +163,9 @@ def run_ssrm_titanium_zenodo_episode(
         )
         if normalized["record_decision"] != AUTO:
             raise SsrmTitaniumZenodoEpisodeError(
-                f"Zenodo record is not AUTO under existing policy: {normalized['record_reason_codes']}"
+                "Zenodo record is not AUTO under existing policy: "
+                f"license_ids={normalized['license_ids']}, "
+                f"reason_codes={normalized['record_reason_codes']}"
             )
         if normalized["license_ids"] != [zenodo["required_license"]]:
             raise SsrmTitaniumZenodoEpisodeError(
