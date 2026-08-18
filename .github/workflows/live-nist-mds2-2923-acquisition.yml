@@ -1,0 +1,102 @@
+name: Live NIST mds2-2923 acquisition
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/live-nist-mds2-2923-acquisition.yml"
+      - "configs/research/in625_external_physical_source_frontier.v1.json"
+      - "src/materials_data_analyzer/public_acquisition_cli.py"
+      - "src/materials_data_analyzer/research_loop/frontier_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "tests/test_in625_mds2_2923_acquisition_frontier.py"
+      - "tests/test_nist_pdr_acquisition.py"
+      - "tests/test_nist_pdr_nerdm_compatibility.py"
+      - "tests/test_public_data_acquisition.py"
+
+permissions:
+  contents: read
+
+jobs:
+  live-acquisition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package and focused regression dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+
+      - name: Run deterministic NIST acquisition regressions
+        run: |
+          python -m pytest -q \
+            tests/test_in625_mds2_2923_acquisition_frontier.py \
+            tests/test_nist_pdr_acquisition.py \
+            tests/test_nist_pdr_nerdm_compatibility.py \
+            tests/test_public_data_acquisition.py
+
+      - name: Acquire authoritative README and workbook
+        run: |
+          mkdir -p outputs/nist-mds2-2923
+          python -m materials_data_analyzer.public_acquisition_cli \
+            --frontier configs/research/in625_external_physical_source_frontier.v1.json \
+            --candidate-id nist-mds2-2923-cross-sectional-micrographs \
+            --output-root outputs/nist-mds2-2923/packages \
+            --timeout-seconds 180 \
+            --max-auto-mib 8 \
+            | tee outputs/nist-mds2-2923/frontier_acquisition_report.json
+
+      - name: Verify acquisition and scientific boundary
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/nist-mds2-2923")
+          report = json.loads((root / "frontier_acquisition_report.json").read_text(encoding="utf-8"))
+          acquisition = report["acquisition"]
+          assert report["scientific_status_changed"] is False
+          assert report["requires_scientific_intake"] is True
+          assert acquisition["automatic_execution_attempted"] == 2
+          assert acquisition["automatic_execution_succeeded"] == 2
+          assert acquisition["automatic_execution_failed"] == 0
+          assert acquisition["all_auto_succeeded"] is True
+          assert acquisition["human_review_required"] == []
+          assert acquisition["blocked"] == []
+
+          expected_paths = {"2923_README.txt", "Master_TrackList_Measurements.xlsx"}
+          receipts = acquisition["receipts"]
+          assert {item["artifact_path"] for item in receipts} == expected_paths
+          for receipt in receipts:
+              assert receipt["scientific_status_changed"] is False
+              assert receipt["requires_scientific_intake"] is True
+              assert receipt["recorded_acquisition_provenance_authenticated"] is True
+              package = Path(receipt["package_directory"])
+              artifact = package / receipt["artifact_path"]
+              body = artifact.read_bytes()
+              assert len(body) == receipt["artifact_size_bytes"]
+              assert hashlib.sha256(body).hexdigest() == receipt["artifact_sha256"]
+          print(json.dumps({
+              "authenticated_artifact_count": len(receipts),
+              "artifact_paths": sorted(expected_paths),
+              "scientific_status_changed": False,
+              "requires_scientific_intake": True,
+          }, indent=2))
+          PY
+
+      - name: Upload exact acquisition packages
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: nist-mds2-2923-live-acquisition
+          path: outputs/nist-mds2-2923/
+          if-no-files-found: warn
+          retention-days: 30
