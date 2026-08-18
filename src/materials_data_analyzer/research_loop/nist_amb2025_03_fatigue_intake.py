@@ -17,7 +17,6 @@ import math
 import re
 import zipfile
 from collections import Counter, defaultdict
-from collections.abc import Mapping
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -30,6 +29,7 @@ TITLE = "800HIP12C/min"
 _XLSX_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _CELL_RE = re.compile(r"^([A-Z]+)([1-9][0-9]*)$")
+_DECIMAL_TEXT_RE = re.compile(r"^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$")
 _EXACT_RUNOUT_RE = re.compile(r"^runout(?:[ -])?([0-9][0-9,]*)(?: cycles)?$", re.I)
 _MILLION_RUNOUT_RE = re.compile(r"^([0-9]+)M runout$", re.I)
 
@@ -210,6 +210,29 @@ def _finite_number(value: object, field: str) -> float:
     return float(format(number, ".15g"))
 
 
+def _finite_source_decimal(value: object, field: str) -> tuple[float, str]:
+    """Parse a source decimal while preserving whether Excel stored text or number."""
+
+    if isinstance(value, bool):
+        raise NistAmb202503FatigueIntakeError(
+            f"{field} must be a numeric cell or exact decimal text"
+        )
+    if isinstance(value, (int, float)):
+        return _finite_number(value, field), "numeric_cell"
+    if (
+        isinstance(value, str)
+        and value == value.strip()
+        and _DECIMAL_TEXT_RE.fullmatch(value)
+    ):
+        number = float(value)
+        if not math.isfinite(number):
+            raise NistAmb202503FatigueIntakeError(f"{field} text must be finite")
+        return float(format(number, ".15g")), "text_decimal_cell"
+    raise NistAmb202503FatigueIntakeError(
+        f"{field} must be a numeric cell or exact decimal text"
+    )
+
+
 def _positive_int(value: object, field: str) -> int:
     number = _finite_number(value, field)
     if number <= 0 or not number.is_integer():
@@ -360,7 +383,10 @@ def audit_amb2025_03_fatigue(
         if row["row"] <= 2:
             continue
         cells = row["cells"]
-        if not any(cells.get(_column(index), {}).get("value") is not None for index in range(1, 10)):
+        if not any(
+            cells.get(_column(index), {}).get("value") is not None
+            for index in range(1, 10)
+        ):
             continue
         for column in core_formula_columns:
             if cells.get(column, {}).get("formula") is not None:
@@ -385,7 +411,9 @@ def audit_amb2025_03_fatigue(
             )
         seen_specimens.add(specimen_id)
         data_log_id = _source_identifier(cells.get("C", {}).get("value"), "Data Log #")
-        diameter_mm = _finite_number(cells.get("D", {}).get("value"), "diameter (mm)")
+        diameter_mm, diameter_source_storage = _finite_source_decimal(
+            cells.get("D", {}).get("value"), "diameter (mm)"
+        )
         stress_mpa = _finite_number(
             cells.get("E", {}).get("value"), "desired stress (MPa)"
         )
@@ -397,7 +425,11 @@ def audit_amb2025_03_fatigue(
                 f"fatigue row {row['row']} contains non-positive physical values"
             )
         raw_cycles = cells.get("G", {}).get("value")
-        cycles = None if raw_cycles is None else _positive_int(raw_cycles, "cycles to failure (N)")
+        cycles = (
+            None
+            if raw_cycles is None
+            else _positive_int(raw_cycles, "cycles to failure (N)")
+        )
         operator = _optional_text(cells.get("H", {}).get("value"), "Operator")
         if operator is None:
             raise NistAmb202503FatigueIntakeError(
@@ -413,6 +445,7 @@ def audit_amb2025_03_fatigue(
                 "data_log_id_source": data_log_id,
                 "condition": CONDITION,
                 "diameter_mm": diameter_mm,
+                "diameter_source_storage": diameter_source_storage,
                 "desired_stress_mpa": stress_mpa,
                 "desired_load_n": desired_load_n,
                 "operator": operator,
@@ -423,6 +456,7 @@ def audit_amb2025_03_fatigue(
 
     records.sort(key=lambda item: item["test_number"])
     outcomes = Counter(item["outcome"] for item in records)
+    diameter_storage = Counter(item["diameter_source_storage"] for item in records)
     unresolved = [
         item
         for item in records
@@ -441,7 +475,11 @@ def audit_amb2025_03_fatigue(
         by_stress[item["desired_stress_mpa"]].append(item)
     for stress, items in sorted(by_stress.items()):
         counts = Counter(item["outcome"] for item in items)
-        key = str(int(stress)) if float(stress).is_integer() else format(stress, ".15g")
+        key = (
+            str(int(stress))
+            if float(stress).is_integer()
+            else format(stress, ".15g")
+        )
         stress_summary[key] = {
             "specimens": len(items),
             "failures": counts["failure"],
@@ -497,6 +535,7 @@ def audit_amb2025_03_fatigue(
             "review_required_rows": outcomes["review_required"],
             "desired_load_formula_cell_count": len(desired_load_formula_cells),
             "desired_load_formula_cells": desired_load_formula_cells,
+            "diameter_source_storage_counts": dict(sorted(diameter_storage.items())),
             "stress_level_summary": stress_summary,
         },
         "runout_reconciliation": {
@@ -559,6 +598,14 @@ def audit_amb2025_03_fatigue(
                 "evidence": (
                     f"{runout_shorthand} runout row uses M shorthand rather than an exact "
                     "integer cycle count"
+                ),
+            },
+            {
+                "code": "diameter_storage_type_mixed",
+                "severity": "source_data_quality_provenance",
+                "evidence": (
+                    f"{diameter_storage['text_decimal_cell']} diameter cells are stored as "
+                    f"exact decimal text and {diameter_storage['numeric_cell']} as numeric cells"
                 ),
             },
             {
