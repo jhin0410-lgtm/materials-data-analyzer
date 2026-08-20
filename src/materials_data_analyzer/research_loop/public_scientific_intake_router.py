@@ -6,6 +6,7 @@ promote an artifact to scientific evidence without a separately registered domai
 """
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,10 @@ from typing import Any
 from .delimited_structural_intake import (
     DelimitedStructuralIntakeError,
     structural_intake_acquired_delimited,
+)
+from .generic_semantic_lineage_proposal import (
+    GenericSemanticLineageProposalError,
+    build_generic_semantic_lineage_proposal,
 )
 from .in625_nist_2923_mapping_proposal import (
     Nist2923MappingProposalError,
@@ -23,7 +28,22 @@ from .xlsx_structural_intake import (
     structural_intake_acquired_xlsx,
 )
 
-PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION = "1.2"
+PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION = "1.3"
+_SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _proposal_candidate_id(receipt: Mapping[str, Any]) -> str | None:
+    candidate = receipt.get("candidate_id")
+    if (
+        isinstance(candidate, str)
+        and candidate.strip()
+        and candidate == candidate.strip()
+    ):
+        return candidate
+    digest = receipt.get("artifact_sha256")
+    if isinstance(digest, str) and _SHA_RE.fullmatch(digest):
+        return "artifact-sha256:" + digest[:24]
+    return None
 
 
 def route_public_scientific_intake(
@@ -93,11 +113,35 @@ def route_public_scientific_intake(
                 "reason_codes": ["delimited_structural_intake_failed"],
                 "error": str(exc),
             }
-        return {
+        routed_delimited: dict[str, Any] = {
             "schema_version": PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION,
             "adapter": "delimited_structural_intake",
             **dict(result),
         }
+        proposal_candidate = _proposal_candidate_id(receipt)
+        if proposal_candidate is None:
+            routed_delimited["generic_semantic_lineage_proposal"] = {
+                "status": "proposal_not_prepared",
+                "reason": "candidate_identifier_could_not_be_bound",
+                "accepted_for_analysis": False,
+                "scientific_status_changed": False,
+            }
+        else:
+            try:
+                routed_delimited["generic_semantic_lineage_proposal"] = (
+                    build_generic_semantic_lineage_proposal(
+                        candidate_id=proposal_candidate,
+                        structure=result["delimited_structure"],
+                    )
+                )
+            except (GenericSemanticLineageProposalError, KeyError) as exc:
+                routed_delimited["generic_semantic_lineage_proposal"] = {
+                    "status": "proposal_failed",
+                    "error": str(exc),
+                    "accepted_for_analysis": False,
+                    "scientific_status_changed": False,
+                }
+        return routed_delimited
     return {
         "schema_version": PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION,
         "decision": "requires_domain_scientific_intake",
