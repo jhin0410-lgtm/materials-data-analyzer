@@ -10,6 +10,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from .delimited_structural_intake import (
+    DelimitedStructuralIntakeError,
+    structural_intake_acquired_delimited,
+)
 from .in625_nist_2923_mapping_proposal import (
     Nist2923MappingProposalError,
     propose_nist_2923_workbook_mapping,
@@ -19,7 +23,7 @@ from .xlsx_structural_intake import (
     structural_intake_acquired_xlsx,
 )
 
-PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION = "1.1"
+PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION = "1.2"
 
 
 def route_public_scientific_intake(
@@ -72,6 +76,28 @@ def route_public_scientific_intake(
                     "error": str(exc),
                 }
         return routed
+    if suffix in {".csv", ".tsv", ".txt"}:
+        try:
+            result = structural_intake_acquired_delimited(
+                receipt=receipt,
+                package_directory=package_directory,
+                evidence_gap=evidence_gap,
+            )
+        except (DelimitedStructuralIntakeError, OSError) as exc:
+            return {
+                "schema_version": PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION,
+                "decision": "structural_intake_failed",
+                "accepted_for_analysis": False,
+                "scientific_status_changed": False,
+                "artifact_sha256": receipt.get("artifact_sha256"),
+                "reason_codes": ["delimited_structural_intake_failed"],
+                "error": str(exc),
+            }
+        return {
+            "schema_version": PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION,
+            "adapter": "delimited_structural_intake",
+            **dict(result),
+        }
     return {
         "schema_version": PUBLIC_SCIENTIFIC_INTAKE_ROUTER_SCHEMA_VERSION,
         "decision": "requires_domain_scientific_intake",
