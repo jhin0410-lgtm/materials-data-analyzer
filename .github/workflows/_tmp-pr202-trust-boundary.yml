@@ -1,0 +1,65 @@
+name: Temporary PR 202 trust-boundary gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-pr202-trust-boundary-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  patch-test-clean:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR head branch
+        uses: actions/checkout@v7
+        with:
+          ref: feature/bounded-recursive-research-cycle
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Apply trust-boundary patch
+        run: python scripts/_tmp_patch_pr202_trust_boundary.py
+
+      - name: Compile changed research-loop modules
+        run: python -m compileall -q src/materials_data_analyzer/research_loop
+
+      - name: Run focused recursive and typed-execution regressions
+        run: |
+          python -m pytest -q \
+            tests/test_recursive_research_cycle_controller.py \
+            tests/test_recursive_research_cycle_evidence.py \
+            tests/test_recursive_research_cycle_integration.py \
+            tests/test_recursive_research_cycle_review_hardening.py \
+            tests/test_recursive_research_cycle_rediagnosis.py \
+            tests/test_recursive_authenticated_transition_adapter.py \
+            tests/test_autonomous_inquiry_plan_verifier.py \
+            tests/test_heat_conduction_authorized_execution.py
+
+      - name: Remove temporary patch machinery
+        run: |
+          git rm .github/workflows/_tmp-pr202-trust-boundary.yml
+          git rm scripts/_tmp_patch_pr202_trust_boundary.py
+
+      - name: Commit verified clean patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests
+          git diff --cached --check
+          git commit -m "Close recursive research trust-boundary bypasses"
+          git push origin HEAD:feature/bounded-recursive-research-cycle
