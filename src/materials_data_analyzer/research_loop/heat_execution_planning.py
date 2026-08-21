@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 from pathlib import Path
 from typing import Any, Mapping
 
 from .action_registry import describe_action, load_action_registry
 from .heat_conduction_action import ACTION_TYPE, ACTION_VERSION, COST_UNITS
+from .heat_conduction_solver import run_reference_heat_conduction_request
 from .heat_execution_verifier import ADAPTER_ID, REGISTRY_DOMAIN
 from .kernel import LEDGER_FILENAME, ResearchLoopError, load_research_state
 from .scientific_simulation_registry import repository_heat_conduction_contract
@@ -64,6 +66,24 @@ def _verified_registry(path: Path, root: Path) -> tuple[dict[str, Any], dict[str
     return registry, contract
 
 
+def _solver_source_binding() -> tuple[Path, str, str]:
+    solver_contract = repository_heat_conduction_contract()
+    if (
+        solver_contract.action_type != ACTION_TYPE
+        or solver_contract.action_version != ACTION_VERSION
+        or solver_contract.physics_solver is not True
+    ):
+        raise HeatExecutionPlanningError("audited heat solver implementation contract drifted")
+    source = inspect.getsourcefile(run_reference_heat_conduction_request)
+    if source is None:
+        raise HeatExecutionPlanningError("audited heat solver source path is not attestable")
+    source_path = Path(source).resolve(strict=True)
+    source_sha = _sha256_file(source_path)
+    if source_sha != solver_contract.implementation_module_sha256:
+        raise HeatExecutionPlanningError("audited heat solver source SHA drifted")
+    return source_path, source_sha, solver_contract.implementation_qualname
+
+
 def build_heat_execution_planning_state(
     *,
     repository_root: str | Path,
@@ -74,13 +94,7 @@ def build_heat_execution_planning_state(
     run = Path(research_run).expanduser().resolve(strict=True)
     registry_path = _resolve_file(action_registry_path, root=root, field="action_registry_path")
     registry, contract = _verified_registry(registry_path, root)
-    solver_contract = repository_heat_conduction_contract()
-    if (
-        solver_contract.action_type != ACTION_TYPE
-        or solver_contract.action_version != ACTION_VERSION
-        or solver_contract.physics_solver is not True
-    ):
-        raise HeatExecutionPlanningError("audited heat solver implementation contract drifted")
+    solver_source_path, solver_source_sha, solver_qualname = _solver_source_binding()
 
     state = load_research_state(run)
     if state.get("status") != "active":
@@ -98,8 +112,9 @@ def build_heat_execution_planning_state(
         },
         {
             "role": "reference_heat_solver_implementation",
-            "implementation_qualname": solver_contract.implementation_qualname,
-            "sha256": solver_contract.implementation_module_sha256,
+            "path": str(solver_source_path),
+            "implementation_qualname": solver_qualname,
+            "sha256": solver_source_sha,
         },
         {
             "role": "research_ledger",
@@ -142,9 +157,7 @@ def build_heat_execution_planning_state(
             "execution_registry_id": registry["registry_id"],
             "execution_registry_sha256": registry["registry_sha256"],
             "execution_registry_path": registry["registry_path"],
-            "expected_solver_implementation_sha256": (
-                solver_contract.implementation_module_sha256
-            ),
+            "expected_solver_implementation_sha256": solver_source_sha,
             "expected_information_gain": {
                 "status": "not_quantified",
                 "value": None,
