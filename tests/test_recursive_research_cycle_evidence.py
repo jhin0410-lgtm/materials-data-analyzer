@@ -91,7 +91,7 @@ def _execution(checkpoint: dict, *, outcome: str = "completed", success: bool = 
         "source_checkpoint_sha256": checkpoint["checkpoint_sha256"],
         "authorization_status": "explicit_request_authorized_by_existing_chain",
         "independent_verification_status": "verified_by_existing_chain",
-        "action_id": "action-1",
+        "action_id": checkpoint["fresh_planner_state"]["selected_candidate_id"],
         "action_type": "sensitivity_analysis",
         "action_version": "1.0",
         "request_sha256": "d" * 64,
@@ -155,6 +155,7 @@ def _portfolio(graph: dict, *, state: str = "active_discrimination_required") ->
     directive = {
         "active_discrimination_required": "continue_discriminating_research",
         "positive_closeout_required": "seek_domain_closeout_no_auto_promotion",
+        "contested_discrimination_required": "prioritize_discriminating_work",
         "challenge_or_retirement_review": "seek_replication_or_scope_review",
         "retired_falsified_within_verified_scope": "do_not_repeat_without_new_hypothesis_identity",
     }[state]
@@ -216,6 +217,24 @@ def test_verified_execution_graph_transition_and_portfolio_require_rediagnosis()
     assert result["autonomy_boundary"]["scientific_status_changed_by_controller"] is False
 
 
+def test_execution_action_must_equal_planner_selected_candidate() -> None:
+    checkpoint = _checkpoint()
+    execution = _execution(checkpoint)
+    execution.pop("verification_record_sha256")
+    execution["action_id"] = "planner:other-action"
+    execution["verification_record_sha256"] = _canonical_sha(execution)
+    graph = _graph()
+
+    with pytest.raises(RecursiveResearchEvidenceError, match="planner-selected"):
+        advance_recursive_cycle_after_verified_transition(
+            authorization_checkpoint=checkpoint,
+            verified_execution_record=execution,
+            epistemic_transition_record=_transition(execution, graph),
+            evaluated_graph=graph,
+            hypothesis_portfolio=_portfolio(graph),
+        )
+
+
 def test_rejected_or_failed_execution_cannot_be_marked_success() -> None:
     checkpoint = _checkpoint()
     graph = _graph()
@@ -274,6 +293,23 @@ def test_graph_transition_and_portfolio_sha_substitution_fail_closed() -> None:
             epistemic_transition_record=transition,
             evaluated_graph=graph,
             hypothesis_portfolio=wrong_portfolio,
+        )
+
+
+def test_portfolio_state_must_follow_epistemic_status_semantics() -> None:
+    checkpoint = _checkpoint()
+    execution = _execution(checkpoint)
+    graph = _graph(status="inconclusive")
+    transition = _transition(execution, graph)
+    forged = _portfolio(graph, state="retired_falsified_within_verified_scope")
+
+    with pytest.raises(RecursiveResearchEvidenceError, match="portfolio_state"):
+        advance_recursive_cycle_after_verified_transition(
+            authorization_checkpoint=checkpoint,
+            verified_execution_record=execution,
+            epistemic_transition_record=transition,
+            evaluated_graph=graph,
+            hypothesis_portfolio=forged,
         )
 
 
