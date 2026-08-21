@@ -39,8 +39,11 @@ from .discrepancy_planning_handoff import (
     DISCREPANCY_PLANNING_HANDOFF_POLICY_VERSION,
     DISCREPANCY_PLANNING_HANDOFF_SCHEMA_VERSION,
     DiscrepancyPlanningHandoffError,
-    build_discrepancy_planning_handoff,
-    validate_discrepancy_planning_handoff,
+)
+from .discrepancy_planning_handoff_policy import (
+    DISCREPANCY_PLANNING_HANDOFF_HARDENING_POLICY_VERSION,
+    build_policy_hardened_discrepancy_planning_handoff,
+    validate_policy_hardened_discrepancy_planning_handoff,
 )
 from .epistemic_control import (
     EPISTEMIC_CONTROL_POLICY_VERSION,
@@ -90,8 +93,13 @@ from .model_evidence_discrepancy import (
     MODEL_EVIDENCE_DISCREPANCY_POLICY_VERSION,
     MODEL_EVIDENCE_DISCREPANCY_SCHEMA_VERSION,
     ModelEvidenceDiscrepancyError,
-    build_model_evidence_discrepancy_report,
-    validate_model_evidence_discrepancy_report,
+)
+from .model_evidence_discrepancy_policy import (
+    MODEL_EVIDENCE_DISCREPANCY_HARDENING_POLICY_VERSION,
+    REPLICATION_VERIFICATION_SCHEMA_VERSION,
+    ModelEvidenceDiscrepancyPolicyError,
+    build_policy_hardened_model_evidence_discrepancy_report,
+    validate_policy_hardened_model_evidence_discrepancy_report,
 )
 from .nasa_action_policy import NasaActionPolicyError, plan_nasa_next_action
 from .nasa_audit_executor import (
@@ -174,6 +182,18 @@ from .target_reference_sensitivity import (
 )
 
 build_scientific_critic_report = build_policy_hardened_scientific_critic_report
+build_model_evidence_discrepancy_report = (
+    build_policy_hardened_model_evidence_discrepancy_report
+)
+validate_model_evidence_discrepancy_report = (
+    validate_policy_hardened_model_evidence_discrepancy_report
+)
+build_discrepancy_planning_handoff = (
+    build_policy_hardened_discrepancy_planning_handoff
+)
+validate_discrepancy_planning_handoff = (
+    validate_policy_hardened_discrepancy_planning_handoff
+)
 
 __all__ = [
     "ACTION_REGISTRY_SCHEMA_VERSION",
@@ -185,6 +205,7 @@ __all__ = [
     "AUTHORIZATION_SCHEMA_VERSION",
     "CYCLE_POLICY_VERSION",
     "CYCLE_SCHEMA_VERSION",
+    "DISCREPANCY_PLANNING_HANDOFF_HARDENING_POLICY_VERSION",
     "DISCREPANCY_PLANNING_HANDOFF_POLICY_VERSION",
     "DISCREPANCY_PLANNING_HANDOFF_SCHEMA_VERSION",
     "EPISTEMIC_CONTROL_POLICY_VERSION",
@@ -202,6 +223,7 @@ __all__ = [
     "GRAPH_SCHEMA_VERSION",
     "LEDGER_FILENAME",
     "MISSION_SCHEMA_VERSION",
+    "MODEL_EVIDENCE_DISCREPANCY_HARDENING_POLICY_VERSION",
     "MODEL_EVIDENCE_DISCREPANCY_POLICY_VERSION",
     "MODEL_EVIDENCE_DISCREPANCY_SCHEMA_VERSION",
     "PLANNING_ADAPTER_VERSION",
@@ -212,6 +234,7 @@ __all__ = [
     "PROGRAM_POLICY_VERSION",
     "PROGRAM_SCHEMA_VERSION",
     "REASONING_PROPOSAL_SCHEMA_VERSION",
+    "REPLICATION_VERIFICATION_SCHEMA_VERSION",
     "SCIENTIFIC_CRITIC_HARDENING_POLICY_VERSION",
     "SCIENTIFIC_CRITIC_POLICY_VERSION",
     "SCIENTIFIC_CRITIC_SCHEMA_VERSION",
@@ -228,6 +251,7 @@ __all__ = [
     "EpistemicMultiCycleError",
     "EvidenceOriginBindingError",
     "ModelEvidenceDiscrepancyError",
+    "ModelEvidenceDiscrepancyPolicyError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
