@@ -333,16 +333,10 @@ def validate_validated_recursive_planning_checkpoint(
             "validated planning artifact SHA-256 does not match canonical content"
         )
 
-    effective_limits: Mapping[str, Any] | None = recursive_limits
-    if effective_limits is None:
-        supplied_budget = _mapping(
-            supplied.get("recursive_resource_budget"),
-            "validated planning artifact recursive_resource_budget",
-        )
-        effective_limits = _mapping(
-            supplied_budget.get("limits"),
-            "validated planning artifact recursive_resource_budget.limits",
-        )
+    # Validation must replay against an externally expected limit contract. If no
+    # expected contract is supplied, repository defaults are authoritative; limits
+    # embedded in the caller-provided artifact are never used to validate themselves.
+    normalized_limits = normalize_recursive_limits(recursive_limits)
 
     rebuilt = build_validated_recursive_planning_checkpoint(
         planning_handoff=planning_handoff,
@@ -359,7 +353,7 @@ def validate_validated_recursive_planning_checkpoint(
         minimum_utility=minimum_utility,
         previous_checkpoint=previous_checkpoint,
         previous_validated_planning_context=previous_validated_planning_context,
-        recursive_limits=effective_limits,
+        recursive_limits=normalized_limits,
     )
     if rebuilt != supplied:
         raise ValidatedRecursivePlanningError(
