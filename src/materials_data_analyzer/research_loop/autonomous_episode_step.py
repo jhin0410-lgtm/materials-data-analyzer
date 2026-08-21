@@ -21,6 +21,66 @@ def _text_list(value: Sequence[str] | None, field: str) -> list[str]:
     return result
 
 
+def _sha256_text(value: object, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or value != value.lower()
+        or any(char not in "0123456789abcdef" for char in value)
+    ):
+        raise AutonomousDecisionIntegrationError(
+            f"{field} must be a lowercase SHA-256 digest"
+        )
+    return value
+
+
+def _portfolio_episode_gate(
+    decision_report: Mapping[str, Any],
+    *,
+    selected: object,
+) -> tuple[str | None, str | None]:
+    binding = decision_report.get("hypothesis_portfolio_binding")
+    if binding is None:
+        return None, None
+    if not isinstance(binding, Mapping):
+        raise AutonomousDecisionIntegrationError(
+            "hypothesis_portfolio_binding must be null or an object"
+        )
+    portfolio_sha = _sha256_text(
+        binding.get("portfolio_sha256"),
+        "hypothesis_portfolio_binding.portfolio_sha256",
+    )
+    directive = binding.get("portfolio_directive")
+    if directive not in {
+        "prioritize_discrimination",
+        "continue_bounded_discrimination",
+        "domain_closeout_required",
+        "bounded_stop_all_hypotheses_retired",
+    }:
+        raise AutonomousDecisionIntegrationError(
+            f"unsupported hypothesis portfolio directive: {directive}"
+        )
+    if directive in {
+        "domain_closeout_required",
+        "bounded_stop_all_hypotheses_retired",
+    }:
+        if selected is not None:
+            raise AutonomousDecisionIntegrationError(
+                "portfolio-gated closeout/retirement cannot retain a selected action"
+            )
+        portfolio_gate_recorded = (
+            decision_report.get("hypothesis_portfolio_gated_selection") is True
+        )
+        upstream_already_stopped = decision_report.get("selection_reason") == (
+            "upstream_stop_decision"
+        )
+        if not portfolio_gate_recorded and not upstream_already_stopped:
+            raise AutonomousDecisionIntegrationError(
+                "portfolio-gated closeout/retirement must be explicit in decision report"
+            )
+    return portfolio_sha, str(directive)
+
+
 def decision_report_to_episode_step(
     *,
     plan: Mapping[str, Any],
@@ -31,14 +91,10 @@ def decision_report_to_episode_step(
     blockers: Sequence[str] = (),
 ) -> dict[str, Any]:
     """Create one persistence-ready step without performing the selected action."""
-    report_sha = decision_report.get("report_sha256")
-    if (
-        not isinstance(report_sha, str)
-        or len(report_sha) != 64
-        or report_sha != report_sha.lower()
-        or any(char not in "0123456789abcdef" for char in report_sha)
-    ):
-        raise AutonomousDecisionIntegrationError("decision report requires canonical report_sha256")
+    report_sha = _sha256_text(
+        decision_report.get("report_sha256"),
+        "decision report report_sha256",
+    )
     if decision_report.get("scientific_status_changed") is not False:
         raise AutonomousDecisionIntegrationError("decision support cannot change scientific status")
     if decision_report.get("physical_experiment_executed") is not False:
@@ -57,6 +113,11 @@ def decision_report_to_episode_step(
         # The executor iteration records execution cost separately after authorization.
         cost_units = 0.0
 
+    portfolio_sha, portfolio_directive = _portfolio_episode_gate(
+        decision_report,
+        selected=selected,
+    )
+
     stop = plan.get("stop_decision")
     if not isinstance(stop, Mapping) or not isinstance(stop.get("stop"), bool):
         raise AutonomousDecisionIntegrationError("plan stop_decision is invalid")
@@ -72,6 +133,21 @@ def decision_report_to_episode_step(
             "reason": str(stop.get("reason", "upstream_stop_decision")),
             "scientific_status_changed": False,
         }
+    elif portfolio_directive == "domain_closeout_required":
+        episode_status = "blocked"
+        iteration_status = "decision_blocked_pending_domain_closeout"
+    elif portfolio_directive == "bounded_stop_all_hypotheses_retired":
+        episode_status = "stopped"
+        iteration_status = "bounded_stop_all_hypotheses_retired"
+        conclusion = {
+            "kind": "bounded_stop_without_scientific_promotion",
+            "reason": "all_graph_hypotheses_falsified_within_verified_scope",
+            "scientific_status_changed": False,
+        }
+
+    artifact_refs = [f"decision-report-sha256:{report_sha}"]
+    if portfolio_sha is not None:
+        artifact_refs.append(f"hypothesis-portfolio-sha256:{portfolio_sha}")
 
     return {
         "planner_record": {
@@ -79,7 +155,7 @@ def decision_report_to_episode_step(
             "plan": dict(plan),
             "decision_report": dict(decision_report),
         },
-        "artifact_refs": [f"decision-report-sha256:{report_sha}"],
+        "artifact_refs": artifact_refs,
         "evidence_refs": _text_list(evidence_refs, "evidence_refs"),
         "unresolved_gaps": _text_list(unresolved_gaps, "unresolved_gaps"),
         "review_queue": _text_list(review_queue, "review_queue"),

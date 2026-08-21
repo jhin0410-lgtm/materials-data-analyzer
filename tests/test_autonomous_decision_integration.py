@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 import pytest
 
 from materials_data_analyzer.research_loop.autonomous_decision_integration import (
@@ -7,6 +10,20 @@ from materials_data_analyzer.research_loop.autonomous_decision_integration impor
     build_autonomous_decision_report,
 )
 from materials_data_analyzer.research_loop.experimental_lineage import ObservationLineage
+from materials_data_analyzer.research_loop.hypothesis_portfolio import (
+    build_hypothesis_portfolio,
+)
+
+
+def _canonical_sha256(value: object) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _action(action_id: str, *, execution_mode: str = "plan_only", utility: float = 0.5) -> dict:
@@ -29,6 +46,66 @@ def _plan() -> dict:
         "selected_next_action": first,
         "stop_decision": {"stop": False, "reason": "informative_action_available"},
     }
+
+
+def _sha_bound_plan() -> dict:
+    plan = _plan()
+    plan["plan_sha256"] = _canonical_sha256(plan)
+    return plan
+
+
+def _portfolio_graph(status: str) -> dict:
+    support = ["support-1"] if status in {"provisionally_supported", "contested"} else []
+    contradiction = ["contradiction-1"] if status in {
+        "contested",
+        "contradicted_within_verified_scope",
+    } else []
+    falsification = ["falsifier-1"] if status == "falsified_within_verified_scope" else []
+    return {
+        "schema_version": "1.0",
+        "graph_policy_version": "1.0",
+        "graph_id": "decision-portfolio-graph",
+        "research_scope": "decision portfolio gate",
+        "nodes": [
+            {
+                "node_id": "h1",
+                "node_type": "hypothesis",
+                "statement": "The target relation survives bounded discrimination.",
+            }
+        ],
+        "edges": [],
+        "assessments": [
+            {
+                "node_id": "h1",
+                "node_type": "hypothesis",
+                "status": status,
+                "verified_support_edges": support,
+                "verified_contradiction_edges": contradiction,
+                "verified_falsification_edges": falsification,
+                "diagnostic_relation_edges": [],
+                "final_positive_support_granted": False,
+                "domain_closeout_required_for_positive_conclusion": status
+                == "provisionally_supported",
+                "confidence_score": None,
+            }
+        ],
+        "conflict_count": int(status == "contested"),
+        "falsified_count": int(status == "falsified_within_verified_scope"),
+        "autonomy_boundary": {
+            "proposal_relations_affect_status": False,
+            "diagnostic_relations_affect_verified_status": False,
+            "domain_verified_relations_require_checksum_bound_verifier_artifacts": True,
+            "final_positive_support_is_automatic": False,
+            "numeric_confidence_invented": False,
+        },
+    }
+
+
+def _portfolio(plan: dict, status: str) -> dict:
+    return build_hypothesis_portfolio(
+        _portfolio_graph(status),
+        plan=plan,
+    )
 
 
 def _benchmark(*, passed: bool = True, critical: int = 0) -> dict:
@@ -155,3 +232,73 @@ def test_stop_decision_cannot_be_overridden_by_eig() -> None:
     assert report["execution_handoff"][
         "eligible_to_request_existing_authorization_chain"
     ] is False
+
+
+def test_inconclusive_portfolio_preserves_existing_planner_frontier_and_selection() -> None:
+    plan = _sha_bound_plan()
+    portfolio = _portfolio(plan, "inconclusive")
+    report = build_autonomous_decision_report(
+        plan,
+        hypothesis_portfolio=portfolio,
+        benchmark_summary=_benchmark(),
+    )
+
+    assert report["selected_action"]["action_id"] == "a:first"
+    assert report["hypothesis_portfolio_binding"]["portfolio_sha256"] == (
+        portfolio["portfolio_sha256"]
+    )
+    assert report["hypothesis_portfolio_binding"]["portfolio_directive"] == (
+        "continue_bounded_discrimination"
+    )
+    assert report["hypothesis_portfolio_gated_selection"] is False
+    assert report["planner_frontier_expanded"] is False
+
+
+def test_provisional_support_blocks_confirmatory_execution_and_requires_closeout() -> None:
+    plan = _sha_bound_plan()
+    portfolio = _portfolio(plan, "provisionally_supported")
+    report = build_autonomous_decision_report(
+        plan,
+        hypothesis_portfolio=portfolio,
+        benchmark_summary=_benchmark(),
+    )
+
+    assert report["selected_action"] is None
+    assert report["selection_reason"] == "hypothesis_portfolio_requires_domain_closeout"
+    assert report["hypothesis_portfolio_gated_selection"] is True
+    assert report["execution_handoff"][
+        "eligible_to_request_existing_authorization_chain"
+    ] is False
+
+
+def test_all_falsified_portfolio_stops_action_handoff_without_changing_scientific_status() -> None:
+    plan = _sha_bound_plan()
+    portfolio = _portfolio(plan, "falsified_within_verified_scope")
+    report = build_autonomous_decision_report(
+        plan,
+        hypothesis_portfolio=portfolio,
+        benchmark_summary=_benchmark(),
+    )
+
+    assert report["selected_action"] is None
+    assert report["selection_reason"] == "hypothesis_portfolio_all_hypotheses_retired"
+    assert report["hypothesis_portfolio_gated_selection"] is True
+    assert report["scientific_status_changed"] is False
+    assert report["execution_handoff"][
+        "eligible_to_request_existing_authorization_chain"
+    ] is False
+
+
+def test_portfolio_bound_to_different_plan_fails_closed() -> None:
+    first_plan = _sha_bound_plan()
+    portfolio = _portfolio(first_plan, "inconclusive")
+    second_plan = _sha_bound_plan()
+    second_plan["planning_budget"]["budget_units"] = 3.0
+    second_plan.pop("plan_sha256")
+    second_plan["plan_sha256"] = _canonical_sha256(second_plan)
+
+    with pytest.raises(AutonomousDecisionIntegrationError, match="planning-cycle validation"):
+        build_autonomous_decision_report(
+            second_plan,
+            hypothesis_portfolio=portfolio,
+        )
