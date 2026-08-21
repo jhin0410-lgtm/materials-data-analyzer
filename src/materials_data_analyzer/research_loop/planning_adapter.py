@@ -94,13 +94,22 @@ def plan_research_next_action(
             action_registry_path=action_registry_path,
         )
         return {
+            "schema_version": _legacy.PLANNING_DECISION_SCHEMA_VERSION,
             "adapter_id": state["adapter_id"],
+            "adapter_version": _legacy.PLANNING_ADAPTER_VERSION,
             "domain": state["domain"],
             "selection_status": state["stop_state"]["selection_status"],
             "selected_action": state["selected_action"],
             "candidates": list(state["action_frontier"]),
             "reason": state["stop_state"]["reason"],
+            "evidence_level": None,
+            "maximum_allowed_use": "numerical_reference_validation_only",
             "evidence_bindings": list(state["evidence_bindings"]),
+            "network_access_performed": False,
+            "action_executed": False,
+            "model_fit_performed": False,
+            "scientific_evidence_upgraded": False,
+            "delegated_policy_version": None,
         }
     return _call_legacy_with_compat_namespace(
         _legacy.plan_research_next_action,
