@@ -17,6 +17,25 @@ def replace_once(text: str, old: str, new: str, *, label: str) -> str:
 
 
 rediagnosis = REDIAGNOSIS.read_text(encoding="utf-8")
+old_import = '''from .model_evidence_discrepancy_physics_policy import (
+    validate_physics_hardened_model_evidence_discrepancy_report,
+)
+'''
+new_import = '''from .model_evidence_discrepancy_physics_policy import (
+    ModelEvidenceDiscrepancyPhysicsPolicyError,
+    validate_physics_hardened_model_evidence_discrepancy_report,
+)
+'''
+if "ModelEvidenceDiscrepancyPhysicsPolicyError" not in rediagnosis.split(
+    "RECURSIVE_REDIAGNOSIS_POLICY_VERSION", 1
+)[0]:
+    rediagnosis = replace_once(
+        rediagnosis,
+        old_import,
+        new_import,
+        label="re-diagnosis physics-policy exception import",
+    )
+
 old_validation = '''    verified = validate_physics_hardened_model_evidence_discrepancy_report(
         current,
         evaluated_graph=graph,
@@ -36,12 +55,15 @@ new_validation = '''    try:
             "current discrepancy report failed physics/provenance-hardened validation"
         ) from exc
 '''
-rediagnosis = replace_once(
-    rediagnosis,
-    old_validation,
-    new_validation,
-    label="re-diagnosis physics-policy wrapper",
-)
+if old_validation in rediagnosis:
+    rediagnosis = replace_once(
+        rediagnosis,
+        old_validation,
+        new_validation,
+        label="re-diagnosis physics-policy wrapper",
+    )
+elif new_validation not in rediagnosis:
+    raise SystemExit("re-diagnosis physics-policy wrapper: no known exact state")
 REDIAGNOSIS.write_text(rediagnosis, encoding="utf-8")
 
 
@@ -73,12 +95,15 @@ new_bundle_tail = '''    apply_authenticated_epistemic_transition_files(
     )
     return output, result_sha
 '''
-evidence_test = replace_once(
-    evidence_test,
-    old_bundle_tail,
-    new_bundle_tail,
-    label="authenticated bundle historical artifacts",
-)
+if old_bundle_tail in evidence_test:
+    evidence_test = replace_once(
+        evidence_test,
+        old_bundle_tail,
+        new_bundle_tail,
+        label="authenticated bundle historical artifacts",
+    )
+elif new_bundle_tail not in evidence_test:
+    raise SystemExit("authenticated bundle historical artifacts: no known exact state")
 TEST_EVIDENCE.write_text(evidence_test, encoding="utf-8")
 
 
@@ -94,10 +119,13 @@ new_handoff = '''def _handoff(previous_report_sha: str) -> dict:
         "policy_version": "1.0",
         "source_discrepancy_report_sha256": previous_report_sha,
 '''
-verifier_test = replace_once(
-    verifier_test,
-    old_handoff,
-    new_handoff,
-    label="validated recursive handoff policy fixture",
-)
+if old_handoff in verifier_test:
+    verifier_test = replace_once(
+        verifier_test,
+        old_handoff,
+        new_handoff,
+        label="validated recursive handoff policy fixture",
+    )
+elif new_handoff not in verifier_test:
+    raise SystemExit("validated recursive handoff policy fixture: no known exact state")
 TEST_PLAN_VERIFIER.write_text(verifier_test, encoding="utf-8")
