@@ -45,7 +45,15 @@ def build_authenticated_recursive_execution_record(
     request_path: str | Path,
     action_report_path: str | Path,
 ) -> dict[str, Any]:
-    """Reconstruct execution and its historical authorization from authoritative inputs."""
+    """Reconstruct execution plus historical authorization from authoritative inputs.
+
+    Domain execution identity remains delegated to the preserved legacy verifier, which
+    is intentionally backed by ``verify_heat_conduction_action_report_pinned`` or
+    ``verify_nist_structural_design_report_pinned`` and rechecks ``load_research_state``,
+    ``load_action_registry``, and ``describe_action``. This facade then adds the separate
+    ``verify_preexecution_authorization`` reconstruction; it does not replace or weaken
+    those domain-pinned checks.
+    """
     record = _legacy.build_authenticated_recursive_execution_record(
         source_checkpoint_sha256=source_checkpoint_sha256,
         expected_candidate_action_id=expected_candidate_action_id,
