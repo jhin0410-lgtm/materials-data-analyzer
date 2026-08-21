@@ -11,7 +11,7 @@ from materials_data_analyzer.research_loop.authenticated_epistemic_transition im
 )
 from materials_data_analyzer.research_loop.recursive_research_cycle_evidence import (
     RecursiveResearchEvidenceError,
-    advance_recursive_cycle_after_verified_transition,
+    _advance_recursive_cycle_after_verified_transition as advance_recursive_cycle_after_verified_transition,
 )
 
 

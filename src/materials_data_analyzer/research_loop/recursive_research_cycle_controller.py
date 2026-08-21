@@ -437,7 +437,7 @@ def _validate_match_record(
     return normalized, objective
 
 
-def build_recursive_research_cycle_checkpoint(
+def _build_recursive_research_cycle_checkpoint(
     *,
     planning_handoff: Mapping[str, Any],
     fresh_plan: Mapping[str, Any],
@@ -557,7 +557,7 @@ def build_recursive_research_cycle_checkpoint(
     return checkpoint
 
 
-def validate_recursive_research_cycle_checkpoint(
+def _validate_recursive_research_cycle_checkpoint(
     checkpoint: Mapping[str, Any],
     *,
     planning_handoff: Mapping[str, Any],
@@ -572,7 +572,7 @@ def validate_recursive_research_cycle_checkpoint(
         field="checkpoint",
         sha_field="checkpoint_sha256",
     )
-    rebuilt = build_recursive_research_cycle_checkpoint(
+    rebuilt = _build_recursive_research_cycle_checkpoint(
         planning_handoff=planning_handoff,
         fresh_plan=fresh_plan,
         candidate_match=candidate_match,
@@ -598,6 +598,4 @@ __all__ = [
     "RECURSIVE_CYCLE_POLICY_VERSION",
     "RECURSIVE_CYCLE_SCHEMA_VERSION",
     "RecursiveResearchCycleError",
-    "build_recursive_research_cycle_checkpoint",
-    "validate_recursive_research_cycle_checkpoint",
 ]

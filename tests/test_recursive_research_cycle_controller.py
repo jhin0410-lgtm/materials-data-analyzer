@@ -8,8 +8,8 @@ import pytest
 
 from materials_data_analyzer.research_loop.recursive_research_cycle_controller import (
     RecursiveResearchCycleError,
-    build_recursive_research_cycle_checkpoint,
-    validate_recursive_research_cycle_checkpoint,
+    _build_recursive_research_cycle_checkpoint as build_recursive_research_cycle_checkpoint,
+    _validate_recursive_research_cycle_checkpoint as validate_recursive_research_cycle_checkpoint,
 )
 
 

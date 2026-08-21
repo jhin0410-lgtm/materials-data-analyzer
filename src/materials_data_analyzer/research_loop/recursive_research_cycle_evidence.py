@@ -30,6 +30,12 @@ from .recursive_research_cycle_controller import (
     RECURSIVE_CYCLE_POLICY_VERSION,
     RECURSIVE_CYCLE_SCHEMA_VERSION,
 )
+from .recursive_authorized_execution_evidence import (
+    build_authenticated_recursive_execution_record,
+)
+from .validated_recursive_cycle_planning import (
+    validate_validated_recursive_planning_checkpoint,
+)
 
 RECURSIVE_EVIDENCE_POLICY_VERSION = "1.0"
 VERIFIED_EXECUTION_RECORD_SCHEMA_VERSION = "1.0"
@@ -509,7 +515,7 @@ def _authoritative_portfolio(
     return portfolio, digest, record
 
 
-def advance_recursive_cycle_after_verified_transition(
+def _advance_recursive_cycle_after_verified_transition(
     *,
     authorization_checkpoint: Mapping[str, Any],
     verified_execution_record: Mapping[str, Any],
@@ -705,6 +711,92 @@ def advance_recursive_cycle_after_verified_transition(
     }
     result["progression_sha256"] = _canonical_sha256(result)
     return result
+
+
+
+def advance_recursive_cycle_after_verified_transition(
+    *,
+    validated_planning_artifact: Mapping[str, Any],
+    planning_handoff: Mapping[str, Any],
+    source_discrepancy_report: Mapping[str, Any],
+    source_evaluated_graph: Mapping[str, Any],
+    fresh_plan: Mapping[str, Any],
+    planner_program_state: Mapping[str, Any],
+    source_hypothesis_portfolio: Mapping[str, Any] | None = None,
+    previous_discrepancy_report: Mapping[str, Any] | None = None,
+    candidate_match: Mapping[str, Any] | None = None,
+    planner_critic_report: Mapping[str, Any] | None = None,
+    planner_reasoning_proposal: Mapping[str, Any] | None = None,
+    budget_units: float = 8.0,
+    minimum_utility: float = 0.01,
+    previous_checkpoint: Mapping[str, Any] | None = None,
+    execution_adapter_id: str,
+    repository_root: str | Path,
+    research_run: str | Path,
+    action_registry_path: str | Path,
+    request_path: str | Path,
+    action_report_path: str | Path,
+    transition_bundle_root: str | Path,
+    program_state: Mapping[str, Any],
+    previous_progression: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Advance only from fully reconstructed planning and typed execution evidence."""
+    try:
+        planning_verification = validate_validated_recursive_planning_checkpoint(
+            validated_planning_artifact,
+            planning_handoff=planning_handoff,
+            source_discrepancy_report=source_discrepancy_report,
+            source_evaluated_graph=source_evaluated_graph,
+            fresh_plan=fresh_plan,
+            planner_program_state=planner_program_state,
+            source_hypothesis_portfolio=source_hypothesis_portfolio,
+            previous_discrepancy_report=previous_discrepancy_report,
+            candidate_match=candidate_match,
+            planner_critic_report=planner_critic_report,
+            planner_reasoning_proposal=planner_reasoning_proposal,
+            budget_units=budget_units,
+            minimum_utility=minimum_utility,
+            previous_checkpoint=previous_checkpoint,
+        )
+    except ResearchLoopError as exc:
+        raise RecursiveResearchEvidenceError(
+            "post-execution progression requires the exact validated planning artifact"
+        ) from exc
+    checkpoint = _mapping(
+        planning_verification.get("recursive_checkpoint"),
+        "validated_planning_artifact.recursive_checkpoint",
+    )
+    (
+        checkpoint_sha,
+        _source_target,
+        expected_action_id,
+        expected_action_class,
+        _expected_plan_sha,
+    ) = _checkpoint(checkpoint)
+    try:
+        execution_record = build_authenticated_recursive_execution_record(
+            source_checkpoint_sha256=checkpoint_sha,
+            expected_candidate_action_id=expected_action_id,
+            expected_candidate_action_class=expected_action_class,
+            adapter_id=execution_adapter_id,
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+            request_path=request_path,
+            action_report_path=action_report_path,
+        )
+    except ResearchLoopError as exc:
+        raise RecursiveResearchEvidenceError(
+            "typed execution could not be independently reconstructed from request/registry/report/ledger"
+        ) from exc
+    return _advance_recursive_cycle_after_verified_transition(
+        authorization_checkpoint=checkpoint,
+        verified_execution_record=execution_record,
+        transition_bundle_root=transition_bundle_root,
+        fresh_plan=fresh_plan,
+        program_state=program_state,
+        previous_progression=previous_progression,
+    )
 
 __all__ = [
     "RECURSIVE_EVIDENCE_POLICY_VERSION",

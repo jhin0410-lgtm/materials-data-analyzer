@@ -19,7 +19,7 @@ from .discrepancy_planning_handoff_policy import (
 )
 from .kernel import ResearchLoopError
 from .recursive_research_cycle_controller import (
-    build_recursive_research_cycle_checkpoint,
+    _build_recursive_research_cycle_checkpoint,
 )
 
 VALIDATED_RECURSIVE_PLANNING_SCHEMA_VERSION = "1.0"
@@ -80,7 +80,7 @@ def build_validated_recursive_planning_checkpoint(
         budget_units=budget_units,
         minimum_utility=minimum_utility,
     )
-    checkpoint = build_recursive_research_cycle_checkpoint(
+    checkpoint = _build_recursive_research_cycle_checkpoint(
         planning_handoff=planning_handoff,
         fresh_plan=fresh_plan,
         candidate_match=candidate_match,
@@ -118,9 +118,82 @@ def build_validated_recursive_planning_checkpoint(
     return result
 
 
+
+def validate_validated_recursive_planning_checkpoint(
+    artifact: Mapping[str, Any],
+    *,
+    planning_handoff: Mapping[str, Any],
+    source_discrepancy_report: Mapping[str, Any],
+    source_evaluated_graph: Mapping[str, Any],
+    fresh_plan: Mapping[str, Any],
+    planner_program_state: Mapping[str, Any],
+    source_hypothesis_portfolio: Mapping[str, Any] | None = None,
+    previous_discrepancy_report: Mapping[str, Any] | None = None,
+    candidate_match: Mapping[str, Any] | None = None,
+    planner_critic_report: Mapping[str, Any] | None = None,
+    planner_reasoning_proposal: Mapping[str, Any] | None = None,
+    budget_units: float = 8.0,
+    minimum_utility: float = 0.01,
+    previous_checkpoint: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Rebuild the public planning artifact from exact source inputs."""
+    if not isinstance(artifact, Mapping):
+        raise ValidatedRecursivePlanningError("validated planning artifact must be an object")
+    supplied = dict(artifact)
+    if supplied.get("schema_version") != VALIDATED_RECURSIVE_PLANNING_SCHEMA_VERSION:
+        raise ValidatedRecursivePlanningError("validated planning artifact schema_version drifted")
+    if supplied.get("policy_version") != VALIDATED_RECURSIVE_PLANNING_POLICY_VERSION:
+        raise ValidatedRecursivePlanningError("validated planning artifact policy_version drifted")
+    embedded = supplied.get("validated_checkpoint_sha256")
+    if not isinstance(embedded, str) or len(embedded) != 64:
+        raise ValidatedRecursivePlanningError(
+            "validated planning artifact SHA-256 is malformed"
+        )
+    unsigned = dict(supplied)
+    unsigned.pop("validated_checkpoint_sha256", None)
+    if _canonical_sha256(unsigned) != embedded:
+        raise ValidatedRecursivePlanningError(
+            "validated planning artifact SHA-256 does not match canonical content"
+        )
+    rebuilt = build_validated_recursive_planning_checkpoint(
+        planning_handoff=planning_handoff,
+        source_discrepancy_report=source_discrepancy_report,
+        source_evaluated_graph=source_evaluated_graph,
+        fresh_plan=fresh_plan,
+        planner_program_state=planner_program_state,
+        source_hypothesis_portfolio=source_hypothesis_portfolio,
+        previous_discrepancy_report=previous_discrepancy_report,
+        candidate_match=candidate_match,
+        planner_critic_report=planner_critic_report,
+        planner_reasoning_proposal=planner_reasoning_proposal,
+        budget_units=budget_units,
+        minimum_utility=minimum_utility,
+        previous_checkpoint=previous_checkpoint,
+    )
+    if rebuilt != supplied:
+        raise ValidatedRecursivePlanningError(
+            "validated planning artifact differs from deterministic reconstruction"
+        )
+    checkpoint = rebuilt.get("recursive_checkpoint")
+    if not isinstance(checkpoint, Mapping):
+        raise ValidatedRecursivePlanningError(
+            "validated planning artifact omitted recursive checkpoint"
+        )
+    return {
+        "validated_checkpoint_sha256": embedded,
+        "recursive_checkpoint": dict(checkpoint),
+        "handoff_verification": dict(rebuilt["handoff_verification"]),
+        "planner_verification": dict(rebuilt["planner_verification"]),
+        "authorization_granted": False,
+        "execution_performed": False,
+        "scientific_status_changed": False,
+    }
+
+
 __all__ = [
     "VALIDATED_RECURSIVE_PLANNING_POLICY_VERSION",
     "VALIDATED_RECURSIVE_PLANNING_SCHEMA_VERSION",
     "ValidatedRecursivePlanningError",
     "build_validated_recursive_planning_checkpoint",
+    "validate_validated_recursive_planning_checkpoint",
 ]

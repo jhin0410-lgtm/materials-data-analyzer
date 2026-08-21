@@ -7,11 +7,11 @@ import pytest
 
 from materials_data_analyzer.research_loop.recursive_research_cycle_controller import (
     RecursiveResearchCycleError,
-    build_recursive_research_cycle_checkpoint,
+    _build_recursive_research_cycle_checkpoint as build_recursive_research_cycle_checkpoint,
 )
 from materials_data_analyzer.research_loop.recursive_research_cycle_evidence import (
     RecursiveResearchEvidenceError,
-    advance_recursive_cycle_after_verified_transition,
+    _advance_recursive_cycle_after_verified_transition as advance_recursive_cycle_after_verified_transition,
 )
 
 
@@ -241,3 +241,40 @@ def test_successor_progression_must_bind_checkpoint_predecessor() -> None:
             program_state={},
             previous_progression=forged_previous,
         )
+
+
+
+def test_production_api_hides_raw_checkpoint_builder() -> None:
+    import materials_data_analyzer.research_loop.recursive_research_cycle_controller as controller
+
+    assert "build_recursive_research_cycle_checkpoint" not in controller.__all__
+    assert "validate_recursive_research_cycle_checkpoint" not in controller.__all__
+    assert not hasattr(controller, "build_recursive_research_cycle_checkpoint")
+    assert not hasattr(controller, "validate_recursive_research_cycle_checkpoint")
+
+
+def test_public_progression_does_not_accept_self_certified_execution_record() -> None:
+    import inspect
+    import materials_data_analyzer.research_loop.recursive_research_cycle_evidence as evidence
+
+    parameters = inspect.signature(
+        evidence.advance_recursive_cycle_after_verified_transition
+    ).parameters
+    assert "authorization_checkpoint" not in parameters
+    assert "verified_execution_record" not in parameters
+    assert "validated_planning_artifact" in parameters
+    assert "request_path" in parameters
+    assert "action_report_path" in parameters
+    assert "execution_adapter_id" in parameters
+
+
+def test_recursive_execution_authentication_is_domain_verifier_backed() -> None:
+    import inspect
+    from materials_data_analyzer.research_loop import recursive_authorized_execution_evidence as auth
+
+    source = inspect.getsource(auth.build_authenticated_recursive_execution_record)
+    assert "verify_heat_conduction_action_report_pinned" in source
+    assert "verify_nist_structural_design_report_pinned" in source
+    assert "load_research_state" in source
+    assert "load_action_registry" in source
+    assert "describe_action" in source

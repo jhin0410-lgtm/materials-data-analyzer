@@ -9,10 +9,10 @@ from materials_data_analyzer.research_loop.authenticated_epistemic_transition im
     apply_authenticated_epistemic_transition_files,
 )
 from materials_data_analyzer.research_loop.recursive_research_cycle_controller import (
-    build_recursive_research_cycle_checkpoint,
+    _build_recursive_research_cycle_checkpoint as build_recursive_research_cycle_checkpoint,
 )
 from materials_data_analyzer.research_loop.recursive_research_cycle_evidence import (
-    advance_recursive_cycle_after_verified_transition,
+    _advance_recursive_cycle_after_verified_transition as advance_recursive_cycle_after_verified_transition,
 )
 from materials_data_analyzer.research_loop.recursive_research_cycle_rediagnosis import (
     complete_recursive_cycle_with_rediagnosis,
