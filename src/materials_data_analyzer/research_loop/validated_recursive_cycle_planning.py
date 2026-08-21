@@ -12,10 +12,15 @@ from collections.abc import Mapping
 from typing import Any
 
 from .autonomous_inquiry_plan_verifier import validate_autonomous_inquiry_plan
+from .kernel import ResearchLoopError
 from .recursive_research_cycle_controller import build_recursive_research_cycle_checkpoint
 
 VALIDATED_RECURSIVE_PLANNING_SCHEMA_VERSION = "1.0"
 VALIDATED_RECURSIVE_PLANNING_POLICY_VERSION = "1.0"
+
+
+class ValidatedRecursivePlanningError(ResearchLoopError):
+    """Raised when verified planner identity drifts before checkpoint publication."""
 
 
 def _canonical_sha256(value: object) -> str:
@@ -58,7 +63,9 @@ def build_validated_recursive_planning_checkpoint(
         previous_checkpoint=previous_checkpoint,
     )
     if verification["plan_sha256"] != checkpoint["ancestry"]["fresh_plan_sha256"]:
-        raise RuntimeError("verified planner SHA diverged before recursive checkpoint publication")
+        raise ValidatedRecursivePlanningError(
+            "verified planner SHA diverged before recursive checkpoint publication"
+        )
     result: dict[str, Any] = {
         "schema_version": VALIDATED_RECURSIVE_PLANNING_SCHEMA_VERSION,
         "policy_version": VALIDATED_RECURSIVE_PLANNING_POLICY_VERSION,
@@ -81,5 +88,6 @@ def build_validated_recursive_planning_checkpoint(
 __all__ = [
     "VALIDATED_RECURSIVE_PLANNING_POLICY_VERSION",
     "VALIDATED_RECURSIVE_PLANNING_SCHEMA_VERSION",
+    "ValidatedRecursivePlanningError",
     "build_validated_recursive_planning_checkpoint",
 ]
