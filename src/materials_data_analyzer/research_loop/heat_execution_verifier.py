@@ -22,6 +22,7 @@ _REQUEST_KEYS = {
     "research_run",
     "solver_request",
     "expected_solver_request_sha256",
+    "expected_solver_implementation_sha256",
     "registry",
     "repository_root",
     "expected_registry_sha256",
@@ -65,7 +66,11 @@ def _load_request(path: Path) -> dict[str, Any]:
         raise HeatExecutionVerifierError("typed heat execution request field set drifted")
     if value.get("schema_version") != "1.0":
         raise HeatExecutionVerifierError("unsupported typed heat execution request schema")
-    for field in ("expected_solver_request_sha256", "expected_registry_sha256"):
+    for field in (
+        "expected_solver_request_sha256",
+        "expected_solver_implementation_sha256",
+        "expected_registry_sha256",
+    ):
         digest = value.get(field)
         if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
             raise HeatExecutionVerifierError(f"{field} must be canonical lowercase SHA-256")
@@ -79,6 +84,15 @@ def _resolve(raw: object, *, base: Path, field: str) -> Path:
     if not path.is_absolute():
         path = base / path
     return path.resolve(strict=True)
+
+
+def _current_solver_implementation_sha256() -> str:
+    from .scientific_simulation_registry import repository_heat_conduction_contract
+
+    digest = repository_heat_conduction_contract().implementation_module_sha256
+    if _SHA256.fullmatch(digest) is None:
+        raise HeatExecutionVerifierError("solver implementation SHA-256 is malformed")
+    return digest
 
 
 def verify_heat_execution_handoff(
@@ -118,6 +132,11 @@ def verify_heat_execution_handoff(
     solver_sha = _sha256_file(solver_request)
     if request.get("expected_solver_request_sha256") != solver_sha:
         raise HeatExecutionVerifierError("solver request differs from request-pinned SHA-256")
+    implementation_sha = _current_solver_implementation_sha256()
+    if request.get("expected_solver_implementation_sha256") != implementation_sha:
+        raise HeatExecutionVerifierError(
+            "solver implementation differs from request-pinned SHA-256"
+        )
     state = load_research_state(run)
     if state.get("status") != "active":
         raise HeatExecutionVerifierError("research run is not active")
@@ -137,6 +156,7 @@ def verify_heat_execution_handoff(
         "research_ledger_sha256": ledger_sha,
         "registry_sha256": registry_sha,
         "solver_request_sha256": solver_sha,
+        "solver_implementation_sha256": implementation_sha,
         "authorization_granted": False,
         "execution_performed": False,
         "scientific_status_upgrade_authorized": False,
