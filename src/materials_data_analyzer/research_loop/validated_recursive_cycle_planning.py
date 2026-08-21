@@ -1,8 +1,10 @@
 """Validated public planning entry for one recursive research cycle.
 
-This facade closes the self-recertified-plan gap: it first reconstructs the autonomous
-inquiry plan from the exact planner inputs, then delegates only that verified plan to the
-planning-only recursive checkpoint controller.
+This facade closes both self-recertification gaps before checkpoint publication. It
+rebuilds the discrepancy-to-planning handoff from the exact physics/provenance-hardened
+source context and independently reconstructs the autonomous inquiry plan from its exact
+planner inputs. Only those two verified objects are delegated to the planning-only
+recursive checkpoint controller.
 """
 from __future__ import annotations
 
