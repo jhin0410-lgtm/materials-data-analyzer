@@ -6,12 +6,14 @@ on:
       - feature/bounded-recursive-research-cycle
     paths:
       - scripts/_tmp_pr202_close_review_blockers.py
+      - scripts/_tmp_pr202_patch_fix.py
       - .github/workflows/_tmp-pr202-close-review-blockers.yml
   pull_request:
     branches:
       - main
     paths:
       - scripts/_tmp_pr202_close_review_blockers.py
+      - scripts/_tmp_pr202_patch_fix.py
       - .github/workflows/_tmp-pr202-close-review-blockers.yml
       - src/materials_data_analyzer/research_loop/recursive_research_cycle_controller.py
       - src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py
@@ -39,6 +41,7 @@ jobs:
       - name: Apply review-blocker patch
         run: |
           python scripts/_tmp_pr202_close_review_blockers.py
+          python scripts/_tmp_pr202_patch_fix.py
           git diff --check
       - name: Install dependencies
         run: |
