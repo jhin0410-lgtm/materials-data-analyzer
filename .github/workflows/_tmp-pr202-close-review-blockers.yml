@@ -7,6 +7,19 @@ on:
     paths:
       - scripts/_tmp_pr202_close_review_blockers.py
       - .github/workflows/_tmp-pr202-close-review-blockers.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/_tmp_pr202_close_review_blockers.py
+      - .github/workflows/_tmp-pr202-close-review-blockers.yml
+      - src/materials_data_analyzer/research_loop/recursive_research_cycle_controller.py
+      - src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py
+      - src/materials_data_analyzer/research_loop/recursive_research_cycle_rediagnosis.py
+      - tests/test_recursive_research_cycle_controller.py
+      - tests/test_recursive_research_cycle_evidence.py
+      - tests/test_recursive_research_cycle_rediagnosis.py
+      - tests/test_recursive_research_cycle_integration.py
   workflow_dispatch:
 
 permissions:
@@ -62,6 +75,7 @@ jobs:
             tests/test_recursive_research_cycle_rediagnosis.py \
             tests/test_recursive_research_cycle_integration.py
       - name: Commit verified source and tests
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
           git add \
