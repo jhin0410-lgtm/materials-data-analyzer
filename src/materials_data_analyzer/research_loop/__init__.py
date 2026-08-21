@@ -94,12 +94,17 @@ from .model_evidence_discrepancy import (
     MODEL_EVIDENCE_DISCREPANCY_SCHEMA_VERSION,
     ModelEvidenceDiscrepancyError,
 )
+from .model_evidence_discrepancy_physics_policy import (
+    COORDINATE_VERIFICATION_SCHEMA_VERSION,
+    MODEL_EVIDENCE_DISCREPANCY_PHYSICS_POLICY_VERSION,
+    ModelEvidenceDiscrepancyPhysicsPolicyError,
+    build_physics_hardened_model_evidence_discrepancy_report,
+    validate_physics_hardened_model_evidence_discrepancy_report,
+)
 from .model_evidence_discrepancy_policy import (
     MODEL_EVIDENCE_DISCREPANCY_HARDENING_POLICY_VERSION,
     REPLICATION_VERIFICATION_SCHEMA_VERSION,
     ModelEvidenceDiscrepancyPolicyError,
-    build_policy_hardened_model_evidence_discrepancy_report,
-    validate_policy_hardened_model_evidence_discrepancy_report,
 )
 from .nasa_action_policy import NasaActionPolicyError, plan_nasa_next_action
 from .nasa_audit_executor import (
@@ -183,10 +188,10 @@ from .target_reference_sensitivity import (
 
 build_scientific_critic_report = build_policy_hardened_scientific_critic_report
 build_model_evidence_discrepancy_report = (
-    build_policy_hardened_model_evidence_discrepancy_report
+    build_physics_hardened_model_evidence_discrepancy_report
 )
 validate_model_evidence_discrepancy_report = (
-    validate_policy_hardened_model_evidence_discrepancy_report
+    validate_physics_hardened_model_evidence_discrepancy_report
 )
 build_discrepancy_planning_handoff = (
     build_policy_hardened_discrepancy_planning_handoff
@@ -203,6 +208,7 @@ __all__ = [
     "AUTHENTICATED_TRANSITION_CONSUMER_SCHEMA_VERSION",
     "AUTHORIZATION_POLICY_VERSION",
     "AUTHORIZATION_SCHEMA_VERSION",
+    "COORDINATE_VERIFICATION_SCHEMA_VERSION",
     "CYCLE_POLICY_VERSION",
     "CYCLE_SCHEMA_VERSION",
     "DISCREPANCY_PLANNING_HANDOFF_HARDENING_POLICY_VERSION",
@@ -224,6 +230,7 @@ __all__ = [
     "LEDGER_FILENAME",
     "MISSION_SCHEMA_VERSION",
     "MODEL_EVIDENCE_DISCREPANCY_HARDENING_POLICY_VERSION",
+    "MODEL_EVIDENCE_DISCREPANCY_PHYSICS_POLICY_VERSION",
     "MODEL_EVIDENCE_DISCREPANCY_POLICY_VERSION",
     "MODEL_EVIDENCE_DISCREPANCY_SCHEMA_VERSION",
     "PLANNING_ADAPTER_VERSION",
@@ -251,6 +258,7 @@ __all__ = [
     "EpistemicMultiCycleError",
     "EvidenceOriginBindingError",
     "ModelEvidenceDiscrepancyError",
+    "ModelEvidenceDiscrepancyPhysicsPolicyError",
     "ModelEvidenceDiscrepancyPolicyError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
