@@ -153,7 +153,7 @@ def test_validated_rediagnosis_reenters_planning_without_execution_authority(mon
 
     monkeypatch.setattr(
         rediagnosis,
-        "validate_model_evidence_discrepancy_report",
+        "validate_physics_hardened_model_evidence_discrepancy_report",
         lambda *args, **kwargs: {
             "report_sha256": current_sha,
             "iteration_index": 2,
@@ -162,7 +162,7 @@ def test_validated_rediagnosis_reenters_planning_without_execution_authority(mon
     )
     monkeypatch.setattr(
         rediagnosis,
-        "build_discrepancy_planning_handoff",
+        "build_policy_hardened_discrepancy_planning_handoff",
         lambda *args, **kwargs: _next_handoff(current_sha),
     )
 
@@ -176,6 +176,7 @@ def test_validated_rediagnosis_reenters_planning_without_execution_authority(mon
     )
     assert result["completion_status"] == "next_planning_handoff_ready"
     assert result["validated_rediagnosis"]["iteration_index"] == 2
+    assert result["validated_rediagnosis"]["physics_hardening_verified"] is True
     assert result["ancestry"]["previous_discrepancy_report_sha256"] == previous["report_sha256"]
     assert result["ancestry"]["current_discrepancy_report_sha256"] == current_sha
     assert result["next_planning_handoff"]["planner_boundary"][
@@ -210,7 +211,7 @@ def test_rediagnosis_rejects_previous_report_or_target_substitution(monkeypatch)
 
     monkeypatch.setattr(
         rediagnosis,
-        "validate_model_evidence_discrepancy_report",
+        "validate_physics_hardened_model_evidence_discrepancy_report",
         lambda *args, **kwargs: {
             "report_sha256": "e" * 64,
             "iteration_index": 2,
@@ -240,7 +241,7 @@ def test_rediagnosis_rejects_reused_report_and_unsafe_next_handoff(monkeypatch) 
 
     monkeypatch.setattr(
         rediagnosis,
-        "validate_model_evidence_discrepancy_report",
+        "validate_physics_hardened_model_evidence_discrepancy_report",
         lambda *args, **kwargs: {
             "report_sha256": previous["report_sha256"],
             "iteration_index": 2,
@@ -260,7 +261,7 @@ def test_rediagnosis_rejects_reused_report_and_unsafe_next_handoff(monkeypatch) 
     current_sha = "e" * 64
     monkeypatch.setattr(
         rediagnosis,
-        "validate_model_evidence_discrepancy_report",
+        "validate_physics_hardened_model_evidence_discrepancy_report",
         lambda *args, **kwargs: {
             "report_sha256": current_sha,
             "iteration_index": 2,
@@ -273,10 +274,37 @@ def test_rediagnosis_rejects_reused_report_and_unsafe_next_handoff(monkeypatch) 
     unsafe["handoff_sha256"] = _canonical_sha(unsafe)
     monkeypatch.setattr(
         rediagnosis,
-        "build_discrepancy_planning_handoff",
+        "build_policy_hardened_discrepancy_planning_handoff",
         lambda *args, **kwargs: unsafe,
     )
     with pytest.raises(RecursiveResearchRediagnosisError, match="cannot authorize"):
+        complete_recursive_cycle_with_rediagnosis(
+            authorization_checkpoint=checkpoint,
+            progression=progression,
+            current_discrepancy_report=current,
+            previous_discrepancy_report=previous,
+            evaluated_graph=graph,
+            hypothesis_portfolio=portfolio,
+        )
+
+
+def test_rediagnosis_requires_physics_hardened_validator(monkeypatch) -> None:
+    previous = _previous_report()
+    checkpoint = _checkpoint(previous)
+    graph = _graph()
+    portfolio = _portfolio(graph)
+    progression = _progression(checkpoint, graph, portfolio)
+    current = _current_report(previous)
+
+    def reject_physics(*args, **kwargs):
+        raise RecursiveResearchRediagnosisError("physics hardening rejected report")
+
+    monkeypatch.setattr(
+        rediagnosis,
+        "validate_physics_hardened_model_evidence_discrepancy_report",
+        reject_physics,
+    )
+    with pytest.raises(RecursiveResearchRediagnosisError, match="physics hardening"):
         complete_recursive_cycle_with_rediagnosis(
             authorization_checkpoint=checkpoint,
             progression=progression,
