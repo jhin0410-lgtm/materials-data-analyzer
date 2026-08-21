@@ -1,12 +1,13 @@
 """Bounded recursive research-cycle checkpoints over discrepancy planning handoffs.
 
-This module intentionally does not execute actions.  It verifies that a validated
-model/evidence discrepancy handoff has entered a *fresh* autonomous inquiry plan and that
-an explicit typed match record points to the planner's independently selected candidate.
-Only then may the checkpoint advance to ``explicit_authorization_required``.
+This module intentionally does not execute actions. It verifies that a validated
+model/evidence discrepancy handoff has entered a *fresh* autonomous inquiry plan and
+that an explicit typed match record points to the planner's independently selected
+candidate. Only then may the checkpoint advance to ``explicit_authorization_required``.
 
-A discrepancy proposal is never an action.  The action remains planner-owned and must
+A discrepancy proposal is never an action. The action remains planner-owned and must
 still pass the repository's existing independent authorization / typed-executor chain.
+Planner stop decisions and recursive ancestry are authoritative fail-closed boundaries.
 """
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from .autonomous_inquiry import AUTONOMOUS_INQUIRY_POLICY_VERSION
 from .kernel import ResearchLoopError
 
 RECURSIVE_CYCLE_SCHEMA_VERSION = "1.0"
@@ -89,15 +91,25 @@ def _verified_embedded_sha(
     return embedded
 
 
-def _verify_handoff(handoff: Mapping[str, Any]) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
+def _verify_handoff(
+    handoff: Mapping[str, Any],
+) -> tuple[str, dict[str, Any], list[dict[str, Any]], bool]:
     if handoff.get("schema_version") != "1.0":
-        raise RecursiveResearchCycleError("unsupported discrepancy planning handoff schema_version")
+        raise RecursiveResearchCycleError(
+            "unsupported discrepancy planning handoff schema_version"
+        )
+    if handoff.get("policy_version") != "1.0":
+        raise RecursiveResearchCycleError(
+            "unsupported discrepancy planning handoff policy_version"
+        )
     handoff_sha = _verified_embedded_sha(
         handoff,
         field="planning_handoff",
         sha_field="handoff_sha256",
     )
-    boundary = _mapping(handoff.get("planner_boundary"), "planning_handoff.planner_boundary")
+    boundary = _mapping(
+        handoff.get("planner_boundary"), "planning_handoff.planner_boundary"
+    )
     required_false = {
         "current_planner_frontier_modified",
         "current_selected_action_modified",
@@ -117,36 +129,77 @@ def _verify_handoff(handoff: Mapping[str, Any]) -> tuple[str, dict[str, Any], li
         raise RecursiveResearchCycleError(
             "planning handoff must require fresh planner candidate matching"
         )
+
     target = dict(_mapping(handoff.get("target"), "planning_handoff.target"))
     for field in ("graph_id", "node_id", "node_type", "statement"):
         _text(target.get(field), f"planning_handoff.target.{field}")
+
     objectives: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     for index, raw in enumerate(
-        _sequence(handoff.get("research_objectives"), "planning_handoff.research_objectives")
+        _sequence(
+            handoff.get("research_objectives"),
+            "planning_handoff.research_objectives",
+        )
     ):
-        item = dict(_mapping(raw, f"planning_handoff.research_objectives[{index}]"))
-        objective_id = _text(item.get("objective_id"), f"objective[{index}].objective_id")
+        item = dict(
+            _mapping(raw, f"planning_handoff.research_objectives[{index}]")
+        )
+        objective_id = _text(
+            item.get("objective_id"), f"objective[{index}].objective_id"
+        )
         if objective_id in seen_ids:
-            raise RecursiveResearchCycleError("planning handoff contains duplicate objective_id")
+            raise RecursiveResearchCycleError(
+                "planning handoff contains duplicate objective_id"
+            )
         seen_ids.add(objective_id)
         _text(item.get("source_proposal_id"), f"objective[{index}].source_proposal_id")
         _positive_int(item.get("source_rank"), f"objective[{index}].source_rank")
-        _text(item.get("research_action_class"), f"objective[{index}].research_action_class")
+        _text(
+            item.get("research_action_class"),
+            f"objective[{index}].research_action_class",
+        )
         if item.get("planner_candidate_required") is not True:
-            raise RecursiveResearchCycleError("every discrepancy objective requires a planner candidate")
+            raise RecursiveResearchCycleError(
+                "every discrepancy objective requires a planner candidate"
+            )
         if item.get("availability_asserted") is not False:
-            raise RecursiveResearchCycleError("discrepancy objective cannot assert availability")
+            raise RecursiveResearchCycleError(
+                "discrepancy objective cannot assert availability"
+            )
         if item.get("automatic_execution_authorized") is not False:
-            raise RecursiveResearchCycleError("discrepancy objective cannot authorize execution")
+            raise RecursiveResearchCycleError(
+                "discrepancy objective cannot authorize execution"
+            )
         objectives.append(item)
-    return handoff_sha, target, objectives
+
+    source_ancestry = _mapping(
+        handoff.get("source_ancestry"), "planning_handoff.source_ancestry"
+    )
+    previous_report_sha = source_ancestry.get("previous_discrepancy_report_sha256")
+    successor_handoff = previous_report_sha is not None
+    if successor_handoff:
+        _sha(
+            previous_report_sha,
+            "planning_handoff.source_ancestry.previous_discrepancy_report_sha256",
+        )
+    return handoff_sha, target, objectives, successor_handoff
 
 
-def _verify_plan(plan: Mapping[str, Any]) -> tuple[str, list[dict[str, Any]], dict[str, Any] | None]:
+def _verify_plan(
+    plan: Mapping[str, Any],
+) -> tuple[str, list[dict[str, Any]], dict[str, Any] | None, dict[str, Any]]:
     if plan.get("schema_version") != "1.0":
-        raise RecursiveResearchCycleError("unsupported autonomous inquiry plan schema_version")
-    plan_sha = _verified_embedded_sha(plan, field="fresh_plan", sha_field="plan_sha256")
+        raise RecursiveResearchCycleError(
+            "unsupported autonomous inquiry plan schema_version"
+        )
+    if plan.get("policy_version") != AUTONOMOUS_INQUIRY_POLICY_VERSION:
+        raise RecursiveResearchCycleError(
+            "unsupported autonomous inquiry plan policy_version"
+        )
+    plan_sha = _verified_embedded_sha(
+        plan, field="fresh_plan", sha_field="plan_sha256"
+    )
     boundary = _mapping(plan.get("autonomy_boundary"), "fresh_plan.autonomy_boundary")
     for field in (
         "empirical_evidence_created",
@@ -161,30 +214,69 @@ def _verify_plan(plan: Mapping[str, Any]) -> tuple[str, list[dict[str, Any]], di
                 f"fresh autonomous plan weakened planning-only boundary: {field}"
             )
     handoff = _mapping(plan.get("handoff"), "fresh_plan.handoff")
-    if handoff.get("request_compiled") is not False or handoff.get("execution_performed") is not False:
-        raise RecursiveResearchCycleError("fresh planner already crossed request/execution boundary")
+    if (
+        handoff.get("request_compiled") is not False
+        or handoff.get("execution_performed") is not False
+    ):
+        raise RecursiveResearchCycleError(
+            "fresh planner already crossed request/execution boundary"
+        )
+
     ranked: list[dict[str, Any]] = []
     action_ids: set[str] = set()
-    for index, raw in enumerate(_sequence(plan.get("ranked_actions"), "fresh_plan.ranked_actions")):
+    for index, raw in enumerate(
+        _sequence(plan.get("ranked_actions"), "fresh_plan.ranked_actions")
+    ):
         action = dict(_mapping(raw, f"fresh_plan.ranked_actions[{index}]"))
-        action_id = _text(action.get("action_id"), f"ranked_actions[{index}].action_id")
+        action_id = _text(
+            action.get("action_id"), f"ranked_actions[{index}].action_id"
+        )
         if action_id in action_ids:
-            raise RecursiveResearchCycleError("fresh planner contains duplicate action_id")
+            raise RecursiveResearchCycleError(
+                "fresh planner contains duplicate action_id"
+            )
         action_ids.add(action_id)
         _text(action.get("action_class"), f"ranked_actions[{index}].action_class")
         if action.get("automatic_execution_authorized") is not False:
-            raise RecursiveResearchCycleError("planner candidate cannot authorize execution")
+            raise RecursiveResearchCycleError(
+                "planner candidate cannot authorize execution"
+            )
         ranked.append(action)
+
     selected_raw = plan.get("selected_next_action")
-    selected = None if selected_raw is None else dict(_mapping(selected_raw, "fresh_plan.selected_next_action"))
+    selected = (
+        None
+        if selected_raw is None
+        else dict(_mapping(selected_raw, "fresh_plan.selected_next_action"))
+    )
     if selected is not None:
-        selected_id = _text(selected.get("action_id"), "selected_next_action.action_id")
+        selected_id = _text(
+            selected.get("action_id"), "selected_next_action.action_id"
+        )
         matches = [item for item in ranked if item.get("action_id") == selected_id]
         if len(matches) != 1 or matches[0] != selected:
             raise RecursiveResearchCycleError(
                 "selected_next_action must be exactly one independently ranked planner candidate"
             )
-    return plan_sha, ranked, selected
+
+    stop = dict(_mapping(plan.get("stop_decision"), "fresh_plan.stop_decision"))
+    if not isinstance(stop.get("stop"), bool):
+        raise RecursiveResearchCycleError("fresh planner stop_decision.stop must be boolean")
+    _text(stop.get("reason"), "fresh_plan.stop_decision.reason")
+    _text(stop.get("next_mode"), "fresh_plan.stop_decision.next_mode")
+    if stop["stop"] is True and selected is not None:
+        raise RecursiveResearchCycleError(
+            "fresh planner stop decision cannot retain a selected_next_action"
+        )
+    if stop["stop"] is False and selected is None:
+        raise RecursiveResearchCycleError(
+            "fresh planner cannot continue without a selected_next_action"
+        )
+    if handoff.get("required_for_selected_action") is not (selected is not None):
+        raise RecursiveResearchCycleError(
+            "fresh planner handoff requirement disagrees with selected_next_action"
+        )
+    return plan_sha, ranked, selected, stop
 
 
 def _previous_checkpoint(
@@ -192,8 +284,13 @@ def _previous_checkpoint(
     *,
     target: Mapping[str, Any],
     current_plan_sha: str,
+    successor_handoff: bool,
 ) -> tuple[str | None, int]:
     if previous is None:
+        if successor_handoff:
+            raise RecursiveResearchCycleError(
+                "successor discrepancy handoff requires previous recursive checkpoint ancestry"
+            )
         return None, 1
     if previous.get("schema_version") != RECURSIVE_CYCLE_SCHEMA_VERSION:
         raise RecursiveResearchCycleError("previous checkpoint schema_version drifted")
@@ -204,13 +301,17 @@ def _previous_checkpoint(
         field="previous_checkpoint",
         sha_field="checkpoint_sha256",
     )
-    previous_target = _mapping(previous.get("target"), "previous_checkpoint.target")
+    previous_target = _mapping(
+        previous.get("target"), "previous_checkpoint.target"
+    )
     for field in ("graph_id", "node_id", "node_type", "statement"):
         if previous_target.get(field) != target.get(field):
             raise RecursiveResearchCycleError(
                 f"recursive cycle target identity changed across checkpoints: {field}"
             )
-    ancestry = _mapping(previous.get("ancestry"), "previous_checkpoint.ancestry")
+    ancestry = _mapping(
+        previous.get("ancestry"), "previous_checkpoint.ancestry"
+    )
     previous_plan_sha = _sha(
         ancestry.get("fresh_plan_sha256"),
         "previous_checkpoint.ancestry.fresh_plan_sha256",
@@ -219,7 +320,10 @@ def _previous_checkpoint(
         raise RecursiveResearchCycleError(
             "fresh planning cycle required but previous plan SHA was reused"
         )
-    cycle_index = _positive_int(previous.get("cycle_index"), "previous_checkpoint.cycle_index") + 1
+    cycle_index = (
+        _positive_int(previous.get("cycle_index"), "previous_checkpoint.cycle_index")
+        + 1
+    )
     return previous_sha, cycle_index
 
 
@@ -232,26 +336,44 @@ def _validate_match_record(
     selected: Mapping[str, Any] | None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     if record.get("schema_version") != CANDIDATE_MATCH_SCHEMA_VERSION:
-        raise RecursiveResearchCycleError("unsupported candidate match schema_version")
+        raise RecursiveResearchCycleError(
+            "unsupported candidate match schema_version"
+        )
     if record.get("policy_version") != CANDIDATE_MATCH_POLICY_VERSION:
-        raise RecursiveResearchCycleError("unsupported candidate match policy_version")
+        raise RecursiveResearchCycleError(
+            "unsupported candidate match policy_version"
+        )
     if record.get("handoff_sha256") != handoff_sha:
-        raise RecursiveResearchCycleError("candidate match handoff SHA substitution detected")
+        raise RecursiveResearchCycleError(
+            "candidate match handoff SHA substitution detected"
+        )
     if record.get("fresh_plan_sha256") != plan_sha:
-        raise RecursiveResearchCycleError("candidate match fresh-plan SHA substitution detected")
+        raise RecursiveResearchCycleError(
+            "candidate match fresh-plan SHA substitution detected"
+        )
     if selected is None:
         raise RecursiveResearchCycleError(
             "candidate match supplied even though the fresh planner selected no action"
         )
-    objective_id = _text(record.get("objective_id"), "candidate_match.objective_id")
-    objective_matches = [item for item in objectives if item.get("objective_id") == objective_id]
+    objective_id = _text(
+        record.get("objective_id"), "candidate_match.objective_id"
+    )
+    objective_matches = [
+        item for item in objectives if item.get("objective_id") == objective_id
+    ]
     if len(objective_matches) != 1:
-        raise RecursiveResearchCycleError("candidate match objective is not in discrepancy handoff")
+        raise RecursiveResearchCycleError(
+            "candidate match objective is not in discrepancy handoff"
+        )
     objective = dict(objective_matches[0])
     for field in ("source_proposal_id", "source_rank"):
         if record.get(field) != objective.get(field):
-            raise RecursiveResearchCycleError(f"candidate match {field} substitution detected")
-    candidate_id = _text(record.get("candidate_action_id"), "candidate_match.candidate_action_id")
+            raise RecursiveResearchCycleError(
+                f"candidate match {field} substitution detected"
+            )
+    candidate_id = _text(
+        record.get("candidate_action_id"), "candidate_match.candidate_action_id"
+    )
     if candidate_id != selected.get("action_id"):
         raise RecursiveResearchCycleError(
             "candidate match must point to the fresh planner's selected_next_action"
@@ -261,7 +383,9 @@ def _validate_match_record(
         "candidate_match.candidate_action_class",
     )
     if candidate_class != selected.get("action_class"):
-        raise RecursiveResearchCycleError("candidate action_class substitution detected")
+        raise RecursiveResearchCycleError(
+            "candidate action_class substitution detected"
+        )
     if candidate_class != objective.get("research_action_class"):
         raise RecursiveResearchCycleError(
             "planner-selected action class does not match discrepancy objective class"
@@ -271,8 +395,12 @@ def _validate_match_record(
         "candidate_match.candidate_execution_mode",
     )
     if execution_mode != selected.get("execution_mode"):
-        raise RecursiveResearchCycleError("candidate execution_mode substitution detected")
-    rationale = _text(record.get("match_rationale"), "candidate_match.match_rationale")
+        raise RecursiveResearchCycleError(
+            "candidate execution_mode substitution detected"
+        )
+    rationale = _text(
+        record.get("match_rationale"), "candidate_match.match_rationale"
+    )
     normalized = {
         "schema_version": CANDIDATE_MATCH_SCHEMA_VERSION,
         "policy_version": CANDIDATE_MATCH_POLICY_VERSION,
@@ -302,12 +430,13 @@ def build_recursive_research_cycle_checkpoint(
     """Advance discrepancy planning only to a verified fresh-plan checkpoint."""
     handoff = _mapping(planning_handoff, "planning_handoff")
     plan = _mapping(fresh_plan, "fresh_plan")
-    handoff_sha, target, objectives = _verify_handoff(handoff)
-    plan_sha, ranked, selected = _verify_plan(plan)
+    handoff_sha, target, objectives, successor_handoff = _verify_handoff(handoff)
+    plan_sha, ranked, selected, stop_decision = _verify_plan(plan)
     previous_sha, cycle_index = _previous_checkpoint(
         previous_checkpoint,
         target=target,
         current_plan_sha=plan_sha,
+        successor_handoff=successor_handoff,
     )
 
     match_record: dict[str, Any] | None = None
@@ -321,14 +450,21 @@ def build_recursive_research_cycle_checkpoint(
             selected=selected,
         )
 
-    if not objectives:
+    if stop_decision["stop"] is True:
+        checkpoint_status = "bounded_stop_fresh_planner_decision"
+        stop_reason = (
+            "Fresh planner explicitly stopped: " + str(stop_decision["reason"])
+        )
+    elif not objectives:
         checkpoint_status = "bounded_stop_no_research_objective"
-        stop_reason = "Validated discrepancy handoff contains no future research objective."
+        stop_reason = (
+            "Validated discrepancy handoff contains no future research objective."
+        )
     elif match_record is None:
         checkpoint_status = "bounded_stop_no_matching_candidate"
         stop_reason = (
-            "No explicit typed record matches a discrepancy objective to the fresh planner's "
-            "independently selected candidate."
+            "No explicit typed record matches a discrepancy objective to the fresh "
+            "planner's independently selected candidate."
         )
     else:
         checkpoint_status = "explicit_authorization_required"
@@ -353,7 +489,7 @@ def build_recursive_research_cycle_checkpoint(
         "fresh_planner_state": {
             "ranked_candidate_count": len(ranked),
             "selected_candidate_id": selected.get("action_id") if selected else None,
-            "stop_decision": plan.get("stop_decision"),
+            "stop_decision": stop_decision,
         },
         "matched_objective": matched_objective,
         "candidate_match": match_record,
@@ -375,9 +511,13 @@ def build_recursive_research_cycle_checkpoint(
             "stopped": checkpoint_status.startswith("bounded_stop_"),
             "reason": stop_reason,
             "reopen_condition": (
-                "Generate a new autonomous inquiry plan and supply an explicit typed objective/candidate match record."
-                if checkpoint_status == "bounded_stop_no_matching_candidate"
-                else None
+                "Generate a fresh planner result after the bound budget/scope/evidence state changes."
+                if checkpoint_status == "bounded_stop_fresh_planner_decision"
+                else (
+                    "Generate a new autonomous inquiry plan and supply an explicit typed objective/candidate match record."
+                    if checkpoint_status == "bounded_stop_no_matching_candidate"
+                    else None
+                )
             ),
         },
         "autonomy_boundary": {
