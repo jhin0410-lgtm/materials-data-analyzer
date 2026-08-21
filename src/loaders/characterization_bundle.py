@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pandas as pd
@@ -20,6 +20,11 @@ from .characterization_features import (
 )
 
 BUNDLE_SCHEMA_VERSION = "1.0"
+EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION = "1.1"
+SUPPORTED_BUNDLE_SCHEMA_VERSIONS = {
+    BUNDLE_SCHEMA_VERSION,
+    EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION,
+}
 BUNDLE_TYPE = "materials_characterization_feature_handoff"
 CONSUMER_SCHEMA_VERSION = "1.0"
 SUMMARY_NAME = "cross_repository_handoff_summary.json"
@@ -84,14 +89,24 @@ def _resolve_sibling(bundle_root: Path, record: object, label: str) -> Path:
     recorded = metadata.get("path")
     if not isinstance(recorded, str) or not recorded.strip():
         raise ValueError(f"{label} path must be a non-empty string.")
-    relative = Path(recorded)
-    if relative.is_absolute() or len(relative.parts) != 1 or relative.name != recorded:
-        raise ValueError(f"{label} path must be one relative sibling filename.")
-    target = bundle_root / relative
+    normalized = recorded.replace("\\", "/")
+    relative = PurePosixPath(normalized)
+    if (
+        relative.is_absolute()
+        or len(relative.parts) != 1
+        or ".." in relative.parts
+        or normalized in {"", "."}
+    ):
+        raise ValueError(f"{label} path must be one safe relative sibling filename.")
+    target = bundle_root / relative.as_posix()
     if target.is_symlink():
         raise ValueError(f"{label} must not be a symbolic link.")
     if not target.is_file():
         raise FileNotFoundError(f"{label} not found: {target}")
+    try:
+        target.resolve().relative_to(bundle_root.resolve())
+    except ValueError as exc:
+        raise ValueError(f"{label} escapes the characterization bundle directory.") from exc
     expected_sha = metadata.get("sha256")
     actual_sha = sha256_file(target)
     if not isinstance(expected_sha, str) or expected_sha != actual_sha:
@@ -99,7 +114,11 @@ def _resolve_sibling(bundle_root: Path, record: object, label: str) -> Path:
             f"{label} checksum mismatch: expected {expected_sha}, actual {actual_sha}."
         )
     expected_size = metadata.get("size_bytes")
-    if not isinstance(expected_size, int) or expected_size != target.stat().st_size:
+    if (
+        isinstance(expected_size, bool)
+        or not isinstance(expected_size, int)
+        or expected_size != target.stat().st_size
+    ):
         raise ValueError(f"{label} size_bytes does not match the referenced file.")
     return target
 
@@ -110,9 +129,19 @@ def validate_characterization_bundle(
     """Validate bundle schema, files, counts, IDs, provenance, and claim boundary."""
     manifest_path = Path(manifest_path)
     manifest = _read_json_object(manifest_path, "characterization bundle manifest")
-    if manifest.get("schema_version") != BUNDLE_SCHEMA_VERSION:
+    schema_version = manifest.get("schema_version")
+    if schema_version not in SUPPORTED_BUNDLE_SCHEMA_VERSIONS:
         raise ValueError(
-            f"Unsupported characterization bundle schema_version: {manifest.get('schema_version')}"
+            f"Unsupported characterization bundle schema_version: {schema_version}"
+        )
+    ladder_present = "scientific_evidence_ladder" in manifest
+    if ladder_present and schema_version != EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION:
+        raise ValueError(
+            "scientific_evidence_ladder requires characterization bundle schema_version 1.1"
+        )
+    if not ladder_present and schema_version != BUNDLE_SCHEMA_VERSION:
+        raise ValueError(
+            "characterization bundle schema_version 1.1 requires scientific_evidence_ladder"
         )
     if manifest.get("bundle_type") != BUNDLE_TYPE:
         raise ValueError(
