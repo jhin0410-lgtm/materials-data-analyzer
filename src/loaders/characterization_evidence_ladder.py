@@ -1,8 +1,8 @@
 """Independent consumer validation for characterization L0-L8 evidence ladders.
 
-This module intentionally does not import ``mca``. The consumer replays the public
-contract from bytes and declaration semantics so producer implementation state is
-never an authority boundary.
+This module intentionally does not import ``mca``. The consumer reconstructs the
+producer's public contract from bytes and declaration semantics, then cross-binds it
+to the exact bundle case, evidence files, and represented modality.
 """
 from __future__ import annotations
 
@@ -62,6 +62,7 @@ _RECORD_FIELDS = {
     "schema_version",
     "policy_version",
     "assessment",
+    "declaration_id",
     "declaration_sha256",
     "assessment_sha256",
     "subject",
@@ -221,7 +222,6 @@ def _normalize_levels(value: object) -> dict[str, dict[str, Any]]:
         raise CharacterizationEvidenceLadderError(
             f"levels contains unknown level: {unknown[0]}"
         )
-
     result: dict[str, dict[str, Any]] = {}
     prior_supported = True
     for level in LEVELS:
@@ -259,7 +259,7 @@ def _normalize_levels(value: object) -> dict[str, dict[str, Any]]:
     return result
 
 
-def _evaluate_declaration(value: object) -> dict[str, Any]:
+def _evaluate_raw_declaration(value: object) -> dict[str, Any]:
     root = _exact_mapping(
         value,
         required=_ROOT_FIELDS,
@@ -284,15 +284,6 @@ def _evaluate_declaration(value: object) -> dict[str, Any]:
         highest_index = index
     highest = LEVELS[highest_index] if highest_index >= 0 else None
     first_blocking = LEVELS[highest_index + 1] if highest_index + 1 < len(LEVELS) else None
-    non_supported = [
-        {
-            "level": level,
-            "assessment": declaration["levels"][level]["assessment"],
-            "limitations": declaration["levels"][level]["limitations"],
-        }
-        for level in LEVELS
-        if declaration["levels"][level]["assessment"] != "Supported"
-    ]
     result: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "policy_version": POLICY_VERSION,
@@ -301,7 +292,15 @@ def _evaluate_declaration(value: object) -> dict[str, Any]:
         "highest_contiguous_supported_level": highest,
         "highest_contiguous_supported_index": highest_index,
         "first_blocking_level": first_blocking,
-        "non_supported_levels": non_supported,
+        "non_supported_levels": [
+            {
+                "level": level,
+                "assessment": declaration["levels"][level]["assessment"],
+                "limitations": declaration["levels"][level]["limitations"],
+            }
+            for level in LEVELS
+            if declaration["levels"][level]["assessment"] != "Supported"
+        ],
         "readiness": {
             "raw_representation_ready": highest_index >= 1,
             "acquisition_provenance_ready": highest_index >= 2,
@@ -335,6 +334,34 @@ def _evaluate_declaration(value: object) -> dict[str, Any]:
     return result
 
 
+def _raw_declaration_for_replay(declaration: Mapping[str, Any]) -> dict[str, Any]:
+    levels = declaration.get("levels")
+    if not isinstance(levels, Mapping):
+        raise CharacterizationEvidenceLadderError(
+            "assessment declaration.levels must be an object"
+        )
+    raw_levels: dict[str, dict[str, Any]] = {}
+    for level in LEVELS:
+        item = levels.get(level)
+        if not isinstance(item, Mapping):
+            raise CharacterizationEvidenceLadderError(
+                f"assessment declaration is missing level: {level}"
+            )
+        raw_levels[level] = {
+            "assessment": item.get("assessment"),
+            "evidence": item.get("evidence"),
+            "limitations": item.get("limitations"),
+        }
+    return {
+        "schema_version": declaration.get("schema_version"),
+        "declaration_id": declaration.get("declaration_id"),
+        "subject": declaration.get("subject"),
+        "source_bindings": declaration.get("source_bindings"),
+        "levels": raw_levels,
+        "limitations": declaration.get("limitations"),
+    }
+
+
 def _resolve_assessment(root: Path, value: object) -> Path:
     record = _exact_mapping(
         value,
@@ -356,18 +383,16 @@ def _resolve_assessment(root: Path, value: object) -> Path:
         raise CharacterizationEvidenceLadderError(
             "scientific_evidence_ladder assessment is missing or unsafe"
         )
-    expected_sha = record.get("sha256")
-    actual_sha = sha256_file(target)
-    if not isinstance(expected_sha, str) or expected_sha != actual_sha:
+    if record.get("sha256") != sha256_file(target):
         raise CharacterizationEvidenceLadderError(
             "scientific_evidence_ladder assessment checksum mismatch"
         )
-    expected_size = record.get("size_bytes")
-    if isinstance(expected_size, bool) or not isinstance(expected_size, int):
+    size = record.get("size_bytes")
+    if isinstance(size, bool) or not isinstance(size, int):
         raise CharacterizationEvidenceLadderError(
             "scientific_evidence_ladder assessment size_bytes must be an integer"
         )
-    if expected_size != target.stat().st_size:
+    if size != target.stat().st_size:
         raise CharacterizationEvidenceLadderError(
             "scientific_evidence_ladder assessment size_bytes mismatch"
         )
@@ -401,11 +426,11 @@ def validate_characterization_evidence_ladder(
     assessment_path = _resolve_assessment(bundle_root.resolve(), record.get("assessment"))
     payload = _read_json(assessment_path, "scientific evidence-ladder assessment")
     declaration = payload.get("declaration")
-    if not isinstance(declaration, dict):
+    if not isinstance(declaration, Mapping):
         raise CharacterizationEvidenceLadderError(
             "scientific evidence-ladder assessment must contain a declaration object"
         )
-    replayed = _evaluate_declaration(declaration)
+    replayed = _evaluate_raw_declaration(_raw_declaration_for_replay(declaration))
     if payload != replayed:
         raise CharacterizationEvidenceLadderError(
             "scientific evidence-ladder assessment does not exactly match consumer replay"
@@ -420,6 +445,7 @@ def validate_characterization_evidence_ladder(
             "sha256": sha256_file(assessment_path),
             "size_bytes": assessment_path.stat().st_size,
         },
+        "declaration_id": replayed["declaration"]["declaration_id"],
         "declaration_sha256": replayed["declaration_sha256"],
         "assessment_sha256": replayed["assessment_sha256"],
         "subject": handoff["subject"],
@@ -437,7 +463,8 @@ def validate_characterization_evidence_ladder(
         raise CharacterizationEvidenceLadderError(
             "scientific_evidence_ladder manifest summary does not match consumer replay"
         )
-    if replayed["declaration"]["declaration_id"] != manifest.get("case_id"):
+    declaration_id = replayed["declaration"]["declaration_id"]
+    if declaration_id != manifest.get("case_id"):
         raise CharacterizationEvidenceLadderError(
             "scientific_evidence_ladder declaration_id does not match bundle case_id"
         )
@@ -468,9 +495,9 @@ def validate_characterization_evidence_ladder(
             "sha256": sha256_file(assessment_path),
             "size_bytes": assessment_path.stat().st_size,
         },
+        "declaration_id": declaration_id,
         "declaration_sha256": replayed["declaration_sha256"],
         "assessment_sha256": replayed["assessment_sha256"],
-        "declaration_id": replayed["declaration"]["declaration_id"],
         "subject": replayed["declaration"]["subject"],
         "source_bindings": replayed["declaration"]["source_bindings"],
         "highest_contiguous_supported_level": replayed[
@@ -492,6 +519,7 @@ def validate_characterization_evidence_ladder(
 
 __all__ = [
     "CharacterizationEvidenceLadderError",
+    "CONTRACT",
     "LEVELS",
     "validate_characterization_evidence_ladder",
 ]
