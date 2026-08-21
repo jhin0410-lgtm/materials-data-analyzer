@@ -352,7 +352,10 @@ def test_authenticated_transition_action_must_equal_verified_execution(tmp_path:
     plan = _plan()
     checkpoint = _checkpoint(plan)
     bundle, result_sha = _bundle(tmp_path, source_action_id="different-action")
-    with pytest.raises(RecursiveResearchEvidenceError, match="proposal action_id differs"):
+    with pytest.raises(
+        RecursiveResearchEvidenceError,
+        match="proposal action identity differs from verified execution",
+    ):
         advance_recursive_cycle_after_verified_transition(
             authorization_checkpoint=checkpoint,
             verified_execution_record=_execution(checkpoint, result_sha),
@@ -396,7 +399,7 @@ def test_cycle_one_rejects_predecessor_progression(tmp_path: Path) -> None:
     )
     with pytest.raises(
         RecursiveResearchEvidenceError,
-        match="cycle-one progression cannot accept a predecessor progression",
+        match="cycle-one checkpoint/progression cannot carry predecessor ancestry",
     ):
         advance_recursive_cycle_after_verified_transition(
             authorization_checkpoint=checkpoint,
