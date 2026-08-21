@@ -6,20 +6,20 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.loaders.characterization_bundle import BUNDLE_TYPE
-from src.loaders.characterization_evidence_ladder import (
+from loaders.characterization_bundle import BUNDLE_TYPE
+from loaders.characterization_evidence_ladder import (
     CharacterizationEvidenceLadderError,
     LEVELS,
     _evaluate_raw_declaration,
     validate_characterization_evidence_ladder,
 )
-from src.loaders.characterization_features import REQUIRED_COLUMNS, sha256_file
-from src.materials_data_analyzer.characterization_research_workflow import (
+from loaders.characterization_features import REQUIRED_COLUMNS, sha256_file
+from materials_data_analyzer.characterization_research_workflow import (
     EVIDENCE_GAP_NAME,
     LADDER_STATE_NAME,
     consume_characterization_bundle_for_autonomous_research,
 )
-from src.materials_data_analyzer.research_loop.characterization_evidence_gap import (
+from materials_data_analyzer.research_loop.characterization_evidence_gap import (
     build_characterization_evidence_gap,
 )
 
@@ -91,7 +91,7 @@ def _write_bundle(
     ).to_csv(comparability, index=False)
 
     manifest: dict[str, object] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1" if supported_through is not None else "1.0",
         "bundle_type": BUNDLE_TYPE,
         "case_id": CASE_ID,
         "producer": {
