@@ -63,11 +63,11 @@ jobs:
             tests/test_recursive_research_cycle_evidence.py \
             tests/test_recursive_research_cycle_rediagnosis.py \
             tests/test_recursive_research_cycle_integration.py \
+            tests/test_recursive_authenticated_transition_adapter.py \
+            tests/test_recursive_research_cycle_review_hardening.py \
             tests/test_autonomous_inquiry_plan_verifier.py \
             tests/test_authenticated_transition_consumer.py \
-            tests/test_hypothesis_portfolio.py \
-            tests/test_discrepancy_planning_handoff_policy.py \
-            tests/test_model_evidence_discrepancy_physics_policy.py
+            tests/test_hypothesis_portfolio.py
           python -m ruff check \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_controller.py \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py \
