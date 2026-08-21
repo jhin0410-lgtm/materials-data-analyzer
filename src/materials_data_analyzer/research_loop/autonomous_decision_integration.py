@@ -1,9 +1,9 @@
 """Decision-support integration for persistent autonomous research episodes.
 
 This layer connects already-validated planning, physical-lineage statistical eligibility,
-probabilistic EIG, and research-agent benchmark results.  It deliberately does not create
-an execution authority: a selected action can only be handed to the repository's existing
-authenticated authorization and typed-executor chain.
+probabilistic EIG, hypothesis-portfolio state, and research-agent benchmark results.  It
+deliberately does not create an execution authority: a selected action can only be handed
+to the repository's existing authenticated authorization and typed-executor chain.
 """
 from __future__ import annotations
 
@@ -14,6 +14,10 @@ from typing import Any
 
 from .advanced_statistics_gate import assess_statistical_model_eligibility
 from .experimental_lineage import ObservationLineage
+from .hypothesis_portfolio import (
+    HypothesisPortfolioError,
+    validate_hypothesis_portfolio_for_plan,
+)
 from .kernel import ResearchLoopError
 
 AUTONOMOUS_DECISION_INTEGRATION_SCHEMA_VERSION = "1.0"
@@ -157,6 +161,24 @@ def _validated_eig_priorities(
     return ranked, ignored
 
 
+def _validated_hypothesis_portfolio_binding(
+    hypothesis_portfolio: Mapping[str, Any] | None,
+    *,
+    plan: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    if hypothesis_portfolio is None:
+        return None
+    try:
+        return validate_hypothesis_portfolio_for_plan(
+            hypothesis_portfolio,
+            plan=plan,
+        )
+    except HypothesisPortfolioError as exc:
+        raise AutonomousDecisionIntegrationError(
+            "hypothesis portfolio failed exact planning-cycle validation"
+        ) from exc
+
+
 def build_autonomous_decision_report(
     plan: Mapping[str, Any],
     *,
@@ -165,12 +187,16 @@ def build_autonomous_decision_report(
     repeated_measurements_expected: bool = False,
     eig_results: Mapping[str, Mapping[str, Any]] | None = None,
     benchmark_summary: Mapping[str, Any] | None = None,
+    hypothesis_portfolio: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Integrate decision evidence without expanding the planner's action frontier.
 
     True probabilistic EIG may reorder only actions already affordable/informative under the
-    upstream plan. Structural proxies never reorder actions. Benchmark qualification is a
-    prerequisite only for automated *handoff requests*; it never authorizes execution.
+    upstream plan. Structural proxies never reorder actions. A bound hypothesis portfolio
+    may suppress confirmatory execution when all hypotheses are falsified or when verified
+    provisional support requires domain closeout, but it cannot inject or invent an action.
+    Benchmark qualification is a prerequisite only for automated *handoff requests*; it
+    never authorizes execution.
     """
     plan_map = dict(_mapping(plan, "plan"))
     stop = _mapping(plan_map.get("stop_decision", {}), "plan.stop_decision")
@@ -185,6 +211,10 @@ def build_autonomous_decision_report(
         set(eligible_by_id),
     )
     benchmark, benchmark_qualified = _validate_benchmark_summary(benchmark_summary)
+    portfolio_binding = _validated_hypothesis_portfolio_binding(
+        hypothesis_portfolio,
+        plan=plan_map,
+    )
 
     statistics: dict[str, Any] | None = None
     if lineages is not None:
@@ -217,6 +247,25 @@ def build_autonomous_decision_report(
             selected = dict(eligible[0])
             selection_reason = "first_upstream_eligible_action"
 
+    portfolio_gated_selection = False
+    if portfolio_binding is not None and selected is not None:
+        directive = portfolio_binding["portfolio_directive"]
+        if directive == "domain_closeout_required":
+            selected = None
+            selection_reason = "hypothesis_portfolio_requires_domain_closeout"
+            portfolio_gated_selection = True
+        elif directive == "bounded_stop_all_hypotheses_retired":
+            selected = None
+            selection_reason = "hypothesis_portfolio_all_hypotheses_retired"
+            portfolio_gated_selection = True
+        elif directive not in {
+            "prioritize_discrimination",
+            "continue_bounded_discrimination",
+        }:
+            raise AutonomousDecisionIntegrationError(
+                f"unsupported hypothesis portfolio directive: {directive}"
+            )
+
     execution_mode = selected.get("execution_mode") if selected is not None else None
     automatic_handoff_request_eligible = bool(
         selected is not None
@@ -238,6 +287,8 @@ def build_autonomous_decision_report(
         "advanced_statistics_eligibility": statistics,
         "benchmark_summary": benchmark,
         "benchmark_qualified_for_automatic_handoff": benchmark_qualified,
+        "hypothesis_portfolio_binding": portfolio_binding,
+        "hypothesis_portfolio_gated_selection": portfolio_gated_selection,
         "execution_handoff": {
             "eligible_to_request_existing_authorization_chain": automatic_handoff_request_eligible,
             "destination": "existing_independent_action_authorization_and_typed_executor_chain",
