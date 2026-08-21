@@ -78,6 +78,14 @@ def _handoff(previous_report_sha: str) -> dict:
             "node_type": "hypothesis",
             "statement": "Bounded target statement.",
         },
+        "diagnosis_context": {
+            "diagnosis_types": ["parameter_or_property_uncertainty"],
+            "passed_gates": ["numerical_validity"],
+            "failed_gates": ["property_authority"],
+            "stop_recommendation": "replan_to_resolve_upstream_comparison_gates",
+            "stop_rationale": "Property authority remains unresolved.",
+            "hypothesis_portfolio_directive": None,
+        },
         "source_ancestry": {
             "previous_discrepancy_report_sha256": None,
             "prior_diagnosis_types": [],
@@ -89,6 +97,8 @@ def _handoff(previous_report_sha: str) -> dict:
                 "source_proposal_id": "model-evidence:property-sensitivity",
                 "source_rank": 1,
                 "research_action_class": "sensitivity_analysis",
+                "rationale": "Resolve bounded property uncertainty.",
+                "source_execution_mode": "plan_only",
                 "planner_candidate_required": True,
                 "availability_asserted": False,
                 "automatic_execution_authorized": False,
@@ -115,6 +125,9 @@ def _match(handoff: dict, plan: dict) -> dict:
     return {
         "schema_version": "1.0",
         "policy_version": "1.0",
+        "source_discrepancy_report_sha256": handoff[
+            "source_discrepancy_report_sha256"
+        ],
         "handoff_sha256": handoff["handoff_sha256"],
         "fresh_plan_sha256": plan["plan_sha256"],
         "objective_id": handoff["research_objectives"][0]["objective_id"],
@@ -194,10 +207,18 @@ def test_validated_recursive_entry_binds_planner_reconstruction_and_still_grants
     ]
     assert result["handoff_verification"]["source_discrepancy_hardening_verified"] is True
     assert result["planner_verification"]["plan_sha256"] == plan["plan_sha256"]
-    assert result["recursive_checkpoint"]["checkpoint_status"] == (
-        "explicit_authorization_required"
-    )
+    checkpoint = result["recursive_checkpoint"]
+    assert checkpoint["checkpoint_status"] == "explicit_authorization_required"
+    assert checkpoint["candidate_match"]["source_discrepancy_report_sha256"] == "a" * 64
+    assert len(checkpoint["candidate_match"]["selected_candidate_canonical_sha256"]) == 64
+    assert len(checkpoint["candidate_match"]["matched_objective_canonical_sha256"]) == 64
+    assert checkpoint["persistent_research_state"]["blockers"][
+        "failed_discrepancy_gates"
+    ] == ["property_authority"]
+    assert checkpoint["persistent_research_state"]["unresolved_evidence_gaps"]
     assert result["autonomy_boundary"]["planner_reconstruction_verified"] is True
+    assert result["autonomy_boundary"]["candidate_match_source_report_directly_bound"] is True
+    assert result["autonomy_boundary"]["persistent_planning_context_bound"] is True
     assert result["autonomy_boundary"]["authorization_granted"] is False
     assert result["autonomy_boundary"]["request_compiled"] is False
     assert result["autonomy_boundary"]["execution_performed"] is False
