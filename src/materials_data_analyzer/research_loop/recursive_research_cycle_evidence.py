@@ -527,6 +527,86 @@ def advance_recursive_cycle_after_verified_transition(
         expected_action_type,
         expected_plan_sha,
     ) = _checkpoint(checkpoint)
+
+    cycle_index = checkpoint.get("cycle_index")
+    if (
+        isinstance(cycle_index, bool)
+        or not isinstance(cycle_index, int)
+        or cycle_index < 1
+    ):
+        raise RecursiveResearchEvidenceError(
+            "checkpoint.cycle_index must be an integer >= 1"
+        )
+    checkpoint_ancestry = _mapping(
+        checkpoint.get("ancestry"), "checkpoint.ancestry"
+    )
+    previous_checkpoint_sha = checkpoint_ancestry.get("previous_checkpoint_sha256")
+    previous_sha: str | None = None
+    previous_evaluated_graph_sha: str | None = None
+    if cycle_index == 1:
+        if previous_checkpoint_sha is not None:
+            raise RecursiveResearchEvidenceError(
+                "cycle-one checkpoint cannot carry previous checkpoint ancestry"
+            )
+        if previous_progression is not None:
+            raise RecursiveResearchEvidenceError(
+                "cycle-one progression cannot accept a predecessor progression"
+            )
+    else:
+        expected_previous_checkpoint_sha = _sha(
+            previous_checkpoint_sha,
+            "checkpoint.ancestry.previous_checkpoint_sha256",
+        )
+        if previous_progression is None:
+            raise RecursiveResearchEvidenceError(
+                "successor recursive cycle requires the exact previous progression"
+            )
+        previous = _mapping(previous_progression, "previous_progression")
+        if previous.get("schema_version") != RECURSIVE_CYCLE_SCHEMA_VERSION:
+            raise RecursiveResearchEvidenceError(
+                "previous progression schema_version drifted"
+            )
+        if previous.get("policy_version") != RECURSIVE_EVIDENCE_POLICY_VERSION:
+            raise RecursiveResearchEvidenceError(
+                "previous progression policy_version drifted"
+            )
+        previous_sha = _embedded_sha(
+            previous,
+            field="previous_progression",
+            sha_field="progression_sha256",
+        )
+        previous_cycle_index = previous.get("cycle_index")
+        if (
+            isinstance(previous_cycle_index, bool)
+            or not isinstance(previous_cycle_index, int)
+            or previous_cycle_index != cycle_index - 1
+        ):
+            raise RecursiveResearchEvidenceError(
+                "previous progression is not the immediately preceding cycle"
+            )
+        previous_target = _mapping(
+            previous.get("target"), "previous_progression.target"
+        )
+        for field in ("graph_id", "node_id", "node_type", "statement"):
+            if previous_target.get(field) != source_target.get(field):
+                raise RecursiveResearchEvidenceError(
+                    f"previous progression does not terminate at current checkpoint target: {field}"
+                )
+        prior_ancestry = _mapping(
+            previous.get("ancestry"), "previous_progression.ancestry"
+        )
+        if (
+            prior_ancestry.get("authorization_checkpoint_sha256")
+            != expected_previous_checkpoint_sha
+        ):
+            raise RecursiveResearchEvidenceError(
+                "previous progression is not bound to the checkpoint predecessor"
+            )
+        previous_evaluated_graph_sha = _sha(
+            prior_ancestry.get("evaluated_graph_canonical_sha256"),
+            "previous_progression.ancestry.evaluated_graph_canonical_sha256",
+        )
+
     plan, plan_sha = _fresh_plan(
         _mapping(fresh_plan, "fresh_plan"),
         expected_sha=expected_plan_sha,
@@ -557,27 +637,10 @@ def advance_recursive_cycle_after_verified_transition(
         assessment=assessment,
     )
 
-    previous_sha = None
-    if previous_progression is not None:
-        previous = _mapping(previous_progression, "previous_progression")
-        previous_sha = _embedded_sha(
-            previous,
-            field="previous_progression",
-            sha_field="progression_sha256",
+    if previous_evaluated_graph_sha == graph_sha:
+        raise RecursiveResearchEvidenceError(
+            "recursive cycle produced no new evaluated graph information state"
         )
-        previous_target = _mapping(previous.get("target"), "previous_progression.target")
-        for field in ("node_id", "node_type", "statement"):
-            if previous_target.get(field) != current_target.get(field):
-                raise RecursiveResearchEvidenceError(
-                    f"recursive progression target changed across iterations: {field}"
-                )
-        prior_ancestry = _mapping(
-            previous.get("ancestry"), "previous_progression.ancestry"
-        )
-        if prior_ancestry.get("evaluated_graph_canonical_sha256") == graph_sha:
-            raise RecursiveResearchEvidenceError(
-                "recursive cycle produced no new evaluated graph information state"
-            )
 
     portfolio_state_name = (
         portfolio_state.get("portfolio_state") if portfolio_state is not None else None
@@ -599,7 +662,7 @@ def advance_recursive_cycle_after_verified_transition(
         "schema_version": RECURSIVE_CYCLE_SCHEMA_VERSION,
         "policy_version": RECURSIVE_EVIDENCE_POLICY_VERSION,
         "cycle_id": checkpoint.get("cycle_id"),
-        "cycle_index": checkpoint.get("cycle_index"),
+        "cycle_index": cycle_index,
         "progression_status": status,
         "source_target": dict(source_target),
         "target": dict(current_target),

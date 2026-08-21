@@ -382,7 +382,7 @@ def test_falsified_state_is_derived_and_stops_without_caller_portfolio(tmp_path:
     )
 
 
-def test_repeated_authenticated_successor_graph_is_no_new_information(tmp_path: Path) -> None:
+def test_cycle_one_rejects_predecessor_progression(tmp_path: Path) -> None:
     plan = _plan()
     checkpoint = _checkpoint(plan)
     bundle, result_sha = _bundle(tmp_path)
@@ -394,7 +394,10 @@ def test_repeated_authenticated_successor_graph_is_no_new_information(tmp_path: 
         fresh_plan=plan,
         program_state={"workstreams": []},
     )
-    with pytest.raises(RecursiveResearchEvidenceError, match="no new evaluated graph"):
+    with pytest.raises(
+        RecursiveResearchEvidenceError,
+        match="cycle-one progression cannot accept a predecessor progression",
+    ):
         advance_recursive_cycle_after_verified_transition(
             authorization_checkpoint=checkpoint,
             verified_execution_record=execution,

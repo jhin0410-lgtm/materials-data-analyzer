@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 
@@ -9,6 +8,10 @@ import pytest
 from materials_data_analyzer.research_loop.recursive_research_cycle_controller import (
     RecursiveResearchCycleError,
     build_recursive_research_cycle_checkpoint,
+)
+from materials_data_analyzer.research_loop.recursive_research_cycle_evidence import (
+    RecursiveResearchEvidenceError,
+    advance_recursive_cycle_after_verified_transition,
 )
 
 
@@ -180,3 +183,61 @@ def test_initial_handoff_without_previous_report_may_start_cycle_one() -> None:
     )
     assert checkpoint["cycle_index"] == 1
     assert checkpoint["checkpoint_status"] == "explicit_authorization_required"
+
+
+
+def _successor_checkpoint() -> tuple[dict, dict, dict]:
+    first_handoff = _handoff(previous_report_sha=None)
+    first_plan = _plan(action_id="planner:review-1")
+    first = build_recursive_research_cycle_checkpoint(
+        planning_handoff=first_handoff,
+        fresh_plan=first_plan,
+        candidate_match=_match(first_handoff, first_plan),
+    )
+    successor_handoff = _handoff(previous_report_sha="a" * 64)
+    successor_plan = _plan(action_id="planner:review-2")
+    successor = build_recursive_research_cycle_checkpoint(
+        planning_handoff=successor_handoff,
+        fresh_plan=successor_plan,
+        candidate_match=_match(successor_handoff, successor_plan),
+        previous_checkpoint=first,
+    )
+    return first, successor, successor_plan
+
+
+def test_successor_evidence_progression_requires_exact_previous_progression() -> None:
+    _first, successor, successor_plan = _successor_checkpoint()
+    with pytest.raises(RecursiveResearchEvidenceError, match="requires the exact previous progression"):
+        advance_recursive_cycle_after_verified_transition(
+            authorization_checkpoint=successor,
+            verified_execution_record={},
+            transition_bundle_root="unused",
+            fresh_plan=successor_plan,
+            program_state={},
+            previous_progression=None,
+        )
+
+
+def test_successor_progression_must_bind_checkpoint_predecessor() -> None:
+    first, successor, successor_plan = _successor_checkpoint()
+    forged_previous = {
+        "schema_version": "1.0",
+        "policy_version": "1.0",
+        "cycle_index": 1,
+        "target": dict(successor["target"]),
+        "ancestry": {
+            "authorization_checkpoint_sha256": "f" * 64,
+            "evaluated_graph_canonical_sha256": "e" * 64,
+        },
+    }
+    forged_previous["progression_sha256"] = _sha(forged_previous)
+    assert successor["ancestry"]["previous_checkpoint_sha256"] == first["checkpoint_sha256"]
+    with pytest.raises(RecursiveResearchEvidenceError, match="checkpoint predecessor"):
+        advance_recursive_cycle_after_verified_transition(
+            authorization_checkpoint=successor,
+            verified_execution_record={},
+            transition_bundle_root="unused",
+            fresh_plan=successor_plan,
+            program_state={},
+            previous_progression=forged_previous,
+        )

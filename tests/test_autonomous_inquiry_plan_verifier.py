@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+import materials_data_analyzer.research_loop.validated_recursive_cycle_planning as validated_planning
 from materials_data_analyzer.research_loop.autonomous_inquiry import (
     build_autonomous_inquiry_plan,
 )
@@ -149,18 +150,49 @@ def test_self_rehashed_fabricated_plan_fails_deterministic_reconstruction() -> N
         validate_autonomous_inquiry_plan(fabricated, program_state=program)
 
 
-def test_validated_recursive_entry_binds_planner_reconstruction_and_still_grants_no_authority() -> None:
+def test_validated_recursive_entry_binds_planner_reconstruction_and_still_grants_no_authority(
+    monkeypatch,
+) -> None:
     program = _program_state()
     plan = build_autonomous_inquiry_plan(program)
     handoff = _handoff("a" * 64)
     match = _match(handoff, plan)
+    calls: list[dict] = []
 
+    def fake_handoff_validator(value, **kwargs):
+        calls.append({"handoff": value, **kwargs})
+        return {
+            "handoff_sha256": handoff["handoff_sha256"],
+            "source_discrepancy_hardening_verified": True,
+            "source_discrepancy_physics_hardening_verified": True,
+            "source_discrepancy_report_sha256": "a" * 64,
+        }
+
+    monkeypatch.setattr(
+        validated_planning,
+        "validate_policy_hardened_discrepancy_planning_handoff",
+        fake_handoff_validator,
+    )
+    source_report = {"report_sha256": "a" * 64}
+    source_graph = {"graph_id": "g-1"}
     result = build_validated_recursive_planning_checkpoint(
         planning_handoff=handoff,
+        source_discrepancy_report=source_report,
+        source_evaluated_graph=source_graph,
         fresh_plan=plan,
         planner_program_state=program,
         candidate_match=match,
     )
+    assert calls == [
+        {
+            "handoff": handoff,
+            "discrepancy_report": source_report,
+            "evaluated_graph": source_graph,
+            "hypothesis_portfolio": None,
+            "previous_discrepancy_report": None,
+        }
+    ]
+    assert result["handoff_verification"]["source_discrepancy_hardening_verified"] is True
     assert result["planner_verification"]["plan_sha256"] == plan["plan_sha256"]
     assert result["recursive_checkpoint"]["checkpoint_status"] == (
         "explicit_authorization_required"
