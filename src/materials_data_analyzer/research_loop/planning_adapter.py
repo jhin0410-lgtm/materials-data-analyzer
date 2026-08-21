@@ -1,7 +1,9 @@
-"""Stable planning-adapter facade with audited NIST execution planning.
+"""Stable planning-adapter facade with audited executable planning projections.
 
 The complete historical planning-adapter namespace remains available through the preserved
-legacy module, including intentional monkeypatch/test seams.
+legacy module, including intentional monkeypatch/test seams. The historical adapter
+enumeration remains stable; the reference-heat adapter is an explicit typed execution
+projection rather than a silently expanded legacy discovery surface.
 """
 from __future__ import annotations
 
@@ -12,6 +14,7 @@ from . import planning_adapter_legacy as _legacy
 from .planning_adapter_legacy import *  # noqa: F401,F403
 
 _NIST_ADAPTER = "nist-ambench-process-characterization"
+_HEAT_ADAPTER = "reference-heat-conduction"
 _LEGACY_ENTRYPOINTS = {"available_planning_adapters", "plan_research_next_action"}
 
 
@@ -49,7 +52,12 @@ def _call_legacy_with_compat_namespace(
 
 
 def available_planning_adapters() -> tuple[str, ...]:
-    return _call_legacy_with_compat_namespace(_legacy.available_planning_adapters)
+    """Return the stable historical discovery surface.
+
+    New typed execution adapters must not silently mutate this compatibility contract.
+    They remain addressable explicitly through ``plan_research_next_action``.
+    """
+    return tuple(_call_legacy_with_compat_namespace(_legacy.available_planning_adapters))
 
 
 def plan_research_next_action(
@@ -73,6 +81,36 @@ def plan_research_next_action(
             research_run=research_run,
             action_registry_path=action_registry_path,
         )
+    if adapter_id == _HEAT_ADAPTER:
+        if research_run is None or action_registry_path is None:
+            raise PlanningAdapterError(
+                "reference heat executable planning requires both research_run and action_registry_path"
+            )
+        from .heat_execution_planning import build_heat_execution_planning_state
+
+        state = build_heat_execution_planning_state(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
+        return {
+            "schema_version": _legacy.PLANNING_DECISION_SCHEMA_VERSION,
+            "adapter_id": state["adapter_id"],
+            "adapter_version": _legacy.PLANNING_ADAPTER_VERSION,
+            "domain": state["domain"],
+            "selection_status": state["stop_state"]["selection_status"],
+            "selected_action": state["selected_action"],
+            "candidates": list(state["action_frontier"]),
+            "reason": state["stop_state"]["reason"],
+            "evidence_level": None,
+            "maximum_allowed_use": "numerical_reference_validation_only",
+            "evidence_bindings": list(state["evidence_bindings"]),
+            "network_access_performed": False,
+            "action_executed": False,
+            "model_fit_performed": False,
+            "scientific_evidence_upgraded": False,
+            "delegated_policy_version": None,
+        }
     return _call_legacy_with_compat_namespace(
         _legacy.plan_research_next_action,
         adapter_id,

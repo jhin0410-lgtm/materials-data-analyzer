@@ -1,8 +1,8 @@
-"""Single public typed-execution router with a legacy-compatible NASA facade.
+"""Single public typed-execution router with legacy-compatible bounded adapters.
 
 The NASA implementation remains byte-for-byte preserved in the internal legacy module. This
-facade also preserves the historical module namespace and monkeypatch seams used by tests and
-downstream integrations while adding the audited NIST response-free route.
+facade preserves historical monkeypatch seams while routing NIST structural and audited
+reference-heat actions through independent authorization and exact SHA handoff boundaries.
 """
 from __future__ import annotations
 
@@ -20,7 +20,9 @@ from .kernel import ResearchLoopError
 
 _NASA_ADAPTER = "nasa-battery"
 _NIST_ADAPTER = "nist-ambench-process-characterization"
+_HEAT_ADAPTER = "reference-heat-conduction"
 _NIST_ACTION_TYPE = "nist_structural_design_simulation"
+_HEAT_ACTION_TYPE = "reference_heat_conduction_simulation"
 _LEGACY_ENTRYPOINTS = {
     "execute_authorized_action",
     "execute_authorized_action_with_failure_classification",
@@ -28,12 +30,7 @@ _LEGACY_ENTRYPOINTS = {
 
 
 def __getattr__(name: str) -> Any:
-    """Expose the complete historical NASA module namespace lazily.
-
-    The legacy module defines a narrow ``__all__`` but existing tests/integrations also use
-    intentional internal seams such as ``_DISPATCH`` and ``_dispatch_cost_units``. Delegating
-    attribute reads retains that compatibility without copying the legacy implementation.
-    """
+    """Expose the complete historical NASA module namespace lazily."""
     try:
         return getattr(_nasa_legacy, name)
     except AttributeError as exc:
@@ -46,13 +43,7 @@ def _call_nasa_with_compat_namespace(
     *args: Any,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Temporarily project facade monkeypatches into the preserved legacy module.
-
-    Before this facade existed, monkeypatching a symbol on ``authorized_execution`` changed
-    the global resolved by the executor function itself. Splitting the implementation into a
-    legacy module would otherwise silently break that behavior. Only names that already exist
-    in the legacy module are projected, and every projected value is restored after the call.
-    """
+    """Temporarily project facade monkeypatches into the preserved legacy module."""
     restored: dict[str, Any] = {}
     facade_globals = globals()
     for name, legacy_value in vars(_nasa_legacy).items():
@@ -72,6 +63,18 @@ def _call_nasa_with_compat_namespace(
             setattr(_nasa_legacy, name, value)
 
 
+def _reject_cross_adapter_nasa_action(expected_action_type: str | None) -> None:
+    """Preserve established NIST diagnostics while extending the same boundary to heat."""
+    if expected_action_type == _NIST_ACTION_TYPE:
+        raise AuthorizedExecutionError(
+            "NIST structural action cannot be routed through the NASA adapter"
+        )
+    if expected_action_type == _HEAT_ACTION_TYPE:
+        raise AuthorizedExecutionError(
+            "reference heat action cannot be routed through the NASA adapter"
+        )
+
+
 def execute_authorized_action(
     adapter_id: str,
     *,
@@ -83,24 +86,12 @@ def execute_authorized_action(
     expected_request_sha256: str | None = None,
     expected_research_ledger_sha256: str | None = None,
 ) -> dict[str, Any]:
-    """Execute one bounded typed action.
-
-    NIST execution requires exact request and pre-execution-ledger SHA handoff pins.
-    Mission/policy provenance for those pins is established by the higher-level
-    ``nist_authenticated_execution`` boundary, which runs the independent verifier in
-    the same call before entering this typed executor.
-    """
+    """Execute one bounded typed action through its registered adapter."""
     if adapter_id == _NASA_ADAPTER:
-        if expected_action_type == _NIST_ACTION_TYPE:
+        _reject_cross_adapter_nasa_action(expected_action_type)
+        if expected_request_sha256 is not None or expected_research_ledger_sha256 is not None:
             raise AuthorizedExecutionError(
-                "the NIST structural action cannot be routed through the NASA adapter"
-            )
-        if (
-            expected_request_sha256 is not None
-            or expected_research_ledger_sha256 is not None
-        ):
-            raise AuthorizedExecutionError(
-                "machine-verifier SHA handoff pins are implemented only for the NIST route"
+                "machine-verifier SHA handoff pins are not accepted by the legacy NASA route"
             )
         return _call_nasa_with_compat_namespace(
             _nasa_legacy.execute_authorized_action,
@@ -112,10 +103,7 @@ def execute_authorized_action(
             expected_action_type=expected_action_type,
         )
     if adapter_id == _NIST_ADAPTER:
-        if (
-            expected_request_sha256 is None
-            or expected_research_ledger_sha256 is None
-        ):
+        if expected_request_sha256 is None or expected_research_ledger_sha256 is None:
             raise AuthorizedExecutionError(
                 "NIST typed execution requires exact request and research-ledger SHA pins"
             )
@@ -130,8 +118,29 @@ def execute_authorized_action(
             expected_request_sha256=expected_request_sha256,
             expected_research_ledger_sha256=expected_research_ledger_sha256,
         )
+    if adapter_id == _HEAT_ADAPTER:
+        if expected_action_type != _HEAT_ACTION_TYPE:
+            raise AuthorizedExecutionError(
+                "reference heat adapter requires the exact heat action type pin"
+            )
+        if expected_request_sha256 is None or expected_research_ledger_sha256 is None:
+            raise AuthorizedExecutionError(
+                "reference heat typed execution requires exact request and research-ledger SHA pins"
+            )
+        from .heat_authorized_execution import execute_heat_authorized_action
+
+        return execute_heat_authorized_action(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+            request_path=request_path,
+            expected_action_type=expected_action_type,
+            expected_request_sha256=expected_request_sha256,
+            expected_research_ledger_sha256=expected_research_ledger_sha256,
+        )
     raise AuthorizedExecutionError(
-        "bounded typed execution is currently implemented only for nasa-battery"
+        "bounded typed execution is available only for nasa-battery, "
+        "nist-ambench-process-characterization, or reference-heat-conduction"
     )
 
 
@@ -146,24 +155,12 @@ def execute_authorized_action_with_failure_classification(
     expected_request_sha256: str | None = None,
     expected_research_ledger_sha256: str | None = None,
 ) -> dict[str, Any]:
-    """Execute once and distinguish post-ledger failure from preflight failure.
-
-    This classification stays in the facade intentionally: historically it resolved both
-    ``_action_count`` and ``execute_authorized_action`` from this module. Keeping that lookup
-    behavior preserves existing monkeypatch/extension seams while routing the actual NASA
-    execution through the byte-preserved legacy core.
-    """
+    """Execute once and distinguish post-ledger failure from preflight failure."""
     if adapter_id == _NASA_ADAPTER:
-        if expected_action_type == _NIST_ACTION_TYPE:
+        _reject_cross_adapter_nasa_action(expected_action_type)
+        if expected_request_sha256 is not None or expected_research_ledger_sha256 is not None:
             raise AuthorizedExecutionError(
-                "the NIST structural action cannot be routed through the NASA adapter"
-            )
-        if (
-            expected_request_sha256 is not None
-            or expected_research_ledger_sha256 is not None
-        ):
-            raise AuthorizedExecutionError(
-                "machine-verifier SHA handoff pins are implemented only for the NIST route"
+                "machine-verifier SHA handoff pins are not accepted by the legacy NASA route"
             )
 
     run = Path(research_run).expanduser().resolve(strict=True)
