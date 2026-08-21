@@ -63,6 +63,18 @@ def _call_nasa_with_compat_namespace(
             setattr(_nasa_legacy, name, value)
 
 
+def _reject_cross_adapter_nasa_action(expected_action_type: str | None) -> None:
+    """Preserve established NIST diagnostics while extending the same boundary to heat."""
+    if expected_action_type == _NIST_ACTION_TYPE:
+        raise AuthorizedExecutionError(
+            "NIST structural action cannot be routed through the NASA adapter"
+        )
+    if expected_action_type == _HEAT_ACTION_TYPE:
+        raise AuthorizedExecutionError(
+            "reference heat action cannot be routed through the NASA adapter"
+        )
+
+
 def execute_authorized_action(
     adapter_id: str,
     *,
@@ -76,10 +88,7 @@ def execute_authorized_action(
 ) -> dict[str, Any]:
     """Execute one bounded typed action through its registered adapter."""
     if adapter_id == _NASA_ADAPTER:
-        if expected_action_type in {_NIST_ACTION_TYPE, _HEAT_ACTION_TYPE}:
-            raise AuthorizedExecutionError(
-                "non-NASA simulation action cannot be routed through the NASA adapter"
-            )
+        _reject_cross_adapter_nasa_action(expected_action_type)
         if expected_request_sha256 is not None or expected_research_ledger_sha256 is not None:
             raise AuthorizedExecutionError(
                 "machine-verifier SHA handoff pins are not accepted by the legacy NASA route"
@@ -130,7 +139,8 @@ def execute_authorized_action(
             expected_research_ledger_sha256=expected_research_ledger_sha256,
         )
     raise AuthorizedExecutionError(
-        "bounded typed execution adapter is not registered in the public execution router"
+        "bounded typed execution is available only for nasa-battery, "
+        "nist-ambench-process-characterization, or reference-heat-conduction"
     )
 
 
@@ -147,10 +157,7 @@ def execute_authorized_action_with_failure_classification(
 ) -> dict[str, Any]:
     """Execute once and distinguish post-ledger failure from preflight failure."""
     if adapter_id == _NASA_ADAPTER:
-        if expected_action_type in {_NIST_ACTION_TYPE, _HEAT_ACTION_TYPE}:
-            raise AuthorizedExecutionError(
-                "non-NASA simulation action cannot be routed through the NASA adapter"
-            )
+        _reject_cross_adapter_nasa_action(expected_action_type)
         if expected_request_sha256 is not None or expected_research_ledger_sha256 is not None:
             raise AuthorizedExecutionError(
                 "machine-verifier SHA handoff pins are not accepted by the legacy NASA route"
