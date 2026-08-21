@@ -18,6 +18,7 @@ on:
       - src/materials_data_analyzer/research_loop/recursive_research_cycle_controller.py
       - src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py
       - src/materials_data_analyzer/research_loop/recursive_research_cycle_rediagnosis.py
+      - tests/test_recursive_authenticated_transition_adapter.py
       - tests/test_recursive_research_cycle_controller.py
       - tests/test_recursive_research_cycle_evidence.py
       - tests/test_recursive_research_cycle_rediagnosis.py
@@ -54,6 +55,7 @@ jobs:
             src/materials_data_analyzer/research_loop/recursive_research_cycle_controller.py \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_rediagnosis.py \
+            tests/test_recursive_authenticated_transition_adapter.py \
             tests/test_recursive_research_cycle_controller.py \
             tests/test_recursive_research_cycle_evidence.py \
             tests/test_recursive_research_cycle_rediagnosis.py \
@@ -72,6 +74,7 @@ jobs:
             src/materials_data_analyzer/research_loop/recursive_research_cycle_controller.py \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_rediagnosis.py \
+            tests/test_recursive_authenticated_transition_adapter.py \
             tests/test_recursive_research_cycle_controller.py \
             tests/test_recursive_research_cycle_evidence.py \
             tests/test_recursive_research_cycle_rediagnosis.py \
@@ -84,6 +87,7 @@ jobs:
             src/materials_data_analyzer/research_loop/recursive_research_cycle_controller.py \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py \
             src/materials_data_analyzer/research_loop/recursive_research_cycle_rediagnosis.py \
+            tests/test_recursive_authenticated_transition_adapter.py \
             tests/test_recursive_research_cycle_controller.py \
             tests/test_recursive_research_cycle_evidence.py \
             tests/test_recursive_research_cycle_rediagnosis.py \
