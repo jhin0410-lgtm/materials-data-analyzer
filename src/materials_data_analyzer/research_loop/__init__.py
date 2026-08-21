@@ -35,6 +35,13 @@ from .authorized_execution import (
     AuthorizedExecutionError,
     execute_authorized_action,
 )
+from .discrepancy_planning_handoff import (
+    DISCREPANCY_PLANNING_HANDOFF_POLICY_VERSION,
+    DISCREPANCY_PLANNING_HANDOFF_SCHEMA_VERSION,
+    DiscrepancyPlanningHandoffError,
+    build_discrepancy_planning_handoff,
+    validate_discrepancy_planning_handoff,
+)
 from .epistemic_control import (
     EPISTEMIC_CONTROL_POLICY_VERSION,
     EPISTEMIC_CONTROL_SCHEMA_VERSION,
@@ -78,6 +85,13 @@ from .kernel import (
     initialize_research_loop,
     load_research_state,
     verify_research_loop,
+)
+from .model_evidence_discrepancy import (
+    MODEL_EVIDENCE_DISCREPANCY_POLICY_VERSION,
+    MODEL_EVIDENCE_DISCREPANCY_SCHEMA_VERSION,
+    ModelEvidenceDiscrepancyError,
+    build_model_evidence_discrepancy_report,
+    validate_model_evidence_discrepancy_report,
 )
 from .nasa_action_policy import NasaActionPolicyError, plan_nasa_next_action
 from .nasa_audit_executor import (
@@ -171,6 +185,8 @@ __all__ = [
     "AUTHORIZATION_SCHEMA_VERSION",
     "CYCLE_POLICY_VERSION",
     "CYCLE_SCHEMA_VERSION",
+    "DISCREPANCY_PLANNING_HANDOFF_POLICY_VERSION",
+    "DISCREPANCY_PLANNING_HANDOFF_SCHEMA_VERSION",
     "EPISTEMIC_CONTROL_POLICY_VERSION",
     "EPISTEMIC_CONTROL_SCHEMA_VERSION",
     "EPISTEMIC_GATE_SCHEMA_VERSION",
@@ -186,6 +202,8 @@ __all__ = [
     "GRAPH_SCHEMA_VERSION",
     "LEDGER_FILENAME",
     "MISSION_SCHEMA_VERSION",
+    "MODEL_EVIDENCE_DISCREPANCY_POLICY_VERSION",
+    "MODEL_EVIDENCE_DISCREPANCY_SCHEMA_VERSION",
     "PLANNING_ADAPTER_VERSION",
     "PLANNING_DECISION_SCHEMA_VERSION",
     "PLANNING_STATE_SCHEMA_VERSION",
@@ -203,11 +221,13 @@ __all__ = [
     "ActionAuthorizationError",
     "AuthenticatedTransitionConsumerError",
     "AuthorizedExecutionError",
+    "DiscrepancyPlanningHandoffError",
     "EpistemicControlError",
     "EpistemicGateError",
     "EpistemicGraphError",
     "EpistemicMultiCycleError",
     "EvidenceOriginBindingError",
+    "ModelEvidenceDiscrepancyError",
     "NasaActionPolicyError",
     "NasaAuditActionError",
     "NasaProtocolStratificationActionError",
@@ -234,6 +254,8 @@ __all__ = [
     "available_planning_adapters",
     "build_authenticated_scientific_critic_report",
     "build_current_research_transition",
+    "build_discrepancy_planning_handoff",
+    "build_model_evidence_discrepancy_report",
     "build_protocol_stratification",
     "build_reopen_evidence_review",
     "build_research_planning_state",
@@ -258,7 +280,9 @@ __all__ = [
     "run_epistemically_bounded_multicycle",
     "run_research_cycle",
     "validate_action_registry",
+    "validate_discrepancy_planning_handoff",
     "validate_epistemic_graph",
+    "validate_model_evidence_discrepancy_report",
     "validate_reasoning_proposal",
     "validate_reasoning_proposal_file",
     "validate_research_mission",
