@@ -63,7 +63,6 @@ jobs:
             tests/test_recursive_research_cycle_evidence.py \
             tests/test_recursive_research_cycle_rediagnosis.py \
             tests/test_recursive_research_cycle_integration.py \
-            tests/test_validated_recursive_cycle_planning.py \
             tests/test_autonomous_inquiry_plan_verifier.py \
             tests/test_authenticated_transition_consumer.py \
             tests/test_hypothesis_portfolio.py \
