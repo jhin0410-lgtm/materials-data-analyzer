@@ -9,6 +9,7 @@ from .action_registry import describe_action, load_action_registry
 from .heat_conduction_action import ACTION_TYPE, ACTION_VERSION, COST_UNITS
 from .heat_execution_verifier import ADAPTER_ID, REGISTRY_DOMAIN
 from .kernel import LEDGER_FILENAME, ResearchLoopError, load_research_state
+from .scientific_simulation_registry import repository_heat_conduction_contract
 
 
 class HeatExecutionPlanningError(ResearchLoopError):
@@ -73,6 +74,14 @@ def build_heat_execution_planning_state(
     run = Path(research_run).expanduser().resolve(strict=True)
     registry_path = _resolve_file(action_registry_path, root=root, field="action_registry_path")
     registry, contract = _verified_registry(registry_path, root)
+    solver_contract = repository_heat_conduction_contract()
+    if (
+        solver_contract.action_type != ACTION_TYPE
+        or solver_contract.action_version != ACTION_VERSION
+        or solver_contract.physics_solver is not True
+    ):
+        raise HeatExecutionPlanningError("audited heat solver implementation contract drifted")
+
     state = load_research_state(run)
     if state.get("status") != "active":
         raise HeatExecutionPlanningError("reference heat research run must be active")
@@ -88,12 +97,21 @@ def build_heat_execution_planning_state(
             "sha256": _sha256_file(registry_path),
         },
         {
+            "role": "reference_heat_solver_implementation",
+            "implementation_qualname": solver_contract.implementation_qualname,
+            "sha256": solver_contract.implementation_module_sha256,
+        },
+        {
             "role": "research_ledger",
             "path": str(ledger),
             "sha256": state["ledger_sha256"],
         },
     ]
-    prior = [item for item in actions if isinstance(item, Mapping) and item.get("action_type") == ACTION_TYPE]
+    prior = [
+        item
+        for item in actions
+        if isinstance(item, Mapping) and item.get("action_type") == ACTION_TYPE
+    ]
     if prior:
         reason = (
             "The audited reference heat solver has already been executed in this run. "
@@ -124,6 +142,9 @@ def build_heat_execution_planning_state(
             "execution_registry_id": registry["registry_id"],
             "execution_registry_sha256": registry["registry_sha256"],
             "execution_registry_path": registry["registry_path"],
+            "expected_solver_implementation_sha256": (
+                solver_contract.implementation_module_sha256
+            ),
             "expected_information_gain": {
                 "status": "not_quantified",
                 "value": None,
@@ -153,11 +174,15 @@ def build_heat_execution_planning_state(
         "selected_action": selected,
         "current_blocker": {
             "kind": "audited_reference_physics_solver",
-            "code": "physics_solver_reference_missing" if selected else "reference_solver_already_executed",
+            "code": "physics_solver_reference_missing"
+            if selected
+            else "reference_solver_already_executed",
             "summary": reason,
         },
         "evidence_gap": {
-            "status": "action_expected_to_reduce_numerical_model_uncertainty" if selected else "reference_action_complete",
+            "status": "action_expected_to_reduce_numerical_model_uncertainty"
+            if selected
+            else "reference_action_complete",
             "requirements": [
                 "No empirical material/process claim may be promoted from this reference calculation alone."
             ],
