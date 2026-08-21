@@ -128,4 +128,35 @@ if old_handoff in verifier_test:
     )
 elif new_handoff not in verifier_test:
     raise SystemExit("validated recursive handoff policy fixture: no known exact state")
+
+old_target_close = '''        "target": {
+            "graph_id": "g-1",
+            "node_id": "h-1",
+            "node_type": "hypothesis",
+            "statement": "Bounded target statement.",
+        },
+        "research_objectives": [
+'''
+new_target_close = '''        "target": {
+            "graph_id": "g-1",
+            "node_id": "h-1",
+            "node_type": "hypothesis",
+            "statement": "Bounded target statement.",
+        },
+        "source_ancestry": {
+            "previous_discrepancy_report_sha256": None,
+            "prior_diagnosis_types": [],
+            "current_diagnosis_types": ["parameter_or_property_uncertainty"],
+        },
+        "research_objectives": [
+'''
+if old_target_close in verifier_test:
+    verifier_test = replace_once(
+        verifier_test,
+        old_target_close,
+        new_target_close,
+        label="validated recursive handoff source ancestry fixture",
+    )
+elif new_target_close not in verifier_test:
+    raise SystemExit("validated recursive handoff source ancestry fixture: no known exact state")
 TEST_PLAN_VERIFIER.write_text(verifier_test, encoding="utf-8")
