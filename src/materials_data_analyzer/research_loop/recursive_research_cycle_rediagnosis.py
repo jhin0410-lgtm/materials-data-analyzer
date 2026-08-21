@@ -1,10 +1,10 @@
 """Close one bounded recursive cycle by validating re-diagnosis and re-entering planning.
 
-This layer does not rebuild scientific evidence.  It requires the current discrepancy
-report to pass the existing discrepancy validator against the post-transition graph and
-portfolio, requires that report to bind the prior discrepancy report, then delegates to
-the existing discrepancy-planning handoff builder.  The output is therefore another
-planning-only handoff, not an executable action.
+This layer does not rebuild scientific evidence. It requires the current discrepancy
+report to pass the repository's public physics/provenance hardening policy against the
+post-transition graph and portfolio, requires that report to bind the prior discrepancy
+report, then delegates to the hardened discrepancy-planning handoff builder. The output
+is another planning-only handoff, not an executable action.
 """
 from __future__ import annotations
 
@@ -14,9 +14,13 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from .discrepancy_planning_handoff import build_discrepancy_planning_handoff
+from .discrepancy_planning_handoff_policy import (
+    build_policy_hardened_discrepancy_planning_handoff,
+)
 from .kernel import ResearchLoopError
-from .model_evidence_discrepancy import validate_model_evidence_discrepancy_report
+from .model_evidence_discrepancy_physics_policy import (
+    validate_physics_hardened_model_evidence_discrepancy_report,
+)
 from .recursive_research_cycle_controller import (
     RECURSIVE_CYCLE_POLICY_VERSION,
     RECURSIVE_CYCLE_SCHEMA_VERSION,
@@ -55,14 +59,18 @@ def _mapping(value: object, field: str) -> Mapping[str, Any]:
 
 def _text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip() or value != value.strip():
-        raise RecursiveResearchRediagnosisError(f"{field} must be non-empty trimmed text")
+        raise RecursiveResearchRediagnosisError(
+            f"{field} must be non-empty trimmed text"
+        )
     return value
 
 
 def _sha(value: object, field: str) -> str:
     text = _text(value, field)
     if _SHA256.fullmatch(text) is None:
-        raise RecursiveResearchRediagnosisError(f"{field} must be lowercase SHA-256")
+        raise RecursiveResearchRediagnosisError(
+            f"{field} must be lowercase SHA-256"
+        )
     return text
 
 
@@ -97,7 +105,9 @@ def _authorization_checkpoint(
             "re-diagnosis cycle must descend from an authorization-required checkpoint"
         )
     target = _mapping(checkpoint.get("target"), "authorization_checkpoint.target")
-    ancestry = _mapping(checkpoint.get("ancestry"), "authorization_checkpoint.ancestry")
+    ancestry = _mapping(
+        checkpoint.get("ancestry"), "authorization_checkpoint.ancestry"
+    )
     previous_report_sha = _sha(
         ancestry.get("source_discrepancy_report_sha256"),
         "authorization_checkpoint.ancestry.source_discrepancy_report_sha256",
@@ -114,9 +124,13 @@ def _progression(
     hypothesis_portfolio: Mapping[str, Any],
 ) -> str:
     if progression.get("schema_version") != RECURSIVE_CYCLE_SCHEMA_VERSION:
-        raise RecursiveResearchRediagnosisError("unsupported progression schema_version")
+        raise RecursiveResearchRediagnosisError(
+            "unsupported progression schema_version"
+        )
     if progression.get("policy_version") != RECURSIVE_EVIDENCE_POLICY_VERSION:
-        raise RecursiveResearchRediagnosisError("unsupported progression policy_version")
+        raise RecursiveResearchRediagnosisError(
+            "unsupported progression policy_version"
+        )
     digest = _embedded_sha(
         progression,
         field="progression",
@@ -161,15 +175,23 @@ def complete_recursive_cycle_with_rediagnosis(
     evaluated_graph: Mapping[str, Any],
     hypothesis_portfolio: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Validate post-result re-diagnosis and project it into a new planning-only handoff."""
-    checkpoint = _mapping(authorization_checkpoint, "authorization_checkpoint")
+    """Validate post-result re-diagnosis and project it into a hardened planning-only handoff."""
+    checkpoint = _mapping(
+        authorization_checkpoint, "authorization_checkpoint"
+    )
     progress = _mapping(progression, "progression")
-    current = _mapping(current_discrepancy_report, "current_discrepancy_report")
-    previous = _mapping(previous_discrepancy_report, "previous_discrepancy_report")
+    current = _mapping(
+        current_discrepancy_report, "current_discrepancy_report"
+    )
+    previous = _mapping(
+        previous_discrepancy_report, "previous_discrepancy_report"
+    )
     graph = _mapping(evaluated_graph, "evaluated_graph")
     portfolio = _mapping(hypothesis_portfolio, "hypothesis_portfolio")
 
-    checkpoint_sha, target, expected_previous_report_sha = _authorization_checkpoint(checkpoint)
+    checkpoint_sha, target, expected_previous_report_sha = (
+        _authorization_checkpoint(checkpoint)
+    )
     progression_sha = _progression(
         progress,
         checkpoint_sha=checkpoint_sha,
@@ -187,7 +209,7 @@ def complete_recursive_cycle_with_rediagnosis(
             "recursive cycle previous discrepancy report differs from checkpoint ancestry"
         )
 
-    verified = validate_model_evidence_discrepancy_report(
+    verified = validate_physics_hardened_model_evidence_discrepancy_report(
         current,
         evaluated_graph=graph,
         hypothesis_portfolio=portfolio,
@@ -201,7 +223,9 @@ def complete_recursive_cycle_with_rediagnosis(
         raise RecursiveResearchRediagnosisError(
             "re-diagnosis must not reuse the previous discrepancy report bytes"
         )
-    current_target = _mapping(current.get("target"), "current_discrepancy_report.target")
+    current_target = _mapping(
+        current.get("target"), "current_discrepancy_report.target"
+    )
     if current_target != target:
         raise RecursiveResearchRediagnosisError(
             "re-diagnosis target differs from recursive cycle target"
@@ -219,13 +243,16 @@ def complete_recursive_cycle_with_rediagnosis(
             "current discrepancy report does not preserve exact previous-report ancestry"
         )
 
-    next_handoff = build_discrepancy_planning_handoff(
+    next_handoff = build_policy_hardened_discrepancy_planning_handoff(
         current,
         evaluated_graph=graph,
         hypothesis_portfolio=portfolio,
         previous_discrepancy_report=previous,
     )
-    boundary = _mapping(next_handoff.get("planner_boundary"), "next_planning_handoff.planner_boundary")
+    boundary = _mapping(
+        next_handoff.get("planner_boundary"),
+        "next_planning_handoff.planner_boundary",
+    )
     if boundary.get("fresh_planner_candidate_matching_required") is not True:
         raise RecursiveResearchRediagnosisError(
             "next discrepancy handoff weakened fresh planner matching"
@@ -262,6 +289,7 @@ def complete_recursive_cycle_with_rediagnosis(
             "report_sha256": current_report_sha,
             "iteration_index": verified.get("iteration_index"),
             "diagnosis_types": list(verified.get("diagnosis_types", [])),
+            "physics_hardening_verified": True,
             "scientific_status_changed": False,
             "automatic_execution_authorized": False,
         },
