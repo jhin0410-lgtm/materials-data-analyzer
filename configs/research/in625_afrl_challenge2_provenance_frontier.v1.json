@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "frontier_id": "in625-afrl-challenge2-provenance-frontier-v1",
+  "candidate_id": "afrl-mdf-m27h1z-challenge2-in625",
+  "scientific_scope": "Discovery and acquisition-boundary record for independent AFRL/MDF LPBF IN625 process-to-structure evidence. Frontier inclusion does not mean that raw bytes were acquired, that semantics were normalized, or that the source is scientifically comparable to an existing registry record.",
+  "authority": {
+    "repository": "Materials Data Facility / Argonne Leadership Computing Facility",
+    "organization": "AFRL Additive Manufacturing Challenge",
+    "dataset_title": "AFRL AM Modeling Challenge Series: Challenge 2 Data Package",
+    "source_name": "groebermichael_afrl_am_package2",
+    "doi": "10.18126/M27H1Z",
+    "repository_record": "https://acdc.alcf.anl.gov/mdf/detail/groebermichael_afrl_am_package2_v1.1/",
+    "associated_descriptor_doi": "10.1007/s40192-021-00220-9",
+    "challenge_information": "https://materials-data-facility.github.io/MID3AS-AM-Challenge/",
+    "challenge_problem_statement": "https://materials-data-facility.github.io/MID3AS-AM-Challenge/Challenge2ProblemStatement_2019Release.pdf"
+  },
+  "verified_discovery_claims": {
+    "material": "IN625",
+    "process_family": "laser powder bed fusion",
+    "machine": "EOS M280",
+    "challenge_role": "microscale process-to-structure",
+    "repository_description": "Calibration, input and supplementary data for prediction of melt-pool geometries as a function of processing conditions.",
+    "physical_experiment_forms": [
+      "single_track",
+      "single_layer_multi_track_pad",
+      "multi_layer_single_track_wall"
+    ],
+    "reported_response_families": [
+      "melt_pool_geometry",
+      "deposit_geometry",
+      "microstructural_details"
+    ]
+  },
+  "verified_challenge_q_and_a_constraints": {
+    "programmed_build_plate_preheat_c": 80.0,
+    "build_atmosphere": "argon",
+    "laser_spot_size_measurement_status": "not_directly_measured_for_these_builds",
+    "manufacturer_nominal_gaussian_laser_spot_diameter_4sigma_mm": 0.1,
+    "B21_semantics": "single track wall, 10 layers tall",
+    "B27_semantics": "2D pad, multiple tracks in one layer",
+    "layer_timing_authority_file": "HomeIn_Build B.csv",
+    "substrate_geometry_authority_file": "Build B- All Parts.stl",
+    "measurement_template": "Challenge 2 Answer Template.xls"
+  },
+  "candidate_authority_files_or_artifacts": [
+    "Challenge2ProblemStatement_2019Release.pdf",
+    "HomeIn_Build B.csv",
+    "Build B- All Parts.stl",
+    "B21.cli",
+    "B27.cli",
+    "Challenge 2 Answer Template.xls"
+  ],
+  "acquisition": {
+    "repository_record_publicly_resolved": true,
+    "raw_package_transfer_route": "Globus",
+    "current_access_instructions": [
+      "Create or use a Globus account.",
+      "Join the AFRL Additive Manufacturing Modeling Challenge Series Globus group.",
+      "Transfer the Challenge 2 dataset through an authorized Globus endpoint."
+    ],
+    "raw_bytes_acquired_in_repository": false,
+    "raw_bytes_authenticated": false,
+    "raw_file_inventory_available": false,
+    "repository_published_checksum_contract_verified": false,
+    "status": "public_metadata_verified_raw_transfer_requires_authorized_globus_session",
+    "authorization_boundary": "Do not bypass Globus login/group membership and do not fabricate local raw-file identity before transfer."
+  },
+  "promotion_plan": [
+    "Acquire exact Challenge 2 bytes only through an authorized public/Globus route.",
+    "SHA-256 bind every transferred archive/file before interpretation.",
+    "Inventory all files and preserve exact relative paths, sizes and digests.",
+    "Run generic archive, delimited and XLSX structural intake before semantic mapping.",
+    "Treat CLI/STL/process-control artifacts as separate evidence classes from measurement tables.",
+    "Bind every positive material, machine, process, sample, acquisition, property, unit and method claim to exact source authority evidence.",
+    "Use bounded authority-evidence actions for missing claims and preserve exhausted paths.",
+    "Preserve single-track, single-layer multi-track and multi-layer wall records as distinct process regimes.",
+    "Compare only response-compatible records with existing NIST/Zenodo/Ghosh IN625 evidence; do not pool by alloy name alone."
+  ],
+  "scientific_boundaries": {
+    "discovery_is_acquisition": false,
+    "repository_metadata_is_row_level_measurement_evidence": false,
+    "manufacturer_nominal_spot_size_is_direct_measurement": false,
+    "frontier_entry_is_registry_promotion": false,
+    "issue_76_eligible": false,
+    "scientific_status_changed": false
+  },
+  "fallback_candidates_if_transfer_blocked": [
+    {
+      "priority": 1,
+      "candidate_id": "mendeley-xr3tvpjwfm-v2-in625-hvof-neutron-residual-stress",
+      "doi": "10.17632/xr3tvpjwfm.2",
+      "reason": "Small public raw XLSX with independent IN625 coating/neutron-diffraction provenance; scientifically distinct and therefore requires response-specific comparability rather than LPBF pooling."
+    },
+    {
+      "priority": 2,
+      "candidate_id": "mendeley-ybyhxv4czd-v3-in625-turning-sensors",
+      "doi": "10.17632/ybyhxv4czd.3",
+      "reason": "Large public raw CSV process/sensor/surface-roughness dataset with 27 machining conditions; useful for generic process-to-property autonomy but not LPBF melt-pool comparability."
+    }
+  ]
+}
