@@ -7,6 +7,16 @@ on:
     paths:
       - scripts/_tmp_pr202_final_review_fix.py
       - .github/workflows/_tmp-pr202-final-review-fix.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/_tmp_pr202_final_review_fix.py
+      - .github/workflows/_tmp-pr202-final-review-fix.yml
+      - src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py
+      - src/materials_data_analyzer/research_loop/validated_recursive_cycle_planning.py
+      - tests/test_autonomous_inquiry_plan_verifier.py
+      - tests/test_recursive_research_cycle_review_hardening.py
   workflow_dispatch:
 
 permissions:
