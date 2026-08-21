@@ -1,9 +1,9 @@
-"""Simulation contracts, structural sensitivity, and bounded design prioritization.
+"""Simulation contracts, structural sensitivity, and bounded physics registration.
 
-No second executor is introduced here. The only executable simulation reused by this
-module is the repository's existing response-free ``design_simulation`` implementation.
-Future physics solvers may be registered as contracts, but execution still requires the
-existing independent authorization and typed-executor chain.
+The registry never executes a solver. Execution remains behind the repository's independent
+authorization, pinned-request, and typed-executor chain. A contract may declare
+``physics_solver=True`` only when its governing equation, numerical method, unit contract,
+stability rule, and numerical-validation contract are all explicit and attestable.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from typing import Any, Mapping
 from .design_simulation import simulate_design_structure
 from .kernel import ResearchLoopError
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 
 class ScientificSimulationRegistryError(ResearchLoopError):
@@ -51,6 +51,13 @@ class SolverContract:
     action_version: str
     assumptions: tuple[str, ...]
     execution_route: str = "existing_independent_authorization_and_typed_executor_chain"
+    physics_solver: bool = False
+    governing_equation: str | None = None
+    numerical_method: str | None = None
+    unit_contract: str | None = None
+    stability_contract: str | None = None
+    numerical_validation_contract: str | None = None
+    empirical_validation_status: str = "not_established"
 
     def __post_init__(self) -> None:
         for field in (
@@ -72,10 +79,33 @@ class SolverContract:
             raise ScientificSimulationRegistryError("solver assumptions must be explicit")
         if self.execution_route != "existing_independent_authorization_and_typed_executor_chain":
             raise ScientificSimulationRegistryError("a second simulation executor is not allowed")
+        audit_fields = (
+            self.governing_equation,
+            self.numerical_method,
+            self.unit_contract,
+            self.stability_contract,
+            self.numerical_validation_contract,
+        )
+        if self.physics_solver:
+            if any(not isinstance(item, str) or not item.strip() for item in audit_fields):
+                raise ScientificSimulationRegistryError(
+                    "physics_solver=true requires governing equation, numerical method, units, stability, and numerical validation contracts"
+                )
+            if self.empirical_validation_status not in {"not_established", "established"}:
+                raise ScientificSimulationRegistryError("unsupported empirical_validation_status")
+        else:
+            if any(item is not None for item in audit_fields):
+                raise ScientificSimulationRegistryError(
+                    "non-physics structural contracts must not carry physics audit fields"
+                )
+            if self.empirical_validation_status != "not_established":
+                raise ScientificSimulationRegistryError(
+                    "non-physics solver cannot claim empirical validation status"
+                )
 
 
 class SolverContractRegistry:
-    """Registry of exact solver contracts; it has no execute method."""
+    """Registry of exact solver contracts; it intentionally has no execute method."""
 
     def __init__(self) -> None:
         self._contracts: dict[str, SolverContract] = {}
@@ -111,9 +141,8 @@ class SolverContractRegistry:
             ) from exc
 
 
-
 def repository_design_simulation_contract() -> SolverContract:
-    """Return the attested contract for the already-existing structural simulator."""
+    """Return the attested contract for the response-free structural simulator."""
     return SolverContract(
         solver_id="response_free_structural_design",
         version="1.0",
@@ -126,6 +155,42 @@ def repository_design_simulation_contract() -> SolverContract:
             "No response values, effect sizes, predictions, or physical observations are synthesized.",
             "Expected information gain is not probabilistically quantified.",
         ),
+        physics_solver=False,
+    )
+
+
+def repository_heat_conduction_contract() -> SolverContract:
+    """Return the attested contract for the first audited continuum-physics solver."""
+    from .heat_conduction_solver import (
+        HEAT_SOLVER_ACTION_TYPE,
+        HEAT_SOLVER_ACTION_VERSION,
+        HEAT_SOLVER_ID,
+        HEAT_SOLVER_VERSION,
+        run_reference_heat_conduction_request,
+    )
+
+    return SolverContract(
+        solver_id=HEAT_SOLVER_ID,
+        version=HEAT_SOLVER_VERSION,
+        implementation_qualname=run_reference_heat_conduction_request.__qualname__,
+        implementation_module_sha256=callable_module_sha256(run_reference_heat_conduction_request),
+        action_type=HEAT_SOLVER_ACTION_TYPE,
+        action_version=HEAT_SOLVER_ACTION_VERSION,
+        assumptions=(
+            "One-dimensional transient heat conduction only.",
+            "Thermal properties are constant over space, temperature, and time.",
+            "Boundary conditions are fixed-temperature Dirichlet boundaries.",
+            "No phase change, latent heat, convection, radiation, heat source, melt flow, or process physics is represented.",
+            "Material properties are explicit request inputs and are never inferred or imputed.",
+            "Analytical sine-mode comparison establishes numerical reference behavior, not empirical material validity.",
+        ),
+        physics_solver=True,
+        governing_equation="dT/dt = alpha * d2T/dx2",
+        numerical_method="explicit FTCS finite difference in 1D",
+        unit_contract="strict SI: m, s, K and either m^2/s or W/(m*K), kg/m^3, J/(kg*K)",
+        stability_contract="Fourier number alpha*dt/dx^2 <= 0.5; unstable requests are rejected before time marching",
+        numerical_validation_contract="single sine eigenmode analytical solution with explicit max-absolute-error tolerance",
+        empirical_validation_status="not_established",
     )
 
 
@@ -166,7 +231,6 @@ class SimulationPlanningRequest:
     target_node_id: str
 
 
-
 def compile_simulation_action_candidate(
     registry: SolverContractRegistry,
     request: SimulationPlanningRequest,
@@ -199,6 +263,15 @@ def compile_simulation_action_candidate(
         "execution_performed": False,
         "second_executor_introduced": False,
         "scientific_status_upgrade_authorized": False,
+        "physics_solver": contract.physics_solver,
+        "physics_audit": {
+            "governing_equation": contract.governing_equation,
+            "numerical_method": contract.numerical_method,
+            "unit_contract": contract.unit_contract,
+            "stability_contract": contract.stability_contract,
+            "numerical_validation_contract": contract.numerical_validation_contract,
+            "empirical_validation_status": contract.empirical_validation_status,
+        },
         "assumptions": list(contract.assumptions),
     }
 
@@ -236,7 +309,6 @@ def assess_structural_design_candidate(
     rank_gain = sum(max(0, int(item["rank_gain"])) for item in changes)
     residual_df_gain = sum(max(0, int(item["residual_df_gain"])) for item in changes)
     new_cells = int(result["comparison"]["new_unique_cell_count"])
-    # This is intentionally a deterministic design-structure utility, not EIG.
     structural_utility = float(rank_gain * 2 + residual_df_gain + new_cells)
     return StructuralDesignAssessment(
         candidate_id=candidate.candidate_id,
@@ -311,6 +383,7 @@ __all__ = [
     "callable_module_sha256",
     "compile_simulation_action_candidate",
     "repository_design_simulation_contract",
+    "repository_heat_conduction_contract",
     "select_structural_design_candidate",
     "structural_design_sensitivity",
 ]
