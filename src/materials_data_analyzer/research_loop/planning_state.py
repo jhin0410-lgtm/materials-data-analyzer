@@ -1,8 +1,8 @@
-"""Stable planning-state facade with audited NIST execution-state projection.
+"""Stable planning-state facade with audited executable planning projections.
 
 The preserved legacy implementation remains the compatibility surface for existing domains;
-this facade adds only the executable NIST state projection while retaining historical module
-namespace and monkeypatch semantics.
+this facade adds bounded executable projections while retaining historical module namespace
+and monkeypatch semantics.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from . import planning_state_legacy as _legacy
 from .planning_state_legacy import *  # noqa: F401,F403
 
 _NIST_ADAPTER = "nist-ambench-process-characterization"
+_HEAT_ADAPTER = "reference-heat-conduction"
 _LEGACY_ENTRYPOINTS = {"build_research_planning_state"}
 
 
@@ -66,6 +67,18 @@ def build_research_planning_state(
         from .nist_execution_planning import build_nist_execution_planning_state
 
         return build_nist_execution_planning_state(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
+    if adapter_id == _HEAT_ADAPTER:
+        if research_run is None or action_registry_path is None:
+            raise PlanningStateError(
+                "reference heat executable planning requires both research_run and action_registry_path"
+            )
+        from .heat_execution_planning import build_heat_execution_planning_state
+
+        return build_heat_execution_planning_state(
             repository_root=repository_root,
             research_run=research_run,
             action_registry_path=action_registry_path,
