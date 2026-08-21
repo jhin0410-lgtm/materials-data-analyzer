@@ -7,8 +7,8 @@ change, convection, radiation, or material-calibration model.
 
 Malformed scientific inputs fail closed. A well-formed request that violates the FTCS
 stability criterion is retained as a checksum-bound rejected numerical run so negative
-solver evidence is not silently discarded. Resource bounds are checked before spatial
-or time-marching buffers are allocated.
+solver evidence is not silently discarded. Resource bounds and the complete scientific
+input contract are checked before spatial or time-marching buffers are allocated.
 """
 
 from __future__ import annotations
@@ -221,14 +221,14 @@ def _parse_boundaries(value: object) -> tuple[float, float, dict[str, Any]]:
     return temperatures[0], temperatures[1], normalized
 
 
-def _initial_field(
-    initial: Mapping[str, Any],
+def _parse_initial_condition(
+    value: object,
     *,
-    grid: list[float],
-    length_m: float,
     left_K: float,
     right_K: float,
-) -> tuple[list[float], dict[str, Any]]:
+) -> dict[str, Any]:
+    """Validate and normalize the complete initial-condition contract pre-allocation."""
+    initial = _mapping(value, "initial_condition")
     kind = initial.get("kind")
     if kind == "uniform":
         _exact_keys(
@@ -236,10 +236,12 @@ def _initial_field(
             field="initial_condition",
             keys={"kind", "temperature_K"},
         )
-        temperature = _kelvin(initial["temperature_K"], "initial_condition.temperature_K")
-        field = [temperature for _ in grid]
-        normalized = {"kind": "uniform", "temperature_K": temperature}
-    elif kind == "sine_mode":
+        temperature = _kelvin(
+            initial["temperature_K"],
+            "initial_condition.temperature_K",
+        )
+        return {"kind": "uniform", "temperature_K": temperature}
+    if kind == "sine_mode":
         _exact_keys(
             initial,
             field="initial_condition",
@@ -249,33 +251,63 @@ def _initial_field(
             initial["baseline_temperature_K"],
             "initial_condition.baseline_temperature_K",
         )
-        amplitude = _finite(initial["amplitude_K"], "initial_condition.amplitude_K")
+        amplitude = _finite(
+            initial["amplitude_K"],
+            "initial_condition.amplitude_K",
+        )
         if baseline + min(0.0, amplitude) < 0.0:
             raise HeatConductionSolverError(
                 "sine_mode initial field would cross below absolute zero"
             )
-        if not math.isclose(left_K, baseline, rel_tol=0.0, abs_tol=1e-12) or not math.isclose(
-            right_K, baseline, rel_tol=0.0, abs_tol=1e-12
+        if not math.isclose(
+            left_K,
+            baseline,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ) or not math.isclose(
+            right_K,
+            baseline,
+            rel_tol=0.0,
+            abs_tol=1e-12,
         ):
             raise HeatConductionSolverError(
                 "sine_mode requires both fixed boundaries to equal baseline_temperature_K"
             )
-        field = [
-            baseline + amplitude * math.sin(math.pi * position / length_m)
-            for position in grid
-        ]
-        normalized = {
+        return {
             "kind": "sine_mode",
             "baseline_temperature_K": baseline,
             "amplitude_K": amplitude,
         }
-    else:
-        raise HeatConductionSolverError(
-            "initial_condition.kind must be uniform or sine_mode"
-        )
+    raise HeatConductionSolverError(
+        "initial_condition.kind must be uniform or sine_mode"
+    )
+
+
+def _initial_field(
+    initial: Mapping[str, Any],
+    *,
+    grid: list[float],
+    length_m: float,
+    left_K: float,
+    right_K: float,
+) -> list[float]:
+    """Allocate a field from an already-normalized initial-condition contract."""
+    kind = initial["kind"]
+    if kind == "uniform":
+        temperature = float(initial["temperature_K"])
+        field = [temperature for _ in grid]
+    elif kind == "sine_mode":
+        baseline = float(initial["baseline_temperature_K"])
+        amplitude = float(initial["amplitude_K"])
+        field = [
+            baseline + amplitude * math.sin(math.pi * position / length_m)
+            for position in grid
+        ]
+    else:  # pragma: no cover - normalized parser above makes this unreachable.
+        raise HeatConductionSolverError("normalized initial-condition kind drifted")
     field[0] = left_K
     field[-1] = right_K
-    return field, normalized
+    return field
 
 
 def _parse_validation(
@@ -406,8 +438,12 @@ def run_reference_heat_conduction_request(request: Mapping[str, Any]) -> dict[st
     left_K, right_K, normalized_boundaries = _parse_boundaries(
         value["boundary_conditions"]
     )
-    initial_record = _mapping(value["initial_condition"], "initial_condition")
-    validation = _parse_validation(value["validation"], initial=initial_record)
+    normalized_initial = _parse_initial_condition(
+        value["initial_condition"],
+        left_K=left_K,
+        right_K=right_K,
+    )
+    validation = _parse_validation(value["validation"], initial=normalized_initial)
 
     fourier_number, fourier_decimal, stable = _fourier_number(
         alpha=alpha,
@@ -442,6 +478,7 @@ def run_reference_heat_conduction_request(request: Mapping[str, Any]) -> dict[st
             "validated_before_allocation": True,
         },
         "boundary_conditions": normalized_boundaries,
+        "initial_condition": normalized_initial,
         "numerical_stability": {
             "fourier_number": fourier_number,
             "fourier_number_decimal": fourier_decimal,
@@ -464,7 +501,6 @@ def run_reference_heat_conduction_request(request: Mapping[str, Any]) -> dict[st
         return _finalize_result(
             {
                 **common,
-                "initial_condition": dict(initial_record),
                 "run_status": "rejected_numerically_unstable",
                 "exit_state": {
                     "kind": "preflight_stability_rejection",
@@ -484,6 +520,7 @@ def run_reference_heat_conduction_request(request: Mapping[str, Any]) -> dict[st
                     "request_contract_validated",
                     "material_and_units_contract_validated",
                     "resource_bounds_validated_before_allocation",
+                    "initial_condition_contract_validated_before_allocation",
                     "analytical_validation_contract_required",
                     "ftcs_stability_limit_exceeded",
                     "spatial_allocation_not_started",
@@ -494,18 +531,13 @@ def run_reference_heat_conduction_request(request: Mapping[str, Any]) -> dict[st
 
     grid = [dx_m * index for index in range(node_count)]
     grid[-1] = length_m
-    field, normalized_initial = _initial_field(
-        initial_record,
+    current = _initial_field(
+        normalized_initial,
         grid=grid,
         length_m=length_m,
         left_K=left_K,
         right_K=right_K,
     )
-    # Re-check against normalized initial state so future initial-condition extensions
-    # cannot silently weaken the analytical reference requirement.
-    validation = _parse_validation(value["validation"], initial=normalized_initial)
-
-    current = list(field)
     assert fourier_number is not None  # stable Fo <= 0.5 is representable in binary64.
     for _ in range(step_count):
         updated = list(current)
@@ -547,7 +579,6 @@ def run_reference_heat_conduction_request(request: Mapping[str, Any]) -> dict[st
     return _finalize_result(
         {
             **common,
-            "initial_condition": normalized_initial,
             "run_status": "completed",
             "exit_state": {
                 "kind": "completed_time_horizon",
@@ -561,6 +592,7 @@ def run_reference_heat_conduction_request(request: Mapping[str, Any]) -> dict[st
                 "request_contract_validated",
                 "material_and_units_contract_validated",
                 "resource_bounds_validated_before_allocation",
+                "initial_condition_contract_validated_before_allocation",
                 "analytical_validation_contract_required",
                 "ftcs_stability_criterion_satisfied",
                 "time_horizon_completed",
