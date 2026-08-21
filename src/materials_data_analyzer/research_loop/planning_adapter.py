@@ -1,4 +1,4 @@
-"""Stable planning-adapter facade with audited NIST execution planning.
+"""Stable planning-adapter facade with audited executable planning projections.
 
 The complete historical planning-adapter namespace remains available through the preserved
 legacy module, including intentional monkeypatch/test seams.
@@ -12,6 +12,7 @@ from . import planning_adapter_legacy as _legacy
 from .planning_adapter_legacy import *  # noqa: F401,F403
 
 _NIST_ADAPTER = "nist-ambench-process-characterization"
+_HEAT_ADAPTER = "reference-heat-conduction"
 _LEGACY_ENTRYPOINTS = {"available_planning_adapters", "plan_research_next_action"}
 
 
@@ -49,7 +50,8 @@ def _call_legacy_with_compat_namespace(
 
 
 def available_planning_adapters() -> tuple[str, ...]:
-    return _call_legacy_with_compat_namespace(_legacy.available_planning_adapters)
+    legacy = tuple(_call_legacy_with_compat_namespace(_legacy.available_planning_adapters))
+    return tuple(dict.fromkeys((*legacy, _HEAT_ADAPTER)))
 
 
 def plan_research_next_action(
@@ -73,6 +75,27 @@ def plan_research_next_action(
             research_run=research_run,
             action_registry_path=action_registry_path,
         )
+    if adapter_id == _HEAT_ADAPTER:
+        if research_run is None or action_registry_path is None:
+            raise PlanningAdapterError(
+                "reference heat executable planning requires both research_run and action_registry_path"
+            )
+        from .heat_execution_planning import build_heat_execution_planning_state
+
+        state = build_heat_execution_planning_state(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
+        return {
+            "adapter_id": state["adapter_id"],
+            "domain": state["domain"],
+            "selection_status": state["stop_state"]["selection_status"],
+            "selected_action": state["selected_action"],
+            "candidates": list(state["action_frontier"]),
+            "reason": state["stop_state"]["reason"],
+            "evidence_bindings": list(state["evidence_bindings"]),
+        }
     return _call_legacy_with_compat_namespace(
         _legacy.plan_research_next_action,
         adapter_id,
