@@ -4,19 +4,21 @@ import copy
 
 import pytest
 
+from materials_data_analyzer.research_loop.design_simulation import simulate_design_structure
 from materials_data_analyzer.research_loop.heat_conduction_solver import (
+    MAX_INTERIOR_NODE_UPDATES,
+    MAX_NODE_COUNT,
     HeatConductionSolverError,
     run_reference_heat_conduction_request,
+)
+from materials_data_analyzer.research_loop.heat_conduction_solver import (
+    run_reference_heat_conduction_request as heat_implementation,
 )
 from materials_data_analyzer.research_loop.scientific_simulation_registry import (
     SolverContractRegistry,
     repository_design_simulation_contract,
     repository_heat_conduction_contract,
 )
-from materials_data_analyzer.research_loop.heat_conduction_solver import (
-    run_reference_heat_conduction_request as heat_implementation,
-)
-from materials_data_analyzer.research_loop.design_simulation import simulate_design_structure
 
 
 def _request() -> dict:
@@ -64,17 +66,77 @@ def test_sine_mode_matches_analytical_reference_and_is_deterministic() -> None:
     assert first["autonomy_boundary"]["scientific_status_changed"] is False
 
 
-def test_unstable_ftcs_request_is_structured_rejection_without_time_marching() -> None:
+def test_unstable_ftcs_request_is_structured_rejection_without_allocation_or_time_marching() -> None:
     request = _request()
-    request["time"] = {"duration_s": 1.0, "time_step_s": 0.6}
-    # Keep duration an integer multiple while forcing Fo > 0.5.
     request["time"] = {"duration_s": 1.2, "time_step_s": 0.6}
     result = run_reference_heat_conduction_request(request)
     assert result["run_status"] == "rejected_numerically_unstable"
     assert result["numerical_stability"]["stable"] is False
     assert result["exit_state"]["completed_step_count"] == 0
+    assert result["spatial_grid_m"] is None
     assert result["final_temperature_K"] is None
     assert result["validation"]["state"] == "not_run_due_to_stability_rejection"
+    assert result["resource_bounds"]["validated_before_allocation"] is True
+    assert "spatial_allocation_not_started" in result["deterministic_log"]
+
+
+def test_audited_v1_rejects_unvalidated_request() -> None:
+    request = _request()
+    request["validation"] = {"kind": "none"}
+    with pytest.raises(
+        HeatConductionSolverError,
+        match="requires validation.kind=sine_eigenmode_analytical",
+    ):
+        run_reference_heat_conduction_request(request)
+
+
+def test_malformed_initial_condition_fails_before_unstable_structured_rejection() -> None:
+    request = _request()
+    request["time"] = {"duration_s": 1.2, "time_step_s": 0.6}
+    request["initial_condition"].pop("amplitude_K")
+    with pytest.raises(HeatConductionSolverError, match="missing required keys: amplitude_K"):
+        run_reference_heat_conduction_request(request)
+
+
+def test_boundary_incompatible_initial_condition_fails_before_stability_rejection() -> None:
+    request = _request()
+    request["time"] = {"duration_s": 1.2, "time_step_s": 0.6}
+    request["boundary_conditions"]["right"]["temperature_K"] = 301.0
+    with pytest.raises(
+        HeatConductionSolverError,
+        match="both fixed boundaries to equal baseline_temperature_K",
+    ):
+        run_reference_heat_conduction_request(request)
+
+
+def test_grid_and_total_work_are_bounded_before_allocation() -> None:
+    oversized = _request()
+    oversized["domain"]["node_count"] = MAX_NODE_COUNT + 1
+    with pytest.raises(HeatConductionSolverError, match="node_count exceeds bounded solver maximum"):
+        run_reference_heat_conduction_request(oversized)
+
+    excessive_work = _request()
+    excessive_work["domain"]["node_count"] = MAX_NODE_COUNT
+    steps = MAX_INTERIOR_NODE_UPDATES // (MAX_NODE_COUNT - 2) + 1
+    excessive_work["time"] = {
+        "duration_s": float(steps),
+        "time_step_s": 1.0,
+    }
+    with pytest.raises(HeatConductionSolverError, match="node-step work exceeds"):
+        run_reference_heat_conduction_request(excessive_work)
+
+
+def test_finite_inputs_that_overflow_binary64_fourier_number_are_structured_rejection() -> None:
+    request = _request()
+    request["domain"] = {"length_m": 1.0, "node_count": 3}
+    request["time"] = {"duration_s": 1.0, "time_step_s": 1.0}
+    request["material"] = {"thermal_diffusivity_m2_s": 1.0e308}
+    result = run_reference_heat_conduction_request(request)
+    assert result["run_status"] == "rejected_numerically_unstable"
+    assert result["numerical_stability"]["stable"] is False
+    assert result["numerical_stability"]["fourier_number"] is None
+    assert result["numerical_stability"]["fourier_number_binary64_representable"] is False
+    assert "E+" in result["numerical_stability"]["fourier_number_decimal"]
 
 
 def test_units_and_material_property_contract_fail_closed() -> None:
