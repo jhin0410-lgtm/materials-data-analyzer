@@ -1,0 +1,718 @@
+name: PR202 final P1 hardening
+
+on:
+  push:
+    branches:
+      - feature/bounded-recursive-research-cycle
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/bounded-recursive-research-cycle
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply provenance hardening patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+          pkg = root / 'src/materials_data_analyzer/research_loop'
+
+          authorization_module = '''"""Historical authorization reconstruction for recursive execution evidence.
+
+This module does not authorize or execute an action.  It replays the repository's
+existing authorization policy against the exact immutable ledger prefix immediately
+before a recorded action, using an isolated temporary reconstruction of that historical
+research-run state.  The result is provenance evidence about whether the action was
+actually authorizable at that point in the hash-chained run.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+from collections.abc import Mapping
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any
+
+from .action_authorization import assess_current_action_authorization
+from .kernel import (
+    LEDGER_FILENAME,
+    LOCK_FILENAME,
+    OBJECTIVE_FILENAME,
+    STATE_FILENAME,
+    ResearchLoopError,
+    _load_consistent_read,
+    _reconstruct_state,
+    _serialize_ledger,
+)
+
+RECURSIVE_AUTHORIZATION_PROVENANCE_SCHEMA_VERSION = "1.0"
+RECURSIVE_AUTHORIZATION_PROVENANCE_POLICY_VERSION = "1.0"
+
+
+class RecursiveAuthorizationProvenanceError(ResearchLoopError):
+    """Raised when pre-execution authorization cannot be reconstructed exactly."""
+
+
+def _canonical_sha256(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def verify_preexecution_authorization(
+    *,
+    adapter_id: str,
+    repository_root: str | Path,
+    research_run: str | Path,
+    action_registry_path: str | Path,
+    expected_action_id: str,
+    expected_concrete_action_type: str,
+    expected_concrete_action_version: str,
+    expected_candidate_action_class: str,
+) -> dict[str, Any]:
+    """Replay existing authorization on the exact ledger prefix before one action."""
+    root = Path(repository_root).expanduser().resolve(strict=True)
+    run = Path(research_run).expanduser().resolve(strict=True)
+    registry_path = Path(action_registry_path).expanduser().resolve(strict=True)
+    run_path, events, current_state = _load_consistent_read(run)
+    matches = [
+        (index, event)
+        for index, event in enumerate(events)
+        if event.get("event_type") == "action_recorded"
+        and isinstance(event.get("payload"), Mapping)
+        and event["payload"].get("action_id") == expected_action_id
+    ]
+    if len(matches) != 1:
+        raise RecursiveAuthorizationProvenanceError(
+            "immutable ledger must contain exactly one matching action event"
+        )
+    action_index, action_event = matches[0]
+    action_payload = action_event["payload"]
+    if action_payload.get("action_type") != expected_concrete_action_type:
+        raise RecursiveAuthorizationProvenanceError(
+            "immutable ledger action type differs from expected concrete action"
+        )
+    if action_index < 1:
+        raise RecursiveAuthorizationProvenanceError(
+            "action event cannot precede the immutable research objective"
+        )
+    prefix = events[:action_index]
+    prefix_text = _serialize_ledger(prefix)
+    prefix_sha = hashlib.sha256(prefix_text.encode("utf-8")).hexdigest()
+    pre_state = _reconstruct_state(prefix, prefix_sha)
+    if pre_state.get("status") != "active":
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution immutable research state was not active"
+        )
+
+    objective_path = run_path / OBJECTIVE_FILENAME
+    if not objective_path.is_file():
+        raise RecursiveAuthorizationProvenanceError(
+            "immutable run objective disappeared during authorization reconstruction"
+        )
+    with TemporaryDirectory(prefix="recursive-auth-replay-") as temporary:
+        replay = Path(temporary)
+        (replay / OBJECTIVE_FILENAME).write_bytes(objective_path.read_bytes())
+        (replay / LEDGER_FILENAME).write_text(prefix_text, encoding="utf-8")
+        (replay / STATE_FILENAME).write_text(
+            json.dumps(pre_state, indent=2, ensure_ascii=False, sort_keys=True) + "\\n",
+            encoding="utf-8",
+        )
+        (replay / LOCK_FILENAME).write_bytes(b"\\0")
+        authorization = assess_current_action_authorization(
+            adapter_id,
+            repository_root=root,
+            research_run=replay,
+            action_registry_path=registry_path,
+        )
+
+    if authorization.get("authorization_status") != "ready_for_explicit_execution_request":
+        raise RecursiveAuthorizationProvenanceError(
+            "exact pre-execution state was not ready for an explicit typed request"
+        )
+    if authorization.get("execution_registry_verified") is not True:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution authorization did not verify the execution registry"
+        )
+    if authorization.get("selected_action_binding_verified") is not True:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution authorization did not verify selected-action binding"
+        )
+    if authorization.get("budget_verified") is not True:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution authorization did not verify remaining research budget"
+        )
+    selected = authorization.get("selected_action")
+    contract = authorization.get("execution_contract")
+    if not isinstance(selected, Mapping) or not isinstance(contract, Mapping):
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution authorization omitted selected action or execution contract"
+        )
+    if selected.get("action_type") != expected_concrete_action_type:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution selected action type differs from executed action"
+        )
+    if selected.get("action_version") != expected_concrete_action_version:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution selected action version differs from executed action"
+        )
+    if contract.get("action_type") != expected_concrete_action_type:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution execution contract type differs from executed action"
+        )
+    if contract.get("action_version") != expected_concrete_action_version:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution execution contract version differs from executed action"
+        )
+    if contract.get("category") != expected_candidate_action_class:
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution execution contract category differs from planner action class"
+        )
+    if selected.get("cost_units") != action_payload.get("cost_units"):
+        raise RecursiveAuthorizationProvenanceError(
+            "pre-execution selected cost differs from immutable action event"
+        )
+
+    result: dict[str, Any] = {
+        "schema_version": RECURSIVE_AUTHORIZATION_PROVENANCE_SCHEMA_VERSION,
+        "policy_version": RECURSIVE_AUTHORIZATION_PROVENANCE_POLICY_VERSION,
+        "verification_status": "preexecution_authorization_deterministically_reconstructed",
+        "adapter_id": adapter_id,
+        "action_id": expected_action_id,
+        "concrete_action_type": expected_concrete_action_type,
+        "concrete_action_version": expected_concrete_action_version,
+        "candidate_action_class": expected_candidate_action_class,
+        "pre_execution_ledger_sha256": prefix_sha,
+        "pre_execution_event_count": len(prefix),
+        "terminal_ledger_sha256": current_state.get("ledger_sha256"),
+        "authorization_result_sha256": _canonical_sha256(authorization),
+        "authorization_status": authorization.get("authorization_status"),
+        "execution_registry_verified": True,
+        "selected_action_binding_verified": True,
+        "budget_verified": True,
+        "explicit_request_was_not_inferred_from_execution_completion": True,
+        "execution_performed_by_replay": False,
+        "scientific_status_changed": False,
+    }
+    result["verification_sha256"] = _canonical_sha256(result)
+    return result
+
+
+__all__ = [
+    "RECURSIVE_AUTHORIZATION_PROVENANCE_POLICY_VERSION",
+    "RECURSIVE_AUTHORIZATION_PROVENANCE_SCHEMA_VERSION",
+    "RecursiveAuthorizationProvenanceError",
+    "verify_preexecution_authorization",
+]
+'''
+          (pkg / 'recursive_authorization_provenance.py').write_text(authorization_module, encoding='utf-8')
+
+          scientific_module = '''"""Path-insensitive scientific-state identities for bounded recursive cycles.
+
+Graph version IDs, transition lineage, edge IDs, diagnostic-only relations, and local
+artifact paths are bookkeeping.  Recursive no-new-information decisions instead compare
+the target's verified directional evidence and assessed scientific state.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+from .kernel import ResearchLoopError
+
+RECURSIVE_SCIENTIFIC_STATE_SCHEMA_VERSION = "1.0"
+RECURSIVE_SCIENTIFIC_STATE_POLICY_VERSION = "1.0"
+_DIRECTIONAL = {"supports", "contradicts", "falsifies"}
+
+
+class RecursiveScientificStateError(ResearchLoopError):
+    """Raised when an evaluated graph cannot yield a stable scientific identity."""
+
+
+def _sha(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _mapping(value: object, field: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise RecursiveScientificStateError(f"{field} must be an object")
+    return value
+
+
+def _sequence(value: object, field: str) -> Sequence[object]:
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise RecursiveScientificStateError(f"{field} must be a sequence")
+    return value
+
+
+def _artifact_identity(value: object, field: str) -> dict[str, str]:
+    item = _mapping(value, field)
+    role = item.get("role")
+    digest = item.get("sha256")
+    if not isinstance(role, str) or not role.strip():
+        raise RecursiveScientificStateError(f"{field}.role must be non-empty")
+    if not isinstance(digest, str) or len(digest) != 64:
+        raise RecursiveScientificStateError(f"{field}.sha256 must be SHA-256")
+    return {"role": role, "sha256": digest}
+
+
+def _node_identity(node: Mapping[str, Any], *, include_id: bool) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "node_type": node.get("node_type"),
+        "statement": node.get("statement"),
+    }
+    if include_id:
+        result["node_id"] = node.get("node_id")
+    if "evidence_binding" in node:
+        binding = _mapping(node.get("evidence_binding"), "node.evidence_binding")
+        result["evidence_binding"] = {
+            "workstream_id": binding.get("workstream_id"),
+            "role": binding.get("role"),
+            "sha256": binding.get("sha256"),
+        }
+    if "evidence_quality" in node:
+        result["evidence_quality"] = node.get("evidence_quality")
+    if "execution_status" in node:
+        result["execution_status"] = node.get("execution_status")
+    artifacts = node.get("artifact_bindings")
+    if artifacts is not None:
+        normalized = [
+            _artifact_identity(item, f"node.artifact_bindings[{index}]")
+            for index, item in enumerate(_sequence(artifacts, "node.artifact_bindings"))
+        ]
+        result["artifact_bindings"] = sorted(
+            normalized, key=lambda item: (item["role"], item["sha256"])
+        )
+    return result
+
+
+def _edge_identity(edge: Mapping[str, Any], *, include_ids: bool) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "relation": edge.get("relation"),
+        "assessment_level": edge.get("assessment_level"),
+        "active": edge.get("active"),
+    }
+    if include_ids:
+        result.update(
+            {
+                "edge_id": edge.get("edge_id"),
+                "source_node_id": edge.get("source_node_id"),
+                "target_node_id": edge.get("target_node_id"),
+            }
+        )
+    verifier = edge.get("verification_artifact")
+    if verifier is not None:
+        result["verification_artifact"] = _artifact_identity(
+            verifier, "edge.verification_artifact"
+        )
+    return result
+
+
+def evaluated_graph_scientific_identity_sha256(
+    evaluated_graph: Mapping[str, Any],
+) -> str:
+    """Bind an evaluated graph while excluding local artifact path resolution."""
+    graph = _mapping(evaluated_graph, "evaluated_graph")
+    nodes = [
+        _mapping(item, f"evaluated_graph.nodes[{index}]")
+        for index, item in enumerate(_sequence(graph.get("nodes"), "evaluated_graph.nodes"))
+    ]
+    edges = [
+        _mapping(item, f"evaluated_graph.edges[{index}]")
+        for index, item in enumerate(_sequence(graph.get("edges"), "evaluated_graph.edges"))
+    ]
+    assessments = [
+        dict(_mapping(item, f"evaluated_graph.assessments[{index}]"))
+        for index, item in enumerate(
+            _sequence(graph.get("assessments"), "evaluated_graph.assessments")
+        )
+    ]
+    normalized_assessments = []
+    for item in assessments:
+        normalized_assessments.append(
+            {
+                "node_id": item.get("node_id"),
+                "node_type": item.get("node_type"),
+                "status": item.get("status"),
+                "final_positive_support_granted": item.get("final_positive_support_granted"),
+                "domain_closeout_required_for_positive_conclusion": item.get(
+                    "domain_closeout_required_for_positive_conclusion"
+                ),
+                "confidence_score": item.get("confidence_score"),
+            }
+        )
+    identity = {
+        "schema_version": RECURSIVE_SCIENTIFIC_STATE_SCHEMA_VERSION,
+        "policy_version": RECURSIVE_SCIENTIFIC_STATE_POLICY_VERSION,
+        "graph_id": graph.get("graph_id"),
+        "research_scope": graph.get("research_scope"),
+        "nodes": sorted(
+            [_node_identity(item, include_id=True) for item in nodes],
+            key=lambda item: str(item.get("node_id")),
+        ),
+        "edges": sorted(
+            [_edge_identity(item, include_ids=True) for item in edges],
+            key=lambda item: str(item.get("edge_id")),
+        ),
+        "assessments": sorted(
+            normalized_assessments, key=lambda item: str(item.get("node_id"))
+        ),
+    }
+    return _sha(identity)
+
+
+def target_scientific_state_fingerprint(
+    evaluated_graph: Mapping[str, Any], *, target_node_id: str
+) -> dict[str, Any]:
+    """Fingerprint status-affecting verified evidence, not transition bookkeeping."""
+    graph = _mapping(evaluated_graph, "evaluated_graph")
+    nodes = [
+        _mapping(item, f"evaluated_graph.nodes[{index}]")
+        for index, item in enumerate(_sequence(graph.get("nodes"), "evaluated_graph.nodes"))
+    ]
+    by_id = {str(item.get("node_id")): item for item in nodes}
+    if target_node_id not in by_id:
+        raise RecursiveScientificStateError("target node is absent from evaluated graph")
+    target = by_id[target_node_id]
+    assessments = [
+        _mapping(item, f"evaluated_graph.assessments[{index}]")
+        for index, item in enumerate(
+            _sequence(graph.get("assessments"), "evaluated_graph.assessments")
+        )
+        if isinstance(item, Mapping) and item.get("node_id") == target_node_id
+    ]
+    if len(assessments) != 1:
+        raise RecursiveScientificStateError(
+            "target must resolve to exactly one evaluated assessment"
+        )
+    verified_relations: list[dict[str, Any]] = []
+    for index, raw in enumerate(_sequence(graph.get("edges"), "evaluated_graph.edges")):
+        edge = _mapping(raw, f"evaluated_graph.edges[{index}]")
+        if (
+            edge.get("active") is True
+            and edge.get("target_node_id") == target_node_id
+            and edge.get("relation") in _DIRECTIONAL
+            and edge.get("assessment_level") == "domain_verified"
+        ):
+            source_id = edge.get("source_node_id")
+            if source_id not in by_id:
+                raise RecursiveScientificStateError(
+                    "verified directional edge source is absent from evaluated graph"
+                )
+            verified_relations.append(
+                {
+                    "relation": edge.get("relation"),
+                    "source": _node_identity(by_id[str(source_id)], include_id=False),
+                    "verification_artifact": _artifact_identity(
+                        edge.get("verification_artifact"),
+                        f"evaluated_graph.edges[{index}].verification_artifact",
+                    ),
+                }
+            )
+    payload: dict[str, Any] = {
+        "schema_version": RECURSIVE_SCIENTIFIC_STATE_SCHEMA_VERSION,
+        "policy_version": RECURSIVE_SCIENTIFIC_STATE_POLICY_VERSION,
+        "target": _node_identity(target, include_id=True),
+        "assessment_status": assessments[0].get("status"),
+        "verified_directional_evidence": sorted(
+            verified_relations,
+            key=lambda item: _sha(item),
+        ),
+        "diagnostic_edges_included": False,
+        "graph_version_included": False,
+        "local_artifact_paths_included": False,
+    }
+    payload["fingerprint_sha256"] = _sha(payload)
+    return payload
+
+
+__all__ = [
+    "RECURSIVE_SCIENTIFIC_STATE_POLICY_VERSION",
+    "RECURSIVE_SCIENTIFIC_STATE_SCHEMA_VERSION",
+    "RecursiveScientificStateError",
+    "evaluated_graph_scientific_identity_sha256",
+    "target_scientific_state_fingerprint",
+]
+'''
+          (pkg / 'recursive_scientific_state.py').write_text(scientific_module, encoding='utf-8')
+
+          def patch(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'missing patch anchor in {path}: {old[:120]!r}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 1) Require deterministic historical authorization reconstruction.
+          p = pkg / 'recursive_authorized_execution_evidence.py'
+          patch(
+              p,
+              'from .kernel import ResearchLoopError, load_research_state\n',
+              'from .kernel import ResearchLoopError, load_research_state\nfrom .recursive_authorization_provenance import verify_preexecution_authorization\n',
+          )
+          patch(
+              p,
+              'RECURSIVE_EXECUTION_EVIDENCE_POLICY_VERSION = "1.0"',
+              'RECURSIVE_EXECUTION_EVIDENCE_POLICY_VERSION = "1.1"',
+          )
+          patch(
+              p,
+              '''    action = matches[0]\n    if action.get("action_type") != concrete_action_type:\n        raise RecursiveAuthorizedExecutionEvidenceError(\n            "research ledger concrete action type differs from verified request"\n        )\n    outcome = action.get("status")\n''',
+              '''    action = matches[0]\n    if action.get("action_type") != concrete_action_type:\n        raise RecursiveAuthorizedExecutionEvidenceError(\n            "research ledger concrete action type differs from verified request"\n        )\n    authorization_provenance = verify_preexecution_authorization(\n        adapter_id=adapter_id,\n        repository_root=root,\n        research_run=run,\n        action_registry_path=registry_path,\n        expected_action_id=expected_candidate_action_id,\n        expected_concrete_action_type=concrete_action_type,\n        expected_concrete_action_version=concrete_action_version,\n        expected_candidate_action_class=expected_candidate_action_class,\n    )\n    outcome = action.get("status")\n''',
+          )
+          patch(
+              p,
+              '        "authorization_status": "explicit_request_authorized_by_existing_chain",',
+              '        "authorization_status": "preexecution_authorization_deterministically_reconstructed",',
+          )
+          patch(
+              p,
+              '''            "ledger_artifact_binding_reverified": True,\n        },\n''',
+              '''            "ledger_artifact_binding_reverified": True,\n            "preexecution_authorization": authorization_provenance,\n        },\n''',
+          )
+
+          # 2/3/5) Exact planning-base binding, scientific-state comparison, claim/conclusion support.
+          p = pkg / 'recursive_research_cycle_evidence.py'
+          patch(
+              p,
+              '''from .recursive_authorized_execution_evidence import (\n    build_authenticated_recursive_execution_record,\n)\n''',
+              '''from .recursive_authorized_execution_evidence import (\n    RECURSIVE_EXECUTION_EVIDENCE_POLICY_VERSION,\n    build_authenticated_recursive_execution_record,\n)\nfrom .recursive_scientific_state import (\n    evaluated_graph_scientific_identity_sha256,\n    target_scientific_state_fingerprint,\n)\n''',
+          )
+          patch(
+              p,
+              '''    if value.get("schema_version") != VERIFIED_EXECUTION_RECORD_SCHEMA_VERSION:\n        raise RecursiveResearchEvidenceError(\n            "unsupported verified execution record schema_version"\n        )\n''',
+              '''    if value.get("schema_version") != VERIFIED_EXECUTION_RECORD_SCHEMA_VERSION:\n        raise RecursiveResearchEvidenceError(\n            "unsupported verified execution record schema_version"\n        )\n    if value.get("policy_version") != RECURSIVE_EXECUTION_EVIDENCE_POLICY_VERSION:\n        raise RecursiveResearchEvidenceError(\n            "unsupported verified execution record policy_version"\n        )\n''',
+          )
+          patch(
+              p,
+              '''    if (\n        value.get("authorization_status")\n        != "explicit_request_authorized_by_existing_chain"\n    ):\n        raise RecursiveResearchEvidenceError(\n            "execution record does not attest existing-chain explicit authorization"\n        )\n''',
+              '''    if (\n        value.get("authorization_status")\n        != "preexecution_authorization_deterministically_reconstructed"\n    ):\n        raise RecursiveResearchEvidenceError(\n            "execution record does not contain reconstructed pre-execution authorization"\n        )\n''',
+          )
+          patch(
+              p,
+              '''def _authenticated_transition(\n    *,\n    bundle_root: str | Path,\n    execution: Mapping[str, Any],\n    source_target: Mapping[str, Any],\n    program_state: Mapping[str, Any],\n) -> tuple[str, dict[str, Any], dict[str, Any], str, dict[str, Any], dict[str, Any]]:\n''',
+              '''def _authenticated_transition(\n    *,\n    bundle_root: str | Path,\n    execution: Mapping[str, Any],\n    source_target: Mapping[str, Any],\n    program_state: Mapping[str, Any],\n    source_evaluated_graph: Mapping[str, Any] | None = None,\n) -> tuple[\n    str,\n    dict[str, Any],\n    dict[str, Any],\n    str,\n    dict[str, Any],\n    dict[str, Any],\n    dict[str, Any],\n    dict[str, Any],\n]:\n''',
+          )
+          patch(
+              p,
+              '''    proposal = _read_bound_json(\n        root,\n        report.get("proposal_binding"),\n        field="transition_consumer.proposal_binding",\n    )\n    graph = _read_bound_json(\n''',
+              '''    base_graph = _read_bound_json(\n        root,\n        report.get("base_graph_binding"),\n        field="transition_consumer.base_graph_binding",\n    )\n    proposal = _read_bound_json(\n        root,\n        report.get("proposal_binding"),\n        field="transition_consumer.proposal_binding",\n    )\n    graph = _read_bound_json(\n''',
+          )
+          patch(
+              p,
+              '''    try:\n        evaluated_graph = evaluate_epistemic_graph(\n            graph,\n            program_state=program_state,\n            artifact_root=root,\n        )\n    except (EpistemicGraphError, OSError, ValueError) as exc:\n        raise RecursiveResearchEvidenceError(\n            "authenticated successor graph could not be independently evaluated"\n        ) from exc\n    evaluated_sha = _canonical_sha256(evaluated_graph)\n''',
+              '''    try:\n        base_evaluated_graph = evaluate_epistemic_graph(\n            base_graph,\n            program_state=program_state,\n            artifact_root=root,\n        )\n        evaluated_graph = evaluate_epistemic_graph(\n            graph,\n            program_state=program_state,\n            artifact_root=root,\n        )\n    except (EpistemicGraphError, OSError, ValueError) as exc:\n        raise RecursiveResearchEvidenceError(\n            "authenticated base/successor graphs could not be independently evaluated"\n        ) from exc\n    base_graph_identity = evaluated_graph_scientific_identity_sha256(base_evaluated_graph)\n    if source_evaluated_graph is not None:\n        planning_graph_identity = evaluated_graph_scientific_identity_sha256(\n            source_evaluated_graph\n        )\n        if planning_graph_identity != base_graph_identity:\n            raise RecursiveResearchEvidenceError(\n                "authenticated transition base graph differs from the exact planning source graph"\n            )\n    else:\n        planning_graph_identity = None\n    base_scientific_state = target_scientific_state_fingerprint(\n        base_evaluated_graph, target_node_id=source_target["node_id"]\n    )\n    successor_scientific_state = target_scientific_state_fingerprint(\n        evaluated_graph, target_node_id=source_target["node_id"]\n    )\n    evaluated_sha = _canonical_sha256(evaluated_graph)\n''',
+          )
+          patch(
+              p,
+              '''        "authenticated_successor_graph_sha256": _sha(\n            graph_binding.get("sha256"),\n            "transition_consumer.graph_binding.sha256",\n        ),\n''',
+              '''        "authenticated_successor_graph_sha256": _sha(\n            graph_binding.get("sha256"),\n            "transition_consumer.graph_binding.sha256",\n        ),\n        "authenticated_base_graph_scientific_identity_sha256": base_graph_identity,\n        "planning_source_graph_scientific_identity_sha256": planning_graph_identity,\n        "planning_source_graph_binding_verified": source_evaluated_graph is not None,\n        "base_target_scientific_state_sha256": base_scientific_state[\n            "fingerprint_sha256"\n        ],\n        "successor_target_scientific_state_sha256": successor_scientific_state[\n            "fingerprint_sha256"\n        ],\n''',
+          )
+          patch(
+              p,
+              '''        current_target,\n        assessment,\n    )\n''',
+              '''        current_target,\n        assessment,\n        base_scientific_state,\n        successor_scientific_state,\n    )\n''',
+          )
+          patch(
+              p,
+              '''def _authoritative_portfolio(\n    *,\n    evaluated_graph: Mapping[str, Any],\n    fresh_plan: Mapping[str, Any],\n    target: Mapping[str, Any],\n    assessment: Mapping[str, Any],\n) -> tuple[dict[str, Any], str, dict[str, Any] | None]:\n    try:\n''',
+              '''def _authoritative_portfolio(\n    *,\n    evaluated_graph: Mapping[str, Any],\n    fresh_plan: Mapping[str, Any],\n    target: Mapping[str, Any],\n    assessment: Mapping[str, Any],\n) -> tuple[dict[str, Any] | None, str | None, dict[str, Any] | None]:\n    if target["node_type"] != "hypothesis":\n        return None, None, None\n    try:\n''',
+          )
+          patch(
+              p,
+              '''    if target["node_type"] != "hypothesis":\n        return portfolio, digest, None\n    records = _sequence(portfolio.get("hypotheses"), "hypothesis_portfolio.hypotheses")\n''',
+              '''    records = _sequence(portfolio.get("hypotheses"), "hypothesis_portfolio.hypotheses")\n''',
+          )
+          patch(
+              p,
+              '''    program_state: Mapping[str, Any],\n    previous_progression: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:\n''',
+              '''    program_state: Mapping[str, Any],\n    previous_progression: Mapping[str, Any] | None = None,\n    source_evaluated_graph: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:\n''',
+          )
+          patch(
+              p,
+              '''    previous_sha: str | None = None\n    previous_evaluated_graph_sha: str | None = None\n''',
+              '''    previous_sha: str | None = None\n''',
+          )
+          patch(
+              p,
+              '''        previous_evaluated_graph_sha = _sha(\n            prior_ancestry.get("evaluated_graph_canonical_sha256"),\n            "previous_progression.ancestry.evaluated_graph_canonical_sha256",\n        )\n''',
+              '''        _sha(\n            prior_ancestry.get("evaluated_graph_canonical_sha256"),\n            "previous_progression.ancestry.evaluated_graph_canonical_sha256",\n        )\n''',
+          )
+          patch(
+              p,
+              '''        current_target,\n        assessment,\n    ) = _authenticated_transition(\n        bundle_root=transition_bundle_root,\n        execution=execution,\n        source_target=source_target,\n        program_state=_mapping(program_state, "program_state"),\n    )\n''',
+              '''        current_target,\n        assessment,\n        base_scientific_state,\n        successor_scientific_state,\n    ) = _authenticated_transition(\n        bundle_root=transition_bundle_root,\n        execution=execution,\n        source_target=source_target,\n        program_state=_mapping(program_state, "program_state"),\n        source_evaluated_graph=source_evaluated_graph,\n    )\n''',
+          )
+          patch(
+              p,
+              '''    if previous_evaluated_graph_sha == graph_sha:\n        raise RecursiveResearchEvidenceError(\n            "recursive cycle produced no new evaluated graph information state"\n        )\n\n    portfolio_state_name = (\n''',
+              '''    no_new_scientific_information = (\n        cycle_index > 1\n        and base_scientific_state["fingerprint_sha256"]\n        == successor_scientific_state["fingerprint_sha256"]\n    )\n\n    portfolio_state_name = (\n''',
+          )
+          patch(
+              p,
+              '''    if portfolio_state_name == "retired_falsified_within_verified_scope":\n        status = "bounded_stop_hypothesis_retired"\n        re_diagnosis_required = False\n        stop_reason = "Target hypothesis remains retired/falsified within verified scope."\n    elif portfolio_state_name == "positive_closeout_required":\n        status = "bounded_stop_domain_closeout_required"\n        re_diagnosis_required = False\n        stop_reason = "Positive scientific closeout requires separate domain review."\n    else:\n        status = "re_diagnosis_required"\n        re_diagnosis_required = True\n        stop_reason = None\n''',
+              '''    assessment_status = assessment.get("status")\n    if portfolio_state_name == "retired_falsified_within_verified_scope":\n        status = "bounded_stop_hypothesis_retired"\n        re_diagnosis_required = False\n        stop_reason = "Target hypothesis remains retired/falsified within verified scope."\n    elif current_target["node_type"] != "hypothesis" and assessment_status == "falsified_within_verified_scope":\n        status = "bounded_stop_target_falsified"\n        re_diagnosis_required = False\n        stop_reason = "Target claim/conclusion is falsified within verified scope."\n    elif portfolio_state_name == "positive_closeout_required" or (\n        current_target["node_type"] != "hypothesis"\n        and assessment_status == "provisionally_supported"\n    ):\n        status = "bounded_stop_domain_closeout_required"\n        re_diagnosis_required = False\n        stop_reason = "Positive scientific closeout requires separate domain review."\n    elif no_new_scientific_information:\n        status = "bounded_stop_no_new_scientific_information"\n        re_diagnosis_required = False\n        stop_reason = (\n            "Successor cycle added only non-status-affecting/version bookkeeping; "\n            "the target scientific evidence state did not change."\n        )\n    else:\n        status = "re_diagnosis_required"\n        re_diagnosis_required = True\n        stop_reason = None\n''',
+          )
+          patch(
+              p,
+              '''        "target_hypothesis_portfolio_state": portfolio_state,\n        "re_diagnosis": {\n''',
+              '''        "target_hypothesis_portfolio_state": portfolio_state,\n        "scientific_state_comparison": {\n            "base": base_scientific_state,\n            "successor": successor_scientific_state,\n            "no_new_scientific_information": no_new_scientific_information,\n            "graph_version_bookkeeping_counts_as_new_information": False,\n            "diagnostic_only_edges_count_as_verified_state_change": False,\n        },\n        "re_diagnosis": {\n''',
+          )
+          patch(
+              p,
+              '''    previous_checkpoint: Mapping[str, Any] | None = None,\n    execution_adapter_id: str,\n''',
+              '''    previous_checkpoint: Mapping[str, Any] | None = None,\n    previous_validated_planning_context: Mapping[str, Any] | None = None,\n    execution_adapter_id: str,\n''',
+          )
+          patch(
+              p,
+              '''            minimum_utility=minimum_utility,\n            previous_checkpoint=previous_checkpoint,\n        )\n''',
+              '''            minimum_utility=minimum_utility,\n            previous_checkpoint=previous_checkpoint,\n            previous_validated_planning_context=previous_validated_planning_context,\n        )\n''',
+          )
+          patch(
+              p,
+              '''        program_state=program_state,\n        previous_progression=previous_progression,\n    )\n''',
+              '''        program_state=program_state,\n        previous_progression=previous_progression,\n        source_evaluated_graph=source_evaluated_graph,\n    )\n''',
+          )
+
+          # 4) Reconstruct predecessor from its own validated planning artifact/context.
+          p = pkg / 'validated_recursive_cycle_planning.py'
+          patch(
+              p,
+              '''def _canonical_sha256(value: object) -> str:\n    return hashlib.sha256(\n''',
+              '''def _mapping(value: object, field: str) -> Mapping[str, Any]:\n    if not isinstance(value, Mapping):\n        raise ValidatedRecursivePlanningError(f"{field} must be an object")\n    return value\n\n\ndef _optional_mapping(value: object, field: str) -> Mapping[str, Any] | None:\n    if value is None:\n        return None\n    return _mapping(value, field)\n\n\ndef _canonical_sha256(value: object) -> str:\n    return hashlib.sha256(\n''',
+          )
+          patch(
+              p,
+              '''def build_validated_recursive_planning_checkpoint(\n''',
+              '''def _reconstruct_predecessor_context(\n    context: Mapping[str, Any],\n) -> tuple[dict[str, Any], str]:\n    ctx = _mapping(context, "previous_validated_planning_context")\n    artifact = _mapping(\n        ctx.get("validated_planning_artifact"),\n        "previous_validated_planning_context.validated_planning_artifact",\n    )\n    inputs = _mapping(\n        ctx.get("validation_inputs"),\n        "previous_validated_planning_context.validation_inputs",\n    )\n    verification = validate_validated_recursive_planning_checkpoint(\n        artifact,\n        planning_handoff=_mapping(inputs.get("planning_handoff"), "previous.validation_inputs.planning_handoff"),\n        source_discrepancy_report=_mapping(inputs.get("source_discrepancy_report"), "previous.validation_inputs.source_discrepancy_report"),\n        source_evaluated_graph=_mapping(inputs.get("source_evaluated_graph"), "previous.validation_inputs.source_evaluated_graph"),\n        fresh_plan=_mapping(inputs.get("fresh_plan"), "previous.validation_inputs.fresh_plan"),\n        planner_program_state=_mapping(inputs.get("planner_program_state"), "previous.validation_inputs.planner_program_state"),\n        source_hypothesis_portfolio=_optional_mapping(inputs.get("source_hypothesis_portfolio"), "previous.validation_inputs.source_hypothesis_portfolio"),\n        previous_discrepancy_report=_optional_mapping(inputs.get("previous_discrepancy_report"), "previous.validation_inputs.previous_discrepancy_report"),\n        candidate_match=_optional_mapping(inputs.get("candidate_match"), "previous.validation_inputs.candidate_match"),\n        planner_critic_report=_optional_mapping(inputs.get("planner_critic_report"), "previous.validation_inputs.planner_critic_report"),\n        planner_reasoning_proposal=_optional_mapping(inputs.get("planner_reasoning_proposal"), "previous.validation_inputs.planner_reasoning_proposal"),\n        budget_units=float(inputs.get("budget_units", 8.0)),\n        minimum_utility=float(inputs.get("minimum_utility", 0.01)),\n        previous_validated_planning_context=_optional_mapping(\n            inputs.get("previous_validated_planning_context"),\n            "previous.validation_inputs.previous_validated_planning_context",\n        ),\n    )\n    checkpoint = _mapping(\n        verification.get("recursive_checkpoint"),\n        "previous validated planning recursive_checkpoint",\n    )\n    digest = verification.get("validated_checkpoint_sha256")\n    if not isinstance(digest, str) or len(digest) != 64:\n        raise ValidatedRecursivePlanningError(\n            "previous validated planning artifact omitted canonical SHA-256"\n        )\n    return dict(checkpoint), digest\n\n\ndef build_validated_recursive_planning_checkpoint(\n''',
+          )
+          patch(
+              p,
+              '''    previous_checkpoint: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:\n''',
+              '''    previous_checkpoint: Mapping[str, Any] | None = None,\n    previous_validated_planning_context: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:\n''',
+          )
+          patch(
+              p,
+              '''    verification = validate_autonomous_inquiry_plan(\n''',
+              '''    validated_previous_checkpoint: dict[str, Any] | None = None\n    previous_validated_artifact_sha: str | None = None\n    if previous_validated_planning_context is not None:\n        validated_previous_checkpoint, previous_validated_artifact_sha = (\n            _reconstruct_predecessor_context(previous_validated_planning_context)\n        )\n        if previous_checkpoint is not None and dict(previous_checkpoint) != validated_previous_checkpoint:\n            raise ValidatedRecursivePlanningError(\n                "raw previous checkpoint differs from reconstructed predecessor"\n            )\n    elif previous_checkpoint is not None:\n        raise ValidatedRecursivePlanningError(\n            "raw predecessor checkpoint is not accepted without deterministic validated-planning reconstruction"\n        )\n\n    verification = validate_autonomous_inquiry_plan(\n''',
+          )
+          patch(
+              p,
+              '''        candidate_match=candidate_match,\n        previous_checkpoint=previous_checkpoint,\n    )\n''',
+              '''        candidate_match=candidate_match,\n        previous_checkpoint=validated_previous_checkpoint,\n    )\n''',
+          )
+          patch(
+              p,
+              '''        "recursive_checkpoint": checkpoint,\n        "autonomy_boundary": {\n''',
+              '''        "recursive_checkpoint": checkpoint,\n        "predecessor_validation": (\n            None\n            if validated_previous_checkpoint is None\n            else {\n                "validated_planning_artifact_sha256": previous_validated_artifact_sha,\n                "recursive_checkpoint_sha256": validated_previous_checkpoint["checkpoint_sha256"],\n                "deterministically_reconstructed": True,\n            }\n        ),\n        "autonomy_boundary": {\n''',
+          )
+          # second function signature occurrence
+          text = p.read_text(encoding='utf-8')
+          marker = '''def validate_validated_recursive_planning_checkpoint(\n'''
+          idx = text.index(marker)
+          tail = text[idx:]
+          old_sig = '''    previous_checkpoint: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:\n'''
+          if old_sig not in tail:
+              raise SystemExit('validator signature anchor missing')
+          tail = tail.replace(
+              old_sig,
+              '''    previous_checkpoint: Mapping[str, Any] | None = None,\n    previous_validated_planning_context: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:\n''',
+              1,
+          )
+          text = text[:idx] + tail
+          p.write_text(text, encoding='utf-8')
+          patch(
+              p,
+              '''        minimum_utility=minimum_utility,\n        previous_checkpoint=previous_checkpoint,\n    )\n''',
+              '''        minimum_utility=minimum_utility,\n        previous_checkpoint=previous_checkpoint,\n        previous_validated_planning_context=previous_validated_planning_context,\n    )\n''',
+          )
+          patch(
+              p,
+              '''        "planner_verification": dict(rebuilt["planner_verification"]),\n        "authorization_granted": False,\n''',
+              '''        "planner_verification": dict(rebuilt["planner_verification"]),\n        "predecessor_validation": rebuilt.get("predecessor_validation"),\n        "authorization_granted": False,\n''',
+          )
+
+          # 5) Re-diagnosis must not invent a hypothesis portfolio for claim/conclusion targets.
+          p = pkg / 'recursive_research_cycle_rediagnosis.py'
+          patch(
+              p,
+              '''    portfolio = _mapping(\n        progression.get("hypothesis_portfolio"),\n        "progression.hypothesis_portfolio",\n    )\n    portfolio_sha = _embedded_sha(\n        portfolio,\n        field="progression.hypothesis_portfolio",\n        sha_field="portfolio_sha256",\n    )\n    if ancestry.get("hypothesis_portfolio_sha256") != portfolio_sha:\n        raise RecursiveResearchRediagnosisError(\n            "progression portfolio binding differs from its authoritative embedded portfolio"\n        )\n    return digest, target, portfolio\n''',
+              '''    portfolio_value = progression.get("hypothesis_portfolio")\n    if target.get("node_type") == "hypothesis":\n        portfolio = _mapping(\n            portfolio_value,\n            "progression.hypothesis_portfolio",\n        )\n        portfolio_sha = _embedded_sha(\n            portfolio,\n            field="progression.hypothesis_portfolio",\n            sha_field="portfolio_sha256",\n        )\n        if ancestry.get("hypothesis_portfolio_sha256") != portfolio_sha:\n            raise RecursiveResearchRediagnosisError(\n                "progression portfolio binding differs from its authoritative embedded portfolio"\n            )\n    else:\n        if portfolio_value is not None or ancestry.get("hypothesis_portfolio_sha256") is not None:\n            raise RecursiveResearchRediagnosisError(\n                "claim/conclusion progression must not fabricate a hypothesis portfolio binding"\n            )\n        portfolio = None\n    return digest, target, portfolio\n''',
+          )
+          patch(
+              p,
+              '''            "hypothesis_portfolio_sha256": _embedded_sha(\n                portfolio,\n                field="hypothesis_portfolio",\n                sha_field="portfolio_sha256",\n            ),\n''',
+              '''            "hypothesis_portfolio_sha256": (\n                None\n                if portfolio is None\n                else _embedded_sha(\n                    portfolio,\n                    field="hypothesis_portfolio",\n                    sha_field="portfolio_sha256",\n                )\n            ),\n''',
+          )
+
+          # Internal regression fixtures use the same record contract as the production builder.
+          for test_path in (root / 'tests').glob('test_recursive_*.py'):
+              text = test_path.read_text(encoding='utf-8')
+              if '"authorization_status": "explicit_request_authorized_by_existing_chain"' in text:
+                  text = text.replace(
+                      '"authorization_status": "explicit_request_authorized_by_existing_chain"',
+                      '"authorization_status": "preexecution_authorization_deterministically_reconstructed"',
+                  )
+              # Private fixtures previously omitted the production execution-evidence policy marker.
+              needle = '"schema_version": "1.0",\n        "source_checkpoint_sha256"'
+              if needle in text:
+                  text = text.replace(
+                      needle,
+                      '"schema_version": "1.0",\n        "policy_version": "1.1",\n        "source_checkpoint_sha256"',
+                  )
+              test_path.write_text(text, encoding='utf-8')
+
+          # Focused hardening tests independent of large file-backed integration fixtures.
+          hardening_test = '''from __future__ import annotations\n\nimport copy\n\nfrom materials_data_analyzer.research_loop.recursive_research_cycle_evidence import (\n    _authoritative_portfolio,\n)\nfrom materials_data_analyzer.research_loop.recursive_scientific_state import (\n    target_scientific_state_fingerprint,\n)\n\n\ndef _evaluated(graph_id: str, *, diagnostic_edge: str, verified_sha: str | None = None) -> dict:\n    nodes = [\n        {\n            "node_id": "c-1",\n            "node_type": "claim",\n            "statement": "bounded claim",\n        },\n        {\n            "node_id": "a-1",\n            "node_type": "analysis",\n            "statement": "bounded analysis",\n            "execution_status": "completed",\n            "artifact_bindings": [\n                {"role": "primary", "path": "/tmp/result", "sha256": "a" * 64, "bytes": 1}\n            ],\n        },\n    ]\n    edges = [\n        {\n            "edge_id": diagnostic_edge,\n            "source_node_id": "a-1",\n            "target_node_id": "c-1",\n            "relation": "supports",\n            "assessment_level": "diagnostic",\n            "rationale": "diagnostic only",\n            "active": True,\n        }\n    ]\n    status = "inconclusive"\n    if verified_sha is not None:\n        edges.append(\n            {\n                "edge_id": "verified-1",\n                "source_node_id": "a-1",\n                "target_node_id": "c-1",\n                "relation": "supports",\n                "assessment_level": "domain_verified",\n                "rationale": "verified",\n                "active": True,\n                "verification_artifact": {\n                    "role": "domain",\n                    "path": "/tmp/verifier",\n                    "sha256": verified_sha,\n                    "bytes": 1,\n                },\n            }\n        )\n        status = "provisionally_supported"\n    return {\n        "schema_version": "1.0",\n        "graph_policy_version": "1.0",\n        "graph_id": graph_id,\n        "research_scope": "bounded",\n        "nodes": nodes,\n        "edges": edges,\n        "assessments": [\n            {\n                "node_id": "c-1",\n                "node_type": "claim",\n                "status": status,\n                "verified_support_edges": ["verified-1"] if verified_sha else [],\n                "verified_contradiction_edges": [],\n                "verified_falsification_edges": [],\n                "diagnostic_relation_edges": [diagnostic_edge],\n                "final_positive_support_granted": False,\n                "domain_closeout_required_for_positive_conclusion": bool(verified_sha),\n                "confidence_score": None,\n            }\n        ],\n        "conflict_count": 0,\n        "falsified_count": 0,\n        "autonomy_boundary": {},\n    }\n\n\ndef test_target_scientific_fingerprint_ignores_graph_and_diagnostic_bookkeeping() -> None:\n    first = _evaluated("g-1", diagnostic_edge="diag-1")\n    second = _evaluated("g-2", diagnostic_edge="diag-2")\n    assert target_scientific_state_fingerprint(first, target_node_id="c-1")[\n        "fingerprint_sha256"\n    ] == target_scientific_state_fingerprint(second, target_node_id="c-1")[\n        "fingerprint_sha256"\n    ]\n\n\ndef test_target_scientific_fingerprint_changes_on_domain_verified_evidence() -> None:\n    first = _evaluated("g-1", diagnostic_edge="diag-1")\n    second = _evaluated("g-2", diagnostic_edge="diag-2", verified_sha="b" * 64)\n    assert target_scientific_state_fingerprint(first, target_node_id="c-1")[\n        "fingerprint_sha256"\n    ] != target_scientific_state_fingerprint(second, target_node_id="c-1")[\n        "fingerprint_sha256"\n    ]\n\n\ndef test_claim_target_does_not_require_unrelated_hypothesis_portfolio() -> None:\n    graph = _evaluated("g-1", diagnostic_edge="diag-1")\n    portfolio, digest, state = _authoritative_portfolio(\n        evaluated_graph=graph,\n        fresh_plan={},\n        target={\n            "graph_id": "g-1",\n            "node_id": "c-1",\n            "node_type": "claim",\n            "statement": "bounded claim",\n        },\n        assessment=graph["assessments"][0],\n    )\n    assert portfolio is None\n    assert digest is None\n    assert state is None\n'''
+          (root / 'tests/test_recursive_cycle_final_p1_hardening.py').write_text(hardening_test, encoding='utf-8')
+
+          # Remove this one-shot mutation workflow from the resulting branch state.
+          workflow = root / '.github/workflows/_tmp-pr202-p1-hardening.yml'
+          workflow.unlink()
+          PY
+      - name: Compile focused Python modules
+        run: |
+          python -m py_compile \
+            src/materials_data_analyzer/research_loop/recursive_authorization_provenance.py \
+            src/materials_data_analyzer/research_loop/recursive_scientific_state.py \
+            src/materials_data_analyzer/research_loop/recursive_authorized_execution_evidence.py \
+            src/materials_data_analyzer/research_loop/recursive_research_cycle_evidence.py \
+            src/materials_data_analyzer/research_loop/recursive_research_cycle_rediagnosis.py \
+            src/materials_data_analyzer/research_loop/validated_recursive_cycle_planning.py \
+            tests/test_recursive_cycle_final_p1_hardening.py
+      - name: Commit hardening patch
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Close final recursive research trust-boundary gaps"
+          git push origin HEAD:feature/bounded-recursive-research-cycle
