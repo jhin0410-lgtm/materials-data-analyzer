@@ -1,0 +1,78 @@
+{
+  "actions": [
+    {
+      "action_type": "reference_heat_conduction_simulation",
+      "allowed_outcomes": [
+        "numerically_validated_reference_solution",
+        "numerical_validation_failed",
+        "rejected_numerically_unstable"
+      ],
+      "availability": "available",
+      "binding": {
+        "kind": "source_script",
+        "name": null,
+        "path": "scripts/run_reference_heat_conduction_action.py",
+        "platform": "cross_platform"
+      },
+      "category": "simulation",
+      "cost_units": 1,
+      "expected_outputs": [
+        {
+          "description": "Typed action report binding the exact execution request, registry, solver input, result and scientific boundary.",
+          "kind": "json_report",
+          "path": "action_result.json",
+          "required": true
+        },
+        {
+          "description": "Deterministic 1D heat-conduction numerical result or structured FTCS stability rejection.",
+          "kind": "json_report",
+          "path": "reports/heat_conduction_result.json",
+          "required": true
+        }
+      ],
+      "preconditions": [
+        "active_research_run_with_budget",
+        "exact_solver_request_checksum_bound",
+        "explicit_si_unit_contract",
+        "independent_request_and_ledger_sha_handoff"
+      ],
+      "prohibited_effects": [
+        "material_identity_inference",
+        "material_property_imputation",
+        "process_specific_validity_claim",
+        "empirical_validation_claim",
+        "physical_experiment_execution",
+        "scientific_evidence_promotion",
+        "engineering_decision"
+      ],
+      "required_inputs": [
+        {
+          "description": "Checksum-bound solver request containing explicit geometry, time, boundary, initial-condition, material-property and validation contracts.",
+          "kind": "json_file",
+          "name": "solver_request",
+          "required": true
+        }
+      ],
+      "scientific_purpose": "Provide one auditable continuum-physics reference calculation with numerical validation evidence, without claiming material- or process-specific empirical validity.",
+      "target_blockers": [
+        "physics_solver_reference_missing",
+        "numerical_validation_evidence_missing"
+      ],
+      "verifier_checks": [
+        "exact_execution_request_bytes_pinned",
+        "research_ledger_sha256_pinned_before_execution",
+        "execution_registry_identity_reverified",
+        "solver_request_path_and_sha256_reverified",
+        "explicit_si_unit_contract_reverified",
+        "ftcs_stability_gate_reverified",
+        "deterministic_result_recomputed",
+        "analytical_validation_state_reverified",
+        "scientific_nonpromotion_boundary_reverified"
+      ],
+      "version": "1.0"
+    }
+  ],
+  "domain": "reference_heat_conduction_physics",
+  "registry_id": "reference-heat-conduction-typed-actions-v1",
+  "schema_version": "1.0"
+}
