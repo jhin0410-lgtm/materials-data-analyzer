@@ -68,7 +68,13 @@ def _portfolio_episode_gate(
             raise AutonomousDecisionIntegrationError(
                 "portfolio-gated closeout/retirement cannot retain a selected action"
             )
-        if decision_report.get("hypothesis_portfolio_gated_selection") is not True:
+        portfolio_gate_recorded = (
+            decision_report.get("hypothesis_portfolio_gated_selection") is True
+        )
+        upstream_already_stopped = decision_report.get("selection_reason") == (
+            "upstream_stop_decision"
+        )
+        if not portfolio_gate_recorded and not upstream_already_stopped:
             raise AutonomousDecisionIntegrationError(
                 "portfolio-gated closeout/retirement must be explicit in decision report"
             )
