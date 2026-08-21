@@ -1,7 +1,9 @@
 """Stable planning-adapter facade with audited executable planning projections.
 
 The complete historical planning-adapter namespace remains available through the preserved
-legacy module, including intentional monkeypatch/test seams.
+legacy module, including intentional monkeypatch/test seams. The historical adapter
+enumeration remains stable; the reference-heat adapter is an explicit typed execution
+projection rather than a silently expanded legacy discovery surface.
 """
 from __future__ import annotations
 
@@ -50,8 +52,12 @@ def _call_legacy_with_compat_namespace(
 
 
 def available_planning_adapters() -> tuple[str, ...]:
-    legacy = tuple(_call_legacy_with_compat_namespace(_legacy.available_planning_adapters))
-    return tuple(dict.fromkeys((*legacy, _HEAT_ADAPTER)))
+    """Return the stable historical discovery surface.
+
+    New typed execution adapters must not silently mutate this compatibility contract.
+    They remain addressable explicitly through ``plan_research_next_action``.
+    """
+    return tuple(_call_legacy_with_compat_namespace(_legacy.available_planning_adapters))
 
 
 def plan_research_next_action(
