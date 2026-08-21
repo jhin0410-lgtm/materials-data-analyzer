@@ -69,12 +69,18 @@ def _program_state() -> dict:
 def _handoff(previous_report_sha: str) -> dict:
     value = {
         "schema_version": "1.0",
+        "policy_version": "1.0",
         "source_discrepancy_report_sha256": previous_report_sha,
         "target": {
             "graph_id": "g-1",
             "node_id": "h-1",
             "node_type": "hypothesis",
             "statement": "Bounded target statement.",
+        },
+        "source_ancestry": {
+            "previous_discrepancy_report_sha256": None,
+            "prior_diagnosis_types": [],
+            "current_diagnosis_types": ["parameter_or_property_uncertainty"],
         },
         "research_objectives": [
             {

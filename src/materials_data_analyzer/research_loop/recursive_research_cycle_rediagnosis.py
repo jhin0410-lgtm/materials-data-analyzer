@@ -19,6 +19,7 @@ from .discrepancy_planning_handoff_policy import (
 )
 from .kernel import ResearchLoopError
 from .model_evidence_discrepancy_physics_policy import (
+    ModelEvidenceDiscrepancyPhysicsPolicyError,
     validate_physics_hardened_model_evidence_discrepancy_report,
 )
 from .recursive_research_cycle_controller import (
@@ -119,18 +120,13 @@ def _progression(
     progression: Mapping[str, Any],
     *,
     checkpoint_sha: str,
-    target: Mapping[str, Any],
+    source_target: Mapping[str, Any],
     evaluated_graph: Mapping[str, Any],
-    hypothesis_portfolio: Mapping[str, Any],
-) -> str:
+) -> tuple[str, Mapping[str, Any], Mapping[str, Any]]:
     if progression.get("schema_version") != RECURSIVE_CYCLE_SCHEMA_VERSION:
-        raise RecursiveResearchRediagnosisError(
-            "unsupported progression schema_version"
-        )
+        raise RecursiveResearchRediagnosisError("unsupported progression schema_version")
     if progression.get("policy_version") != RECURSIVE_EVIDENCE_POLICY_VERSION:
-        raise RecursiveResearchRediagnosisError(
-            "unsupported progression policy_version"
-        )
+        raise RecursiveResearchRediagnosisError("unsupported progression policy_version")
     digest = _embedded_sha(
         progression,
         field="progression",
@@ -140,10 +136,17 @@ def _progression(
         raise RecursiveResearchRediagnosisError(
             "progression does not require another discrepancy diagnosis"
         )
-    if progression.get("target") != target:
+    if progression.get("source_target") != source_target:
         raise RecursiveResearchRediagnosisError(
-            "progression target differs from authorization checkpoint target"
+            "progression source target differs from authorization checkpoint target"
         )
+    target = _mapping(progression.get("target"), "progression.target")
+    for field in ("node_id", "node_type", "statement"):
+        if target.get(field) != source_target.get(field):
+            raise RecursiveResearchRediagnosisError(
+                f"progression target identity drifted across authenticated graph transition: {field}"
+            )
+    _text(target.get("graph_id"), "progression.target.graph_id")
     ancestry = _mapping(progression.get("ancestry"), "progression.ancestry")
     if ancestry.get("authorization_checkpoint_sha256") != checkpoint_sha:
         raise RecursiveResearchRediagnosisError(
@@ -154,17 +157,20 @@ def _progression(
         raise RecursiveResearchRediagnosisError(
             "progression is bound to a different evaluated graph"
         )
+    portfolio = _mapping(
+        progression.get("hypothesis_portfolio"),
+        "progression.hypothesis_portfolio",
+    )
     portfolio_sha = _embedded_sha(
-        hypothesis_portfolio,
-        field="hypothesis_portfolio",
+        portfolio,
+        field="progression.hypothesis_portfolio",
         sha_field="portfolio_sha256",
     )
     if ancestry.get("hypothesis_portfolio_sha256") != portfolio_sha:
         raise RecursiveResearchRediagnosisError(
-            "progression is bound to a different hypothesis portfolio"
+            "progression portfolio binding differs from its authoritative embedded portfolio"
         )
-    return digest
-
+    return digest, target, portfolio
 
 def complete_recursive_cycle_with_rediagnosis(
     *,
@@ -173,7 +179,6 @@ def complete_recursive_cycle_with_rediagnosis(
     current_discrepancy_report: Mapping[str, Any],
     previous_discrepancy_report: Mapping[str, Any],
     evaluated_graph: Mapping[str, Any],
-    hypothesis_portfolio: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Validate post-result re-diagnosis and project it into a hardened planning-only handoff."""
     checkpoint = _mapping(
@@ -187,17 +192,15 @@ def complete_recursive_cycle_with_rediagnosis(
         previous_discrepancy_report, "previous_discrepancy_report"
     )
     graph = _mapping(evaluated_graph, "evaluated_graph")
-    portfolio = _mapping(hypothesis_portfolio, "hypothesis_portfolio")
 
-    checkpoint_sha, target, expected_previous_report_sha = (
+    checkpoint_sha, source_target, expected_previous_report_sha = (
         _authorization_checkpoint(checkpoint)
     )
-    progression_sha = _progression(
+    progression_sha, target, portfolio = _progression(
         progress,
         checkpoint_sha=checkpoint_sha,
-        target=target,
+        source_target=source_target,
         evaluated_graph=graph,
-        hypothesis_portfolio=portfolio,
     )
     previous_report_sha = _embedded_sha(
         previous,
@@ -209,12 +212,24 @@ def complete_recursive_cycle_with_rediagnosis(
             "recursive cycle previous discrepancy report differs from checkpoint ancestry"
         )
 
-    verified = validate_physics_hardened_model_evidence_discrepancy_report(
-        current,
-        evaluated_graph=graph,
-        hypothesis_portfolio=portfolio,
-        previous_report=previous,
+    previous_target = _mapping(
+        previous.get("target"), "previous_discrepancy_report.target"
     )
+    if previous_target != source_target:
+        raise RecursiveResearchRediagnosisError(
+            "previous discrepancy report target differs from checkpoint source target"
+        )
+    try:
+        verified = validate_physics_hardened_model_evidence_discrepancy_report(
+            current,
+            evaluated_graph=graph,
+            hypothesis_portfolio=portfolio,
+            previous_report=previous,
+        )
+    except ModelEvidenceDiscrepancyPhysicsPolicyError as exc:
+        raise RecursiveResearchRediagnosisError(
+            "current discrepancy report failed physics/provenance-hardened validation"
+        ) from exc
     current_report_sha = _sha(
         verified.get("report_sha256"),
         "validated_current_discrepancy_report.report_sha256",

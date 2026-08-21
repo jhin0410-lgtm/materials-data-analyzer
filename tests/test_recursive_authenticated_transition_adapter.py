@@ -8,119 +8,147 @@ import pytest
 import materials_data_analyzer.research_loop.recursive_research_cycle_evidence as evidence
 from materials_data_analyzer.research_loop.recursive_research_cycle_evidence import (
     RecursiveResearchEvidenceError,
-    build_epistemic_transition_record_from_authenticated_bundle,
 )
 
 
-def _sha(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(
-            value,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("utf-8")
-    ).hexdigest()
-
-
 def _execution() -> dict:
-    value = {
-        "schema_version": "1.0",
-        "source_checkpoint_sha256": "a" * 64,
-        "authorization_status": "explicit_request_authorized_by_existing_chain",
-        "independent_verification_status": "verified_by_existing_chain",
+    return {
         "action_id": "planner:analysis",
         "action_type": "analysis",
         "action_version": "1.0",
-        "request_sha256": "b" * 64,
-        "registry_sha256": "c" * 64,
         "result_sha256": "d" * 64,
-        "execution_outcome": "completed",
-        "execution_success": True,
-        "scientific_evidence_upgraded": False,
     }
-    value["verification_record_sha256"] = _sha(value)
-    return value
 
 
-def test_adapter_executes_consumer_and_binds_exact_successor_graph(monkeypatch, tmp_path) -> None:
-    graph = {
+def _source_target() -> dict:
+    return {
         "graph_id": "g-1",
+        "node_id": "h-1",
+        "node_type": "hypothesis",
+        "statement": "H",
+    }
+
+
+def _evaluated_graph() -> dict:
+    return {
+        "graph_id": "g-2",
+        "nodes": [
+            {
+                "node_id": "h-1",
+                "node_type": "hypothesis",
+                "statement": "H",
+            }
+        ],
+        "assessments": [
+            {
+                "node_id": "h-1",
+                "node_type": "hypothesis",
+                "status": "inconclusive",
+            }
+        ],
+    }
+
+
+def _write_bundle(tmp_path):
+    graph = {
+        "graph_id": "g-2",
         "nodes": [{"node_id": "h-1", "node_type": "hypothesis", "statement": "H"}],
-        "assessments": [],
+        "edges": [],
     }
     graph_bytes = json.dumps(graph, ensure_ascii=False, sort_keys=True).encode("utf-8")
     graph_path = tmp_path / "epistemic_graph.json"
     graph_path.write_bytes(graph_bytes)
+    proposal = {
+        "transition_id": "transition-1",
+        "base_graph_id": "g-1",
+        "new_graph_id": "g-2",
+        "target_node_id": "h-1",
+        "source_action": {
+            "action_id": "planner:analysis",
+            "action_class": "analysis",
+            "action_version": "1.0",
+        },
+        "result_node": {
+            "artifact_bindings": [{"role": "result", "sha256": "d" * 64}]
+        },
+    }
+    proposal_bytes = json.dumps(proposal, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    proposal_path = tmp_path / "proposal.json"
+    proposal_path.write_bytes(proposal_bytes)
     report = {
-        "schema_version": "1.0",
-        "consumer_policy_version": "1.0",
         "bundle_root": str(tmp_path.resolve()),
         "current_transition_exact_provenance_authenticated": True,
         "transition_id": "transition-1",
         "target_node_id": "h-1",
+        "inference_edge_id": "edge-1",
+        "relation": "supports",
+        "inference_scope": "computational",
+        "proposal_binding": {
+            "path": "proposal.json",
+            "sha256": hashlib.sha256(proposal_bytes).hexdigest(),
+        },
         "graph_binding": {
             "path": "epistemic_graph.json",
             "sha256": hashlib.sha256(graph_bytes).hexdigest(),
         },
-        "authority_boundary": {
-            "scientific_authority_applied": False,
-            "scientific_status_changed": False,
-        },
     }
+    return report, graph_path
+
+
+def test_adapter_executes_consumer_binds_execution_and_evaluates_successor(
+    monkeypatch, tmp_path
+) -> None:
+    report, _graph_path = _write_bundle(tmp_path)
     calls: list[object] = []
 
     def fake_consumer(root):
         calls.append(root)
         return report
 
+    evaluated = _evaluated_graph()
     monkeypatch.setattr(evidence, "authenticate_transition_bundle", fake_consumer)
-    record = build_epistemic_transition_record_from_authenticated_bundle(
-        tmp_path,
-        verified_execution_record=_execution(),
-        evaluated_graph=graph,
+    monkeypatch.setattr(
+        evidence,
+        "evaluate_epistemic_graph",
+        lambda graph, *, program_state, artifact_root: evaluated,
     )
+
+    (
+        report_sha,
+        transition,
+        actual_evaluated,
+        evaluated_sha,
+        target,
+        assessment,
+    ) = evidence._authenticated_transition(
+        bundle_root=tmp_path,
+        execution=_execution(),
+        source_target=_source_target(),
+        program_state={"workstreams": []},
+    )
+
     assert calls == [tmp_path]
-    assert record["transition_id"] == "transition-1"
-    assert record["consumer_verification_status"] == (
-        "verified_by_authenticated_transition_consumer"
-    )
-    assert record["authenticated_consumer_graph_file_sha256"] == report["graph_binding"]["sha256"]
-    assert record["execution_completion_treated_as_scientific_support"] is False
+    assert report_sha == evidence._canonical_sha256(report)
+    assert transition["transition_id"] == "transition-1"
+    assert transition["current_transition_exact_provenance_authenticated"] is True
+    assert transition["execution_completion_treated_as_scientific_support"] is False
+    assert actual_evaluated == evaluated
+    assert evaluated_sha == evidence._canonical_sha256(evaluated)
+    assert target["graph_id"] == "g-2"
+    assert assessment["status"] == "inconclusive"
 
 
-def test_adapter_rejects_graph_bytes_changed_after_consumer_verification(monkeypatch, tmp_path) -> None:
-    graph = {
-        "graph_id": "g-1",
-        "nodes": [{"node_id": "h-1", "node_type": "hypothesis", "statement": "H"}],
-        "assessments": [],
-    }
-    original = json.dumps(graph, sort_keys=True).encode("utf-8")
-    path = tmp_path / "epistemic_graph.json"
-    path.write_bytes(original)
-    report = {
-        "schema_version": "1.0",
-        "consumer_policy_version": "1.0",
-        "bundle_root": str(tmp_path.resolve()),
-        "current_transition_exact_provenance_authenticated": True,
-        "transition_id": "transition-1",
-        "target_node_id": "h-1",
-        "graph_binding": {
-            "path": "epistemic_graph.json",
-            "sha256": hashlib.sha256(original).hexdigest(),
-        },
-        "authority_boundary": {
-            "scientific_authority_applied": False,
-            "scientific_status_changed": False,
-        },
-    }
+def test_adapter_rejects_graph_bytes_changed_after_consumer_verification(
+    monkeypatch, tmp_path
+) -> None:
+    report, graph_path = _write_bundle(tmp_path)
     monkeypatch.setattr(evidence, "authenticate_transition_bundle", lambda root: report)
-    path.write_text("{}", encoding="utf-8")
+    graph_path.write_text("{}", encoding="utf-8")
 
-    with pytest.raises(RecursiveResearchEvidenceError, match="changed after consumer"):
-        build_epistemic_transition_record_from_authenticated_bundle(
-            tmp_path,
-            verified_execution_record=_execution(),
-            evaluated_graph=graph,
+    with pytest.raises(RecursiveResearchEvidenceError, match="changed after authenticated"):
+        evidence._authenticated_transition(
+            bundle_root=tmp_path,
+            execution=_execution(),
+            source_target=_source_target(),
+            program_state={"workstreams": []},
         )

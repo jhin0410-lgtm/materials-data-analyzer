@@ -93,7 +93,7 @@ def _verified_embedded_sha(
 
 def _verify_handoff(
     handoff: Mapping[str, Any],
-) -> tuple[str, dict[str, Any], list[dict[str, Any]], bool]:
+) -> tuple[str, dict[str, Any], list[dict[str, Any]], str | None]:
     if handoff.get("schema_version") != "1.0":
         raise RecursiveResearchCycleError(
             "unsupported discrepancy planning handoff schema_version"
@@ -177,13 +177,12 @@ def _verify_handoff(
         handoff.get("source_ancestry"), "planning_handoff.source_ancestry"
     )
     previous_report_sha = source_ancestry.get("previous_discrepancy_report_sha256")
-    successor_handoff = previous_report_sha is not None
-    if successor_handoff:
-        _sha(
+    if previous_report_sha is not None:
+        previous_report_sha = _sha(
             previous_report_sha,
             "planning_handoff.source_ancestry.previous_discrepancy_report_sha256",
         )
-    return handoff_sha, target, objectives, successor_handoff
+    return handoff_sha, target, objectives, previous_report_sha
 
 
 def _verify_plan(
@@ -284,10 +283,10 @@ def _previous_checkpoint(
     *,
     target: Mapping[str, Any],
     current_plan_sha: str,
-    successor_handoff: bool,
+    previous_discrepancy_report_sha256: str | None,
 ) -> tuple[str | None, int]:
     if previous is None:
-        if successor_handoff:
+        if previous_discrepancy_report_sha256 is not None:
             raise RecursiveResearchCycleError(
                 "successor discrepancy handoff requires previous recursive checkpoint ancestry"
             )
@@ -304,14 +303,32 @@ def _previous_checkpoint(
     previous_target = _mapping(
         previous.get("target"), "previous_checkpoint.target"
     )
-    for field in ("graph_id", "node_id", "node_type", "statement"):
+    # A verified epistemic transition is allowed to advance graph_id, but it may not
+    # silently change the stable hypothesis/claim identity under the recursive cycle.
+    for field in ("node_id", "node_type", "statement"):
         if previous_target.get(field) != target.get(field):
             raise RecursiveResearchCycleError(
                 f"recursive cycle target identity changed across checkpoints: {field}"
             )
+    if (
+        previous_discrepancy_report_sha256 is None
+        and previous_target.get("graph_id") != target.get("graph_id")
+    ):
+        raise RecursiveResearchCycleError(
+            "recursive cycle graph identity changed without successor discrepancy ancestry"
+        )
     ancestry = _mapping(
         previous.get("ancestry"), "previous_checkpoint.ancestry"
     )
+    if previous_discrepancy_report_sha256 is not None:
+        previous_source_report_sha = _sha(
+            ancestry.get("source_discrepancy_report_sha256"),
+            "previous_checkpoint.ancestry.source_discrepancy_report_sha256",
+        )
+        if previous_source_report_sha != previous_discrepancy_report_sha256:
+            raise RecursiveResearchCycleError(
+                "successor discrepancy ancestry does not descend from the previous checkpoint report"
+            )
     previous_plan_sha = _sha(
         ancestry.get("fresh_plan_sha256"),
         "previous_checkpoint.ancestry.fresh_plan_sha256",
@@ -430,13 +447,13 @@ def build_recursive_research_cycle_checkpoint(
     """Advance discrepancy planning only to a verified fresh-plan checkpoint."""
     handoff = _mapping(planning_handoff, "planning_handoff")
     plan = _mapping(fresh_plan, "fresh_plan")
-    handoff_sha, target, objectives, successor_handoff = _verify_handoff(handoff)
+    handoff_sha, target, objectives, previous_report_sha = _verify_handoff(handoff)
     plan_sha, ranked, selected, stop_decision = _verify_plan(plan)
     previous_sha, cycle_index = _previous_checkpoint(
         previous_checkpoint,
         target=target,
         current_plan_sha=plan_sha,
-        successor_handoff=successor_handoff,
+        previous_discrepancy_report_sha256=previous_report_sha,
     )
 
     match_record: dict[str, Any] | None = None

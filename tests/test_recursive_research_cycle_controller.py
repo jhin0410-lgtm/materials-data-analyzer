@@ -342,3 +342,90 @@ def test_selected_candidate_must_be_exact_member_of_fresh_ranked_actions() -> No
             fresh_plan=plan,
             candidate_match=match,
         )
+
+
+
+def test_planner_stop_decision_blocks_authorization_even_with_candidate() -> None:
+    handoff = _handoff()
+    plan = _plan()
+    plan.pop("plan_sha256")
+    plan["stop_decision"] = {
+        "stop": True,
+        "reason": "budget_exhausted",
+        "next_mode": "bounded_stop",
+    }
+    plan["selected_next_action"] = None
+    plan["handoff"]["required_for_selected_action"] = False
+    plan["plan_sha256"] = _canonical_sha(plan)
+    with pytest.raises(RecursiveResearchCycleError, match="candidate match supplied"):
+        build_recursive_research_cycle_checkpoint(
+            planning_handoff=handoff,
+            fresh_plan=plan,
+            candidate_match=_match(handoff, plan),
+        )
+
+
+def test_future_autonomous_plan_policy_is_rejected() -> None:
+    handoff = _handoff()
+    plan = _plan()
+    plan.pop("plan_sha256")
+    plan["policy_version"] = "999.0"
+    plan["plan_sha256"] = _canonical_sha(plan)
+    with pytest.raises(RecursiveResearchCycleError, match="policy_version"):
+        build_recursive_research_cycle_checkpoint(
+            planning_handoff=handoff,
+            fresh_plan=plan,
+            candidate_match=None,
+        )
+
+
+def test_successor_handoff_requires_and_binds_previous_checkpoint_report() -> None:
+    handoff = _handoff()
+    plan = _plan()
+    match = _match(handoff, plan)
+    first = build_recursive_research_cycle_checkpoint(
+        planning_handoff=handoff,
+        fresh_plan=plan,
+        candidate_match=match,
+    )
+
+    successor = copy.deepcopy(handoff)
+    successor.pop("handoff_sha256")
+    successor["source_discrepancy_report_sha256"] = "d" * 64
+    successor["source_ancestry"]["previous_discrepancy_report_sha256"] = "a" * 64
+    successor["target"]["graph_id"] = "g-2"
+    successor["handoff_sha256"] = _canonical_sha(successor)
+    next_plan = _plan(action_id="planner:sensitivity-2")
+    next_match = _match(successor, next_plan)
+    next_match["handoff_sha256"] = successor["handoff_sha256"]
+    next_match["fresh_plan_sha256"] = next_plan["plan_sha256"]
+    next_match["candidate_action_id"] = "planner:sensitivity-2"
+
+    with pytest.raises(RecursiveResearchCycleError, match="requires previous"):
+        build_recursive_research_cycle_checkpoint(
+            planning_handoff=successor,
+            fresh_plan=next_plan,
+            candidate_match=next_match,
+        )
+
+    forged_first = copy.deepcopy(first)
+    forged_first.pop("checkpoint_sha256")
+    forged_first["ancestry"]["source_discrepancy_report_sha256"] = "f" * 64
+    forged_first["checkpoint_sha256"] = _canonical_sha(forged_first)
+    with pytest.raises(RecursiveResearchCycleError, match="does not descend"):
+        build_recursive_research_cycle_checkpoint(
+            planning_handoff=successor,
+            fresh_plan=next_plan,
+            candidate_match=next_match,
+            previous_checkpoint=forged_first,
+        )
+
+    second = build_recursive_research_cycle_checkpoint(
+        planning_handoff=successor,
+        fresh_plan=next_plan,
+        candidate_match=next_match,
+        previous_checkpoint=first,
+    )
+    assert second["cycle_index"] == 2
+    assert second["target"]["graph_id"] == "g-2"
+    assert second["ancestry"]["previous_checkpoint_sha256"] == first["checkpoint_sha256"]
