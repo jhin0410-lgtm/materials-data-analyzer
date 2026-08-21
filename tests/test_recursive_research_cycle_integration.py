@@ -57,6 +57,11 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
                 "automatic_execution_authorized": False,
             }
         ],
+        "source_ancestry": {
+            "previous_discrepancy_report_sha256": None,
+            "prior_diagnosis_types": [],
+            "current_diagnosis_types": ["parameter_or_property_uncertainty"],
+        },
         "planner_boundary": {
             "current_planner_frontier_modified": False,
             "current_selected_action_modified": False,
@@ -79,10 +84,19 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
     }
     plan = {
         "schema_version": "1.0",
+        "policy_version": "1.0",
         "ranked_actions": [dict(candidate)],
         "selected_next_action": dict(candidate),
-        "stop_decision": {"stop": False},
-        "handoff": {"request_compiled": False, "execution_performed": False},
+        "stop_decision": {
+            "stop": False,
+            "reason": "informative_action_available",
+            "next_mode": "request_existing_authorization_chain",
+        },
+        "handoff": {
+            "required_for_selected_action": True,
+            "request_compiled": False,
+            "execution_performed": False,
+        },
         "autonomy_boundary": {
             "empirical_evidence_created": False,
             "network_access_performed": False,
@@ -118,7 +132,7 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
         "source_checkpoint_sha256": checkpoint["checkpoint_sha256"],
         "authorization_status": "explicit_request_authorized_by_existing_chain",
         "independent_verification_status": "verified_by_existing_chain",
-        "action_id": "action-verified",
+        "action_id": "planner:sensitivity",
         "action_type": "sensitivity_analysis",
         "action_version": "1.0",
         "request_sha256": "1" * 64,
@@ -151,6 +165,8 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
     }
     transition["transition_record_sha256"] = _sha(transition)
     portfolio = {
+        "schema_version": "1.0",
+        "policy_version": "1.0",
         "graph_id": target["graph_id"],
         "evaluated_graph_binding": {"canonical_sha256": _sha(graph)},
         "hypotheses": [
@@ -186,7 +202,7 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
     current_report_sha = "5" * 64
     monkeypatch.setattr(
         rediagnosis,
-        "validate_model_evidence_discrepancy_report",
+        "validate_physics_hardened_model_evidence_discrepancy_report",
         lambda *args, **kwargs: {
             "report_sha256": current_report_sha,
             "iteration_index": 2,
@@ -196,6 +212,7 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
 
     next_handoff = {
         "schema_version": "1.0",
+        "policy_version": "1.0",
         "source_discrepancy_report_sha256": current_report_sha,
         "research_objectives": [{"objective_id": "planning-objective:next"}],
         "planner_boundary": {
@@ -206,7 +223,7 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
     next_handoff["handoff_sha256"] = _sha(next_handoff)
     monkeypatch.setattr(
         rediagnosis,
-        "build_discrepancy_planning_handoff",
+        "build_policy_hardened_discrepancy_planning_handoff",
         lambda *args, **kwargs: next_handoff,
     )
 
@@ -220,6 +237,7 @@ def test_discrepancy_to_fresh_plan_to_verified_transition_to_rediagnosis(monkeyp
     )
     assert completed["completion_status"] == "next_planning_handoff_ready"
     assert completed["validated_rediagnosis"]["iteration_index"] == 2
+    assert completed["validated_rediagnosis"]["physics_hardening_verified"] is True
     assert completed["next_planning_handoff"]["planner_boundary"][
         "fresh_planner_candidate_matching_required"
     ] is True
