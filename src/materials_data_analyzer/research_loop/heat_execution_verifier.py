@@ -14,6 +14,18 @@ from .kernel import LEDGER_FILENAME, ResearchLoopError, load_research_state
 ADAPTER_ID = "reference-heat-conduction"
 REGISTRY_DOMAIN = "reference_heat_conduction_physics"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_REQUEST_KEYS = {
+    "schema_version",
+    "action_id",
+    "action_type",
+    "action_version",
+    "research_run",
+    "solver_request",
+    "expected_solver_request_sha256",
+    "registry",
+    "repository_root",
+    "expected_registry_sha256",
+}
 
 
 class HeatExecutionVerifierError(ResearchLoopError):
@@ -28,14 +40,35 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise HeatExecutionVerifierError(f"duplicate JSON key is not allowed: {key}")
+        result[key] = value
+    return result
+
+
 def _load_request(path: Path) -> dict[str, Any]:
     data = path.read_bytes()
     try:
-        value = json.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HeatExecutionVerifierError("execution request must be valid UTF-8 JSON") from exc
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_pairs)
+    except json.JSONDecodeError as exc:
         raise HeatExecutionVerifierError("execution request must be valid UTF-8 JSON") from exc
     if not isinstance(value, dict):
         raise HeatExecutionVerifierError("execution request root must be an object")
+    if set(value) != _REQUEST_KEYS:
+        raise HeatExecutionVerifierError("typed heat execution request field set drifted")
+    if value.get("schema_version") != "1.0":
+        raise HeatExecutionVerifierError("unsupported typed heat execution request schema")
+    for field in ("expected_solver_request_sha256", "expected_registry_sha256"):
+        digest = value.get(field)
+        if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
+            raise HeatExecutionVerifierError(f"{field} must be canonical lowercase SHA-256")
     return value
 
 
