@@ -9,21 +9,28 @@ on:
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "configs/research/in625_external_evidence_action_registry.v1.json"
       - "configs/research/in625_tensile_reviewed_intake.v1.json"
+      - "configs/research/in625_tensile_observed_quality.v1.json"
       - "scripts/run_live_in625_authorized_row_intake.py"
+      - "scripts/run_live_in625_authorized_row_intake_v2.py"
       - "src/materials_data_analyzer/research_loop/in625_archive_network_acquisition.py"
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake.py"
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake_v2.py"
+      - "src/materials_data_analyzer/research_loop/in625_tensile_quality_contract.py"
       - "src/materials_data_analyzer/research_loop/in625_post_acquisition_rediagnosis.py"
+      - "src/materials_data_analyzer/research_loop/in625_post_acquisition_rediagnosis_v2.py"
       - "src/materials_data_analyzer/research_loop/in625_external_evidence_action.py"
       - "src/materials_data_analyzer/research_loop/in625_execution_verifier.py"
       - "src/materials_data_analyzer/research_loop/in625_execution_planning.py"
       - "src/materials_data_analyzer/research_loop/in625_authorized_execution.py"
       - "src/materials_data_analyzer/research_loop/xlsx_structural_intake.py"
+      - "src/materials_data_analyzer/research_loop/public_recursive_api.py"
       - "tests/test_xlsx_structural_intake.py"
       - "tests/test_in625_archive_network_acquisition.py"
       - "tests/test_in625_tensile_reviewed_intake.py"
       - "tests/test_in625_tensile_reviewed_intake_v2.py"
+      - "tests/test_in625_tensile_quality_contract.py"
       - "tests/test_in625_post_acquisition_rediagnosis.py"
+      - "tests/test_in625_post_acquisition_rediagnosis_v2.py"
       - "tests/test_in625_external_evidence_typed_execution.py"
       - "tests/test_public_recursive_in625_external_evidence.py"
   pull_request:
@@ -32,21 +39,28 @@ on:
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "configs/research/in625_external_evidence_action_registry.v1.json"
       - "configs/research/in625_tensile_reviewed_intake.v1.json"
+      - "configs/research/in625_tensile_observed_quality.v1.json"
       - "scripts/run_live_in625_authorized_row_intake.py"
+      - "scripts/run_live_in625_authorized_row_intake_v2.py"
       - "src/materials_data_analyzer/research_loop/in625_archive_network_acquisition.py"
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake.py"
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake_v2.py"
+      - "src/materials_data_analyzer/research_loop/in625_tensile_quality_contract.py"
       - "src/materials_data_analyzer/research_loop/in625_post_acquisition_rediagnosis.py"
+      - "src/materials_data_analyzer/research_loop/in625_post_acquisition_rediagnosis_v2.py"
       - "src/materials_data_analyzer/research_loop/in625_external_evidence_action.py"
       - "src/materials_data_analyzer/research_loop/in625_execution_verifier.py"
       - "src/materials_data_analyzer/research_loop/in625_execution_planning.py"
       - "src/materials_data_analyzer/research_loop/in625_authorized_execution.py"
       - "src/materials_data_analyzer/research_loop/xlsx_structural_intake.py"
+      - "src/materials_data_analyzer/research_loop/public_recursive_api.py"
       - "tests/test_xlsx_structural_intake.py"
       - "tests/test_in625_archive_network_acquisition.py"
       - "tests/test_in625_tensile_reviewed_intake.py"
       - "tests/test_in625_tensile_reviewed_intake_v2.py"
+      - "tests/test_in625_tensile_quality_contract.py"
       - "tests/test_in625_post_acquisition_rediagnosis.py"
+      - "tests/test_in625_post_acquisition_rediagnosis_v2.py"
       - "tests/test_in625_external_evidence_typed_execution.py"
       - "tests/test_public_recursive_in625_external_evidence.py"
   workflow_dispatch:
@@ -75,12 +89,14 @@ jobs:
           tests/test_in625_archive_network_acquisition.py
           tests/test_in625_tensile_reviewed_intake.py
           tests/test_in625_tensile_reviewed_intake_v2.py
+          tests/test_in625_tensile_quality_contract.py
           tests/test_in625_post_acquisition_rediagnosis.py
+          tests/test_in625_post_acquisition_rediagnosis_v2.py
           tests/test_in625_external_evidence_typed_execution.py
           tests/test_public_recursive_in625_external_evidence.py
-      - name: Authorize, acquire, preserve real rows, register, and re-diagnose
+      - name: Authorize, acquire, bind real-row quality, register, and re-diagnose
         run: >-
-          python scripts/run_live_in625_authorized_row_intake.py
+          python scripts/run_live_in625_authorized_row_intake_v2.py
           --repository-root .
           --output outputs/in625-authorized-network-row-intake
       - name: Upload bounded provenance and row-level evidence
@@ -95,13 +111,17 @@ jobs:
             outputs/in625-authorized-network-row-intake/archive-manifest.json
             outputs/in625-authorized-network-row-intake/reviewed-tensile/reviewed_tensile_manifest.v2.json
             outputs/in625-authorized-network-row-intake/reviewed-tensile/reviewed_tensile_rows.v2.jsonl
+            outputs/in625-authorized-network-row-intake/tensile-quality-verification.json
             outputs/in625-authorized-network-row-intake/typed-planning.json
             outputs/in625-authorized-network-row-intake/typed-registration-authorization.json
             outputs/in625-authorized-network-row-intake/typed-execution-handoff.json
             outputs/in625-authorized-network-row-intake/typed-execution-result.json
             outputs/in625-authorized-network-row-intake/typed-research-state.json
             outputs/in625-authorized-network-row-intake/post-acquisition-rediagnosis.json
+            outputs/in625-authorized-network-row-intake/post-acquisition-rediagnosis.v2.json
             outputs/in625-authorized-network-row-intake/authorized-provenance-chain.json
+            outputs/in625-authorized-network-row-intake/authorized-provenance-chain.v2.json
             outputs/in625-authorized-network-row-intake/live-summary.json
+            outputs/in625-authorized-network-row-intake/live-summary.v2.json
           if-no-files-found: warn
           retention-days: 14
