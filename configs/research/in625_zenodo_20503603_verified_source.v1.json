@@ -27,7 +27,7 @@
         "size_bytes": 180726708,
         "provider_checksum_algorithm": "md5",
         "provider_checksum_digest": "54601f974a9590be104cf1e3090b68bd",
-        "verified_sha256": null
+        "verified_sha256": "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
       }
     },
     "archive_policy": {
@@ -37,7 +37,10 @@
       "max_selected_tabular_bytes": 67108864,
       "selected_extensions": [
         ".csv",
-        ".txt"
+        ".txt",
+        ".dat",
+        ".xlsx",
+        ".xls"
       ],
       "reject_symlinks": true,
       "reject_path_traversal": true
