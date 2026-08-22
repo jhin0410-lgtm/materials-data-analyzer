@@ -1,4 +1,9 @@
-"""Validate and consume versioned cross-repository characterization bundles."""
+"""Validate and consume versioned cross-repository characterization bundles.
+
+Schema 1.0 retains the historical checksum/evidence-identity contract. Schema 1.1
+adds a required, independently replayed L0-L8 scientific evidence-ladder binding.
+The ladder is evidence-maturity metadata only and never authorizes downstream use.
+"""
 from __future__ import annotations
 
 import json
@@ -9,8 +14,12 @@ from typing import Any
 
 import pandas as pd
 
+from . import _characterization_bundle_core as _core
 from .characterization_evidence_binding import (
     validate_required_evidence_identity_binding,
+)
+from .characterization_evidence_ladder import (
+    validate_characterization_evidence_ladder_record,
 )
 from .characterization_features import (
     REQUIRED_COLUMNS,
@@ -20,15 +29,20 @@ from .characterization_features import (
 )
 
 BUNDLE_SCHEMA_VERSION = "1.0"
-BUNDLE_TYPE = "materials_characterization_feature_handoff"
-CONSUMER_SCHEMA_VERSION = "1.0"
-SUMMARY_NAME = "cross_repository_handoff_summary.json"
-REPORT_NAME = "cross_repository_handoff_report.md"
-MANIFEST_NAME = "cross_repository_handoff_manifest.json"
-NORMALIZED_INPUT_NAME = "characterization_features_bundle_input.csv"
-EXTERNAL_PROCESS_INPUT_NAME = "process_table_with_bundle_context.csv"
-UNIT_LABEL_RULE = "replace_percent_symbol_with_percent_token"
-PROCESS_IDENTITY_COLUMNS = ("case_id", "trace_number", "material", "system")
+EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION = "1.1"
+SUPPORTED_BUNDLE_SCHEMA_VERSIONS = {
+    BUNDLE_SCHEMA_VERSION,
+    EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION,
+}
+BUNDLE_TYPE = _core.BUNDLE_TYPE
+CONSUMER_SCHEMA_VERSION = _core.CONSUMER_SCHEMA_VERSION
+SUMMARY_NAME = _core.SUMMARY_NAME
+REPORT_NAME = _core.REPORT_NAME
+MANIFEST_NAME = _core.MANIFEST_NAME
+NORMALIZED_INPUT_NAME = _core.NORMALIZED_INPUT_NAME
+EXTERNAL_PROCESS_INPUT_NAME = _core.EXTERNAL_PROCESS_INPUT_NAME
+UNIT_LABEL_RULE = _core.UNIT_LABEL_RULE
+PROCESS_IDENTITY_COLUMNS = _core.PROCESS_IDENTITY_COLUMNS
 
 
 @dataclass(frozen=True)
@@ -41,12 +55,12 @@ class ValidatedCharacterizationBundle:
     feature_table: pd.DataFrame
     sample_context: pd.DataFrame
     evidence_identity_binding: dict[str, Any]
+    evidence_ladder_path: Path | None
+    evidence_ladder_record: dict[str, Any] | None
+    evidence_ladder_assessment: dict[str, Any] | None
 
 
-@dataclass(frozen=True)
-class ValidatedProcessInput:
-    table: pd.DataFrame
-    metadata: dict[str, Any]
+ValidatedProcessInput = _core.ValidatedProcessInput
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -59,8 +73,8 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _read_json_object(path: Path, label: str) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"{label} not found: {path}")
+    if not path.is_file() or path.is_symlink():
+        raise FileNotFoundError(f"{label} not found or unsafe: {path}")
     try:
         payload = json.loads(
             path.read_text(encoding="utf-8"),
@@ -99,7 +113,11 @@ def _resolve_sibling(bundle_root: Path, record: object, label: str) -> Path:
             f"{label} checksum mismatch: expected {expected_sha}, actual {actual_sha}."
         )
     expected_size = metadata.get("size_bytes")
-    if not isinstance(expected_size, int) or expected_size != target.stat().st_size:
+    if (
+        isinstance(expected_size, bool)
+        or not isinstance(expected_size, int)
+        or expected_size != target.stat().st_size
+    ):
         raise ValueError(f"{label} size_bytes does not match the referenced file.")
     return target
 
@@ -107,18 +125,29 @@ def _resolve_sibling(bundle_root: Path, record: object, label: str) -> Path:
 def validate_characterization_bundle(
     manifest_path: str | Path,
 ) -> ValidatedCharacterizationBundle:
-    """Validate bundle schema, files, counts, IDs, provenance, and claim boundary."""
+    """Validate bundle identity, empirical evidence, and optional maturity state."""
     manifest_path = Path(manifest_path)
     manifest = _read_json_object(manifest_path, "characterization bundle manifest")
-    if manifest.get("schema_version") != BUNDLE_SCHEMA_VERSION:
+    schema_version = manifest.get("schema_version")
+    if schema_version not in SUPPORTED_BUNDLE_SCHEMA_VERSIONS:
         raise ValueError(
-            f"Unsupported characterization bundle schema_version: {manifest.get('schema_version')}"
+            f"Unsupported characterization bundle schema_version: {schema_version}"
+        )
+    ladder_present = "scientific_evidence_ladder" in manifest
+    if schema_version == BUNDLE_SCHEMA_VERSION and ladder_present:
+        raise ValueError(
+            "schema-1.0 characterization bundle must not contain scientific_evidence_ladder"
+        )
+    if schema_version == EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION and not ladder_present:
+        raise ValueError(
+            "schema-1.1 characterization bundle requires scientific_evidence_ladder"
         )
     if manifest.get("bundle_type") != BUNDLE_TYPE:
         raise ValueError(
             f"Unsupported characterization bundle_type: {manifest.get('bundle_type')}"
         )
-    if not isinstance(manifest.get("case_id"), str) or not manifest["case_id"].strip():
+    case_id = manifest.get("case_id")
+    if not isinstance(case_id, str) or not case_id.strip():
         raise ValueError("characterization bundle case_id is required.")
 
     producer = _as_dict(manifest.get("producer"), "producer")
@@ -178,13 +207,9 @@ def validate_characterization_bundle(
         "measurement_count": int(features["measurement_id"].nunique()),
         "instruments": sorted(set(features["instrument"].astype(str))),
         "quality_flag_counts": dict(
-            sorted(
-                Counter(str(value) for value in features["quality_flag"]).items()
-            )
+            sorted(Counter(str(value) for value in features["quality_flag"]).items())
         ),
-        "source_sha256_record_count": int(
-            features["source_sha256"].notna().sum()
-        ),
+        "source_sha256_record_count": int(features["source_sha256"].notna().sum()),
         "preprocessing_id_record_count": int(
             features["preprocessing_id"].notna().sum()
         ),
@@ -217,9 +242,7 @@ def validate_characterization_bundle(
         raise ValueError("Bundle sample context contains blank sample_id values.")
     if context["sample_id"].duplicated().any():
         raise ValueError("Bundle sample context sample_id values must be unique.")
-    if set(context["sample_id"].astype(str)) != set(
-        features["sample_id"].astype(str)
-    ):
+    if set(context["sample_id"].astype(str)) != set(features["sample_id"].astype(str)):
         raise ValueError(
             "Feature and sample-context sample_id sets must match exactly."
         )
@@ -230,14 +253,26 @@ def validate_characterization_bundle(
         evidence_paths=evidence_paths,
     )
 
-    closeout = _as_dict(
-        manifest.get("scientific_closeout"), "scientific_closeout"
-    )
+    closeout = _as_dict(manifest.get("scientific_closeout"), "scientific_closeout")
     if not isinstance(closeout.get("evidence_level"), str):
         raise ValueError("scientific_closeout evidence_level is required.")
     for field in ("suitable_for", "unsuitable_for"):
         if not isinstance(closeout.get(field), list):
             raise ValueError(f"scientific_closeout {field} must be a list.")
+
+    ladder_path: Path | None = None
+    ladder_record: dict[str, Any] | None = None
+    ladder_assessment: dict[str, Any] | None = None
+    if schema_version == EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION:
+        ladder_record, ladder_path, ladder_assessment = (
+            validate_characterization_evidence_ladder_record(
+                root,
+                manifest["scientific_evidence_ladder"],
+                case_id=case_id,
+                evidence_references=evidence_records,
+                instruments=expected_feature_metadata["instruments"],
+            )
+        )
 
     return ValidatedCharacterizationBundle(
         manifest_path=manifest_path,
@@ -248,179 +283,13 @@ def validate_characterization_bundle(
         feature_table=features,
         sample_context=context,
         evidence_identity_binding=evidence_identity_binding,
+        evidence_ladder_path=ladder_path,
+        evidence_ladder_record=ladder_record,
+        evidence_ladder_assessment=ladder_assessment,
     )
 
 
-def _ensure_empty_output(output_dir: Path) -> None:
-    if output_dir.exists() and any(output_dir.iterdir()):
-        raise FileExistsError(
-            f"Output directory is not empty; existing files were preserved: {output_dir}"
-        )
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-
-def _write_normalized_handoff_input(
-    feature_table: pd.DataFrame,
-    output_dir: Path,
-) -> tuple[Path, dict[str, Any]]:
-    """Canonicalize unit spelling for safe feature keys without changing values."""
-    normalized = feature_table.copy()
-    original_units = normalized["unit"].astype(str)
-    normalized_units = original_units.str.replace("%", "percent", regex=False)
-    mappings = {
-        source: target
-        for source, target in sorted(set(zip(original_units, normalized_units)))
-        if source != target
-    }
-    normalized["unit"] = normalized_units
-    normalized = validate_characterization_features(
-        normalized,
-        source_name="consumer unit-label-normalized feature table",
-    )
-    path = output_dir / NORMALIZED_INPUT_NAME
-    normalized.to_csv(path, index=False)
-    return path, {
-        "performed": bool(mappings),
-        "rule": UNIT_LABEL_RULE,
-        "mappings": mappings,
-        "record_count": int((original_units != normalized_units).sum()),
-        "numeric_values_modified": False,
-        "source_feature_table_preserved": True,
-    }
-
-
-def _clean_external_process_table(table: pd.DataFrame, label: str) -> pd.DataFrame:
-    if "sample_id" not in table.columns:
-        raise ValueError(f"{label} requires an explicit sample_id column.")
-    cleaned = table.copy()
-    cleaned["sample_id"] = cleaned["sample_id"].astype("string").str.strip()
-    if cleaned["sample_id"].isna().any() or cleaned["sample_id"].eq("").any():
-        raise ValueError(f"{label} contains blank sample_id values.")
-    if cleaned["sample_id"].duplicated().any():
-        duplicates = sorted(
-            cleaned.loc[
-                cleaned["sample_id"].duplicated(keep=False), "sample_id"
-            ].astype(str).unique()
-        )
-        raise ValueError(
-            f"{label} sample_id values must be unique; duplicate(s): "
-            + ", ".join(duplicates)
-        )
-    return cleaned
-
-
-def _normalized_identity_values(
-    series: pd.Series,
-    column: str,
-    label: str,
-) -> pd.Series:
-    if column == "trace_number":
-        numeric = pd.to_numeric(series, errors="coerce")
-        if numeric.isna().any():
-            raise ValueError(f"{label} contains invalid trace_number values.")
-        return numeric.astype(float)
-    text = series.astype("string").str.strip()
-    if text.isna().any() or text.eq("").any():
-        raise ValueError(f"{label} contains blank {column} values.")
-    return text.astype(str)
-
-
-def validate_external_process_input(
-    bundle: ValidatedCharacterizationBundle,
-    process_table_path: str | Path,
-) -> ValidatedProcessInput:
-    """Validate a consumer-owned process table against producer identity context."""
-    path = Path(process_table_path)
-    if path.is_symlink():
-        raise ValueError("External process table must not be a symbolic link.")
-    if not path.is_file():
-        raise FileNotFoundError(f"External process table not found: {path}")
-
-    process = _clean_external_process_table(
-        pd.read_csv(path), "External process table"
-    )
-    context = _clean_external_process_table(
-        bundle.sample_context, "Bundle sample context"
-    )
-    process_ids = set(process["sample_id"].astype(str))
-    context_ids = set(context["sample_id"].astype(str))
-    if process_ids != context_ids:
-        raise ValueError(
-            "External process table and bundle sample context sample_id sets must "
-            f"match exactly; process_only={sorted(process_ids - context_ids)}, "
-            f"bundle_only={sorted(context_ids - process_ids)}."
-        )
-
-    identity_columns = [
-        column
-        for column in PROCESS_IDENTITY_COLUMNS
-        if column in process.columns and column in context.columns
-    ]
-    if not identity_columns:
-        raise ValueError(
-            "External process table must share at least one identity column with "
-            "bundle context in addition to sample_id: case_id, trace_number, "
-            "material, or system."
-        )
-
-    compared = process[["sample_id", *identity_columns]].merge(
-        context[["sample_id", *identity_columns]],
-        on="sample_id",
-        how="inner",
-        validate="one_to_one",
-        suffixes=("_process", "_bundle"),
-        sort=True,
-    )
-    mismatches: list[str] = []
-    for column in identity_columns:
-        process_values = _normalized_identity_values(
-            compared[f"{column}_process"],
-            column,
-            "External process table",
-        )
-        bundle_values = _normalized_identity_values(
-            compared[f"{column}_bundle"],
-            column,
-            "Bundle sample context",
-        )
-        unequal = ~process_values.eq(bundle_values)
-        for sample_id in compared.loc[unequal, "sample_id"].astype(str):
-            mismatches.append(f"{sample_id}:{column}")
-    if mismatches:
-        raise ValueError(
-            "External process identity conflicts with bundle context for "
-            + ", ".join(mismatches[:20])
-            + ("..." if len(mismatches) > 20 else "")
-            + "."
-        )
-
-    context_columns_added = [
-        column
-        for column in context.columns
-        if column != "sample_id" and column not in process.columns
-    ]
-    combined = process.merge(
-        context[["sample_id", *context_columns_added]],
-        on="sample_id",
-        how="left",
-        validate="one_to_one",
-        sort=True,
-    ).sort_values("sample_id").reset_index(drop=True)
-    metadata = {
-        "mode": "external_process_table_with_bundle_identity_validation",
-        "external_process_table_used": True,
-        "filename": path.name,
-        "sha256": sha256_file(path),
-        "row_count": int(len(process)),
-        "columns": process.columns.tolist(),
-        "sample_id_sets_match": True,
-        "verified_identity_columns": identity_columns,
-        "identity_mismatch_count": 0,
-        "bundle_context_columns_added": context_columns_added,
-        "row_order_join_used": False,
-        "missing_metadata_inferred": False,
-    }
-    return ValidatedProcessInput(table=combined, metadata=metadata)
+validate_external_process_input = _core.validate_external_process_input
 
 
 def _bundle_context_process_input(
@@ -445,104 +314,24 @@ def _bundle_context_process_input(
     )
 
 
-def _build_report(summary: dict[str, Any]) -> str:
-    instruments = ", ".join(summary["feature_summary"]["instruments"])
-    suitable = "\n".join(
-        f"- {item}" for item in summary["scientific_closeout"]["suitable_for"]
-    )
-    unsuitable = "\n".join(
-        f"- {item}" for item in summary["scientific_closeout"]["unsuitable_for"]
-    )
-    normalization = summary["unit_label_normalization"]
-    process = summary["process_input"]
-    binding = summary["evidence_identity_binding"]
-    verified_identity = ", ".join(process["verified_identity_columns"])
-    return f"""# Cross-Repository Characterization Handoff Report
-
-## Result
-
-Software handoff status: **Verified**.
-
-Scientific evidence level: **{summary['scientific_closeout']['evidence_level']}**.
-
-The consumer verified the producer bundle, all referenced SHA-256 values, the
-stable 12-column feature contract, sample-context identity, provenance coverage,
-and a one-to-one `sample_id` join. No row-order joining, silent aggregation,
-metadata inference, model training, or scientific metric recomputation occurred.
-
-## Producer
-
-- Repository: `{summary['producer']['repository']}`
-- Case ID: `{summary['case_id']}`
-- Instruments: {instruments}
-- Feature records: {summary['feature_summary']['row_count']}
-- Measurements: {summary['feature_summary']['measurement_count']}
-- Samples: {summary['feature_summary']['sample_count']}
-- Matched samples: {summary['join_summary']['matched']}
-
-## Evidence Identity Binding
-
-- Contract present: `{str(binding['contract_present']).lower()}`
-- Contract required: `{str(binding['contract_required']).lower()}`
-- Semantic identity binding independently verified: `{str(binding['semantic_identity_binding_verified']).lower()}`
-- Legacy checksum-only validation: `{str(binding['legacy_checksum_only_validation']).lower()}`
-- Scientific comparability established: `{str(binding['scientific_comparability_established']).lower()}`
-
-When the producer declares `evidence_identity_binding_contract.required=true`,
-the consumer independently reconstructs the exported features from the analysis
-manifest, verifies every feature source digest against the source manifest, and
-checks comparability sample/modality identity coverage. It does not trust a
-producer-side validation summary. Legacy bundles without the optional contract
-retain their historical checksum-only validation semantics.
-
-## Process Input
-
-- Mode: `{process['mode']}`
-- External process table used: `{str(process['external_process_table_used']).lower()}`
-- Verified identity columns: {verified_identity}
-- Identity mismatches: {process['identity_mismatch_count']}
-- Row-order join used: `{str(process['row_order_join_used']).lower()}`
-
-When an external process table is supplied, its sample IDs must match the bundle
-exactly and every shared case, trace, material, or system identity column must
-agree before process variables are admitted to the integrated table.
-
-## Unit Label Normalization
-
-- Rule: `{normalization['rule']}`
-- Records affected: {normalization['record_count']}
-- Numeric values modified: `{str(normalization['numeric_values_modified']).lower()}`
-- Original producer feature table preserved: `{str(normalization['source_feature_table_preserved']).lower()}`
-
-This is a lexical representation change for stable ASCII feature keys. For
-example, `%` becomes `percent`; it is not a numeric conversion or a change of
-physical unit.
-
-## Strongest Evidence
-
-{summary['scientific_closeout'].get('strongest_evidence', 'Not recorded by producer.')}
-
-## Primary Limitation
-
-{summary['scientific_closeout'].get('primary_limitation', 'Not recorded by producer.')}
-
-## Suitable Use
-
-{suitable}
-
-## Unsupported Use
-
-{unsuitable}
-
-## Decision Boundary
-
-This package validates software interoperability, explicit process-context
-identity, provenance transfer, and—when required—the semantic identity binding
-between feature records and their checksum-verified evidence files. It does not
-prove identical physical aliquots, scientific comparability, causal
-process-response relationships, predictive generalization, phase or chemical-state
-assignments, or engineering release readiness.
-"""
+def _ladder_summary(bundle: ValidatedCharacterizationBundle) -> dict[str, Any]:
+    if bundle.evidence_ladder_assessment is None:
+        return {
+            "present": False,
+            "verified": False,
+            "record": None,
+            "assessment": None,
+            "scientific_status_promoted": False,
+            "downstream_use_authorized": False,
+        }
+    return {
+        "present": True,
+        "verified": True,
+        "record": bundle.evidence_ladder_record,
+        "assessment": bundle.evidence_ladder_assessment,
+        "scientific_status_promoted": False,
+        "downstream_use_authorized": False,
+    }
 
 
 def consume_characterization_bundle(
@@ -560,8 +349,8 @@ def consume_characterization_bundle(
     )
 
     output = Path(output_dir)
-    _ensure_empty_output(output)
-    normalized_input, normalization = _write_normalized_handoff_input(
+    _core._ensure_empty_output(output)
+    normalized_input, normalization = _core._write_normalized_handoff_input(
         bundle.feature_table,
         output,
     )
@@ -593,6 +382,7 @@ def consume_characterization_bundle(
         raise ValueError(f"Unexpected consumer join summary: {join_summary!r}.")
 
     feature_record = _as_dict(bundle.manifest["feature_table"], "feature_table")
+    ladder = _ladder_summary(bundle)
     summary = {
         "schema_version": CONSUMER_SCHEMA_VERSION,
         "workflow": "cross_repository_characterization_handoff",
@@ -622,6 +412,7 @@ def consume_characterization_bundle(
         "unit_label_normalization": normalization,
         "join_summary": join_summary,
         "evidence_identity_binding": bundle.evidence_identity_binding,
+        "scientific_evidence_ladder": ladder,
         "software_validation": {
             "all_bundle_checksums_verified": True,
             "stable_feature_contract_validated": True,
@@ -635,6 +426,8 @@ def consume_characterization_bundle(
             "legacy_checksum_only_evidence_validation": bundle.evidence_identity_binding[
                 "legacy_checksum_only_validation"
             ],
+            "scientific_evidence_ladder_present": ladder["present"],
+            "scientific_evidence_ladder_independently_replayed": ladder["verified"],
             "scientific_comparability_established": False,
             "external_process_table_used": bool(process_table_path is not None),
             "process_identity_columns_verified": process_input.metadata[
@@ -656,7 +449,7 @@ def consume_characterization_bundle(
         json.dumps(summary, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    report_path.write_text(_build_report(summary), encoding="utf-8")
+    report_path.write_text(_core._build_report(summary), encoding="utf-8")
 
     outputs.update(
         {
@@ -680,10 +473,16 @@ def consume_characterization_bundle(
                 name: sha256_file(path)
                 for name, path in sorted(bundle.evidence_paths.items())
             },
+            "scientific_evidence_ladder_sha256": (
+                sha256_file(bundle.evidence_ladder_path)
+                if bundle.evidence_ladder_path is not None
+                else None
+            ),
         },
         "process_input": process_input.metadata,
         "unit_label_normalization": normalization,
         "evidence_identity_binding": bundle.evidence_identity_binding,
+        "scientific_evidence_ladder": ladder,
         "validation": summary["software_validation"],
         "join_summary": join_summary,
         "scientific_closeout": bundle.manifest["scientific_closeout"],
@@ -704,3 +503,23 @@ def consume_characterization_bundle(
     )
     outputs["cross_repository_manifest"] = manifest_output
     return outputs
+
+
+__all__ = [
+    "BUNDLE_SCHEMA_VERSION",
+    "EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION",
+    "SUPPORTED_BUNDLE_SCHEMA_VERSIONS",
+    "BUNDLE_TYPE",
+    "CONSUMER_SCHEMA_VERSION",
+    "SUMMARY_NAME",
+    "REPORT_NAME",
+    "MANIFEST_NAME",
+    "NORMALIZED_INPUT_NAME",
+    "EXTERNAL_PROCESS_INPUT_NAME",
+    "UNIT_LABEL_RULE",
+    "ValidatedCharacterizationBundle",
+    "ValidatedProcessInput",
+    "consume_characterization_bundle",
+    "validate_characterization_bundle",
+    "validate_external_process_input",
+]
