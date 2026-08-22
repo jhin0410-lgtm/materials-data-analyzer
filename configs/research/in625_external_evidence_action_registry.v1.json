@@ -15,7 +15,8 @@
       ],
       "preconditions": [
         "active_research_run_with_budget",
-        "explicit_external_acquisition_authorization",
+        "external_archive_acquired_under_separate_network_boundary",
+        "explicit_typed_registration_authorization_required",
         "exact_source_config_checksum_bound",
         "exact_archive_checksum_bound",
         "independent_request_and_ledger_sha_handoff"
