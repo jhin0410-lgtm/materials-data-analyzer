@@ -9,6 +9,12 @@ on:
       - "configs/research/in625_zenodo_publication_dataset.v1.json"
       - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
       - "tests/test_in625_zenodo_live_evidence.py"
+  pull_request:
+    paths:
+      - ".github/workflows/in625-zenodo-live-evidence.yml"
+      - "configs/research/in625_zenodo_publication_dataset.v1.json"
+      - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
+      - "tests/test_in625_zenodo_live_evidence.py"
   workflow_dispatch:
 
 permissions:
@@ -30,7 +36,6 @@ jobs:
           python - <<'PY'
           import hashlib
           import json
-          import urllib.parse
           import urllib.request
           from pathlib import Path
 
@@ -57,6 +62,7 @@ jobs:
                   "size": item.get("size"),
                   "checksum": item.get("checksum"),
                   "self": item.get("links", {}).get("self"),
+                  "content": item.get("links", {}).get("content"),
               }
               observed["files"].append(entry)
               if item.get("key") == "README - Dataset description.txt":
@@ -69,11 +75,12 @@ jobs:
           req = urllib.request.Request(download_url, headers={"User-Agent": "materials-data-analyzer/2.7 provenance-probe"})
           with urllib.request.urlopen(req, timeout=60) as response:
               readme_bytes = response.read()
+              content_type = response.headers.get("Content-Type")
           observed["readme_observed"] = {
               "size": len(readme_bytes),
               "md5": hashlib.md5(readme_bytes).hexdigest(),
               "sha256": hashlib.sha256(readme_bytes).hexdigest(),
-              "content_type": response.headers.get("Content-Type"),
+              "content_type": content_type,
           }
           out = Path("outputs/in625-zenodo-live-evidence")
           (out / "record.json").write_bytes(api_bytes)
