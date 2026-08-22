@@ -17,7 +17,9 @@ from loaders.characterization_evidence_ladder import (
     validate_bundle_scientific_evidence_ladder,
 )
 from materials_data_analyzer.characterization_research_gap import (
+    CharacterizationResearchGapError,
     build_characterization_research_evidence_gap,
+    write_characterization_research_evidence_gap,
 )
 
 
@@ -29,6 +31,20 @@ def _manifest(tmp_path: Path) -> Path:
     path = tmp_path / "characterization_handoff_bundle.json"
     path.write_text('{"case_id":"case-1"}\n', encoding="utf-8")
     return path
+
+
+def _binding() -> dict[str, object]:
+    return {
+        "case_id_bound": True,
+        "source_digests_bound": True,
+        "subject_modality_bound": True,
+        "required_source_roles": [
+            "analysis_manifest",
+            "comparability_matrix",
+            "source_manifest",
+        ],
+        "bundle_instruments": ["raman"],
+    }
 
 
 def _assessment(
@@ -220,7 +236,7 @@ def test_backslash_parent_path_is_rejected_portably(tmp_path: Path) -> None:
 
 def test_first_blocker_maps_to_provenance_bound_target_material_gap(tmp_path: Path) -> None:
     _, evidence_paths, record = _ladder_fixture(tmp_path, supported_through=4)
-    ladder, _ = validate_bundle_scientific_evidence_ladder(
+    ladder, binding = validate_bundle_scientific_evidence_ladder(
         bundle_root=tmp_path,
         record=record,
         case_id="case-1",
@@ -233,27 +249,37 @@ def test_first_blocker_maps_to_provenance_bound_target_material_gap(tmp_path: Pa
         bundle_manifest_path=manifest,
         instruments=["raman"],
         ladder=ladder,
+        ladder_binding=binding,
     )
     second = build_characterization_research_evidence_gap(
         bundle_manifest_path=manifest,
         instruments=["raman"],
         ladder=ladder,
+        ladder_binding=binding,
     )
 
     assert first == second
     assert first["bundle_manifest_sha256"] == _sha(manifest)
+    assert first["case_id"] == "case-1"
+    assert first["ladder_declaration_id"] == "case-1"
+    assert first["ladder_binding"] == _binding()
     assert first["first_blocking_level"] == "L5_material_domain_validation"
     assert first["next_requirement"]["requirement_id"] == (
         "characterization_target_material_validation_required"
     )
+    assert first["next_requirement"]["planning_action_family"] == (
+        "characterization_target_material_validation"
+    )
+    assert first["next_requirement"]["authorization_required_before_execution"] is True
     assert first["scientific_status_promoted"] is False
     assert first["downstream_use_authorized"] is False
+    assert first["action_execution_authorized"] is False
     assert first["semantic_marker"] == "planning_requirement_not_scientific_evidence"
 
 
 def test_gap_digest_changes_when_bound_manifest_bytes_change(tmp_path: Path) -> None:
     _, evidence_paths, record = _ladder_fixture(tmp_path, supported_through=4)
-    ladder, _ = validate_bundle_scientific_evidence_ladder(
+    ladder, binding = validate_bundle_scientific_evidence_ladder(
         bundle_root=tmp_path,
         record=record,
         case_id="case-1",
@@ -265,12 +291,14 @@ def test_gap_digest_changes_when_bound_manifest_bytes_change(tmp_path: Path) -> 
         bundle_manifest_path=manifest,
         instruments=["raman"],
         ladder=ladder,
+        ladder_binding=binding,
     )
     manifest.write_text('{"case_id":"case-1","revision":2}\n', encoding="utf-8")
     second = build_characterization_research_evidence_gap(
         bundle_manifest_path=manifest,
         instruments=["raman"],
         ladder=ladder,
+        ladder_binding=binding,
     )
 
     assert first["bundle_manifest_sha256"] != second["bundle_manifest_sha256"]
@@ -281,7 +309,7 @@ def test_gap_digest_changes_when_bound_manifest_bytes_change(tmp_path: Path) -> 
 
 def test_independence_blocker_maps_to_external_validation_requirement(tmp_path: Path) -> None:
     _, evidence_paths, record = _ladder_fixture(tmp_path, supported_through=5)
-    ladder, _ = validate_bundle_scientific_evidence_ladder(
+    ladder, binding = validate_bundle_scientific_evidence_ladder(
         bundle_root=tmp_path,
         record=record,
         case_id="case-1",
@@ -293,12 +321,17 @@ def test_independence_blocker_maps_to_external_validation_requirement(tmp_path: 
         bundle_manifest_path=_manifest(tmp_path),
         instruments=["raman"],
         ladder=ladder,
+        ladder_binding=binding,
     )
 
     assert gap["first_blocking_level"] == "L6_independent_external_validation"
     assert gap["next_requirement"]["requirement_id"] == (
         "characterization_independent_external_validation_required"
     )
+    assert gap["next_requirement"]["planning_action_family"] == (
+        "characterization_independent_validation_acquisition"
+    )
+    assert gap["action_execution_authorized"] is False
 
 
 def test_legacy_bundle_requires_maturity_assessment_instead_of_inferred_level(
@@ -308,6 +341,7 @@ def test_legacy_bundle_requires_maturity_assessment_instead_of_inferred_level(
         bundle_manifest_path=_manifest(tmp_path),
         instruments=["xrd"],
         ladder=None,
+        ladder_binding=None,
     )
 
     assert gap["ladder_present"] is False
@@ -315,12 +349,14 @@ def test_legacy_bundle_requires_maturity_assessment_instead_of_inferred_level(
     assert gap["next_requirement"]["requirement_id"] == (
         "characterization_evidence_maturity_assessment_required"
     )
+    assert gap["next_requirement"]["authorization_required_before_execution"] is True
     assert gap["scientific_status_promoted"] is False
+    assert gap["action_execution_authorized"] is False
 
 
 def test_complete_ladder_has_no_next_characterization_requirement_but_authorizes_nothing(tmp_path: Path) -> None:
     _, evidence_paths, record = _ladder_fixture(tmp_path, supported_through=8)
-    ladder, _ = validate_bundle_scientific_evidence_ladder(
+    ladder, binding = validate_bundle_scientific_evidence_ladder(
         bundle_root=tmp_path,
         record=record,
         case_id="case-1",
@@ -332,9 +368,56 @@ def test_complete_ladder_has_no_next_characterization_requirement_but_authorizes
         bundle_manifest_path=_manifest(tmp_path),
         instruments=["raman"],
         ladder=ladder,
+        ladder_binding=binding,
     )
 
     assert gap["first_blocking_level"] is None
     assert gap["next_requirement"] is None
     assert gap["scientific_status_promoted"] is False
     assert gap["downstream_use_authorized"] is False
+    assert gap["action_execution_authorized"] is False
+
+
+def test_present_ladder_requires_verified_binding_proof(tmp_path: Path) -> None:
+    _, evidence_paths, record = _ladder_fixture(tmp_path)
+    ladder, _ = validate_bundle_scientific_evidence_ladder(
+        bundle_root=tmp_path,
+        record=record,
+        case_id="case-1",
+        evidence_paths=evidence_paths,
+        instruments=["raman"],
+    )
+
+    with pytest.raises(CharacterizationResearchGapError, match="ladder_binding is required"):
+        build_characterization_research_evidence_gap(
+            bundle_manifest_path=_manifest(tmp_path),
+            instruments=["raman"],
+            ladder=ladder,
+            ladder_binding=None,
+        )
+
+
+def test_gap_writer_rejects_tamper_and_overwrite(tmp_path: Path) -> None:
+    gap = build_characterization_research_evidence_gap(
+        bundle_manifest_path=_manifest(tmp_path),
+        instruments=["xrd"],
+        ladder=None,
+        ladder_binding=None,
+    )
+    output = tmp_path / "outputs"
+    path = write_characterization_research_evidence_gap(output, gap)
+    persisted = json.loads(path.read_text(encoding="utf-8"))
+    assert persisted == gap
+
+    with pytest.raises(FileExistsError, match="refusing to overwrite"):
+        write_characterization_research_evidence_gap(output, gap)
+
+    tampered = dict(gap)
+    tampered["action_execution_authorized"] = True
+    with pytest.raises(CharacterizationResearchGapError, match="must not authorize action execution"):
+        write_characterization_research_evidence_gap(tmp_path / "tampered-output", tampered)
+
+    wrong_hash = dict(gap)
+    wrong_hash["first_blocking_level"] = "L1_raw_representation_identity"
+    with pytest.raises(CharacterizationResearchGapError, match="canonical SHA-256 mismatch"):
+        write_characterization_research_evidence_gap(tmp_path / "wrong-hash-output", wrong_hash)
