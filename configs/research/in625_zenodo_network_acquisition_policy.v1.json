@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "in625-zenodo-20503603-network-acquisition-v1",
+  "adapter_id": "in625-external-evidence",
+  "provider": "zenodo",
+  "transport": {
+    "scheme": "https",
+    "host": "zenodo.org",
+    "allowed_port": 443,
+    "redirect_host_must_remain_exact": true
+  },
+  "source_binding": {
+    "source_config_path": "configs/research/in625_zenodo_20503603_verified_source.v1.json",
+    "source_config_sha256": "81f872821083b88fb7ea45d1631dea0d15ed47d3e832c0dbc84dcb45313d24e6",
+    "record_id": 20503603,
+    "record_api_path": "/api/records/20503603"
+  },
+  "allowed_files": [
+    {
+      "name": "README - Dataset description.txt",
+      "size_bytes": 1408,
+      "provider_checksum_algorithm": "md5",
+      "provider_checksum_digest": "00313a86d70bbb388a9ee84677f23c5f",
+      "verified_sha256": "73571f59125e98403816a0fbac8eca6edc3dd2276c0e8aecc0fb824088e4cbd6"
+    },
+    {
+      "name": "Dataset.zip",
+      "size_bytes": 180726708,
+      "provider_checksum_algorithm": "md5",
+      "provider_checksum_digest": "54601f974a9590be104cf1e3090b68bd",
+      "verified_sha256": "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+    }
+  ],
+  "limits": {
+    "maximum_network_requests_per_cycle": 3,
+    "maximum_archive_bytes": 180726708,
+    "unrestricted_search": false,
+    "arbitrary_url_fetch": false
+  },
+  "scientific_boundary": {
+    "network_failure_is_negative_scientific_evidence": false,
+    "checksum_success_is_empirical_validation": false,
+    "source_acquisition_establishes_direct_nist_comparability": false,
+    "source_acquisition_establishes_hypothesis_truth": false,
+    "source_acquisition_establishes_positive_scientific_closeout": false
+  },
+  "limitations": [
+    "This standing authorization is restricted to the exact Zenodo record and exact configured README/archive identities.",
+    "Redirects may not leave the exact HTTPS zenodo.org authority.",
+    "Successful transport and checksum verification establish source-byte provenance only, not scientific truth."
+  ]
+}

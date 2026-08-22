@@ -16,6 +16,9 @@ from materials_data_analyzer.research_loop import (
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
+from materials_data_analyzer.research_loop.autonomous_production_driver import (
+    run_autonomous_production,
+)
 from materials_data_analyzer.research_loop.epistemic_graph import (
     evaluate_epistemic_graph,
 )
@@ -25,6 +28,14 @@ from materials_data_analyzer.research_loop.epistemic_transition import (
 from materials_data_analyzer.research_loop.policy_authorized_closed_loop import (
     run_policy_authorized_closed_loop,
 )
+
+_AUTONOMOUS_PRODUCTION_MISSION = Path(
+    "configs/research/autonomous_in625_production_mission.v1.json"
+)
+_AUTONOMOUS_PRODUCTION_MISSION_SHA256 = (
+    "d0edf9570ce4626b1c34902897aab555d55b2ac74176eadf97c8249172f64df8"
+)
+_AUTONOMOUS_PRODUCTION_OUTPUT = Path("outputs/autonomous-in625-production")
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -83,9 +94,10 @@ def build_parser() -> argparse.ArgumentParser:
             "Build a provenance-aware mission-level research agenda, validate evidence-bound "
             "scientific reasoning proposals, independently re-authenticate published transition "
             "bundles, evaluate and critique checksum-bound epistemic graphs, create immutable "
-            "result-to-graph transitions, and run a finite "
-            "policy-authorized local execute-record-regate loop. This command does not initiate "
-            "network access or physical experiments."
+            "result-to-graph transitions, run a finite policy-authorized local execute-record-regate "
+            "loop, or run the exact audited autonomous IN625 production profile. Only run-autonomous "
+            "may initiate the narrowly mission-pinned Zenodo network acquisition; no command grants "
+            "physical-experiment or arbitrary-command authority."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -103,6 +115,37 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
         help="Published authenticated-transition bundle directory.",
+    )
+
+    autonomous = subparsers.add_parser(
+        "run-autonomous",
+        help=(
+            "Run the exact audited IN625 production mission from the independently pinned mission "
+            "SHA: diagnose the current external-evidence gap, acquire only Zenodo 20503603 under "
+            "standing policy, compile a machine-authored typed request, independently execute and "
+            "verify the intake, re-diagnose, and stop boundedly when no successor capability exists."
+        ),
+    )
+    autonomous.add_argument(
+        "--repository-root",
+        type=Path,
+        default=Path("."),
+        help="Repository checkout root. Defaults to the current directory.",
+    )
+    autonomous.add_argument(
+        "--output",
+        type=Path,
+        default=_AUTONOMOUS_PRODUCTION_OUTPUT,
+        help=(
+            "Repository-contained output directory. It must be absent or empty. "
+            "Defaults to outputs/autonomous-in625-production."
+        ),
+    )
+    autonomous.add_argument(
+        "--max-cycles",
+        type=int,
+        default=2,
+        help="Maximum audited production cycles (1-8). Defaults to 2.",
     )
 
     show = subparsers.add_parser(
@@ -229,6 +272,15 @@ def _build_program(args: argparse.Namespace) -> dict[str, object]:
 def _run(args: argparse.Namespace) -> dict[str, object]:
     if args.command == "authenticate-transition-bundle":
         return authenticate_transition_bundle(args.bundle)
+    if args.command == "run-autonomous":
+        repository_root = args.repository_root.expanduser().resolve(strict=True)
+        return run_autonomous_production(
+            repository_root=repository_root,
+            mission_path=repository_root / _AUTONOMOUS_PRODUCTION_MISSION,
+            expected_mission_sha256=_AUTONOMOUS_PRODUCTION_MISSION_SHA256,
+            output_root=args.output,
+            max_cycles=args.max_cycles,
+        )
     if args.command == "run-closed-loop":
         if args.context is None:
             raise ResearchLoopError("run-closed-loop requires --context")

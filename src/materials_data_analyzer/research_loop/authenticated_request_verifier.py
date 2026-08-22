@@ -21,9 +21,9 @@ from .kernel import LEDGER_FILENAME, ResearchLoopError, load_research_state
 from .research_program import build_research_program
 
 AUTHENTICATED_REQUEST_VERIFIER_SCHEMA_VERSION = "1.0"
-AUTHENTICATED_REQUEST_VERIFIER_POLICY_VERSION = "1.0"
+AUTHENTICATED_REQUEST_VERIFIER_POLICY_VERSION = "1.1"
 _EXPECTED_MANIFEST_SCHEMA_VERSION = "1.0"
-_EXPECTED_COMPILER_POLICY_VERSION = "1.0"
+_EXPECTED_COMPILER_POLICY_VERSION = "1.1"
 _EXPECTED_AUTHORIZATION_POLICY_VERSION = "1.1"
 _EXPECTED_EXECUTION_POLICY_VERSION = "1.7"
 _EXPECTED_BRIDGE_SCHEMA_VERSION = "1.0"
@@ -36,6 +36,7 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "diagnostic_audit",
         "cost": 2,
         "request_inputs": ("analysis_run",),
+        "input_kinds": {"analysis_run": "directory"},
         "registry_inputs": ("run_output",),
         "aliases": {"run_output": "analysis_run"},
         "binding": {"kind": "installed_command", "name": "mda-battery-result-audit", "path": None, "platform": "cross_platform"},
@@ -45,6 +46,7 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "target_semantics_audit",
         "cost": 4,
         "request_inputs": ("analysis_run",),
+        "input_kinds": {"analysis_run": "directory"},
         "registry_inputs": ("analysis_run", "research_run"),
         "aliases": {"analysis_run": "analysis_run"},
         "binding": {"kind": "installed_command", "name": "mda-research-loop", "path": None, "platform": "cross_platform"},
@@ -54,6 +56,7 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "hypothesis_discrimination",
         "cost": 5,
         "request_inputs": ("import_run", "analysis_run"),
+        "input_kinds": {"import_run": "directory", "analysis_run": "directory"},
         "registry_inputs": ("import_run", "analysis_run", "research_run"),
         "aliases": {"import_run": "import_run", "analysis_run": "analysis_run"},
         "binding": {"kind": "installed_command", "name": "mda-research-loop", "path": None, "platform": "cross_platform"},
@@ -63,9 +66,32 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "next_evidence_planning",
         "cost": 2,
         "request_inputs": (),
+        "input_kinds": {},
         "registry_inputs": ("research_state", "unresolved_blocker_reports"),
         "aliases": {},
         "binding": {"kind": "source_script", "name": None, "path": "scripts/run_nasa_external_data_requirement_action.py", "platform": "cross_platform"},
+    },
+    "external_evidence_search": {
+        "version": "1.0",
+        "category": "external_evidence_search",
+        "cost": 2,
+        "request_inputs": ("source_config", "archive_path"),
+        "input_kinds": {
+            "source_config": "repository_file",
+            "archive_path": "repository_file",
+        },
+        "registry_inputs": ("source_config", "archive_path"),
+        "registry_input_kinds": {
+            "source_config": "json_file",
+            "archive_path": "binary_archive",
+        },
+        "aliases": {"source_config": "source_config", "archive_path": "archive_path"},
+        "include_action_version": True,
+        "sha256_bindings": {
+            "expected_source_config_sha256": "source_config",
+            "expected_archive_sha256": "archive_path",
+        },
+        "binding": {"kind": "source_script", "name": None, "path": "scripts/run_in625_external_evidence_action.py", "platform": "cross_platform"},
     },
 }
 _HARD_DENIED = {
@@ -169,6 +195,14 @@ def _repo_file(value: object, root: Path, field: str) -> Path:
     return path
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _snapshot(path: Path, field: str) -> tuple[dict[str, Any], bytes, str]:
     raw = path.read_bytes()
     if not raw:
@@ -261,6 +295,22 @@ def _input_names(contract: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(names)
 
 
+def _registry_input_kinds(contract: Mapping[str, Any]) -> dict[str, str]:
+    values = contract.get("required_inputs")
+    if not isinstance(values, list):
+        raise AuthenticatedRequestVerificationError("registry required_inputs are malformed")
+    kinds: dict[str, str] = {}
+    for item in values:
+        if not isinstance(item, Mapping):
+            raise AuthenticatedRequestVerificationError("registry input record is malformed")
+        name = _text(item.get("name"), "registry input name")
+        kind = _text(item.get("kind"), f"registry input {name} kind")
+        if name in kinds:
+            raise AuthenticatedRequestVerificationError("registry required_inputs contain duplicate names")
+        kinds[name] = kind
+    return kinds
+
+
 def _policy_action(policy: Mapping[str, Any], action_type: str, version: str) -> Mapping[str, Any]:
     values = policy.get("allowed_actions")
     matches = [item for item in values if isinstance(item, Mapping) and item.get("action_type") == action_type and item.get("action_version") == version] if isinstance(values, list) else []
@@ -304,6 +354,9 @@ def _selected(authorization: Mapping[str, Any], root: Path, policy: Mapping[str,
         raise AuthenticatedRequestVerificationError("authorization contract drifted")
     if _input_names(contract) != spec["registry_inputs"]:
         raise AuthenticatedRequestVerificationError("execution registry required-input contract drifted")
+    expected_input_kinds = spec.get("registry_input_kinds")
+    if isinstance(expected_input_kinds, Mapping) and _registry_input_kinds(contract) != dict(expected_input_kinds):
+        raise AuthenticatedRequestVerificationError("execution registry required-input kind contract drifted")
     if not isinstance(contract.get("verifier_checks"), list) or not contract["verifier_checks"]:
         raise AuthenticatedRequestVerificationError("safe typed action must retain verifier checks")
     delegated = _policy_action(policy, action_type, version)
@@ -312,8 +365,69 @@ def _selected(authorization: Mapping[str, Any], root: Path, policy: Mapping[str,
     return action_type, version, spec, registry, path, selected, raw_sha
 
 
-def _request_inputs(request: Mapping[str, Any], spec: Mapping[str, Any], *, action_type: str, run: Path, root: Path, execution_path: Path, execution_sha: str) -> dict[str, str]:
-    keys = {"schema_version", "action_id", "action_type", "research_run", "registry", "repository_root", "expected_registry_sha256", *spec["request_inputs"]}
+def _resolve_request_inputs(
+    request: Mapping[str, Any],
+    spec: Mapping[str, Any],
+    *,
+    root: Path,
+) -> dict[str, str]:
+    kinds = spec.get("input_kinds")
+    required = tuple(spec["request_inputs"])
+    if not isinstance(kinds, Mapping) or set(kinds) != set(required):
+        raise AuthenticatedRequestVerificationError("independent request input-kind contract is malformed")
+    resolved: dict[str, str] = {}
+    for name in required:
+        kind = kinds[name]
+        if kind == "directory":
+            path = _directory(request[name], f"request {name}")
+        elif kind == "repository_file":
+            path = _repo_file(request[name], root, f"request {name}")
+        else:
+            raise AuthenticatedRequestVerificationError(f"unsupported independent request input kind: {kind}")
+        resolved[name] = str(path)
+    return resolved
+
+
+def _derived_request_fields(
+    spec: Mapping[str, Any],
+    *,
+    version: str,
+    inputs: Mapping[str, str],
+) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    if spec.get("include_action_version") is True:
+        fields["action_version"] = version
+    bindings = spec.get("sha256_bindings", {})
+    if not isinstance(bindings, Mapping):
+        raise AuthenticatedRequestVerificationError("independent request SHA-binding contract is malformed")
+    for request_field, input_name in bindings.items():
+        if not isinstance(request_field, str) or not isinstance(input_name, str) or input_name not in inputs:
+            raise AuthenticatedRequestVerificationError("independent request SHA-binding entry is malformed")
+        fields[request_field] = _sha256_file(Path(inputs[input_name]))
+    return fields
+
+
+def _request_inputs(
+    request: Mapping[str, Any],
+    spec: Mapping[str, Any],
+    *,
+    action_type: str,
+    version: str,
+    run: Path,
+    root: Path,
+    execution_path: Path,
+    execution_sha: str,
+) -> tuple[dict[str, str], dict[str, str]]:
+    derived_names = set(_derived_request_fields(spec, version=version, inputs={}).keys()) if not spec["request_inputs"] else set()
+    if spec["request_inputs"]:
+        bindings = spec.get("sha256_bindings", {})
+        derived_names = set(bindings) if isinstance(bindings, Mapping) else set()
+        if spec.get("include_action_version") is True:
+            derived_names.add("action_version")
+    keys = {
+        "schema_version", "action_id", "action_type", "research_run", "registry",
+        "repository_root", "expected_registry_sha256", *spec["request_inputs"], *derived_names,
+    }
     _exact(request, keys, "execution request")
     if request["schema_version"] != _EXPECTED_REQUEST_SCHEMA_VERSION or request["action_type"] != action_type:
         raise AuthenticatedRequestVerificationError("execution request schema/action differs from verified selection")
@@ -324,7 +438,12 @@ def _request_inputs(request: Mapping[str, Any], spec: Mapping[str, Any], *, acti
     action_id = _text(request["action_id"], "request action_id")
     if len(action_id) > 128 or not all(c.isalnum() or c in "._-" for c in action_id):
         raise AuthenticatedRequestVerificationError("execution request action_id is not executor-safe")
-    return {name: str(_directory(request[name], f"request {name}")) for name in spec["request_inputs"]}
+    inputs = _resolve_request_inputs(request, spec, root=root)
+    derived = _derived_request_fields(spec, version=version, inputs=inputs)
+    for field, expected in derived.items():
+        if request.get(field) != expected:
+            raise AuthenticatedRequestVerificationError(f"execution request derived field differs from exact input bytes: {field}")
+    return inputs, derived
 
 
 def _registry_binding(value: object, path: Path, registry: Mapping[str, Any], field: str) -> str:
@@ -337,7 +456,7 @@ def _registry_binding(value: object, path: Path, registry: Mapping[str, Any], fi
     return raw_sha
 
 
-def _action_id(*, adapter: str, mission_sha: str, policy_sha: str, planning: Mapping[str, Any], planning_raw: str, execution: Mapping[str, Any], execution_raw: str, ledger_sha: str, selected_sha: str, action_type: str, version: str, inputs: Mapping[str, str]) -> str:
+def _action_id(*, adapter: str, mission_sha: str, policy_sha: str, planning: Mapping[str, Any], planning_raw: str, execution: Mapping[str, Any], execution_raw: str, ledger_sha: str, selected_sha: str, action_type: str, version: str, inputs: Mapping[str, str], derived_request_fields: Mapping[str, str]) -> str:
     digest = _digest({
         "adapter_id": adapter,
         "mission_sha256": mission_sha,
@@ -354,6 +473,7 @@ def _action_id(*, adapter: str, mission_sha: str, policy_sha: str, planning: Map
         "action_type": action_type,
         "action_version": version,
         "action_inputs": dict(inputs),
+        "derived_request_fields": dict(derived_request_fields),
         "authorization_policy_version": _EXPECTED_AUTHORIZATION_POLICY_VERSION,
         "execution_policy_version": _EXPECTED_EXECUTION_POLICY_VERSION,
     })
@@ -411,8 +531,8 @@ def verify_authenticated_machine_request(
         "schema_version", "compiler_policy_version", "compilation_status", "adapter_id",
         "mission_binding", "request_delegation_policy_binding", "planning_registry_binding",
         "execution_registry_binding", "research_state_binding", "selected_action_binding",
-        "request_binding", "action_inputs", "registry_input_aliases", "downstream_contract",
-        "authority_boundary",
+        "request_binding", "action_inputs", "derived_request_fields", "registry_input_aliases",
+        "downstream_contract", "authority_boundary",
     }
     manifest = _exact(manifest, manifest_keys, "authenticated request manifest")
     if manifest["schema_version"] != _EXPECTED_MANIFEST_SCHEMA_VERSION or manifest["compiler_policy_version"] != _EXPECTED_COMPILER_POLICY_VERSION:
@@ -440,9 +560,18 @@ def verify_authenticated_machine_request(
     action_type, version, spec, execution, execution_path, selected, execution_raw = _selected(authorization, root, policy)
     if _registry_binding(manifest["execution_registry_binding"], execution_path, execution, "execution registry binding") != execution_raw:
         raise AuthenticatedRequestVerificationError("execution registry raw-byte verification disagreement")
-    inputs = _request_inputs(request, spec, action_type=action_type, run=run, root=root, execution_path=execution_path, execution_sha=execution["registry_sha256"])
-    if manifest["action_inputs"] != inputs or manifest["registry_input_aliases"] != spec["aliases"]:
-        raise AuthenticatedRequestVerificationError("manifest typed inputs or registry aliases differ from independent contract")
+    inputs, derived_fields = _request_inputs(
+        request,
+        spec,
+        action_type=action_type,
+        version=version,
+        run=run,
+        root=root,
+        execution_path=execution_path,
+        execution_sha=execution["registry_sha256"],
+    )
+    if manifest["action_inputs"] != inputs or manifest["derived_request_fields"] != derived_fields or manifest["registry_input_aliases"] != spec["aliases"]:
+        raise AuthenticatedRequestVerificationError("manifest typed inputs, derived fields, or registry aliases differ from independent contract")
 
     selected_sha = _digest(dict(selected))
     selected_binding = _exact(manifest["selected_action_binding"], {"sha256", "action_type", "action_version", "category", "cost_units"}, "manifest selected action")
@@ -460,7 +589,8 @@ def verify_authenticated_machine_request(
     expected_id = _action_id(
         adapter=adapter, mission_sha=mission_sha, policy_sha=policy_sha,
         planning=planning, planning_raw=planning_raw, execution=execution, execution_raw=execution_raw,
-        ledger_sha=ledger_sha, selected_sha=selected_sha, action_type=action_type, version=version, inputs=inputs,
+        ledger_sha=ledger_sha, selected_sha=selected_sha, action_type=action_type, version=version,
+        inputs=inputs, derived_request_fields=derived_fields,
     )
     if request.get("action_id") != expected_id:
         raise AuthenticatedRequestVerificationError("execution request action_id disagrees with independent deterministic derivation")
@@ -476,6 +606,8 @@ def verify_authenticated_machine_request(
     _, ledger_sha2 = _research(run)
     if planning2["registry_sha256"] != planning["registry_sha256"] or planning_raw2 != planning_raw or execution2["registry_sha256"] != execution["registry_sha256"] or execution_raw2 != execution_raw or ledger_sha2 != ledger_sha:
         raise AuthenticatedRequestVerificationError("registry or ledger changed during independent verification")
+    if _derived_request_fields(spec, version=version, inputs=inputs) != derived_fields:
+        raise AuthenticatedRequestVerificationError("action input bytes changed during independent verification")
 
     return {
         "schema_version": AUTHENTICATED_REQUEST_VERIFIER_SCHEMA_VERSION,
@@ -491,6 +623,7 @@ def verify_authenticated_machine_request(
         "planning_registry_binding": {"path": str(planning_path), "registry_id": planning["registry_id"], "registry_sha256": planning["registry_sha256"], "file_sha256": planning_raw},
         "execution_registry_binding": {"path": str(execution_path), "registry_id": execution["registry_id"], "registry_sha256": execution["registry_sha256"], "file_sha256": execution_raw},
         "research_state_binding": {"research_run": str(run), "ledger_sha256": ledger_sha, "ledger_file_sha256": ledger_sha},
+        "derived_request_fields": dict(derived_fields),
         "machine_request_authorship_permitted_under_supplied_external_mission_root": True,
         "expected_mission_root_supplier_authenticated": False,
         "human_authorship_authenticated": False,

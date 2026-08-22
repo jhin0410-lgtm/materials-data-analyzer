@@ -24,7 +24,7 @@ from .kernel import LEDGER_FILENAME, ResearchLoopError, load_research_state
 from .research_program import build_research_program
 
 AUTHENTICATED_REQUEST_MANIFEST_SCHEMA_VERSION = "1.0"
-AUTHENTICATED_REQUEST_COMPILER_POLICY_VERSION = "1.0"
+AUTHENTICATED_REQUEST_COMPILER_POLICY_VERSION = "1.1"
 _EXPECTED_AUTHORIZATION_POLICY_VERSION = "1.1"
 _EXPECTED_EXECUTION_POLICY_VERSION = "1.7"
 _EXPECTED_BRIDGE_SCHEMA_VERSION = "1.0"
@@ -37,6 +37,7 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "diagnostic_audit",
         "cost": 2,
         "request_inputs": ("analysis_run",),
+        "input_kinds": {"analysis_run": "directory"},
         "registry_inputs": ("run_output",),
         "aliases": {"run_output": "analysis_run"},
         "binding": {"kind": "installed_command", "name": "mda-battery-result-audit", "path": None, "platform": "cross_platform"},
@@ -46,6 +47,7 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "target_semantics_audit",
         "cost": 4,
         "request_inputs": ("analysis_run",),
+        "input_kinds": {"analysis_run": "directory"},
         "registry_inputs": ("analysis_run", "research_run"),
         "aliases": {"analysis_run": "analysis_run"},
         "binding": {"kind": "installed_command", "name": "mda-research-loop", "path": None, "platform": "cross_platform"},
@@ -55,6 +57,7 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "hypothesis_discrimination",
         "cost": 5,
         "request_inputs": ("import_run", "analysis_run"),
+        "input_kinds": {"import_run": "directory", "analysis_run": "directory"},
         "registry_inputs": ("import_run", "analysis_run", "research_run"),
         "aliases": {"import_run": "import_run", "analysis_run": "analysis_run"},
         "binding": {"kind": "installed_command", "name": "mda-research-loop", "path": None, "platform": "cross_platform"},
@@ -64,9 +67,32 @@ _SAFE_ACTIONS: dict[str, dict[str, Any]] = {
         "category": "next_evidence_planning",
         "cost": 2,
         "request_inputs": (),
+        "input_kinds": {},
         "registry_inputs": ("research_state", "unresolved_blocker_reports"),
         "aliases": {},
         "binding": {"kind": "source_script", "name": None, "path": "scripts/run_nasa_external_data_requirement_action.py", "platform": "cross_platform"},
+    },
+    "external_evidence_search": {
+        "version": "1.0",
+        "category": "external_evidence_search",
+        "cost": 2,
+        "request_inputs": ("source_config", "archive_path"),
+        "input_kinds": {
+            "source_config": "repository_file",
+            "archive_path": "repository_file"
+        },
+        "registry_inputs": ("source_config", "archive_path"),
+        "registry_input_kinds": {
+            "source_config": "json_file",
+            "archive_path": "binary_archive"
+        },
+        "aliases": {"source_config": "source_config", "archive_path": "archive_path"},
+        "include_action_version": True,
+        "sha256_bindings": {
+            "expected_source_config_sha256": "source_config",
+            "expected_archive_sha256": "archive_path"
+        },
+        "binding": {"kind": "source_script", "name": None, "path": "scripts/run_in625_external_evidence_action.py", "platform": "cross_platform"},
     },
 }
 _HARD_DENIED = {
@@ -160,6 +186,14 @@ def _repo_file(value: object, root: Path, field: str) -> Path:
     if not path.is_file():
         raise AuthenticatedRequestCompilerError(f"{field} must resolve to a file")
     return path
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _raw_snapshot(path: Path, field: str) -> tuple[dict[str, Any], bytes, str]:
@@ -262,6 +296,22 @@ def _input_names(contract: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(names)
 
 
+def _registry_input_kinds(contract: Mapping[str, Any]) -> dict[str, str]:
+    values = contract.get("required_inputs")
+    if not isinstance(values, list):
+        raise AuthenticatedRequestCompilerError("registry required_inputs are malformed")
+    kinds: dict[str, str] = {}
+    for item in values:
+        if not isinstance(item, Mapping):
+            raise AuthenticatedRequestCompilerError("registry input record is malformed")
+        name = _text(item.get("name"), "registry input name")
+        kind = _text(item.get("kind"), f"registry input {name} kind")
+        if name in kinds:
+            raise AuthenticatedRequestCompilerError("registry required_inputs contain duplicate names")
+        kinds[name] = kind
+    return kinds
+
+
 def _policy_action(policy: Mapping[str, Any], action_type: str, version: str) -> Mapping[str, Any]:
     values = policy.get("allowed_actions")
     matches = [item for item in values if isinstance(item, Mapping) and item.get("action_type") == action_type and item.get("action_version") == version] if isinstance(values, list) else []
@@ -305,6 +355,9 @@ def _verify_selected(authorization: Mapping[str, Any], root: Path, policy: Mappi
         raise AuthenticatedRequestCompilerError("authorization contract drifted")
     if _input_names(contract) != spec["registry_inputs"]:
         raise AuthenticatedRequestCompilerError("execution registry required-input contract drifted")
+    expected_input_kinds = spec.get("registry_input_kinds")
+    if isinstance(expected_input_kinds, Mapping) and _registry_input_kinds(contract) != dict(expected_input_kinds):
+        raise AuthenticatedRequestCompilerError("execution registry required-input kind contract drifted")
     if not isinstance(contract.get("verifier_checks"), list) or not contract["verifier_checks"]:
         raise AuthenticatedRequestCompilerError("safe typed action must retain verifier checks")
     delegated = _policy_action(policy, action_type, version)
@@ -313,7 +366,12 @@ def _verify_selected(authorization: Mapping[str, Any], root: Path, policy: Mappi
     return action_type, version, spec, registry, execution_path, selected, raw_sha
 
 
-def _resolve_inputs(spec: Mapping[str, Any], supplied: Mapping[str, str | Path] | None) -> dict[str, str]:
+def _resolve_inputs(
+    spec: Mapping[str, Any],
+    supplied: Mapping[str, str | Path] | None,
+    *,
+    root: Path,
+) -> dict[str, str]:
     required = tuple(spec["request_inputs"])
     values = dict(supplied or {})
     missing = sorted(set(required) - set(values))
@@ -322,10 +380,42 @@ def _resolve_inputs(spec: Mapping[str, Any], supplied: Mapping[str, str | Path] 
         raise AuthenticatedRequestInputBindingRequired("explicit action input binding required; compiler will not guess: " + ", ".join(missing))
     if extra:
         raise AuthenticatedRequestCompilerError("action_inputs contains fields outside audited typed request contract: " + ", ".join(extra))
-    return {name: str(_directory(values[name], f"action_inputs.{name}")) for name in required}
+    kinds = spec.get("input_kinds")
+    if not isinstance(kinds, Mapping) or set(kinds) != set(required):
+        raise AuthenticatedRequestCompilerError("audited request input-kind contract is malformed")
+    resolved: dict[str, str] = {}
+    for name in required:
+        kind = kinds[name]
+        if kind == "directory":
+            path = _directory(values[name], f"action_inputs.{name}")
+        elif kind == "repository_file":
+            path = _repo_file(values[name], root, f"action_inputs.{name}")
+        else:
+            raise AuthenticatedRequestCompilerError(f"unsupported audited request input kind: {kind}")
+        resolved[name] = str(path)
+    return resolved
 
 
-def _action_id(*, adapter: str, mission_sha: str, policy_sha: str, planning: Mapping[str, Any], planning_raw: str, execution: Mapping[str, Any], execution_raw: str, ledger_sha: str, selected_sha: str, action_type: str, version: str, inputs: Mapping[str, str]) -> str:
+def _derived_request_fields(
+    spec: Mapping[str, Any],
+    *,
+    version: str,
+    inputs: Mapping[str, str],
+) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    if spec.get("include_action_version") is True:
+        fields["action_version"] = version
+    bindings = spec.get("sha256_bindings", {})
+    if not isinstance(bindings, Mapping):
+        raise AuthenticatedRequestCompilerError("audited request SHA-binding contract is malformed")
+    for request_field, input_name in bindings.items():
+        if not isinstance(request_field, str) or not isinstance(input_name, str) or input_name not in inputs:
+            raise AuthenticatedRequestCompilerError("audited request SHA-binding entry is malformed")
+        fields[request_field] = _sha256_file(Path(inputs[input_name]))
+    return fields
+
+
+def _action_id(*, adapter: str, mission_sha: str, policy_sha: str, planning: Mapping[str, Any], planning_raw: str, execution: Mapping[str, Any], execution_raw: str, ledger_sha: str, selected_sha: str, action_type: str, version: str, inputs: Mapping[str, str], derived_request_fields: Mapping[str, str]) -> str:
     digest = _canonical_digest({
         "adapter_id": adapter,
         "mission_sha256": mission_sha,
@@ -342,6 +432,7 @@ def _action_id(*, adapter: str, mission_sha: str, policy_sha: str, planning: Map
         "action_type": action_type,
         "action_version": version,
         "action_inputs": dict(inputs),
+        "derived_request_fields": dict(derived_request_fields),
         "authorization_policy_version": _EXPECTED_AUTHORIZATION_POLICY_VERSION,
         "execution_policy_version": _EXPECTED_EXECUTION_POLICY_VERSION,
     })
@@ -379,13 +470,15 @@ def compile_authenticated_machine_request(
         adapter, repository_root=root, research_run=run, action_registry_path=planning_path
     )
     action_type, version, spec, execution, execution_path, selected, execution_raw = _verify_selected(authorization, root, policy)
-    inputs = _resolve_inputs(spec, action_inputs)
+    inputs = _resolve_inputs(spec, action_inputs, root=root)
+    derived_fields = _derived_request_fields(spec, version=version, inputs=inputs)
     selected_sha = _canonical_digest(dict(selected))
     action_id = _action_id(
         adapter=adapter, mission_sha=mission_sha, policy_sha=policy_sha,
         planning=planning, planning_raw=planning_raw, execution=execution,
         execution_raw=execution_raw, ledger_sha=ledger_sha, selected_sha=selected_sha,
         action_type=action_type, version=version, inputs=inputs,
+        derived_request_fields=derived_fields,
     )
     if any(isinstance(item, Mapping) and item.get("action_id") == action_id for item in state["actions"]):
         raise AuthenticatedRequestCompilerError("deterministic delegated action_id already exists in research ledger")
@@ -393,6 +486,7 @@ def compile_authenticated_machine_request(
         "schema_version": _REQUEST_SCHEMA_VERSION,
         "action_id": action_id,
         "action_type": action_type,
+        **derived_fields,
         "research_run": str(run),
         **inputs,
         "registry": str(execution_path),
@@ -414,6 +508,8 @@ def compile_authenticated_machine_request(
         raise AuthenticatedRequestCompilerError("execution registry changed during compilation")
     if ledger_sha2 != ledger_sha or state2 != state:
         raise AuthenticatedRequestCompilerError("research ledger/state changed during compilation")
+    if _derived_request_fields(spec, version=version, inputs=inputs) != derived_fields:
+        raise AuthenticatedRequestCompilerError("action input bytes changed during compilation")
 
     output = Path(output_dir).expanduser().resolve()
     if output.exists():
@@ -437,6 +533,7 @@ def compile_authenticated_machine_request(
         "selected_action_binding": {"sha256": selected_sha, "action_type": action_type, "action_version": version, "category": spec["category"], "cost_units": spec["cost"]},
         "request_binding": {"path": str(final_request), "sha256": request_sha, "bytes": len(request_bytes)},
         "action_inputs": dict(inputs),
+        "derived_request_fields": dict(derived_fields),
         "registry_input_aliases": dict(spec["aliases"]),
         "downstream_contract": {"action_authorization_policy_version": _EXPECTED_AUTHORIZATION_POLICY_VERSION, "authorized_execution_policy_version": _EXPECTED_EXECUTION_POLICY_VERSION},
         "authority_boundary": {
