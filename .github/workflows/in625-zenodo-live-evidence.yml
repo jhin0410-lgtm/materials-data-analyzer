@@ -7,18 +7,44 @@ on:
     paths:
       - ".github/workflows/in625-zenodo-live-evidence.yml"
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+      - "configs/research/in625_external_evidence_action_registry.v1.json"
+      - "scripts/run_in625_external_evidence_action.py"
       - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
       - "src/materials_data_analyzer/research_loop/binary_workbook_structural_intake.py"
+      - "src/materials_data_analyzer/research_loop/in625_external_evidence_action.py"
+      - "src/materials_data_analyzer/research_loop/in625_execution_verifier.py"
+      - "src/materials_data_analyzer/research_loop/in625_execution_planning.py"
+      - "src/materials_data_analyzer/research_loop/in625_authorized_execution.py"
+      - "src/materials_data_analyzer/research_loop/public_recursive_external_evidence.py"
+      - "src/materials_data_analyzer/research_loop/planning_state.py"
+      - "src/materials_data_analyzer/research_loop/planning_adapter.py"
+      - "src/materials_data_analyzer/research_loop/authorized_execution.py"
+      - "src/materials_data_analyzer/research_loop/public_recursive_api.py"
       - "tests/test_in625_zenodo_live_evidence.py"
       - "tests/test_binary_workbook_structural_intake.py"
+      - "tests/test_in625_external_evidence_typed_execution.py"
+      - "tests/test_public_recursive_in625_external_evidence.py"
   pull_request:
     paths:
       - ".github/workflows/in625-zenodo-live-evidence.yml"
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+      - "configs/research/in625_external_evidence_action_registry.v1.json"
+      - "scripts/run_in625_external_evidence_action.py"
       - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
       - "src/materials_data_analyzer/research_loop/binary_workbook_structural_intake.py"
+      - "src/materials_data_analyzer/research_loop/in625_external_evidence_action.py"
+      - "src/materials_data_analyzer/research_loop/in625_execution_verifier.py"
+      - "src/materials_data_analyzer/research_loop/in625_execution_planning.py"
+      - "src/materials_data_analyzer/research_loop/in625_authorized_execution.py"
+      - "src/materials_data_analyzer/research_loop/public_recursive_external_evidence.py"
+      - "src/materials_data_analyzer/research_loop/planning_state.py"
+      - "src/materials_data_analyzer/research_loop/planning_adapter.py"
+      - "src/materials_data_analyzer/research_loop/authorized_execution.py"
+      - "src/materials_data_analyzer/research_loop/public_recursive_api.py"
       - "tests/test_in625_zenodo_live_evidence.py"
       - "tests/test_binary_workbook_structural_intake.py"
+      - "tests/test_in625_external_evidence_typed_execution.py"
+      - "tests/test_public_recursive_in625_external_evidence.py"
   workflow_dispatch:
 
 permissions:
@@ -27,7 +53,7 @@ permissions:
 jobs:
   acquire-live-evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       PYTHONPATH: src
     steps:
@@ -38,42 +64,83 @@ jobs:
           cache: pip
       - name: Install repository development environment
         run: python -m pip install -e ".[dev]"
-      - name: Run fail-closed source and workbook tests
+      - name: Run fail-closed source, workbook, typed execution, and recursive tests
         run: >-
           python -m pytest -q
           tests/test_in625_zenodo_live_evidence.py
           tests/test_binary_workbook_structural_intake.py
-      - name: Verify README, acquire archive, and triage bounded numerical evidence
+          tests/test_in625_external_evidence_typed_execution.py
+          tests/test_public_recursive_in625_external_evidence.py
+      - name: Verify README, acquire archive, triage, and execute typed provenance registration
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p outputs/in625-zenodo-live-evidence
           python - <<'PY'
+          import hashlib
           import json
           import urllib.parse
           import urllib.request
           from pathlib import Path, PurePosixPath
 
+          from materials_data_analyzer.research_loop.action_authorization import (
+              assess_current_action_authorization,
+          )
+          from materials_data_analyzer.research_loop.action_registry import load_action_registry
           from materials_data_analyzer.research_loop.archive_tabular_triage import (
               triage_verified_archive_tables,
+          )
+          from materials_data_analyzer.research_loop.authorized_execution import (
+              execute_authorized_action,
           )
           from materials_data_analyzer.research_loop.binary_workbook_structural_intake import (
               inspect_legacy_xls_binding,
               inspect_xlsx_workbook_structure,
           )
+          from materials_data_analyzer.research_loop.in625_execution_verifier import (
+              verify_in625_execution_handoff,
+          )
           from materials_data_analyzer.research_loop.in625_zenodo_live_evidence import (
               build_verified_in625_zenodo_readme_manifest,
               inspect_verified_in625_dataset_archive,
+          )
+          from materials_data_analyzer.research_loop.kernel import (
+              initialize_research_loop,
+              load_research_state,
+          )
+          from materials_data_analyzer.research_loop.planning_adapter import (
+              plan_research_next_action,
           )
           from materials_data_analyzer.research_loop.safe_archive_inventory import (
               inspect_zip_archive,
           )
 
-          root = Path("outputs/in625-zenodo-live-evidence")
-          config = json.loads(Path("configs/research/in625_zenodo_20503603_verified_source.v1.json").read_text(encoding="utf-8"))
+          repository_root = Path.cwd().resolve()
+          root = (repository_root / "outputs/in625-zenodo-live-evidence").resolve()
+          source_config_path = (
+              repository_root / "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+          ).resolve()
+          registry_path = (
+              repository_root / "configs/research/in625_external_evidence_action_registry.v1.json"
+          ).resolve()
+          config = json.loads(source_config_path.read_text(encoding="utf-8"))
           record_id = str(config["zenodo"]["record_id"])
           api_url = f"https://zenodo.org/api/records/{record_id}"
           headers = {"User-Agent": "materials-data-analyzer/2.7 verified-in625-evidence"}
+
+          def sha256_file(path: Path) -> str:
+              digest = hashlib.sha256()
+              with path.open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          def write_json(path: Path, value: object) -> None:
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(
+                  json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n",
+                  encoding="utf-8",
+              )
 
           def get_bytes(url: str, *, timeout: int = 60) -> bytes:
               req = urllib.request.Request(url, headers=headers)
@@ -100,10 +167,7 @@ jobs:
           )
           (root / "record.json").write_bytes(metadata_bytes)
           (root / readme_name).write_bytes(readme_bytes)
-          (root / "readme-manifest.json").write_text(
-              json.dumps(readme_manifest, indent=2, ensure_ascii=False) + "\n",
-              encoding="utf-8",
-          )
+          write_json(root / "readme-manifest.json", readme_manifest)
 
           archive_path = root / archive_name
           req = urllib.request.Request(archive_url, headers=headers)
@@ -126,18 +190,12 @@ jobs:
           )
           if archive_manifest["archive"]["sha256_previously_pinned"] is not True:
               raise SystemExit("archive SHA-256 must be repository-pinned before numerical intake")
-          (root / "archive-manifest.json").write_text(
-              json.dumps(archive_manifest, indent=2, ensure_ascii=False) + "\n",
-              encoding="utf-8",
-          )
+          write_json(root / "archive-manifest.json", archive_manifest)
 
           safe_inventory = inspect_zip_archive(archive_path)
           if safe_inventory["archive_sha256"] != archive_manifest["archive"]["sha256"]:
               raise SystemExit("independent safe inventory lost the pinned archive SHA-256")
-          (root / "safe-archive-inventory.json").write_text(
-              json.dumps(safe_inventory, indent=2, ensure_ascii=False) + "\n",
-              encoding="utf-8",
-          )
+          write_json(root / "safe-archive-inventory.json", safe_inventory)
           text_triage = triage_verified_archive_tables(
               archive_path,
               safe_inventory,
@@ -149,10 +207,7 @@ jobs:
               raise SystemExit("text triage lost the pinned archive SHA-256")
           if text_triage["scientific_status_changed"] is not False:
               raise SystemExit("structural triage may not promote scientific status")
-          (root / "text-tabular-triage.json").write_text(
-              json.dumps(text_triage, indent=2, ensure_ascii=False) + "\n",
-              encoding="utf-8",
-          )
+          write_json(root / "text-tabular-triage.json", text_triage)
 
           workbook_reports = []
           for member in archive_manifest["selected_tabular_files"]:
@@ -181,10 +236,92 @@ jobs:
               "cell_values_interpreted": False,
               "scientific_status_changed": False,
           }
-          (root / "workbook-structural-intake.json").write_text(
-              json.dumps(workbook_manifest, indent=2, ensure_ascii=False) + "\n",
-              encoding="utf-8",
+          write_json(root / "workbook-structural-intake.json", workbook_manifest)
+
+          objective_path = root / "typed-research-objective.json"
+          write_json(
+              objective_path,
+              {
+                  "schema_version": "1.0",
+                  "research_id": "live-in625-external-evidence-20503603",
+                  "question": "Can the exact Zenodo 20503603 IN625 archive be registered as real provenance-bound external evidence?",
+                  "metrics": {
+                      "primary": "external_source_provenance",
+                      "secondary": ["archive_byte_integrity", "numerical_member_availability"],
+                  },
+                  "constraints": [
+                      "No direct NIST condition-comparability claim",
+                      "No empirical model-validation or hypothesis-truth promotion",
+                  ],
+                  "budget": {"maximum_actions": 2, "maximum_cost_units": 4},
+                  "stop_rules": ["Stop after one exact source registration or a fail-closed verifier rejection"],
+              },
           )
+          research_run = root / "typed-research-run"
+          initialize_research_loop(objective_path, research_run)
+          registry = load_action_registry(registry_path, repository_root=repository_root)
+          request_path = root / "typed-execution-request.json"
+          write_json(
+              request_path,
+              {
+                  "schema_version": "1.0",
+                  "action_id": "register-zenodo-20503603-in625",
+                  "action_type": "external_evidence_search",
+                  "action_version": "1.0",
+                  "research_run": str(research_run),
+                  "source_config": str(source_config_path),
+                  "expected_source_config_sha256": sha256_file(source_config_path),
+                  "archive_path": str(archive_path),
+                  "expected_archive_sha256": archive_manifest["archive"]["sha256"],
+                  "registry": str(registry_path),
+                  "repository_root": str(repository_root),
+                  "expected_registry_sha256": registry["registry_sha256"],
+              },
+          )
+          planning = plan_research_next_action(
+              "in625-external-evidence",
+              repository_root=repository_root,
+              research_run=research_run,
+              action_registry_path=registry_path,
+          )
+          if planning["selection_status"] != "ready_to_execute":
+              raise SystemExit("live IN625 planner did not expose the verified source candidate")
+          authorization = assess_current_action_authorization(
+              "in625-external-evidence",
+              repository_root=repository_root,
+              research_run=research_run,
+              action_registry_path=registry_path,
+          )
+          if authorization["authorization_status"] != "ready_for_explicit_execution_request":
+              raise SystemExit("live IN625 candidate did not pass typed authorization")
+          handoff = verify_in625_execution_handoff(
+              repository_root=repository_root,
+              research_run=research_run,
+              action_registry_path=registry_path,
+              request_path=request_path,
+          )
+          execution = execute_authorized_action(
+              "in625-external-evidence",
+              repository_root=repository_root,
+              research_run=research_run,
+              action_registry_path=registry_path,
+              request_path=request_path,
+              expected_action_type=handoff["action_type"],
+              expected_request_sha256=handoff["request_sha256"],
+              expected_research_ledger_sha256=handoff["research_ledger_sha256"],
+          )
+          final_state = load_research_state(research_run)
+          if execution["verified_report"]["source_provenance_verified"] is not True:
+              raise SystemExit("typed execution failed to verify external-source provenance")
+          if execution["verified_report"]["direct_condition_comparability_established"] is not False:
+              raise SystemExit("typed execution improperly promoted condition comparability")
+          if len(final_state["actions"]) != 1:
+              raise SystemExit("typed execution did not append exactly one immutable ledger action")
+          write_json(root / "typed-planning.json", planning)
+          write_json(root / "typed-authorization.json", authorization)
+          write_json(root / "typed-execution-handoff.json", handoff)
+          write_json(root / "typed-execution-result.json", execution)
+          write_json(root / "typed-research-state.json", final_state)
 
           print(json.dumps({
               "record_id": readme_manifest["record_id"],
@@ -196,11 +333,14 @@ jobs:
               "selected_numerical_candidate_bytes": archive_manifest["inventory_summary"]["selected_tabular_bytes"],
               "structural_text_tabular_candidate_count": text_triage["tabular_candidate_count"],
               "workbook_candidate_count": len(workbook_reports),
-              "direct_nist_condition_comparability_established": archive_manifest["scientific_boundary"]["direct_nist_condition_comparability_established"],
+              "typed_action": execution["verified_report"]["action_type"],
+              "typed_registered_outcome": execution["verified_report"]["registered_outcome"],
+              "typed_source_provenance_verified": execution["verified_report"]["source_provenance_verified"],
+              "typed_direct_condition_comparability_established": execution["verified_report"]["direct_condition_comparability_established"],
           }, indent=2))
           archive_path.unlink()
           PY
-      - name: Upload verified provenance and bounded numerical evidence
+      - name: Upload verified provenance, numerical evidence, and typed execution proof
         uses: actions/upload-artifact@v7
         with:
           name: in625-zenodo-live-evidence
@@ -213,5 +353,13 @@ jobs:
             outputs/in625-zenodo-live-evidence/text-tabular-triage.json
             outputs/in625-zenodo-live-evidence/workbook-structural-intake.json
             outputs/in625-zenodo-live-evidence/selected-tabular/
+            outputs/in625-zenodo-live-evidence/typed-research-objective.json
+            outputs/in625-zenodo-live-evidence/typed-execution-request.json
+            outputs/in625-zenodo-live-evidence/typed-planning.json
+            outputs/in625-zenodo-live-evidence/typed-authorization.json
+            outputs/in625-zenodo-live-evidence/typed-execution-handoff.json
+            outputs/in625-zenodo-live-evidence/typed-execution-result.json
+            outputs/in625-zenodo-live-evidence/typed-research-state.json
+            outputs/in625-zenodo-live-evidence/typed-research-run/
           if-no-files-found: error
           retention-days: 30
