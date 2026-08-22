@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from loaders.characterization_features import sha256_file
 from loaders.characterization_research_bundle import (
     ValidatedResearchCharacterizationBundle,
     consume_characterization_research_bundle,
+    revalidate_characterization_research_bundle_identity,
     validate_characterization_research_bundle,
 )
 
@@ -141,12 +141,25 @@ def _record_planning_gap(
     if record is None or assessment is None:
         return outputs
 
+    # The planning artifact must refer to the same exact producer bytes that were validated.
+    revalidate_characterization_research_bundle_identity(bundle)
+    summary_path = outputs["cross_repository_summary"]
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if not isinstance(summary, dict):
+        raise ValueError("cross-repository summary must contain a JSON object")
+    producer_bundle = summary.get("producer_bundle")
+    if not isinstance(producer_bundle, dict):
+        raise ValueError("schema-1.1 research summary must bind the producer bundle")
+    if producer_bundle.get("sha256") != bundle.manifest_sha256:
+        raise ValueError(
+            "consumed characterization outputs do not match the validated producer bundle"
+        )
+
     artifact = build_characterization_evidence_gap(
         scientific_evidence_ladder=record,
         scientific_evidence_ladder_assessment=assessment,
-        source_bundle_manifest_sha256=sha256_file(bundle.manifest_path),
+        source_bundle_manifest_sha256=bundle.manifest_sha256,
     )
-    summary_path = outputs["cross_repository_summary"]
     report_path = outputs["cross_repository_report"]
     manifest_path = outputs["cross_repository_manifest"]
     output_root = summary_path.parent
@@ -157,9 +170,6 @@ def _record_planning_gap(
     )
     outputs["characterization_evidence_gap"] = gap_path
 
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    if not isinstance(summary, dict):
-        raise ValueError("cross-repository summary must contain a JSON object")
     summary["autonomous_research_planning"] = artifact
     summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
@@ -210,22 +220,29 @@ def consume_characterization_bundle_for_use(
     split_group_field: str | None = None,
 ) -> dict[str, Path]:
     """Gate use, independently validate maturity, consume features, and record both."""
+    # Freeze one independently validated producer identity first. Every subsequent gate/output
+    # must remain bound to that exact identity rather than silently following a replaced file.
+    bundle = validate_characterization_research_bundle(manifest_path)
     decision = require_characterization_use(
         manifest_path,
         requested_use=requested_use,
         split_group_field=split_group_field,
     )
-    bundle = validate_characterization_research_bundle(manifest_path)
+    revalidate_characterization_research_bundle_identity(bundle)
+
     split_group_binding = _verify_split_group_binding(
         manifest_path,
         process_table_path,
         split_group_field=decision.split_group_field,
     )
+    revalidate_characterization_research_bundle_identity(bundle)
+
     outputs = consume_characterization_research_bundle(
         manifest_path,
         output_dir,
         process_table_path=process_table_path,
     )
+    revalidate_characterization_research_bundle_identity(bundle)
     outputs = _record_planning_gap(outputs, bundle)
     return _record_eligibility(outputs, decision, split_group_binding)
 
