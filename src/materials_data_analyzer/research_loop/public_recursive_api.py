@@ -21,6 +21,7 @@ from .heat_transition_verification import (
     build_heat_transition_verification_decision,
     publish_heat_transition_verification_decision,
 )
+from .in625_execution_verifier import verify_in625_execution_handoff
 from .kernel import initialize_research_loop, load_research_state
 from .public_recursive_acceptance_boundary import (
     build_external_evidence_waiting_program_state,
@@ -29,6 +30,9 @@ from .public_recursive_acceptance_boundary import (
 from .public_recursive_discrepancy import (
     build_public_recursive_discrepancy_report,
     validate_public_recursive_discrepancy_report,
+)
+from .public_recursive_external_evidence import (
+    build_external_evidence_recursive_planner_program_state,
 )
 from .public_recursive_planning import (
     PublicRecursivePlanningError,
@@ -74,6 +78,7 @@ __all__ = [
     "authenticate_transition_bundle",
     "build_autonomous_inquiry_plan",
     "build_discrepancy_planning_handoff",
+    "build_external_evidence_recursive_planner_program_state",
     "build_external_evidence_waiting_program_state",
     "build_heat_recursive_planner_program_state",
     "build_heat_transition_verification_decision",
@@ -103,4 +108,5 @@ __all__ = [
     "validate_public_recursive_progression",
     "validate_validated_recursive_planning_checkpoint",
     "verify_heat_execution_handoff",
+    "verify_in625_execution_handoff",
 ]
