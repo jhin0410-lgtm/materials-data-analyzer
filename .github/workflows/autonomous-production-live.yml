@@ -14,6 +14,7 @@ on:
       - "configs/research/in625_tensile_observed_quality.v1.json"
       - "src/materials_data_analyzer/research_program_cli.py"
       - "src/materials_data_analyzer/research_loop/authenticated_request_compiler.py"
+      - "src/materials_data_analyzer/research_loop/authenticated_request_verifier.py"
       - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
       - "tests/test_autonomous_production_driver.py"
@@ -28,6 +29,7 @@ on:
       - "configs/research/in625_tensile_observed_quality.v1.json"
       - "src/materials_data_analyzer/research_program_cli.py"
       - "src/materials_data_analyzer/research_loop/authenticated_request_compiler.py"
+      - "src/materials_data_analyzer/research_loop/authenticated_request_verifier.py"
       - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
       - "tests/test_autonomous_production_driver.py"
@@ -89,6 +91,13 @@ jobs:
           assert manifest["row_exclusion_performed"] is False
           assert manifest["generated_next_action_class"] == (
               "reviewed_physical_comparability_assessment"
+          )
+          assert len(manifest["cycles"]) == 2
+          assert manifest["cycles"][0]["new_verified_information"] is True
+          assert manifest["cycles"][1]["new_verified_information"] is False
+          assert manifest["cycles"][1]["capability_available"] is False
+          assert manifest["cycles"][1]["stop_reason_code"] == (
+              "registered_capability_unavailable_for_current_next_action"
           )
           assert stop["reason_code"] == (
               "registered_capability_unavailable_for_current_next_action"
