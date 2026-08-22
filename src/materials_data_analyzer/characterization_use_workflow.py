@@ -15,16 +15,14 @@ from loaders.characterization_bundle import (
 )
 from loaders.characterization_features import sha256_file
 
-from .characterization_research_gap import (
-    build_characterization_research_evidence_gap,
-)
+from .characterization_research_gap import RESEARCH_EVIDENCE_GAP_NAME
 from .characterization_use_contract import (
     CharacterizationUseEligibility,
     require_characterization_use,
     write_characterization_use_eligibility,
 )
 
-RESEARCH_GAP_FILE_NAME = "characterization_research_evidence_gap.json"
+RESEARCH_GAP_FILE_NAME = RESEARCH_EVIDENCE_GAP_NAME
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -198,37 +196,6 @@ table.
 """
 
 
-def _research_gap_section(gap: dict[str, object]) -> str:
-    next_requirement = gap.get("next_requirement")
-    if isinstance(next_requirement, dict):
-        requirement_id = next_requirement.get("requirement_id")
-        category = next_requirement.get("category")
-        description = next_requirement.get("description")
-    else:
-        requirement_id = None
-        category = None
-        description = "No unresolved characterization ladder level remains."
-    return f"""
-
-## Autonomous Research Evidence Gap
-
-- Ladder present: `{str(gap['ladder_present']).lower()}`
-- Highest contiguous supported level: `{gap['highest_contiguous_supported_level']}`
-- First blocking level: `{gap['first_blocking_level']}`
-- Next requirement ID: `{requirement_id}`
-- Next requirement category: `{category}`
-- Gap SHA-256: `{gap['characterization_evidence_gap_sha256']}`
-- Scientific status promoted: `{str(gap['scientific_status_promoted']).lower()}`
-- Downstream use authorized: `{str(gap['downstream_use_authorized']).lower()}`
-
-{description}
-
-This artifact is a provenance-bound planning requirement, not scientific evidence.
-It cannot close the blocker, promote a characterization claim, or bypass the
-separate downstream-use and action-authorization boundaries.
-"""
-
-
 def _refresh_consumer_manifest_outputs(
     outputs: dict[str, Path],
     consumer_manifest: dict[str, object],
@@ -246,48 +213,6 @@ def _refresh_consumer_manifest_outputs(
         for name, filename in manifest_outputs.items()
     }
     _write_json(manifest_path, consumer_manifest)
-
-
-def _record_research_gap(
-    outputs: dict[str, Path],
-    producer_manifest_path: str | Path,
-) -> dict[str, Path]:
-    summary_path = outputs["cross_repository_summary"]
-    report_path = outputs["cross_repository_report"]
-    consumer_manifest_path = outputs["cross_repository_manifest"]
-    output_dir = summary_path.parent
-
-    bundle = validate_characterization_bundle(producer_manifest_path)
-    instruments = sorted(set(bundle.feature_table["instrument"].astype(str)))
-    gap = build_characterization_research_evidence_gap(
-        bundle_manifest_path=bundle.manifest_path,
-        instruments=instruments,
-        ladder=bundle.scientific_evidence_ladder,
-    )
-    gap_path = output_dir / RESEARCH_GAP_FILE_NAME
-    if gap_path.exists():
-        raise FileExistsError(f"Refusing to overwrite research-gap artifact: {gap_path}")
-    _write_json(gap_path, gap)
-    outputs["characterization_research_evidence_gap"] = gap_path
-
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    if not isinstance(summary, dict):
-        raise ValueError("cross-repository summary must contain a JSON object")
-    summary["autonomous_research_evidence_gap"] = gap
-    _write_json(summary_path, summary)
-
-    report = report_path.read_text(encoding="utf-8")
-    report_path.write_text(
-        report.rstrip() + _research_gap_section(gap),
-        encoding="utf-8",
-    )
-
-    consumer_manifest = json.loads(consumer_manifest_path.read_text(encoding="utf-8"))
-    if not isinstance(consumer_manifest, dict):
-        raise ValueError("cross-repository manifest must contain a JSON object")
-    consumer_manifest["autonomous_research_evidence_gap"] = gap
-    _refresh_consumer_manifest_outputs(outputs, consumer_manifest)
-    return outputs
 
 
 def _record_eligibility(
@@ -342,7 +267,7 @@ def consume_characterization_bundle_for_use(
     requested_use: str = "descriptive",
     split_group_field: str | None = None,
 ) -> dict[str, Path]:
-    """Gate use, consume evidence, and emit the autonomous next-evidence requirement."""
+    """Gate use, consume evidence, and preserve the core next-evidence requirement."""
     decision = require_characterization_use(
         manifest_path,
         requested_use=requested_use,
@@ -358,7 +283,6 @@ def consume_characterization_bundle_for_use(
         output_dir,
         process_table_path=process_table_path,
     )
-    outputs = _record_research_gap(outputs, manifest_path)
     return _record_eligibility(outputs, decision, split_group_binding)
 
 
