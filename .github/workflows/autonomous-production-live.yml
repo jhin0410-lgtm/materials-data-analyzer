@@ -3,7 +3,8 @@ name: Autonomous production live replay
 on:
   push:
     branches:
-      - feature/mission-level-autonomous-production-driver-214
+      - main
+      - feature/in625-reviewed-physical-comparability-216
     paths:
       - ".github/workflows/autonomous-production-live.yml"
       - "configs/research/autonomous_in625_production_mission.v1.json"
@@ -11,13 +12,21 @@ on:
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "configs/research/in625_external_evidence_action_registry.v1.json"
+      - "configs/research/in625_tensile_reviewed_intake.v1.json"
       - "configs/research/in625_tensile_observed_quality.v1.json"
+      - "configs/research/in625_external_physical_source_frontier.v1.json"
+      - "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
+      - "data/case_studies/nist_ambench_2018_02/README.md"
+      - "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
+      - "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
       - "src/materials_data_analyzer/research_program_cli.py"
       - "src/materials_data_analyzer/research_loop/authenticated_request_compiler.py"
       - "src/materials_data_analyzer/research_loop/authenticated_request_verifier.py"
       - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
+      - "src/materials_data_analyzer/research_loop/in625_physical_comparability_assessment.py"
       - "tests/test_autonomous_production_driver.py"
+      - "tests/test_in625_physical_comparability_assessment.py"
   pull_request:
     paths:
       - ".github/workflows/autonomous-production-live.yml"
@@ -26,13 +35,21 @@ on:
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "configs/research/in625_external_evidence_action_registry.v1.json"
+      - "configs/research/in625_tensile_reviewed_intake.v1.json"
       - "configs/research/in625_tensile_observed_quality.v1.json"
+      - "configs/research/in625_external_physical_source_frontier.v1.json"
+      - "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
+      - "data/case_studies/nist_ambench_2018_02/README.md"
+      - "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
+      - "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
       - "src/materials_data_analyzer/research_program_cli.py"
       - "src/materials_data_analyzer/research_loop/authenticated_request_compiler.py"
       - "src/materials_data_analyzer/research_loop/authenticated_request_verifier.py"
       - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
+      - "src/materials_data_analyzer/research_loop/in625_physical_comparability_assessment.py"
       - "tests/test_autonomous_production_driver.py"
+      - "tests/test_in625_physical_comparability_assessment.py"
   workflow_dispatch:
 
 permissions:
@@ -53,12 +70,16 @@ jobs:
       - name: Install repository development environment
         run: python -m pip install -e ".[dev]"
       - name: Run autonomous production adversarial tests
-        run: python -m pytest -q tests/test_autonomous_production_driver.py
+        run: >-
+          python -m pytest -q
+          tests/test_autonomous_production_driver.py
+          tests/test_in625_physical_comparability_assessment.py
       - name: Run literal public autonomous command against live Zenodo
         run: mda-research-program run-autonomous
       - name: Verify live autonomous production result
         shell: python
         run: |
+          import hashlib
           import json
           from pathlib import Path
 
@@ -67,7 +88,11 @@ jobs:
               (root / "autonomous-production-manifest.json").read_text(encoding="utf-8")
           )
           stop = json.loads((root / "bounded-stop.json").read_text(encoding="utf-8"))
+          assessment = json.loads(
+              (root / "physical-comparability-assessment.json").read_text(encoding="utf-8")
+          )
 
+          assert manifest["schema_version"] == "1.1"
           assert manifest["measurement_row_count"] == 200289
           assert manifest["parallel_test_block_count"] == 19
           assert manifest["complete_numeric_measurement_row_count"] == 200288
@@ -87,20 +112,91 @@ jobs:
           )
           assert manifest["caller_authored_request_queue_used"] is False
           assert manifest["machine_authored_typed_request_used"] is True
+          assert manifest["unrestricted_network_search_performed"] is False
+          assert manifest["arbitrary_command_execution_performed"] is False
+          assert manifest["numerical_cross_source_comparison_performed"] is False
           assert manifest["missing_value_imputation_performed"] is False
           assert manifest["row_exclusion_performed"] is False
+          assert manifest["direct_nist_condition_comparability_established"] is False
+          assert manifest["numerical_cross_source_validation_authorized"] is False
           assert manifest["generated_next_action_class"] == (
+              "nist_mds2_2923_geometry_evidence_acquisition"
+          )
+          assert manifest["preferred_geometry_candidate_id"] == (
+              "nist-mds2-2923-cross-sectional-micrographs"
+          )
+          assert manifest["comparability_decision_code"] == (
+              "direct_nist_numerical_validation_blocked_by_response_and_protocol_incompatibility"
+          )
+
+          assert len(manifest["cycles"]) == 3
+          cycle1, cycle2, cycle3 = manifest["cycles"]
+          assert cycle1["selected_action_class"] == "external_evidence_search"
+          assert cycle1["new_verified_information"] is True
+          assert cycle1["output_next_action_class"] == (
               "reviewed_physical_comparability_assessment"
           )
-          assert len(manifest["cycles"]) == 2
-          assert manifest["cycles"][0]["new_verified_information"] is True
-          assert manifest["cycles"][1]["new_verified_information"] is False
-          assert manifest["cycles"][1]["capability_available"] is False
-          assert manifest["cycles"][1]["stop_reason_code"] == (
+
+          assert cycle2["selected_action_class"] == (
+              "reviewed_physical_comparability_assessment"
+          )
+          assert cycle2["capability_available"] is True
+          assert cycle2["new_verified_information"] is True
+          assert cycle2["direct_nist_condition_comparability_established"] is False
+          assert cycle2["numerical_cross_source_validation_authorized"] is False
+          assert cycle2["output_next_action_class"] == (
+              "nist_mds2_2923_geometry_evidence_acquisition"
+          )
+
+          assert cycle3["selected_action_class"] == (
+              "nist_mds2_2923_geometry_evidence_acquisition"
+          )
+          assert cycle3["candidate_id"] == (
+              "nist-mds2-2923-cross-sectional-micrographs"
+          )
+          assert cycle3["capability_available"] is False
+          assert cycle3["new_verified_information"] is False
+          assert cycle3["stop_reason_code"] == (
               "registered_capability_unavailable_for_current_next_action"
           )
+
+          statuses = {
+              item["axis"]: item["status"]
+              for item in assessment["comparability_matrix"]
+          }
+          assert statuses["material_identity"] == "comparable"
+          assert statuses["specimen_and_material_state"] == "non_comparable"
+          assert statuses["response_semantics"] == "non_comparable"
+          assert statuses["measurement_protocol_metrology"] == "non_comparable"
+          assert statuses["replicate_independence"] == "unknown"
+          decision = assessment["gate_decision"]
+          assert decision["material_identity_established"] is True
+          assert decision["response_compatibility_established"] is False
+          assert decision["protocol_compatibility_established"] is False
+          assert decision["direct_nist_condition_comparability_established"] is False
+          assert decision["numerical_cross_source_validation_authorized"] is False
+          assert decision["source_globally_unusable_claimed"] is False
+          assert decision["source_remains_usable_for_mechanical_property_questions"] is True
+          assert assessment["next_action"]["candidate_id"] == (
+              "nist-mds2-2923-cross-sectional-micrographs"
+          )
+          assert assessment["next_action"]["identifier"] == "10.18434/mds2-2923"
+          assert assessment["next_action"]["network_access_performed"] is False
+          assert assessment["next_action"]["automatic_execution_authorized"] is False
+          assert assessment["scientific_boundary"][
+              "numerical_cross_source_comparison_performed"
+          ] is False
+
+          for binding in assessment["evidence_bindings"].values():
+              path = Path(binding["path"])
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == binding["sha256"]
+              assert path.stat().st_size == binding["bytes"]
+
           assert stop["reason_code"] == (
               "registered_capability_unavailable_for_current_next_action"
+          )
+          assert stop["requested_action_class"] == (
+              "nist_mds2_2923_geometry_evidence_acquisition"
           )
           assert stop["global_evidence_unavailability_claimed"] is False
           assert stop["positive_scientific_closeout"] is False
@@ -124,5 +220,6 @@ jobs:
             outputs/autonomous-in625-production/typed-execution-result.json
             outputs/autonomous-in625-production/typed-research-state.json
             outputs/autonomous-in625-production/quality-aware-rediagnosis.json
+            outputs/autonomous-in625-production/physical-comparability-assessment.json
           if-no-files-found: warn
           retention-days: 14

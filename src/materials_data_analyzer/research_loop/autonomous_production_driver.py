@@ -1,11 +1,11 @@
 """Mission-level autonomous production driver over finite audited research capabilities.
 
-The first production profile is deliberately narrow: it advances the exact IN625 Zenodo
-20503603 external-evidence gap through standing-policy network acquisition, machine-authored
-typed registration, row-preserving tensile intake, observed-quality verification, and
-quality-aware re-diagnosis.  The driver never executes arbitrary code or URLs and stops
-boundedly when the re-diagnosed next action has no audited handler in the current capability
-set.
+The production profile advances the exact IN625 Zenodo 20503603 external-evidence gap
+through standing-policy acquisition, machine-authored typed registration, row-preserving
+tensile intake, observed-quality verification, quality-aware re-diagnosis, and a reviewed
+physical-comparability gate.  The driver never executes arbitrary code or URLs and stops
+boundedly when the newly generated next action has no audited handler in the current finite
+capability set.
 """
 from __future__ import annotations
 
@@ -26,6 +26,11 @@ from .in625_archive_network_acquisition import (
 )
 from .in625_execution_verifier import verify_in625_execution_handoff
 from .in625_network_policy import authenticate_in625_network_policy
+from .in625_physical_comparability_assessment import (
+    ACTION_CLASS as IN625_COMPARABILITY_ACTION,
+    NEXT_ACTION_CLASS as IN625_GEOMETRY_ACQUISITION_ACTION,
+    build_in625_physical_comparability_assessment,
+)
 from .in625_post_acquisition_rediagnosis_v2 import (
     build_in625_post_acquisition_rediagnosis_v2,
 )
@@ -39,18 +44,20 @@ from .kernel import ResearchLoopError, initialize_research_loop, load_research_s
 from .planning_adapter import plan_research_next_action
 from .research_program import build_research_program
 
-AUTONOMOUS_PRODUCTION_SCHEMA_VERSION = "1.0"
-AUTONOMOUS_PRODUCTION_POLICY_VERSION = "1.0"
+AUTONOMOUS_PRODUCTION_SCHEMA_VERSION = "1.1"
+AUTONOMOUS_PRODUCTION_POLICY_VERSION = "1.1"
 IN625_PROFILE_ID = "in625_zenodo_20503603_first_real_closed_loop"
 IN625_EXECUTION_ADAPTER = "in625-external-evidence"
 IN625_NETWORK_POLICY_ID = "in625-zenodo-20503603-network-acquisition-v1"
 IN625_DELEGATION_POLICY_ID = "in625-external-evidence-request-delegation-v1"
 IN625_INITIAL_ACTION = "external_evidence_search"
-IN625_SUCCESSOR_ACTION = "reviewed_physical_comparability_assessment"
+IN625_SUCCESSOR_ACTION = IN625_COMPARABILITY_ACTION
+IN625_TERTIARY_ACTION = IN625_GEOMETRY_ACQUISITION_ACTION
 
 # Finite audited handler map.  A missing entry is a bounded stop, never dynamic execution.
 _PRODUCTION_CAPABILITIES = {
     IN625_INITIAL_ACTION: "in625_zenodo_20503603_acquire_register_review",
+    IN625_SUCCESSOR_ACTION: "in625_reviewed_physical_comparability_gate",
 }
 
 
@@ -106,9 +113,13 @@ def _repo_file(root: Path, relative: str) -> Path:
     try:
         path.relative_to(root)
     except ValueError as exc:
-        raise AutonomousProductionDriverError(f"production configuration escapes repository: {relative}") from exc
+        raise AutonomousProductionDriverError(
+            f"production configuration escapes repository: {relative}"
+        ) from exc
     if not path.is_file():
-        raise AutonomousProductionDriverError(f"production configuration is not a file: {relative}")
+        raise AutonomousProductionDriverError(
+            f"production configuration is not a file: {relative}"
+        )
     return path
 
 
@@ -121,10 +132,13 @@ def _repo_output(root: Path, output: Path) -> Path:
         path.relative_to(root)
     except ValueError as exc:
         raise AutonomousProductionDriverError(
-            "autonomous production output must remain inside repository_root so machine-authored request inputs stay repository-bound"
+            "autonomous production output must remain inside repository_root so "
+            "machine-authored request inputs stay repository-bound"
         ) from exc
     if path.exists() and any(path.iterdir()):
-        raise AutonomousProductionDriverError("autonomous production output must be absent or empty")
+        raise AutonomousProductionDriverError(
+            "autonomous production output must be absent or empty"
+        )
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -139,7 +153,9 @@ def _exact_zenodo_get(url: str, *, timeout: int = 60) -> bytes:
         or parsed.port not in (None, 443)
         or parsed.fragment
     ):
-        raise AutonomousProductionDriverError(f"network target left exact Zenodo HTTPS authority: {url}")
+        raise AutonomousProductionDriverError(
+            f"network target left exact Zenodo HTTPS authority: {url}"
+        )
     request = urllib.request.Request(
         url,
         headers={"User-Agent": "materials-data-analyzer/autonomous-in625-production"},
@@ -147,7 +163,9 @@ def _exact_zenodo_get(url: str, *, timeout: int = 60) -> bytes:
     try:
         response = urllib.request.urlopen(request, timeout=timeout)
     except Exception as exc:  # operational failure; never scientific counterevidence
-        raise AutonomousProductionDriverError(f"exact Zenodo network request failed operationally: {exc}") from exc
+        raise AutonomousProductionDriverError(
+            f"exact Zenodo network request failed operationally: {exc}"
+        ) from exc
     with response:
         final_url = response.geturl()
         final = urllib.parse.urlparse(final_url)
@@ -171,17 +189,27 @@ def _mission_metadata(program: Mapping[str, Any]) -> Mapping[str, Any]:
         raise AutonomousProductionDriverError("research program omitted normalized mission")
     metadata = mission.get("metadata")
     if not isinstance(metadata, Mapping):
-        raise AutonomousProductionDriverError("autonomous production mission requires metadata")
+        raise AutonomousProductionDriverError(
+            "autonomous production mission requires metadata"
+        )
     if metadata.get("production_profile") != IN625_PROFILE_ID:
-        raise AutonomousProductionDriverError("unsupported autonomous production mission profile")
+        raise AutonomousProductionDriverError(
+            "unsupported autonomous production mission profile"
+        )
     if metadata.get("execution_adapter") != IN625_EXECUTION_ADAPTER:
         raise AutonomousProductionDriverError("mission execution adapter drifted")
     if metadata.get("initial_expected_action_class") != IN625_INITIAL_ACTION:
-        raise AutonomousProductionDriverError("mission initial expected action drifted")
+        raise AutonomousProductionDriverError(
+            "mission initial expected action drifted"
+        )
     if metadata.get("post_acquisition_expected_action_class") != IN625_SUCCESSOR_ACTION:
-        raise AutonomousProductionDriverError("mission successor expected action drifted")
+        raise AutonomousProductionDriverError(
+            "mission successor expected action drifted"
+        )
     if metadata.get("scientific_closeout_expected_in_first_profile") is not False:
-        raise AutonomousProductionDriverError("first autonomous production profile may not expect scientific closeout")
+        raise AutonomousProductionDriverError(
+            "first autonomous production profile may not expect scientific closeout"
+        )
     return metadata
 
 
@@ -193,8 +221,9 @@ def _objective(output_root: Path) -> Path:
             "schema_version": "1.0",
             "research_id": "autonomous-production-in625-20503603",
             "question": (
-                "Can the exact mission-authorized Zenodo 20503603 IN625 source be autonomously acquired, "
-                "typed-registered, quality-reviewed, and re-diagnosed without scientific over-promotion?"
+                "Can exact external IN625 evidence be autonomously acquired, typed-registered, "
+                "quality-reviewed, physically compared to the tracked NIST target, and routed "
+                "toward the next response-compatible evidence class without scientific over-promotion?"
             ),
             "metrics": {
                 "primary": "verified_external_empirical_evidence_state",
@@ -202,6 +231,7 @@ def _objective(output_root: Path) -> Path:
                     "source_byte_provenance",
                     "reviewed_row_level_measurement_availability",
                     "observed_source_quality",
+                    "physical_comparability_classification",
                     "bounded_successor_action_generation",
                 ],
             },
@@ -209,11 +239,12 @@ def _objective(output_root: Path) -> Path:
                 "No caller-authored typed execution request queue",
                 "No unrestricted network/provider/action authority",
                 "No missing-value imputation or silent row exclusion",
-                "No direct NIST comparability, empirical model validation, hypothesis truth, or positive scientific closeout claim",
+                "No numerical comparison across incompatible response or protocol semantics",
+                "No empirical model validation, hypothesis truth, or positive scientific closeout claim",
             ],
-            "budget": {"maximum_actions": 2, "maximum_cost_units": 4},
+            "budget": {"maximum_actions": 3, "maximum_cost_units": 4},
             "stop_rules": [
-                "Stop when the re-diagnosed next action is not implemented in the exact finite production capability set",
+                "Stop when the newly generated next action is not implemented in the exact finite production capability set",
                 "Stop on any authority/provenance/checksum/verifier binding mismatch",
             ],
         },
@@ -244,19 +275,33 @@ def _extract_reviewed_tensile(
         repository_root,
         "configs/research/in625_tensile_reviewed_intake.v1.json",
     )
-    tensile_policy = _read_json(tensile_policy_path, "IN625 tensile reviewed policy")
-    workbook_member = PurePosixPath(tensile_policy["workbook"]["archive_member_path"])
-    readme_member = PurePosixPath(tensile_policy["documentation"]["archive_member_path"])
+    tensile_policy = _read_json(
+        tensile_policy_path,
+        "IN625 tensile reviewed policy",
+    )
+    workbook_member = PurePosixPath(
+        tensile_policy["workbook"]["archive_member_path"]
+    )
+    readme_member = PurePosixPath(
+        tensile_policy["documentation"]["archive_member_path"]
+    )
     workbook_path = selected_root.joinpath(*workbook_member.parts)
     tensile_readme_path = selected_root.joinpath(*readme_member.parts)
-    _require(workbook_path.is_file(), "verified archive intake did not expose tensile workbook")
-    _require(tensile_readme_path.is_file(), "verified archive intake did not expose tensile README")
+    _require(
+        workbook_path.is_file(),
+        "verified archive intake did not expose tensile workbook",
+    )
+    _require(
+        tensile_readme_path.is_file(),
+        "verified archive intake did not expose tensile README",
+    )
     _require(
         _sha256_file(workbook_path) == tensile_policy["workbook"]["sha256"],
         "extracted tensile workbook differs from reviewed policy",
     )
     _require(
-        _sha256_file(tensile_readme_path) == tensile_policy["documentation"]["sha256"],
+        _sha256_file(tensile_readme_path)
+        == tensile_policy["documentation"]["sha256"],
         "extracted tensile README differs from reviewed policy",
     )
     manifest = build_reviewed_in625_tensile_intake_v2(
@@ -265,22 +310,35 @@ def _extract_reviewed_tensile(
         policy_path=tensile_policy_path,
         output_dir=output_root / "reviewed-tensile",
     )
-    _require(manifest["measurement_row_count"] == 200289, "real tensile row count drifted")
-    _require(manifest["parallel_test_block_count"] == 19, "real tensile block count drifted")
-    _require(manifest["reviewed_semantics"]["missing_values_imputed"] is False, "source missingness was imputed")
+    _require(
+        manifest["measurement_row_count"] == 200289,
+        "real tensile row count drifted",
+    )
+    _require(
+        manifest["parallel_test_block_count"] == 19,
+        "real tensile block count drifted",
+    )
+    _require(
+        manifest["reviewed_semantics"]["missing_values_imputed"] is False,
+        "source missingness was imputed",
+    )
     return manifest
 
 
-def _bounded_successor_stop(rediagnosis: Mapping[str, Any]) -> dict[str, Any]:
-    next_action = rediagnosis.get("next_action")
+def _bounded_successor_stop(state: Mapping[str, Any]) -> dict[str, Any]:
+    next_action = state.get("next_action")
     if not isinstance(next_action, Mapping):
-        raise AutonomousProductionDriverError("quality-aware re-diagnosis omitted next_action")
+        raise AutonomousProductionDriverError(
+            "autonomous research state omitted next_action"
+        )
     action_class = next_action.get("action_class")
     if not isinstance(action_class, str) or not action_class:
-        raise AutonomousProductionDriverError("quality-aware re-diagnosis next action is malformed")
+        raise AutonomousProductionDriverError(
+            "autonomous research state next action is malformed"
+        )
     if action_class in _PRODUCTION_CAPABILITIES:
         raise AutonomousProductionDriverError(
-            "current first-profile driver reached an implemented successor unexpectedly; another cycle handler is required"
+            "bounded-stop helper received an action with an implemented production capability"
         )
     return {
         "status": "stopped",
@@ -295,23 +353,47 @@ def _bounded_successor_stop(rediagnosis: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _maximum_cycle_stop(next_action_class: object) -> dict[str, Any]:
+    if not isinstance(next_action_class, str) or not next_action_class:
+        raise AutonomousProductionDriverError(
+            "maximum-cycle stop requires a concrete next action class"
+        )
+    return {
+        "status": "stopped",
+        "reason_code": "maximum_cycles_reached",
+        "requested_action_class": next_action_class,
+        "global_evidence_unavailability_claimed": False,
+        "positive_scientific_closeout": False,
+        "scientific_status_changed": False,
+    }
+
+
 def run_autonomous_production(
     *,
     repository_root: str | Path,
     mission_path: str | Path,
     expected_mission_sha256: str,
     output_root: str | Path,
-    max_cycles: int = 2,
+    max_cycles: int = 3,
 ) -> dict[str, Any]:
-    """Run the first real one-command autonomous materials-research production profile."""
-    if isinstance(max_cycles, bool) or not isinstance(max_cycles, int) or max_cycles < 1 or max_cycles > 8:
-        raise AutonomousProductionDriverError("max_cycles must be an integer from 1 to 8")
+    """Run the real one-command autonomous IN625 materials-research production profile."""
+    if (
+        isinstance(max_cycles, bool)
+        or not isinstance(max_cycles, int)
+        or max_cycles < 1
+        or max_cycles > 8
+    ):
+        raise AutonomousProductionDriverError(
+            "max_cycles must be an integer from 1 to 8"
+        )
     root = Path(repository_root).expanduser().resolve(strict=True)
     mission = Path(mission_path).expanduser().resolve(strict=True)
     try:
         mission.relative_to(root)
     except ValueError as exc:
-        raise AutonomousProductionDriverError("mission_path must remain inside repository_root") from exc
+        raise AutonomousProductionDriverError(
+            "mission_path must remain inside repository_root"
+        ) from exc
     observed_mission_sha = _sha256_file(mission)
     _require(
         observed_mission_sha == expected_mission_sha256,
@@ -324,16 +406,20 @@ def run_autonomous_production(
     _write_json(output / "initial-research-program.json", program)
 
     source_config_path = _repo_file(
-        root, "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+        root,
+        "configs/research/in625_zenodo_20503603_verified_source.v1.json",
     )
     network_policy_path = _repo_file(
-        root, "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
+        root,
+        "configs/research/in625_zenodo_network_acquisition_policy.v1.json",
     )
     delegation_policy_path = _repo_file(
-        root, "configs/research/in625_external_evidence_request_delegation_policy.v1.json"
+        root,
+        "configs/research/in625_external_evidence_request_delegation_policy.v1.json",
     )
     registry_path = _repo_file(
-        root, "configs/research/in625_external_evidence_action_registry.v1.json"
+        root,
+        "configs/research/in625_external_evidence_action_registry.v1.json",
     )
 
     network_policy = authenticate_in625_network_policy(
@@ -343,24 +429,41 @@ def run_autonomous_production(
         policy_path=network_policy_path,
         source_config_path=source_config_path,
     )
-    _write_json(output / "standing-network-policy-qualification.json", network_policy)
+    _write_json(
+        output / "standing-network-policy-qualification.json",
+        network_policy,
+    )
 
     cycle_records: list[dict[str, Any]] = []
-    if max_cycles < 1:
-        raise AutonomousProductionDriverError("at least one cycle is required")
 
     # Cycle 1: current verified gap -> exact standing-policy acquisition -> typed registration.
     config_bytes = source_config_path.read_bytes()
-    source_config = _read_json(source_config_path, "IN625 verified source config")
+    source_config = _read_json(
+        source_config_path,
+        "IN625 verified source config",
+    )
     record_url = network_policy["record_api_url"]
     metadata_bytes = _exact_zenodo_get(record_url)
-    metadata_json = json.loads(metadata_bytes.decode("utf-8"))
+    try:
+        metadata_json = json.loads(metadata_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AutonomousProductionDriverError(
+            "Zenodo record response must be valid UTF-8 JSON"
+        ) from exc
     if not isinstance(metadata_json, dict):
-        raise AutonomousProductionDriverError("Zenodo record response root is not an object")
-    files = {item["key"]: item for item in metadata_json.get("files", []) if isinstance(item, Mapping) and isinstance(item.get("key"), str)}
+        raise AutonomousProductionDriverError(
+            "Zenodo record response root is not an object"
+        )
+    files = {
+        item["key"]: item
+        for item in metadata_json.get("files", [])
+        if isinstance(item, Mapping) and isinstance(item.get("key"), str)
+    }
     readme_name = source_config["zenodo"]["readme_file"]
     if readme_name not in files:
-        raise AutonomousProductionDriverError("live Zenodo record lost exact configured README")
+        raise AutonomousProductionDriverError(
+            "live Zenodo record lost exact configured README"
+        )
     readme_url = files[readme_name].get("links", {}).get("self")
     if not isinstance(readme_url, str):
         raise AutonomousProductionDriverError("live Zenodo README link is missing")
@@ -380,7 +483,10 @@ def run_autonomous_production(
         metadata_bytes=metadata_bytes,
         readme_bytes=readme_bytes,
     )
-    _require(network_authorization["network_access_performed"] is False, "archive authorization claimed prior network execution")
+    _require(
+        network_authorization["network_access_performed"] is False,
+        "archive authorization claimed prior network execution",
+    )
     _write_json(output / "network-authorization.json", network_authorization)
 
     archive_name = source_config["zenodo"]["archive_file"]
@@ -394,7 +500,8 @@ def run_autonomous_production(
         output_path=archive_path,
     )
     _require(
-        network_receipt["archive"]["sha256"] == source_config["zenodo"]["files"][archive_name]["verified_sha256"],
+        network_receipt["archive"]["sha256"]
+        == source_config["zenodo"]["files"][archive_name]["verified_sha256"],
         "downloaded archive differs from repository-pinned SHA-256",
     )
     _write_json(output / "network-acquisition-receipt.json", network_receipt)
@@ -405,7 +512,10 @@ def run_autonomous_production(
         archive_path=archive_path,
         source_config=source_config,
     )
-    quality_contract_path = _repo_file(root, "configs/research/in625_tensile_observed_quality.v1.json")
+    quality_contract_path = _repo_file(
+        root,
+        "configs/research/in625_tensile_observed_quality.v1.json",
+    )
     quality = verify_in625_tensile_observed_quality(
         reviewed_tensile_manifest=tensile_manifest,
         quality_contract_path=quality_contract_path,
@@ -421,9 +531,16 @@ def run_autonomous_production(
         research_run=research_run,
         action_registry_path=registry_path,
     )
-    _require(planning["selection_status"] == "ready_to_execute", "cycle-1 planner did not select external evidence action")
+    _require(
+        planning["selection_status"] == "ready_to_execute",
+        "cycle-1 planner did not select external evidence action",
+    )
     selected = planning.get("selected_action")
-    _require(isinstance(selected, Mapping) and selected.get("action_type") == IN625_INITIAL_ACTION, "cycle-1 planner selected unexpected action")
+    _require(
+        isinstance(selected, Mapping)
+        and selected.get("action_type") == IN625_INITIAL_ACTION,
+        "cycle-1 planner selected unexpected action",
+    )
     _write_json(output / "cycle-1-planning.json", planning)
 
     compiled = compile_authenticated_machine_request(
@@ -436,10 +553,16 @@ def run_autonomous_production(
         research_run=research_run,
         planning_registry_path=registry_path,
         output_dir=output / "machine-authored-request",
-        action_inputs={"source_config": source_config_path, "archive_path": archive_path},
+        action_inputs={
+            "source_config": source_config_path,
+            "archive_path": archive_path,
+        },
     )
     request_path = Path(compiled["request_binding"]["path"]).resolve(strict=True)
-    _require(compiled["authority_boundary"]["network_access_authorized"] is False, "machine request compiler improperly gained network authority")
+    _require(
+        compiled["authority_boundary"]["network_access_authorized"] is False,
+        "machine request compiler improperly gained network authority",
+    )
     _write_json(output / "machine-request-compilation.json", compiled)
 
     handoff = verify_in625_execution_handoff(
@@ -474,8 +597,13 @@ def run_autonomous_production(
     )
     _write_json(output / "quality-aware-rediagnosis.json", rediagnosis)
     _require(
-        rediagnosis["current_blocker"]["code"] == "cross_source_physical_comparability_not_established",
+        rediagnosis["current_blocker"]["code"]
+        == "cross_source_physical_comparability_not_established",
         "cycle-1 re-diagnosis did not advance to physical comparability blocker",
+    )
+    _require(
+        rediagnosis["next_action"]["action_class"] == IN625_SUCCESSOR_ACTION,
+        "cycle-1 re-diagnosis generated an unexpected successor action",
     )
     cycle1 = {
         "cycle_index": 1,
@@ -500,37 +628,105 @@ def run_autonomous_production(
     cycle1["cycle_sha256"] = _canonical_sha(cycle1)
     cycle_records.append(cycle1)
 
-    # Cycle 2: generated from the cycle-1 re-diagnosis, not a caller-authored request queue.
+    comparability: dict[str, Any] | None = None
     if max_cycles < 2:
-        stop = {
-            "status": "stopped",
-            "reason_code": "maximum_cycles_reached",
-            "requested_action_class": rediagnosis["next_action"]["action_class"],
-            "global_evidence_unavailability_claimed": False,
-            "positive_scientific_closeout": False,
-            "scientific_status_changed": False,
-        }
+        stop = _maximum_cycle_stop(rediagnosis["next_action"]["action_class"])
     else:
-        stop = _bounded_successor_stop(rediagnosis)
+        # Cycle 2: execute the generated reviewed comparability action without network/model authority.
+        _require(
+            IN625_SUCCESSOR_ACTION in _PRODUCTION_CAPABILITIES,
+            "reviewed physical comparability capability is not registered",
+        )
+        comparability = build_in625_physical_comparability_assessment(
+            repository_root=root,
+            post_acquisition_rediagnosis=rediagnosis,
+            observed_quality_verification=quality,
+        )
+        _write_json(
+            output / "physical-comparability-assessment.json",
+            comparability,
+        )
+        decision = comparability["gate_decision"]
+        _require(
+            decision["direct_nist_condition_comparability_established"] is False,
+            "comparability gate improperly established direct NIST comparability",
+        )
+        _require(
+            decision["numerical_cross_source_validation_authorized"] is False,
+            "comparability gate improperly authorized numerical validation",
+        )
+        _require(
+            comparability["scientific_boundary"][
+                "numerical_cross_source_comparison_performed"
+            ]
+            is False,
+            "comparability gate performed prohibited numerical comparison",
+        )
+        _require(
+            comparability["next_action"]["action_class"]
+            == IN625_TERTIARY_ACTION,
+            "comparability gate generated an unexpected geometry evidence action",
+        )
         cycle2 = {
             "cycle_index": 2,
             "predecessor_cycle_sha256": cycle1["cycle_sha256"],
             "input_blocker": rediagnosis["current_blocker"]["code"],
-            "selected_action_class": rediagnosis["next_action"]["action_class"],
-            "capability_available": rediagnosis["next_action"]["action_class"] in _PRODUCTION_CAPABILITIES,
-            "stop_reason_code": stop["reason_code"],
-            "global_evidence_unavailability_claimed": False,
-            "new_verified_information": False,
+            "selected_action_class": IN625_SUCCESSOR_ACTION,
+            "handler": _PRODUCTION_CAPABILITIES[IN625_SUCCESSOR_ACTION],
+            "capability_available": True,
+            "comparability_assessment_sha256": comparability["assessment_sha256"],
+            "direct_nist_condition_comparability_established": False,
+            "numerical_cross_source_validation_authorized": False,
+            "output_blocker": "response_compatible_geometry_evidence_not_acquired",
+            "output_next_action_class": comparability["next_action"]["action_class"],
+            "new_verified_information": True,
             "scientific_status_changed": False,
         }
         cycle2["cycle_sha256"] = _canonical_sha(cycle2)
         cycle_records.append(cycle2)
 
+        if max_cycles < 3:
+            stop = _maximum_cycle_stop(comparability["next_action"]["action_class"])
+        else:
+            # Cycle 3: the gate generated an exact geometry-evidence acquisition action.
+            # No handler is registered yet, so stop at the new finite capability frontier.
+            stop = _bounded_successor_stop(comparability)
+            cycle3 = {
+                "cycle_index": 3,
+                "predecessor_cycle_sha256": cycle2["cycle_sha256"],
+                "input_blocker": "response_compatible_geometry_evidence_not_acquired",
+                "selected_action_class": comparability["next_action"]["action_class"],
+                "candidate_id": comparability["next_action"]["candidate_id"],
+                "capability_available": (
+                    comparability["next_action"]["action_class"]
+                    in _PRODUCTION_CAPABILITIES
+                ),
+                "stop_reason_code": stop["reason_code"],
+                "global_evidence_unavailability_claimed": False,
+                "new_verified_information": False,
+                "scientific_status_changed": False,
+            }
+            cycle3["cycle_sha256"] = _canonical_sha(cycle3)
+            cycle_records.append(cycle3)
+
     _write_json(output / "bounded-stop.json", stop)
     archive_sha = network_receipt["archive"]["sha256"]
     archive_path.unlink(missing_ok=True)
-    _require(not archive_path.exists(), "full external archive was not removed after verified execution")
+    _require(
+        not archive_path.exists(),
+        "full external archive was not removed after verified execution",
+    )
 
+    final_blocker = (
+        "response_compatible_geometry_evidence_not_acquired"
+        if comparability is not None
+        else rediagnosis["current_blocker"]["code"]
+    )
+    generated_next_action_class = (
+        comparability["next_action"]["action_class"]
+        if comparability is not None
+        else rediagnosis["next_action"]["action_class"]
+    )
     manifest: dict[str, Any] = {
         "schema_version": AUTONOMOUS_PRODUCTION_SCHEMA_VERSION,
         "policy_version": AUTONOMOUS_PRODUCTION_POLICY_VERSION,
@@ -542,19 +738,40 @@ def run_autonomous_production(
         "real_external_archive_sha256": archive_sha,
         "measurement_row_count": quality["measurement_row_count"],
         "parallel_test_block_count": tensile_manifest["parallel_test_block_count"],
-        "complete_numeric_measurement_row_count": quality["complete_numeric_measurement_row_count"],
-        "incomplete_numeric_measurement_row_count": quality["incomplete_numeric_measurement_row_count"],
+        "complete_numeric_measurement_row_count": quality[
+            "complete_numeric_measurement_row_count"
+        ],
+        "incomplete_numeric_measurement_row_count": quality[
+            "incomplete_numeric_measurement_row_count"
+        ],
         "known_incomplete_rows": quality["known_incomplete_rows"],
-        "typed_registered_outcome": execution_with_request["verified_report"]["registered_outcome"],
-        "final_blocker": rediagnosis["current_blocker"]["code"],
-        "generated_next_action_class": rediagnosis["next_action"]["action_class"],
+        "typed_registered_outcome": execution_with_request["verified_report"][
+            "registered_outcome"
+        ],
+        "comparability_assessment_sha256": (
+            comparability["assessment_sha256"] if comparability is not None else None
+        ),
+        "comparability_decision_code": (
+            comparability["gate_decision"]["decision_code"]
+            if comparability is not None
+            else None
+        ),
+        "preferred_geometry_candidate_id": (
+            comparability["next_action"]["candidate_id"]
+            if comparability is not None
+            else None
+        ),
+        "final_blocker": final_blocker,
+        "generated_next_action_class": generated_next_action_class,
         "caller_authored_request_queue_used": False,
         "machine_authored_typed_request_used": True,
         "unrestricted_network_search_performed": False,
         "arbitrary_command_execution_performed": False,
+        "numerical_cross_source_comparison_performed": False,
         "missing_value_imputation_performed": False,
         "row_exclusion_performed": False,
         "direct_nist_condition_comparability_established": False,
+        "numerical_cross_source_validation_authorized": False,
         "empirical_model_validation_established": False,
         "hypothesis_truth_established": False,
         "positive_scientific_closeout_established": False,
