@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "source_id": "zenodo-20503603-in625-lpbf-publication-supplement",
+  "source_archive_sha256": "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907",
+  "workbook_sha256": "c889e4e6cd1b86d6efb603f53ce9eda64137f6898b3e6f2b490c70a0db73140c",
+  "reviewed_intake_schema_version": "2.0",
+  "observed_live_acceptance_run": 32577566275,
+  "measurement_row_count": 200289,
+  "complete_numeric_measurement_row_count": 200288,
+  "incomplete_numeric_measurement_row_count": 1,
+  "reviewed_numeric_field_quality_counts": {
+    "time_s": {
+      "numeric": 200289,
+      "blank": 0,
+      "non_numeric": 0
+    },
+    "extension_mm": {
+      "numeric": 200289,
+      "blank": 0,
+      "non_numeric": 0
+    },
+    "strain_percent": {
+      "numeric": 200289,
+      "blank": 0,
+      "non_numeric": 0
+    },
+    "load_n": {
+      "numeric": 200288,
+      "blank": 1,
+      "non_numeric": 0
+    },
+    "tensile_stress_mpa": {
+      "numeric": 200289,
+      "blank": 0,
+      "non_numeric": 0
+    },
+    "tensile_extension_mm": {
+      "numeric": 200289,
+      "blank": 0,
+      "non_numeric": 0
+    }
+  },
+  "sheet_quality": {
+    "CM": {
+      "parallel_test_block_count": 2,
+      "measurement_row_count": 17988,
+      "complete_numeric_row_count": 17988,
+      "incomplete_numeric_row_count": 0
+    },
+    "AM-AB-H": {
+      "parallel_test_block_count": 3,
+      "measurement_row_count": 33485,
+      "complete_numeric_row_count": 33484,
+      "incomplete_numeric_row_count": 1
+    },
+    "AM-AB-V": {
+      "parallel_test_block_count": 2,
+      "measurement_row_count": 22796,
+      "complete_numeric_row_count": 22796,
+      "incomplete_numeric_row_count": 0
+    },
+    "AM-SR-H": {
+      "parallel_test_block_count": 3,
+      "measurement_row_count": 32920,
+      "complete_numeric_row_count": 32920,
+      "incomplete_numeric_row_count": 0
+    },
+    "AM-SR-V": {
+      "parallel_test_block_count": 3,
+      "measurement_row_count": 32107,
+      "complete_numeric_row_count": 32107,
+      "incomplete_numeric_row_count": 0
+    },
+    "AM-ST-H": {
+      "parallel_test_block_count": 3,
+      "measurement_row_count": 30756,
+      "complete_numeric_row_count": 30756,
+      "incomplete_numeric_row_count": 0
+    },
+    "AM-ST-V": {
+      "parallel_test_block_count": 3,
+      "measurement_row_count": 30237,
+      "complete_numeric_row_count": 30237,
+      "incomplete_numeric_row_count": 0
+    }
+  },
+  "known_incomplete_rows": [
+    {
+      "sheet_name": "AM-AB-H",
+      "block_index": 1,
+      "excel_row_number": 79,
+      "missing_reviewed_numeric_fields": [
+        "load_n"
+      ],
+      "non_numeric_reviewed_fields": [],
+      "raw_anomalous_cell_text": {
+        "load_n": ""
+      }
+    }
+  ],
+  "interpretation": {
+    "classification": "isolated_source_missingness_observation",
+    "missing_value_imputation_authorized": false,
+    "inverse_reconstruction_from_tensile_stress_authorized": false,
+    "row_exclusion_authorized": false,
+    "statistical_independence_established": false,
+    "direct_nist_condition_comparability_established": false,
+    "empirical_model_validation_established": false,
+    "hypothesis_truth_established": false,
+    "positive_scientific_closeout_established": false
+  }
+}
