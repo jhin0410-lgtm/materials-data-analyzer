@@ -9,6 +9,8 @@ import pytest
 
 from loaders.characterization_evidence_ladder import (
     CharacterizationEvidenceLadderError,
+    LADDER_HANDOFF_CONTRACT,
+    LADDER_RECORD_SCHEMA_VERSION,
     LEVELS,
     evaluate_scientific_evidence_ladder,
     replay_scientific_evidence_ladder_assessment,
@@ -55,7 +57,44 @@ def _assessment(
     )
 
 
-def _ladder_fixture(tmp_path: Path, *, supported_through: int = 4) -> tuple[Path, dict[str, Path], dict[str, object]]:
+def _producer_record(
+    assessment: dict[str, object],
+    ladder_path: Path,
+) -> dict[str, object]:
+    declaration = assessment["declaration"]
+    assert isinstance(declaration, dict)
+    handoff = assessment["handoff"]
+    assert isinstance(handoff, dict)
+    return {
+        "contract": LADDER_HANDOFF_CONTRACT,
+        "schema_version": LADDER_RECORD_SCHEMA_VERSION,
+        "policy_version": assessment["policy_version"],
+        "assessment": {
+            "path": ladder_path.name,
+            "sha256": _sha(ladder_path),
+            "size_bytes": ladder_path.stat().st_size,
+        },
+        "declaration_id": declaration["declaration_id"],
+        "declaration_sha256": assessment["declaration_sha256"],
+        "assessment_sha256": assessment["assessment_sha256"],
+        "subject": handoff["subject"],
+        "source_bindings": handoff["source_bindings"],
+        "highest_contiguous_supported_level": assessment[
+            "highest_contiguous_supported_level"
+        ],
+        "first_blocking_level": assessment["first_blocking_level"],
+        "readiness": assessment["readiness"],
+        "scientific_status_promoted": False,
+        "downstream_use_authorized": False,
+        "lower_level_evidence_preserved": True,
+    }
+
+
+def _ladder_fixture(
+    tmp_path: Path,
+    *,
+    supported_through: int = 4,
+) -> tuple[Path, dict[str, Path], dict[str, object]]:
     evidence_paths: dict[str, Path] = {}
     source = tmp_path / "source_manifest.json"
     analysis = tmp_path / "analysis_manifest.json"
@@ -82,23 +121,7 @@ def _ladder_fixture(tmp_path: Path, *, supported_through: int = 4) -> tuple[Path
         json.dumps(assessment, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    record = {
-        "path": ladder_path.name,
-        "sha256": _sha(ladder_path),
-        "size_bytes": ladder_path.stat().st_size,
-        "declaration_sha256": assessment["declaration_sha256"],
-        "assessment_sha256": assessment["assessment_sha256"],
-        "subject": assessment["declaration"]["subject"],
-        "source_bindings": assessment["declaration"]["source_bindings"],
-        "highest_contiguous_supported_level": assessment[
-            "highest_contiguous_supported_level"
-        ],
-        "first_blocking_level": assessment["first_blocking_level"],
-        "readiness": assessment["readiness"],
-        "scientific_status_promoted": False,
-        "downstream_use_authorized": False,
-    }
-    return ladder_path, evidence_paths, record
+    return ladder_path, evidence_paths, _producer_record(assessment, ladder_path)
 
 
 def test_independent_replay_matches_deterministic_assessment(tmp_path: Path) -> None:
@@ -119,7 +142,7 @@ def test_manifest_summary_substitution_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(
         CharacterizationEvidenceLadderError,
-        match="manifest summary mismatch",
+        match="manifest summary does not match independent replay",
     ):
         validate_bundle_scientific_evidence_ladder(
             bundle_root=tmp_path,
@@ -131,7 +154,7 @@ def test_manifest_summary_substitution_is_rejected(tmp_path: Path) -> None:
 
 
 def test_source_binding_substitution_is_rejected(tmp_path: Path) -> None:
-    ladder_path, evidence_paths, record = _ladder_fixture(tmp_path)
+    ladder_path, evidence_paths, _ = _ladder_fixture(tmp_path)
     persisted = json.loads(ladder_path.read_text(encoding="utf-8"))
     declaration = persisted["declaration"]
     stripped = {
@@ -155,25 +178,30 @@ def test_source_binding_substitution_is_rejected(tmp_path: Path) -> None:
         json.dumps(changed, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    record.update(
-        {
-            "sha256": _sha(ladder_path),
-            "size_bytes": ladder_path.stat().st_size,
-            "declaration_sha256": changed["declaration_sha256"],
-            "assessment_sha256": changed["assessment_sha256"],
-            "subject": changed["declaration"]["subject"],
-            "source_bindings": changed["declaration"]["source_bindings"],
-            "highest_contiguous_supported_level": changed[
-                "highest_contiguous_supported_level"
-            ],
-            "first_blocking_level": changed["first_blocking_level"],
-            "readiness": changed["readiness"],
-        }
-    )
+    record = _producer_record(changed, ladder_path)
 
     with pytest.raises(
         CharacterizationEvidenceLadderError,
         match="source binding mismatch",
+    ):
+        validate_bundle_scientific_evidence_ladder(
+            bundle_root=tmp_path,
+            record=record,
+            case_id="case-1",
+            evidence_paths=evidence_paths,
+            instruments=["raman"],
+        )
+
+
+def test_backslash_parent_path_is_rejected_portably(tmp_path: Path) -> None:
+    _, evidence_paths, record = _ladder_fixture(tmp_path)
+    assessment_record = record["assessment"]
+    assert isinstance(assessment_record, dict)
+    assessment_record["path"] = "..\\scientific_evidence_ladder_assessment.json"
+
+    with pytest.raises(
+        CharacterizationEvidenceLadderError,
+        match="direct safe sibling",
     ):
         validate_bundle_scientific_evidence_ladder(
             bundle_root=tmp_path,
