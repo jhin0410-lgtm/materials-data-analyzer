@@ -36,7 +36,7 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Run fail-closed source and archive tests
         run: python -m pytest -q tests/test_in625_zenodo_live_evidence.py
-      - name: Verify README, acquire archive, and extract bounded tabular evidence
+      - name: Verify README, acquire archive, and triage bounded numerical evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -47,9 +47,15 @@ jobs:
           import urllib.request
           from pathlib import Path
 
+          from materials_data_analyzer.research_loop.archive_tabular_triage import (
+              triage_verified_archive_tables,
+          )
           from materials_data_analyzer.research_loop.in625_zenodo_live_evidence import (
               build_verified_in625_zenodo_readme_manifest,
               inspect_verified_in625_dataset_archive,
+          )
+          from materials_data_analyzer.research_loop.safe_archive_inventory import (
+              inspect_zip_archive,
           )
 
           root = Path("outputs/in625-zenodo-live-evidence")
@@ -106,22 +112,50 @@ jobs:
               archive_path=archive_path,
               selected_output_dir=root / "selected-tabular",
           )
+          if archive_manifest["archive"]["sha256_previously_pinned"] is not True:
+              raise SystemExit("archive SHA-256 must be repository-pinned before numerical intake")
           (root / "archive-manifest.json").write_text(
               json.dumps(archive_manifest, indent=2, ensure_ascii=False) + "\n",
               encoding="utf-8",
           )
+
+          safe_inventory = inspect_zip_archive(archive_path)
+          if safe_inventory["archive_sha256"] != archive_manifest["archive"]["sha256"]:
+              raise SystemExit("independent safe inventory lost the pinned archive SHA-256")
+          (root / "safe-archive-inventory.json").write_text(
+              json.dumps(safe_inventory, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          text_triage = triage_verified_archive_tables(
+              archive_path,
+              safe_inventory,
+              max_members=128,
+              max_member_bytes=4 * 1024 * 1024,
+              max_total_bytes=32 * 1024 * 1024,
+          )
+          if text_triage["archive_sha256"] != archive_manifest["archive"]["sha256"]:
+              raise SystemExit("text triage lost the pinned archive SHA-256")
+          if text_triage["scientific_status_changed"] is not False:
+              raise SystemExit("structural triage may not promote scientific status")
+          (root / "text-tabular-triage.json").write_text(
+              json.dumps(text_triage, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+
           print(json.dumps({
               "record_id": readme_manifest["record_id"],
               "readme_sha256": readme_manifest["readme"]["sha256"],
               "archive_sha256": archive_manifest["archive"]["sha256"],
+              "archive_sha256_previously_pinned": archive_manifest["archive"]["sha256_previously_pinned"],
               "archive_member_count": archive_manifest["inventory_summary"]["member_count"],
-              "selected_tabular_count": archive_manifest["inventory_summary"]["selected_tabular_count"],
-              "selected_tabular_bytes": archive_manifest["inventory_summary"]["selected_tabular_bytes"],
+              "selected_numerical_candidate_count": archive_manifest["inventory_summary"]["selected_tabular_count"],
+              "selected_numerical_candidate_bytes": archive_manifest["inventory_summary"]["selected_tabular_bytes"],
+              "structural_text_tabular_candidate_count": text_triage["tabular_candidate_count"],
               "direct_nist_condition_comparability_established": archive_manifest["scientific_boundary"]["direct_nist_condition_comparability_established"],
           }, indent=2))
           archive_path.unlink()
           PY
-      - name: Upload verified provenance and bounded tabular evidence
+      - name: Upload verified provenance and bounded numerical evidence
         uses: actions/upload-artifact@v7
         with:
           name: in625-zenodo-live-evidence
@@ -130,6 +164,8 @@ jobs:
             outputs/in625-zenodo-live-evidence/README - Dataset description.txt
             outputs/in625-zenodo-live-evidence/readme-manifest.json
             outputs/in625-zenodo-live-evidence/archive-manifest.json
+            outputs/in625-zenodo-live-evidence/safe-archive-inventory.json
+            outputs/in625-zenodo-live-evidence/text-tabular-triage.json
             outputs/in625-zenodo-live-evidence/selected-tabular/
           if-no-files-found: error
           retention-days: 30
