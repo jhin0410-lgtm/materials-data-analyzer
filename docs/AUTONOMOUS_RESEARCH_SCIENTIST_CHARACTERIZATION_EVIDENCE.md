@@ -44,7 +44,9 @@ Only a contiguous chain of `Supported` levels counts as attained. A higher level
 
 Legacy schema-1.0 bundles do **not** get assigned an inferred level. They produce `characterization_evidence_maturity_assessment_required` instead.
 
-Every generated research-gap artifact carries its own canonical SHA-256 and the explicit marker `planning_requirement_not_scientific_evidence`.
+The normal `consume_characterization_bundle` / `mda-characterization-import` path persists `characterization_research_evidence_gap.json` for both forms. For schema 1.1 it binds the independently verified `first_blocking_level` to the next evidence requirement; for legacy schema 1.0 it records the missing maturity assessment as the next requirement. The gap is included in the consumer summary and checksum-bound consumer manifest so the recursive research layer receives the same planning artifact that was actually persisted.
+
+Every generated research-gap artifact carries its own canonical SHA-256 and the explicit marker `planning_requirement_not_scientific_evidence`. The writer revalidates that hash and the no-promotion/no-authorization flags and refuses to overwrite an existing gap artifact.
 
 ## Trust boundary
 
