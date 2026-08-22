@@ -31,6 +31,10 @@ from .in625_post_acquisition_rediagnosis import (
     build_in625_post_acquisition_rediagnosis,
     build_in625_post_acquisition_rediagnosis_from_files,
 )
+from .in625_post_acquisition_rediagnosis_v2 import (
+    build_in625_post_acquisition_rediagnosis_v2,
+)
+from .in625_tensile_quality_contract import verify_in625_tensile_observed_quality
 from .in625_tensile_reviewed_intake import (
     build_reviewed_in625_tensile_intake as build_strict_in625_tensile_intake,
 )
@@ -104,6 +108,7 @@ __all__ = [
     "build_in625_archive_network_authorization",
     "build_in625_post_acquisition_rediagnosis",
     "build_in625_post_acquisition_rediagnosis_from_files",
+    "build_in625_post_acquisition_rediagnosis_v2",
     "build_model_evidence_discrepancy_report",
     "build_public_candidate_match_record",
     "build_public_recursive_discrepancy_planning_handoff",
@@ -136,4 +141,5 @@ __all__ = [
     "validate_validated_recursive_planning_checkpoint",
     "verify_heat_execution_handoff",
     "verify_in625_execution_handoff",
+    "verify_in625_tensile_observed_quality",
 ]
