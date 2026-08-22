@@ -8,13 +8,17 @@ on:
       - ".github/workflows/in625-zenodo-live-evidence.yml"
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
+      - "src/materials_data_analyzer/research_loop/binary_workbook_structural_intake.py"
       - "tests/test_in625_zenodo_live_evidence.py"
+      - "tests/test_binary_workbook_structural_intake.py"
   pull_request:
     paths:
       - ".github/workflows/in625-zenodo-live-evidence.yml"
       - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
+      - "src/materials_data_analyzer/research_loop/binary_workbook_structural_intake.py"
       - "tests/test_in625_zenodo_live_evidence.py"
+      - "tests/test_binary_workbook_structural_intake.py"
   workflow_dispatch:
 
 permissions:
@@ -34,8 +38,11 @@ jobs:
           cache: pip
       - name: Install repository development environment
         run: python -m pip install -e ".[dev]"
-      - name: Run fail-closed source and archive tests
-        run: python -m pytest -q tests/test_in625_zenodo_live_evidence.py
+      - name: Run fail-closed source and workbook tests
+        run: >-
+          python -m pytest -q
+          tests/test_in625_zenodo_live_evidence.py
+          tests/test_binary_workbook_structural_intake.py
       - name: Verify README, acquire archive, and triage bounded numerical evidence
         shell: bash
         run: |
@@ -45,10 +52,14 @@ jobs:
           import json
           import urllib.parse
           import urllib.request
-          from pathlib import Path
+          from pathlib import Path, PurePosixPath
 
           from materials_data_analyzer.research_loop.archive_tabular_triage import (
               triage_verified_archive_tables,
+          )
+          from materials_data_analyzer.research_loop.binary_workbook_structural_intake import (
+              inspect_legacy_xls_binding,
+              inspect_xlsx_workbook_structure,
           )
           from materials_data_analyzer.research_loop.in625_zenodo_live_evidence import (
               build_verified_in625_zenodo_readme_manifest,
@@ -107,10 +118,11 @@ jobs:
                       break
                   sink.write(chunk)
 
+          selected_root = root / "selected-tabular"
           archive_manifest = inspect_verified_in625_dataset_archive(
               config=config,
               archive_path=archive_path,
-              selected_output_dir=root / "selected-tabular",
+              selected_output_dir=selected_root,
           )
           if archive_manifest["archive"]["sha256_previously_pinned"] is not True:
               raise SystemExit("archive SHA-256 must be repository-pinned before numerical intake")
@@ -142,6 +154,38 @@ jobs:
               encoding="utf-8",
           )
 
+          workbook_reports = []
+          for member in archive_manifest["selected_tabular_files"]:
+              suffix = PurePosixPath(member["path"]).suffix.lower()
+              if suffix not in {".xlsx", ".xls"}:
+                  continue
+              candidate = selected_root.joinpath(*PurePosixPath(member["path"]).parts)
+              if suffix == ".xlsx":
+                  report = inspect_xlsx_workbook_structure(
+                      candidate,
+                      expected_sha256=member["sha256"],
+                  )
+              else:
+                  report = inspect_legacy_xls_binding(
+                      candidate,
+                      expected_sha256=member["sha256"],
+                  )
+              if report["scientific_status_changed"] is not False:
+                  raise SystemExit("workbook structural intake may not promote scientific status")
+              workbook_reports.append({"archive_member": member, "structure": report})
+          workbook_manifest = {
+              "schema_version": "1.0",
+              "archive_sha256": archive_manifest["archive"]["sha256"],
+              "workbook_candidate_count": len(workbook_reports),
+              "workbooks": workbook_reports,
+              "cell_values_interpreted": False,
+              "scientific_status_changed": False,
+          }
+          (root / "workbook-structural-intake.json").write_text(
+              json.dumps(workbook_manifest, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+
           print(json.dumps({
               "record_id": readme_manifest["record_id"],
               "readme_sha256": readme_manifest["readme"]["sha256"],
@@ -151,6 +195,7 @@ jobs:
               "selected_numerical_candidate_count": archive_manifest["inventory_summary"]["selected_tabular_count"],
               "selected_numerical_candidate_bytes": archive_manifest["inventory_summary"]["selected_tabular_bytes"],
               "structural_text_tabular_candidate_count": text_triage["tabular_candidate_count"],
+              "workbook_candidate_count": len(workbook_reports),
               "direct_nist_condition_comparability_established": archive_manifest["scientific_boundary"]["direct_nist_condition_comparability_established"],
           }, indent=2))
           archive_path.unlink()
@@ -166,6 +211,7 @@ jobs:
             outputs/in625-zenodo-live-evidence/archive-manifest.json
             outputs/in625-zenodo-live-evidence/safe-archive-inventory.json
             outputs/in625-zenodo-live-evidence/text-tabular-triage.json
+            outputs/in625-zenodo-live-evidence/workbook-structural-intake.json
             outputs/in625-zenodo-live-evidence/selected-tabular/
           if-no-files-found: error
           retention-days: 30
