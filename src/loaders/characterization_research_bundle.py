@@ -1,12 +1,12 @@
 """Research-grade characterization bundle intake for schema 1.0 and 1.1.
 
-The historical feature consumer remains the compatibility engine for schema 1.0.  Schema
+The historical feature consumer remains the compatibility engine for schema 1.0. Schema
 1.1 adds a scientific-evidence-ladder object that older closed-world consumers correctly
-reject.  This adapter independently validates that extension, validates the unchanged base
+reject. This adapter independently validates that extension, validates the unchanged base
 bundle through an isolated schema-1.0 compatibility copy, and then records the verified
 maturity state in consumer outputs.
 
-No producer Python package is imported.  The compatibility copy is validation plumbing,
+No producer Python package is imported. The compatibility copy is validation plumbing,
 not a schema downgrade of the authoritative input and not scientific evidence.
 """
 from __future__ import annotations
@@ -49,6 +49,8 @@ class ValidatedResearchCharacterizationBundle:
 
     manifest_path: Path
     manifest: dict[str, Any]
+    manifest_sha256: str
+    manifest_size_bytes: int
     feature_path: Path
     sample_context_path: Path
     evidence_paths: dict[str, Path]
@@ -57,6 +59,8 @@ class ValidatedResearchCharacterizationBundle:
     evidence_identity_binding: dict[str, Any]
     scientific_evidence_ladder: dict[str, Any] | None
     scientific_evidence_ladder_path: Path | None
+    scientific_evidence_ladder_file_sha256: str | None
+    scientific_evidence_ladder_file_size_bytes: int | None
     scientific_evidence_ladder_assessment: dict[str, Any] | None
 
 
@@ -173,16 +177,22 @@ def _from_base(
     *,
     manifest_path: Path,
     manifest: dict[str, Any],
+    manifest_sha256: str,
+    manifest_size_bytes: int,
     feature_path: Path,
     sample_context_path: Path,
     evidence_paths: dict[str, Path],
     ladder: dict[str, Any] | None,
     ladder_path: Path | None,
+    ladder_file_sha256: str | None,
+    ladder_file_size_bytes: int | None,
     ladder_assessment: dict[str, Any] | None,
 ) -> ValidatedResearchCharacterizationBundle:
     return ValidatedResearchCharacterizationBundle(
         manifest_path=manifest_path,
         manifest=manifest,
+        manifest_sha256=manifest_sha256,
+        manifest_size_bytes=manifest_size_bytes,
         feature_path=feature_path,
         sample_context_path=sample_context_path,
         evidence_paths=evidence_paths,
@@ -191,8 +201,47 @@ def _from_base(
         evidence_identity_binding=dict(base.evidence_identity_binding),
         scientific_evidence_ladder=ladder,
         scientific_evidence_ladder_path=ladder_path,
+        scientific_evidence_ladder_file_sha256=ladder_file_sha256,
+        scientific_evidence_ladder_file_size_bytes=ladder_file_size_bytes,
         scientific_evidence_ladder_assessment=ladder_assessment,
     )
+
+
+def revalidate_characterization_research_bundle_identity(
+    bundle: ValidatedResearchCharacterizationBundle,
+) -> None:
+    """Recheck exact authoritative bytes before publishing provenance-bound outputs."""
+    if not bundle.manifest_path.is_file() or bundle.manifest_path.is_symlink():
+        raise ValueError("validated characterization manifest disappeared or became unsafe")
+    if sha256_file(bundle.manifest_path) != bundle.manifest_sha256:
+        raise ValueError(
+            "characterization bundle manifest changed after research validation"
+        )
+    if bundle.manifest_path.stat().st_size != bundle.manifest_size_bytes:
+        raise ValueError(
+            "characterization bundle manifest size changed after research validation"
+        )
+
+    ladder_path = bundle.scientific_evidence_ladder_path
+    if ladder_path is None:
+        return
+    if (
+        bundle.scientific_evidence_ladder_file_sha256 is None
+        or bundle.scientific_evidence_ladder_file_size_bytes is None
+    ):
+        raise ValueError("validated scientific evidence-ladder file identity is incomplete")
+    if not ladder_path.is_file() or ladder_path.is_symlink():
+        raise ValueError(
+            "validated scientific evidence-ladder assessment disappeared or became unsafe"
+        )
+    if sha256_file(ladder_path) != bundle.scientific_evidence_ladder_file_sha256:
+        raise ValueError(
+            "scientific evidence-ladder assessment changed after research validation"
+        )
+    if ladder_path.stat().st_size != bundle.scientific_evidence_ladder_file_size_bytes:
+        raise ValueError(
+            "scientific evidence-ladder assessment size changed after research validation"
+        )
 
 
 def validate_characterization_research_bundle(
@@ -200,6 +249,8 @@ def validate_characterization_research_bundle(
 ) -> ValidatedResearchCharacterizationBundle:
     """Validate legacy schema 1.0 or independently replay schema 1.1 maturity state."""
     authoritative_path, manifest = _read_manifest(manifest_path)
+    manifest_sha256 = sha256_file(authoritative_path)
+    manifest_size_bytes = authoritative_path.stat().st_size
     schema = manifest.get("schema_version")
     if schema not in SUPPORTED_BUNDLE_SCHEMA_VERSIONS:
         raise ValueError(f"Unsupported characterization bundle schema_version: {schema}")
@@ -218,17 +269,23 @@ def validate_characterization_research_bundle(
     )
     if schema == BUNDLE_SCHEMA_VERSION:
         base = validate_characterization_bundle(authoritative_path)
-        return _from_base(
+        bundle = _from_base(
             base,
             manifest_path=authoritative_path,
             manifest=manifest,
+            manifest_sha256=manifest_sha256,
+            manifest_size_bytes=manifest_size_bytes,
             feature_path=feature_path,
             sample_context_path=sample_context_path,
             evidence_paths=evidence_paths,
             ladder=None,
             ladder_path=None,
+            ladder_file_sha256=None,
+            ladder_file_size_bytes=None,
             ladder_assessment=None,
         )
+        revalidate_characterization_research_bundle_identity(bundle)
+        return bundle
 
     with TemporaryDirectory(prefix="mda-characterization-base-validation-") as temporary:
         compatibility_path = _write_legacy_compatibility_copy(
@@ -257,6 +314,21 @@ def validate_characterization_research_bundle(
     except CharacterizationEvidenceLadderError as exc:
         raise ValueError(f"invalid scientific_evidence_ladder: {exc}") from exc
 
+    ladder_record = manifest.get("scientific_evidence_ladder")
+    if not isinstance(ladder_record, dict):
+        raise ValueError("scientific_evidence_ladder must be an object")
+    ladder_file_record = ladder_record.get("assessment")
+    if not isinstance(ladder_file_record, dict):
+        raise ValueError("scientific_evidence_ladder.assessment must be an object")
+    ladder_file_sha256 = ladder_file_record.get("sha256")
+    ladder_file_size_bytes = ladder_file_record.get("size_bytes")
+    if not isinstance(ladder_file_sha256, str):
+        raise ValueError("scientific_evidence_ladder.assessment.sha256 must be a string")
+    if isinstance(ladder_file_size_bytes, bool) or not isinstance(
+        ladder_file_size_bytes, int
+    ):
+        raise ValueError("scientific_evidence_ladder.assessment.size_bytes must be an integer")
+
     # Detect source mutation after the compatibility copy was validated.
     if sha256_file(feature_path) != manifest["feature_table"]["sha256"]:
         raise ValueError("feature table changed during characterization research validation")
@@ -268,20 +340,29 @@ def validate_characterization_research_bundle(
                 f"evidence reference changed during characterization research validation: {name}"
             )
 
-    return _from_base(
+    bundle = _from_base(
         base,
         manifest_path=authoritative_path,
         manifest=manifest,
+        manifest_sha256=manifest_sha256,
+        manifest_size_bytes=manifest_size_bytes,
         feature_path=feature_path,
         sample_context_path=sample_context_path,
         evidence_paths=evidence_paths,
         ladder=ladder,
         ladder_path=ladder_path,
+        ladder_file_sha256=ladder_file_sha256,
+        ladder_file_size_bytes=ladder_file_size_bytes,
         ladder_assessment=assessment,
     )
+    revalidate_characterization_research_bundle_identity(bundle)
+    return bundle
 
 
-def _append_ladder_report(report_path: Path, bundle: ValidatedResearchCharacterizationBundle) -> None:
+def _append_ladder_report(
+    report_path: Path,
+    bundle: ValidatedResearchCharacterizationBundle,
+) -> None:
     record = bundle.scientific_evidence_ladder
     if record is None:
         return
@@ -310,6 +391,10 @@ def _patch_research_outputs(
 ) -> dict[str, Path]:
     if bundle.scientific_evidence_ladder is None:
         return outputs
+
+    # Publication must remain bound to the exact bytes that produced the validated state.
+    revalidate_characterization_research_bundle_identity(bundle)
+
     summary_path = outputs["cross_repository_summary"]
     report_path = outputs["cross_repository_report"]
     manifest_output = outputs["cross_repository_manifest"]
@@ -320,7 +405,7 @@ def _patch_research_outputs(
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     summary["producer_bundle"] = {
         "filename": bundle.manifest_path.name,
-        "sha256": sha256_file(bundle.manifest_path),
+        "sha256": bundle.manifest_sha256,
         "schema_version": bundle.manifest["schema_version"],
         "bundle_type": bundle.manifest["bundle_type"],
     }
@@ -350,7 +435,7 @@ def _patch_research_outputs(
 
     consumer_manifest = json.loads(manifest_output.read_text(encoding="utf-8"))
     consumer_manifest["input_bundle"]["filename"] = bundle.manifest_path.name
-    consumer_manifest["input_bundle"]["sha256"] = sha256_file(bundle.manifest_path)
+    consumer_manifest["input_bundle"]["sha256"] = bundle.manifest_sha256
     consumer_manifest["input_bundle"]["schema_version"] = bundle.manifest[
         "schema_version"
     ]
@@ -415,5 +500,6 @@ __all__ = [
     "SUPPORTED_BUNDLE_SCHEMA_VERSIONS",
     "ValidatedResearchCharacterizationBundle",
     "consume_characterization_research_bundle",
+    "revalidate_characterization_research_bundle_identity",
     "validate_characterization_research_bundle",
 ]
