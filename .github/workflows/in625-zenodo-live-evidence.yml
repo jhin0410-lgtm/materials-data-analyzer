@@ -31,8 +31,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install focused test dependency
-        run: python -m pip install pytest
+          cache: pip
+      - name: Install repository development environment
+        run: python -m pip install -e ".[dev]"
       - name: Run fail-closed source and archive tests
         run: python -m pytest -q tests/test_in625_zenodo_live_evidence.py
       - name: Verify README, acquire archive, and extract bounded tabular evidence
