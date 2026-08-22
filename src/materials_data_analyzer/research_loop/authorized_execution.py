@@ -1,8 +1,9 @@
 """Single public typed-execution router with legacy-compatible bounded adapters.
 
 The NASA implementation remains byte-for-byte preserved in the internal legacy module. This
-facade preserves historical monkeypatch seams while routing NIST structural and audited
-reference-heat actions through independent authorization and exact SHA handoff boundaries.
+facade preserves historical monkeypatch seams while routing NIST structural, audited
+reference-heat, and verified IN625 external-evidence actions through independent authorization
+and exact SHA handoff boundaries.
 """
 from __future__ import annotations
 
@@ -21,8 +22,10 @@ from .kernel import ResearchLoopError
 _NASA_ADAPTER = "nasa-battery"
 _NIST_ADAPTER = "nist-ambench-process-characterization"
 _HEAT_ADAPTER = "reference-heat-conduction"
+_IN625_ADAPTER = "in625-external-evidence"
 _NIST_ACTION_TYPE = "nist_structural_design_simulation"
 _HEAT_ACTION_TYPE = "reference_heat_conduction_simulation"
+_IN625_ACTION_TYPE = "external_evidence_search"
 _LEGACY_ENTRYPOINTS = {
     "execute_authorized_action",
     "execute_authorized_action_with_failure_classification",
@@ -64,7 +67,7 @@ def _call_nasa_with_compat_namespace(
 
 
 def _reject_cross_adapter_nasa_action(expected_action_type: str | None) -> None:
-    """Preserve established NIST diagnostics while extending the same boundary to heat."""
+    """Prevent newer typed actions from crossing the preserved NASA executor boundary."""
     if expected_action_type == _NIST_ACTION_TYPE:
         raise AuthorizedExecutionError(
             "NIST structural action cannot be routed through the NASA adapter"
@@ -72,6 +75,10 @@ def _reject_cross_adapter_nasa_action(expected_action_type: str | None) -> None:
     if expected_action_type == _HEAT_ACTION_TYPE:
         raise AuthorizedExecutionError(
             "reference heat action cannot be routed through the NASA adapter"
+        )
+    if expected_action_type == _IN625_ACTION_TYPE:
+        raise AuthorizedExecutionError(
+            "IN625 external-evidence action cannot be routed through the NASA adapter"
         )
 
 
@@ -138,9 +145,30 @@ def execute_authorized_action(
             expected_request_sha256=expected_request_sha256,
             expected_research_ledger_sha256=expected_research_ledger_sha256,
         )
+    if adapter_id == _IN625_ADAPTER:
+        if expected_action_type != _IN625_ACTION_TYPE:
+            raise AuthorizedExecutionError(
+                "IN625 external-evidence adapter requires the exact external_evidence_search action type pin"
+            )
+        if expected_request_sha256 is None or expected_research_ledger_sha256 is None:
+            raise AuthorizedExecutionError(
+                "IN625 typed execution requires exact request and research-ledger SHA pins"
+            )
+        from .in625_authorized_execution import execute_in625_authorized_action
+
+        return execute_in625_authorized_action(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+            request_path=request_path,
+            expected_action_type=expected_action_type,
+            expected_request_sha256=expected_request_sha256,
+            expected_research_ledger_sha256=expected_research_ledger_sha256,
+        )
     raise AuthorizedExecutionError(
         "bounded typed execution is available only for nasa-battery, "
-        "nist-ambench-process-characterization, or reference-heat-conduction"
+        "nist-ambench-process-characterization, reference-heat-conduction, "
+        "or in625-external-evidence"
     )
 
 
