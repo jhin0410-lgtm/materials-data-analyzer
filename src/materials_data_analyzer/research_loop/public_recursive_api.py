@@ -21,7 +21,23 @@ from .heat_transition_verification import (
     build_heat_transition_verification_decision,
     publish_heat_transition_verification_decision,
 )
+from .in625_archive_network_acquisition import (
+    build_in625_archive_network_authorization,
+    execute_authorized_in625_archive_download,
+    validate_in625_archive_network_authorization,
+)
 from .in625_execution_verifier import verify_in625_execution_handoff
+from .in625_post_acquisition_rediagnosis import (
+    build_in625_post_acquisition_rediagnosis,
+    build_in625_post_acquisition_rediagnosis_from_files,
+)
+from .in625_post_acquisition_rediagnosis_v2 import (
+    build_in625_post_acquisition_rediagnosis_v2,
+)
+from .in625_tensile_quality_contract import verify_in625_tensile_observed_quality
+from .in625_tensile_reviewed_intake_v2 import (
+    build_reviewed_in625_tensile_intake_v2,
+)
 from .kernel import initialize_research_loop, load_research_state
 from .public_recursive_acceptance_boundary import (
     build_external_evidence_waiting_program_state,
@@ -67,6 +83,9 @@ advance_recursive_cycle_after_verified_transition = (
 )
 complete_recursive_cycle_with_rediagnosis = complete_public_recursive_cycle_with_rediagnosis
 
+# The public IN625 intake preserves exact source missingness and never imputes it.
+build_reviewed_in625_tensile_intake = build_reviewed_in625_tensile_intake_v2
+
 __all__ = [
     "HEAT_TRANSITION_VERIFIER_ID",
     "REFERENCE_HEAT_NUMERICAL_VALIDITY_TARGET",
@@ -82,6 +101,10 @@ __all__ = [
     "build_external_evidence_waiting_program_state",
     "build_heat_recursive_planner_program_state",
     "build_heat_transition_verification_decision",
+    "build_in625_archive_network_authorization",
+    "build_in625_post_acquisition_rediagnosis",
+    "build_in625_post_acquisition_rediagnosis_from_files",
+    "build_in625_post_acquisition_rediagnosis_v2",
     "build_model_evidence_discrepancy_report",
     "build_public_candidate_match_record",
     "build_public_recursive_discrepancy_planning_handoff",
@@ -89,17 +112,21 @@ __all__ = [
     "build_public_recursive_planning_checkpoint",
     "build_public_recursive_planning_context",
     "build_public_recursive_replay_manifest",
+    "build_reviewed_in625_tensile_intake",
+    "build_reviewed_in625_tensile_intake_v2",
     "build_validated_recursive_planning_checkpoint",
     "complete_public_recursive_cycle_with_rediagnosis",
     "complete_recursive_cycle_with_rediagnosis",
     "evaluate_epistemic_graph",
     "execute_authorized_action",
+    "execute_authorized_in625_archive_download",
     "initialize_research_loop",
     "load_action_registry",
     "load_research_state",
     "publish_heat_transition_verification_decision",
     "repository_heat_conduction_contract",
     "validate_discrepancy_planning_handoff",
+    "validate_in625_archive_network_authorization",
     "validate_model_evidence_discrepancy_report",
     "validate_public_recursive_discrepancy_planning_handoff",
     "validate_public_recursive_discrepancy_report",
@@ -109,4 +136,5 @@ __all__ = [
     "validate_validated_recursive_planning_checkpoint",
     "verify_heat_execution_handoff",
     "verify_in625_execution_handoff",
+    "verify_in625_tensile_observed_quality",
 ]

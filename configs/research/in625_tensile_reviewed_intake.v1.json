@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "source_id": "zenodo-20503603-in625-lpbf-publication-supplement",
+  "source_archive_sha256": "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907",
+  "workbook": {
+    "archive_member_path": "Dataset/Mechanical testing/Tensile tests/Tensile tests.xlsx",
+    "sha256": "c889e4e6cd1b86d6efb603f53ce9eda64137f6898b3e6f2b490c70a0db73140c",
+    "size_bytes": 25660091
+  },
+  "documentation": {
+    "archive_member_path": "Dataset/Mechanical testing/Tensile tests/README-Tensile tests.txt",
+    "sha256": "51bc55915eabf00021bb77e470a61b6574f087388da742dc327013fb7f8471dd",
+    "size_bytes": 1255,
+    "encoding": "cp1250"
+  },
+  "reviewed_scope": {
+    "material": "IN625",
+    "experiment": "room_temperature_uniaxial_tensile_test",
+    "standard_reference_text": "DIN50125 (Type E)",
+    "parallel_test_statement": "up to three parallel tests for each specimen",
+    "row_independence_established": false,
+    "cross_source_comparability_established": false
+  },
+  "measurement_header": [
+    "Time sec",
+    "Extension mm",
+    "Strain 1 %",
+    "Load N",
+    "Tensile stress MPa",
+    "Cycle Count ",
+    "Total Cycle Count ",
+    "Repetitions Count ",
+    "Segment ID ",
+    "Marked Data ",
+    "PIP Count ",
+    "Tensile extension mm"
+  ],
+  "reviewed_numeric_columns": {
+    "time_s": 0,
+    "extension_mm": 1,
+    "strain_percent": 2,
+    "load_n": 3,
+    "tensile_stress_mpa": 4,
+    "tensile_extension_mm": 11
+  },
+  "decimal_separator": ",",
+  "metadata_block_start_label": "Specimen",
+  "specimen_label": "Oznaka vzorca / Specimen",
+  "max_parallel_tests_per_sheet": 3,
+  "expected_total_measurement_rows": 200289,
+  "max_measurement_rows_total": 300000,
+  "max_cells_total": 4000000,
+  "sheets": {
+    "CM": {
+      "manufacturing_route": "conventional_manufacturing",
+      "condition": "solution_annealed",
+      "heat_treatment_text": "solution annealed at 1050 °C",
+      "build_orientation": null,
+      "expected_parallel_test_blocks": 2
+    },
+    "AM-AB-H": {
+      "manufacturing_route": "additive_manufacturing",
+      "condition": "as_built",
+      "heat_treatment_text": null,
+      "build_orientation": "horizontal",
+      "expected_parallel_test_blocks": 3
+    },
+    "AM-AB-V": {
+      "manufacturing_route": "additive_manufacturing",
+      "condition": "as_built",
+      "heat_treatment_text": null,
+      "build_orientation": "vertical",
+      "expected_parallel_test_blocks": 2
+    },
+    "AM-SR-H": {
+      "manufacturing_route": "additive_manufacturing",
+      "condition": "stress_relief_annealed",
+      "heat_treatment_text": "870 °C/1h",
+      "build_orientation": "horizontal",
+      "expected_parallel_test_blocks": 3
+    },
+    "AM-SR-V": {
+      "manufacturing_route": "additive_manufacturing",
+      "condition": "stress_relief_annealed",
+      "heat_treatment_text": "870 °C/1h",
+      "build_orientation": "vertical",
+      "expected_parallel_test_blocks": 3
+    },
+    "AM-ST-H": {
+      "manufacturing_route": "additive_manufacturing",
+      "condition": "solution_annealed",
+      "heat_treatment_text": "1050 °C/1h",
+      "build_orientation": "horizontal",
+      "expected_parallel_test_blocks": 3
+    },
+    "AM-ST-V": {
+      "manufacturing_route": "additive_manufacturing",
+      "condition": "solution_annealed",
+      "heat_treatment_text": "1050 °C/1h",
+      "build_orientation": "vertical",
+      "expected_parallel_test_blocks": 3
+    }
+  },
+  "scientific_boundaries": {
+    "sheet_semantics_reviewed_from_source_readme": true,
+    "measurement_header_semantics_reviewed_from_workbook": true,
+    "row_level_values_observed": true,
+    "parallel_tests_imply_statistical_independence": false,
+    "direct_nist_condition_comparability_established": false,
+    "empirical_model_validation_established": false,
+    "hypothesis_truth_established": false,
+    "positive_scientific_closeout_established": false,
+    "automatic_scientific_promotion": false
+  }
+}
