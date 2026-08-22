@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.2",
+  "mission_id": "autonomous-in625-production-v1",
+  "mission": "Autonomously advance the verified IN625 external empirical evidence state by selecting only mission-pinned source acquisition and typed research capabilities, preserving exact provenance and observed source quality, and iterating until the next scientific action is either executed under an audited capability or boundedly unavailable.",
+  "success_criteria": [
+    "The program starts from verified evidence state and does not require a caller-authored execution request queue.",
+    "The exact Zenodo 20503603 source is acquired only under the mission-pinned standing network policy and independently checksum verified.",
+    "The typed IN625 registration request is machine-authored only under the mission-pinned request-delegation policy.",
+    "Real row-level tensile evidence and observed source missingness are preserved without imputation, inverse reconstruction, coercion, or silent row exclusion.",
+    "After re-diagnosis, the program generates the next scientific action from the new evidence state and stops only for an explicit bounded reason when that action is not registered."
+  ],
+  "constraints": [
+    "Never fabricate or infer missing measurements, sample identity, replicate independence, calibration, or condition equivalence.",
+    "Never treat network, checksum, parser, or workflow success as empirical model validation or hypothesis truth.",
+    "Never execute arbitrary Python, shell, provider, URL, or action outside exact mission-pinned policies and audited capability code.",
+    "Network failures are operational evidence only and are never negative scientific evidence.",
+    "Physical experiment execution remains external until a separately authorized laboratory interface exists."
+  ],
+  "stop_rules": [
+    "Stop when the current verified next-action class has no matching audited capability in the exact production capability set.",
+    "Stop on mission, policy, registry, source, request, ledger, checksum, or verifier binding mismatch.",
+    "Stop when cycle or cost budget is exhausted or when a cycle produces no new verified information.",
+    "Do not claim global evidence unavailability when only the current registered capability set is exhausted."
+  ],
+  "autonomy_policy": {
+    "goal_generation": "bounded_autonomous",
+    "reasoning_proposals": "schema_validated",
+    "typed_computational_actions": "explicit_request",
+    "network_evidence_search": "explicit_authorization",
+    "physical_experiment_execution": "external_only"
+  },
+  "source_trust_policy_pins": [
+    {
+      "policy_id": "in625-zenodo-20503603-network-acquisition-v1",
+      "sha256": "8db925ef01934ac93b8b1886b2b0ed6d5114c68b04c46c754f754b56da93227c"
+    }
+  ],
+  "request_delegation_policy_pins": [
+    {
+      "policy_id": "in625-external-evidence-request-delegation-v1",
+      "sha256": "61b791af50bc6cd8ec9695fa5c3375b02c96293f105328543db63375af9af015"
+    }
+  ],
+  "workstreams": [
+    {
+      "workstream_id": "in625-independent-external-evidence",
+      "adapter_id": "materials-project-external-source",
+      "priority": 100,
+      "role": "Mission-level evidence-gap workstream whose exact execution capabilities are separately delegated and provenance-bound.",
+      "enabled": true
+    }
+  ],
+  "metadata": {
+    "production_profile": "in625_zenodo_20503603_first_real_closed_loop",
+    "execution_adapter": "in625-external-evidence",
+    "initial_expected_action_class": "external_evidence_search",
+    "post_acquisition_expected_action_class": "reviewed_physical_comparability_assessment",
+    "scientific_closeout_expected_in_first_profile": false
+  }
+}
