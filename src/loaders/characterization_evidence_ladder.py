@@ -1,6 +1,6 @@
 """Independent consumer verification for characterization L0-L8 evidence ladders.
 
-This module intentionally does not import ``mca``.  The producer and consumer must
+This module intentionally does not import ``mca``. The producer and consumer must
 agree through persisted, checksum-bound bytes rather than a shared implementation.
 A validated ladder describes evidence maturity only; it never authorizes downstream
 use or promotes scientific status.
@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 LEGACY_BUNDLE_SCHEMA_VERSION = "1.0"
@@ -21,6 +21,8 @@ SUPPORTED_BUNDLE_SCHEMA_VERSIONS = (
 )
 LADDER_SCHEMA_VERSION = "1.0"
 LADDER_POLICY_VERSION = "1.0"
+LADDER_HANDOFF_CONTRACT = "materials-characterization-scientific-evidence-ladder"
+LADDER_RECORD_SCHEMA_VERSION = "1.0"
 ASSESSMENTS = ("Supported", "Diagnostic", "Inconclusive", "Unsupported")
 LEVELS = (
     "L0_software_integration",
@@ -65,7 +67,25 @@ _REQUIRED_BUNDLE_SOURCE_ROLES = {
     "analysis_manifest",
     "comparability_matrix",
 }
-_ALLOWED_MULTIMODAL_SUBJECTS = {"multimodal", "multi-modal", "multiple"}
+_ALLOWED_MULTIMODAL_SUBJECTS = {"multimodal", "multi-modal"}
+_RECORD_FIELDS = {
+    "contract",
+    "schema_version",
+    "policy_version",
+    "assessment",
+    "declaration_id",
+    "declaration_sha256",
+    "assessment_sha256",
+    "subject",
+    "source_bindings",
+    "highest_contiguous_supported_level",
+    "first_blocking_level",
+    "readiness",
+    "scientific_status_promoted",
+    "downstream_use_authorized",
+    "lower_level_evidence_preserved",
+}
+_FILE_RECORD_FIELDS = {"path", "sha256", "size_bytes"}
 
 
 class CharacterizationEvidenceLadderError(ValueError):
@@ -357,7 +377,7 @@ def evaluate_scientific_evidence_ladder(value: object) -> dict[str, Any]:
             "engineering_decision_ready": highest_index >= 8,
         },
         "handoff": {
-            "contract": "materials-characterization-scientific-evidence-ladder",
+            "contract": LADDER_HANDOFF_CONTRACT,
             "schema_version": LADDER_SCHEMA_VERSION,
             "subject": declaration["subject"],
             "source_bindings": declaration["source_bindings"],
@@ -395,76 +415,125 @@ def replay_scientific_evidence_ladder_assessment(
         raise CharacterizationEvidenceLadderError(
             "scientific evidence ladder assessment does not match independent replay"
         )
-    if recomputed["handoff"]["scientific_status_promoted"] is not False:
+    handoff = recomputed["handoff"]
+    if handoff["contract"] != LADDER_HANDOFF_CONTRACT:
+        raise CharacterizationEvidenceLadderError(
+            "scientific evidence ladder handoff contract mismatch"
+        )
+    if handoff["scientific_status_promoted"] is not False:
         raise CharacterizationEvidenceLadderError(
             "scientific evidence ladder must not promote scientific status"
         )
-    if recomputed["handoff"]["downstream_use_authorized"] is not False:
+    if handoff["downstream_use_authorized"] is not False:
         raise CharacterizationEvidenceLadderError(
             "scientific evidence ladder must not authorize downstream use"
+        )
+    if handoff["lower_level_evidence_preserved"] is not True:
+        raise CharacterizationEvidenceLadderError(
+            "scientific evidence ladder must preserve lower-level evidence"
         )
     return recomputed
 
 
-def _resolve_ladder_record(
+def _resolve_assessment_file(
     bundle_root: Path,
-    record: object,
+    value: object,
 ) -> tuple[Path, dict[str, Any]]:
-    if not isinstance(record, Mapping):
+    file_record = _exact_mapping(
+        value,
+        required=_FILE_RECORD_FIELDS,
+        field="scientific_evidence_ladder.assessment",
+    )
+    recorded_path = _text(
+        file_record["path"],
+        "scientific_evidence_ladder.assessment.path",
+    )
+    normalized_path = recorded_path.replace("\\", "/")
+    relative = PurePosixPath(normalized_path)
+    if (
+        relative.is_absolute()
+        or len(relative.parts) != 1
+        or ".." in relative.parts
+        or normalized_path in {"", "."}
+    ):
         raise CharacterizationEvidenceLadderError(
-            "scientific_evidence_ladder must be an object"
+            "scientific evidence ladder assessment must be one direct safe sibling file"
         )
-    required = {
-        "path",
-        "sha256",
-        "size_bytes",
-        "declaration_sha256",
-        "assessment_sha256",
-        "subject",
-        "source_bindings",
-        "highest_contiguous_supported_level",
-        "first_blocking_level",
-        "readiness",
-        "scientific_status_promoted",
-        "downstream_use_authorized",
-    }
-    missing = sorted(required - set(record))
-    unknown = sorted(set(record) - required)
-    if missing:
-        raise CharacterizationEvidenceLadderError(
-            f"scientific_evidence_ladder is missing field: {missing[0]}"
-        )
-    if unknown:
-        raise CharacterizationEvidenceLadderError(
-            f"scientific_evidence_ladder contains unknown field: {unknown[0]}"
-        )
-    path_text = _text(record["path"], "scientific_evidence_ladder.path")
-    relative = Path(path_text)
-    if relative.is_absolute() or len(relative.parts) != 1 or relative.name != path_text:
-        raise CharacterizationEvidenceLadderError(
-            "scientific_evidence_ladder.path must be one direct sibling filename"
-        )
-    path = bundle_root / relative
+    path = bundle_root / relative.as_posix()
     if path.is_symlink() or not path.is_file():
         raise CharacterizationEvidenceLadderError(
             "scientific evidence ladder assessment file is missing or unsafe"
         )
-    expected_sha = _sha256(record["sha256"], "scientific_evidence_ladder.sha256")
+    try:
+        path.resolve().relative_to(bundle_root.resolve())
+    except ValueError as exc:
+        raise CharacterizationEvidenceLadderError(
+            "scientific evidence ladder assessment escapes bundle directory"
+        ) from exc
+    expected_sha = _sha256(
+        file_record["sha256"],
+        "scientific_evidence_ladder.assessment.sha256",
+    )
     actual_sha = hashlib.sha256(path.read_bytes()).hexdigest()
     if actual_sha != expected_sha:
         raise CharacterizationEvidenceLadderError(
-            "scientific evidence ladder checksum mismatch"
+            "scientific evidence ladder assessment checksum mismatch"
         )
-    size = record["size_bytes"]
-    if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+    size = file_record["size_bytes"]
+    if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
         raise CharacterizationEvidenceLadderError(
-            "scientific_evidence_ladder.size_bytes must be a non-negative integer"
+            "scientific_evidence_ladder.assessment.size_bytes must be a positive integer"
         )
     if path.stat().st_size != size:
         raise CharacterizationEvidenceLadderError(
-            "scientific evidence ladder size_bytes mismatch"
+            "scientific evidence ladder assessment size_bytes mismatch"
         )
-    return path, dict(record)
+    return path, dict(file_record)
+
+
+def _validate_manifest_record(
+    record: object,
+    *,
+    assessment_file_record: Mapping[str, Any],
+    replayed: Mapping[str, Any],
+) -> dict[str, Any]:
+    manifest_record = _exact_mapping(
+        record,
+        required=_RECORD_FIELDS,
+        field="scientific_evidence_ladder",
+    )
+    if manifest_record["contract"] != LADDER_HANDOFF_CONTRACT:
+        raise CharacterizationEvidenceLadderError(
+            "scientific evidence ladder contract mismatch"
+        )
+    if manifest_record["schema_version"] != LADDER_RECORD_SCHEMA_VERSION:
+        raise CharacterizationEvidenceLadderError(
+            "unsupported scientific evidence ladder record schema_version"
+        )
+    expected_record = {
+        "contract": LADDER_HANDOFF_CONTRACT,
+        "schema_version": LADDER_RECORD_SCHEMA_VERSION,
+        "policy_version": replayed["policy_version"],
+        "assessment": dict(assessment_file_record),
+        "declaration_id": replayed["declaration"]["declaration_id"],
+        "declaration_sha256": replayed["declaration_sha256"],
+        "assessment_sha256": replayed["assessment_sha256"],
+        "subject": replayed["handoff"]["subject"],
+        "source_bindings": replayed["handoff"]["source_bindings"],
+        "highest_contiguous_supported_level": replayed[
+            "highest_contiguous_supported_level"
+        ],
+        "first_blocking_level": replayed["first_blocking_level"],
+        "readiness": replayed["readiness"],
+        "scientific_status_promoted": False,
+        "downstream_use_authorized": False,
+        "lower_level_evidence_preserved": True,
+    }
+    if dict(manifest_record) != expected_record:
+        raise CharacterizationEvidenceLadderError(
+            "scientific evidence ladder manifest summary does not match independent replay"
+        )
+    return expected_record
 
 
 def validate_bundle_scientific_evidence_ladder(
@@ -476,28 +545,22 @@ def validate_bundle_scientific_evidence_ladder(
     instruments: list[str],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Validate, replay, and cross-bind a schema-1.1 ladder to bundle evidence."""
-    path, manifest_record = _resolve_ladder_record(bundle_root, record)
+    record_mapping = _exact_mapping(
+        record,
+        required=_RECORD_FIELDS,
+        field="scientific_evidence_ladder",
+    )
+    path, assessment_file_record = _resolve_assessment_file(
+        bundle_root,
+        record_mapping["assessment"],
+    )
     persisted = _load_json_object(path, "scientific evidence ladder assessment")
     replayed = replay_scientific_evidence_ladder_assessment(persisted)
-
-    summary_fields = {
-        "declaration_sha256": replayed["declaration_sha256"],
-        "assessment_sha256": replayed["assessment_sha256"],
-        "subject": replayed["declaration"]["subject"],
-        "source_bindings": replayed["declaration"]["source_bindings"],
-        "highest_contiguous_supported_level": replayed[
-            "highest_contiguous_supported_level"
-        ],
-        "first_blocking_level": replayed["first_blocking_level"],
-        "readiness": replayed["readiness"],
-        "scientific_status_promoted": False,
-        "downstream_use_authorized": False,
-    }
-    for key, expected in summary_fields.items():
-        if manifest_record[key] != expected:
-            raise CharacterizationEvidenceLadderError(
-                f"scientific evidence ladder manifest summary mismatch: {key}"
-            )
+    manifest_record = _validate_manifest_record(
+        record_mapping,
+        assessment_file_record=assessment_file_record,
+        replayed=replayed,
+    )
 
     declaration = replayed["declaration"]
     if declaration["declaration_id"] != case_id:
@@ -505,9 +568,11 @@ def validate_bundle_scientific_evidence_ladder(
             "scientific evidence ladder declaration_id does not match bundle case_id"
         )
     bindings = {item["role"]: item["sha256"] for item in declaration["source_bindings"]}
-    if set(bindings) != _REQUIRED_BUNDLE_SOURCE_ROLES:
+    missing_roles = sorted(_REQUIRED_BUNDLE_SOURCE_ROLES - set(bindings))
+    if missing_roles:
         raise CharacterizationEvidenceLadderError(
-            "scientific evidence ladder source bindings must exactly cover bundle evidence"
+            "scientific evidence ladder is missing required source binding: "
+            f"{missing_roles[0]}"
         )
     for role in sorted(_REQUIRED_BUNDLE_SOURCE_ROLES):
         expected = hashlib.sha256(evidence_paths[role].read_bytes()).hexdigest()
@@ -516,22 +581,42 @@ def validate_bundle_scientific_evidence_ladder(
                 f"scientific evidence ladder source binding mismatch: {role}"
             )
 
-    normalized_instruments = sorted({str(item).strip().lower() for item in instruments})
-    modality = declaration["subject"]["modality"].strip().lower()
-    if len(normalized_instruments) == 1:
-        if modality != normalized_instruments[0]:
-            raise CharacterizationEvidenceLadderError(
-                "scientific evidence ladder subject modality does not match bundle instrument"
-            )
-    elif modality not in _ALLOWED_MULTIMODAL_SUBJECTS:
+    normalized_instruments = sorted(
+        {str(item).strip().lower() for item in instruments if str(item).strip()}
+    )
+    if not normalized_instruments:
         raise CharacterizationEvidenceLadderError(
-            "multi-instrument bundle requires an explicit multimodal ladder subject"
+            "scientific evidence ladder requires at least one bundle instrument"
+        )
+    modality = declaration["subject"]["modality"].strip().lower()
+    allowed_modalities = set(normalized_instruments)
+    if len(normalized_instruments) > 1:
+        allowed_modalities.update(_ALLOWED_MULTIMODAL_SUBJECTS)
+    if modality not in allowed_modalities:
+        raise CharacterizationEvidenceLadderError(
+            "scientific evidence ladder subject modality is not represented by bundle instruments"
         )
 
     summary = {
-        **summary_fields,
-        "artifact_sha256": manifest_record["sha256"],
-        "artifact_size_bytes": manifest_record["size_bytes"],
+        "contract": manifest_record["contract"],
+        "record_schema_version": manifest_record["schema_version"],
+        "policy_version": manifest_record["policy_version"],
+        "declaration_id": manifest_record["declaration_id"],
+        "declaration_sha256": manifest_record["declaration_sha256"],
+        "assessment_sha256": manifest_record["assessment_sha256"],
+        "subject": manifest_record["subject"],
+        "source_bindings": manifest_record["source_bindings"],
+        "highest_contiguous_supported_level": manifest_record[
+            "highest_contiguous_supported_level"
+        ],
+        "first_blocking_level": manifest_record["first_blocking_level"],
+        "readiness": manifest_record["readiness"],
+        "scientific_status_promoted": False,
+        "downstream_use_authorized": False,
+        "lower_level_evidence_preserved": True,
+        "artifact_path": assessment_file_record["path"],
+        "artifact_sha256": assessment_file_record["sha256"],
+        "artifact_size_bytes": assessment_file_record["size_bytes"],
     }
     binding = {
         "case_id_bound": True,
@@ -546,6 +631,8 @@ def validate_bundle_scientific_evidence_ladder(
 __all__ = [
     "CharacterizationEvidenceLadderError",
     "LADDER_BUNDLE_SCHEMA_VERSION",
+    "LADDER_HANDOFF_CONTRACT",
+    "LADDER_RECORD_SCHEMA_VERSION",
     "LEGACY_BUNDLE_SCHEMA_VERSION",
     "LEVELS",
     "SUPPORTED_BUNDLE_SCHEMA_VERSIONS",
