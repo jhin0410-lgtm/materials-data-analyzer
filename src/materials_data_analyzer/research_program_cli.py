@@ -121,9 +121,10 @@ def build_parser() -> argparse.ArgumentParser:
         "run-autonomous",
         help=(
             "Run the exact audited IN625 production mission from the independently pinned mission "
-            "SHA: diagnose the current external-evidence gap, acquire only Zenodo 20503603 under "
-            "standing policy, compile a machine-authored typed request, independently execute and "
-            "verify the intake, re-diagnose, and stop boundedly when no successor capability exists."
+            "SHA: acquire only Zenodo 20503603 under standing policy, compile and execute the "
+            "machine-authored typed registration request, review row quality, re-diagnose, execute "
+            "the deterministic physical-comparability gate, generate the next response-compatible "
+            "evidence action, and stop boundedly when no registered successor capability exists."
         ),
     )
     autonomous.add_argument(
@@ -144,8 +145,8 @@ def build_parser() -> argparse.ArgumentParser:
     autonomous.add_argument(
         "--max-cycles",
         type=int,
-        default=2,
-        help="Maximum audited production cycles (1-8). Defaults to 2.",
+        default=3,
+        help="Maximum audited production cycles (1-8). Defaults to 3.",
     )
 
     show = subparsers.add_parser(
