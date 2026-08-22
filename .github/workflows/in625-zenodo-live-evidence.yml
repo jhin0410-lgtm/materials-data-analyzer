@@ -6,13 +6,13 @@ on:
       - feature/verified-in625-recursive-acquisition-211
     paths:
       - ".github/workflows/in625-zenodo-live-evidence.yml"
-      - "configs/research/in625_zenodo_publication_dataset.v1.json"
+      - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
       - "tests/test_in625_zenodo_live_evidence.py"
   pull_request:
     paths:
       - ".github/workflows/in625-zenodo-live-evidence.yml"
-      - "configs/research/in625_zenodo_publication_dataset.v1.json"
+      - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
       - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
       - "tests/test_in625_zenodo_live_evidence.py"
   workflow_dispatch:
@@ -52,7 +52,7 @@ jobs:
           )
 
           root = Path("outputs/in625-zenodo-live-evidence")
-          config = json.loads(Path("configs/research/in625_zenodo_publication_dataset.v1.json").read_text(encoding="utf-8"))
+          config = json.loads(Path("configs/research/in625_zenodo_20503603_verified_source.v1.json").read_text(encoding="utf-8"))
           record_id = str(config["zenodo"]["record_id"])
           api_url = f"https://zenodo.org/api/records/{record_id}"
           headers = {"User-Agent": "materials-data-analyzer/2.7 verified-in625-evidence"}
@@ -87,9 +87,6 @@ jobs:
               encoding="utf-8",
           )
 
-          # The 180 MB archive is intentionally streamed to the ephemeral runner and is
-          # not uploaded as a repository artifact.  Its verified root hash and bounded
-          # selected evidence are retained instead.
           archive_path = root / archive_name
           req = urllib.request.Request(archive_url, headers=headers)
           with urllib.request.urlopen(req, timeout=180) as response, archive_path.open("wb") as sink:
