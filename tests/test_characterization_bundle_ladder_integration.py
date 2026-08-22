@@ -154,6 +154,10 @@ def _write_bundle(tmp_path: Path, *, with_ladder: bool) -> Path:
     }
 
     if with_ladder:
+        manifest["evidence_identity_binding_contract"] = {
+            "schema_version": "1.0",
+            "required": True,
+        }
         levels: dict[str, dict[str, object]] = {}
         for index, level in enumerate(LEVELS):
             supported = index <= 4
@@ -224,6 +228,7 @@ def test_schema_11_bundle_exposes_independently_verified_ladder(tmp_path: Path) 
     bundle = validate_characterization_bundle(manifest)
 
     assert bundle.manifest["schema_version"] == "1.1"
+    assert bundle.evidence_identity_binding["semantic_identity_binding_verified"] is True
     assert bundle.scientific_evidence_ladder is not None
     assert bundle.scientific_evidence_ladder["first_blocking_level"] == (
         "L5_material_domain_validation"
@@ -240,6 +245,16 @@ def test_schema_11_bundle_exposes_independently_verified_ladder(tmp_path: Path) 
         "subject_modality_bound": True,
         "bundle_instruments": ["raman"],
     }
+
+
+def test_schema_11_ladder_requires_semantic_evidence_identity_binding(tmp_path: Path) -> None:
+    manifest_path = _write_bundle(tmp_path, with_ladder=True)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("evidence_identity_binding_contract")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="require evidence_identity_binding_contract"):
+        validate_characterization_bundle(manifest_path)
 
 
 def test_schema_10_bundle_remains_legacy_compatible(tmp_path: Path) -> None:
