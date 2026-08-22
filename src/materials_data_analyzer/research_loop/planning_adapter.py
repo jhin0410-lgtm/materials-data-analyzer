@@ -1,9 +1,9 @@
 """Stable planning-adapter facade with audited executable planning projections.
 
 The complete historical planning-adapter namespace remains available through the preserved
-legacy module, including intentional monkeypatch/test seams. The historical adapter
-enumeration remains stable; the reference-heat adapter is an explicit typed execution
-projection rather than a silently expanded legacy discovery surface.
+legacy module, including intentional monkeypatch/test seams. Historical adapter enumeration
+remains stable; newer typed execution adapters are explicit projections rather than silently
+expanded legacy discovery surfaces.
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from .planning_adapter_legacy import *  # noqa: F401,F403
 
 _NIST_ADAPTER = "nist-ambench-process-characterization"
 _HEAT_ADAPTER = "reference-heat-conduction"
+_IN625_ADAPTER = "in625-external-evidence"
 _LEGACY_ENTRYPOINTS = {"available_planning_adapters", "plan_research_next_action"}
 
 
@@ -60,6 +61,27 @@ def available_planning_adapters() -> tuple[str, ...]:
     return tuple(_call_legacy_with_compat_namespace(_legacy.available_planning_adapters))
 
 
+def _project_typed_state(state: dict, *, maximum_allowed_use: str) -> dict:
+    return {
+        "schema_version": _legacy.PLANNING_DECISION_SCHEMA_VERSION,
+        "adapter_id": state["adapter_id"],
+        "adapter_version": _legacy.PLANNING_ADAPTER_VERSION,
+        "domain": state["domain"],
+        "selection_status": state["stop_state"]["selection_status"],
+        "selected_action": state["selected_action"],
+        "candidates": list(state["action_frontier"]),
+        "reason": state["stop_state"]["reason"],
+        "evidence_level": None,
+        "maximum_allowed_use": maximum_allowed_use,
+        "evidence_bindings": list(state["evidence_bindings"]),
+        "network_access_performed": False,
+        "action_executed": False,
+        "model_fit_performed": False,
+        "scientific_evidence_upgraded": False,
+        "delegated_policy_version": None,
+    }
+
+
 def plan_research_next_action(
     adapter_id: str,
     *,
@@ -93,24 +115,26 @@ def plan_research_next_action(
             research_run=research_run,
             action_registry_path=action_registry_path,
         )
-        return {
-            "schema_version": _legacy.PLANNING_DECISION_SCHEMA_VERSION,
-            "adapter_id": state["adapter_id"],
-            "adapter_version": _legacy.PLANNING_ADAPTER_VERSION,
-            "domain": state["domain"],
-            "selection_status": state["stop_state"]["selection_status"],
-            "selected_action": state["selected_action"],
-            "candidates": list(state["action_frontier"]),
-            "reason": state["stop_state"]["reason"],
-            "evidence_level": None,
-            "maximum_allowed_use": "numerical_reference_validation_only",
-            "evidence_bindings": list(state["evidence_bindings"]),
-            "network_access_performed": False,
-            "action_executed": False,
-            "model_fit_performed": False,
-            "scientific_evidence_upgraded": False,
-            "delegated_policy_version": None,
-        }
+        return _project_typed_state(
+            state,
+            maximum_allowed_use="numerical_reference_validation_only",
+        )
+    if adapter_id == _IN625_ADAPTER:
+        if research_run is None or action_registry_path is None:
+            raise PlanningAdapterError(
+                "IN625 external-evidence executable planning requires both research_run and action_registry_path"
+            )
+        from .in625_execution_planning import build_in625_execution_planning_state
+
+        state = build_in625_execution_planning_state(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
+        return _project_typed_state(
+            state,
+            maximum_allowed_use="external_source_provenance_registration_only",
+        )
     return _call_legacy_with_compat_namespace(
         _legacy.plan_research_next_action,
         adapter_id,
