@@ -14,6 +14,7 @@ import pandas as pd
 from .characterization_features import REQUIRED_COLUMNS
 
 CONTRACT_VERSION = "1.0"
+LADDER_BUNDLE_SCHEMA_VERSION = "1.1"
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 _SOURCE_RECORD_CONTAINER_KEYS = {
     "sources",
@@ -77,12 +78,22 @@ def validate_required_evidence_identity_binding(
 ) -> dict[str, Any]:
     """Recompute a producer-declared evidence identity contract in the consumer.
 
-    Legacy bundles without the optional sub-contract retain checksum-only semantics.
-    When the producer declares the contract as required, the consumer independently
-    recomputes all semantic bindings from the checksum-verified evidence files.
+    Legacy schema-1.0 bundles without the optional sub-contract retain checksum-only
+    semantics. A ladder-enabled schema-1.1 bundle must declare and pass the semantic
+    identity contract, because autonomous planning must not attach maturity metadata to
+    feature rows that are unrelated to the referenced analysis/source evidence.
     """
     contract = _contract(manifest)
+    ladder_enabled = (
+        manifest.get("schema_version") == LADDER_BUNDLE_SCHEMA_VERSION
+        or "scientific_evidence_ladder" in manifest
+    )
     if contract is None:
+        if ladder_enabled:
+            raise ValueError(
+                "ladder-enabled characterization bundles require "
+                "evidence_identity_binding_contract.required=true"
+            )
         return {
             "contract_present": False,
             "contract_required": False,
