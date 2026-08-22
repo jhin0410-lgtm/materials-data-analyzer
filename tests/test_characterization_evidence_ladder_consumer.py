@@ -60,9 +60,15 @@ def _write_bundle(root: Path) -> Path:
     ).to_csv(context_path, index=False)
 
     source_manifest = root / "source_manifest.json"
-    source_manifest.write_text(json.dumps({"source": "public", "sha256": "a" * 64}), encoding="utf-8")
+    source_manifest.write_text(
+        json.dumps({"source": "public", "sha256": "a" * 64}),
+        encoding="utf-8",
+    )
     analysis_manifest = root / "analysis_manifest.json"
-    analysis_manifest.write_text(json.dumps({"analysis_count": 1}), encoding="utf-8")
+    analysis_manifest.write_text(
+        json.dumps({"analysis_count": 1}),
+        encoding="utf-8",
+    )
     comparability = root / "comparability_matrix.csv"
     pd.DataFrame(
         {"modality": ["raman"], "comparability_status": ["not_established"]}
@@ -111,7 +117,10 @@ def _write_bundle(root: Path) -> Path:
         },
     }
     path = root / "characterization_handoff_bundle.json"
-    path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return path
 
 
@@ -123,15 +132,20 @@ def _level(assessment: str) -> dict[str, object]:
     }
 
 
-def _attach_ladder(manifest_path: Path, *, supported_through: int) -> dict[str, object]:
+def _attach_ladder(
+    manifest_path: Path,
+    *,
+    supported_through: int,
+    source_material_domain: str = "Co3O4",
+) -> dict[str, object]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     declaration = {
         "schema_version": "1.0",
         "declaration_id": manifest["case_id"],
         "subject": {
             "modality": "raman",
-            "source_material_domain": "Co3O4",
-            "target_material_domain": "Co3O4",
+            "source_material_domain": source_material_domain,
+            "target_material_domain": source_material_domain,
             "claim_scope": "material_validation",
         },
         "source_bindings": [
@@ -139,10 +153,16 @@ def _attach_ladder(manifest_path: Path, *, supported_through: int) -> dict[str, 
                 "role": role,
                 "sha256": manifest["evidence_references"][role]["sha256"],
             }
-            for role in ("source_manifest", "analysis_manifest", "comparability_matrix")
+            for role in (
+                "source_manifest",
+                "analysis_manifest",
+                "comparability_matrix",
+            )
         ],
         "levels": {
-            level: _level("Supported" if index <= supported_through else "Unsupported")
+            level: _level(
+                "Supported" if index <= supported_through else "Unsupported"
+            )
             for index, level in enumerate(LEVELS)
         },
         "limitations": [],
@@ -188,7 +208,9 @@ def test_legacy_schema_1_0_remains_valid_without_ladder(tmp_path: Path) -> None:
     assert validated.evidence_ladder_assessment is None
 
 
-def test_schema_1_1_independently_replays_ladder_and_exports_state(tmp_path: Path) -> None:
+def test_schema_1_1_independently_replays_ladder_and_exports_state(
+    tmp_path: Path,
+) -> None:
     manifest = _write_bundle(tmp_path / "bundle")
     expected = _attach_ladder(manifest, supported_through=5)
 
@@ -214,7 +236,9 @@ def test_schema_1_1_independently_replays_ladder_and_exports_state(tmp_path: Pat
     ] is True
 
 
-def test_l6_blocker_becomes_deterministic_external_validation_gap(tmp_path: Path) -> None:
+def test_l6_blocker_becomes_planner_compatible_external_validation_gap(
+    tmp_path: Path,
+) -> None:
     manifest = _write_bundle(tmp_path / "bundle")
     _attach_ladder(manifest, supported_through=5)
     assessment = validate_characterization_bundle(manifest).evidence_ladder_assessment
@@ -230,16 +254,25 @@ def test_l6_blocker_becomes_deterministic_external_validation_gap(tmp_path: Path
     )
     assert first == second
     assert first["first_blocking_level"] == "L6_independent_external_validation"
-    assert first["suggested_action_class"] == (
+    assert first["suggested_action_class"] == "external_evidence_search"
+    assert first["provider_requirement_class"] == (
         "characterization_independent_external_validation"
     )
+    assert first["suggested_action_class"] in {
+        "external_evidence_search",
+        "model_diagnostic",
+        "review",
+        "stop",
+    }
     assert "independent external validation set" in first["next_evidence_requirement"]
     assert first["scientific_status_promoted"] is False
     assert first["empirical_evidence_created"] is False
     assert first["downstream_use_authorized"] is False
 
 
-def test_complete_ladder_has_no_maturity_gap_but_grants_no_authority(tmp_path: Path) -> None:
+def test_complete_ladder_has_no_maturity_gap_but_grants_no_authority(
+    tmp_path: Path,
+) -> None:
     manifest = _write_bundle(tmp_path / "bundle")
     _attach_ladder(manifest, supported_through=8)
     assessment = validate_characterization_bundle(manifest).evidence_ladder_assessment
@@ -251,7 +284,46 @@ def test_complete_ladder_has_no_maturity_gap_but_grants_no_authority(tmp_path: P
     assert gap["status"] == "no_unresolved_characterization_maturity_blocker"
     assert gap["first_blocking_level"] is None
     assert gap["suggested_action_class"] is None
+    assert gap["provider_requirement_class"] is None
     assert gap["downstream_use_authorized"] is False
+
+
+def test_gap_rejects_valid_assessment_substituted_from_another_bundle(
+    tmp_path: Path,
+) -> None:
+    first_manifest = _write_bundle(tmp_path / "first")
+    _attach_ladder(first_manifest, supported_through=5)
+    first_assessment = validate_characterization_bundle(
+        first_manifest
+    ).evidence_ladder_assessment
+    assert first_assessment is not None
+
+    second_manifest = _write_bundle(tmp_path / "second")
+    _attach_ladder(second_manifest, supported_through=4)
+    second_assessment = validate_characterization_bundle(
+        second_manifest
+    ).evidence_ladder_assessment
+    assert second_assessment is not None
+    assert first_assessment != second_assessment
+
+    with pytest.raises(ValueError, match="not the assessment bound"):
+        build_characterization_evidence_gap(
+            bundle_manifest_path=first_manifest,
+            ladder_assessment=second_assessment,
+        )
+
+
+def test_schema_1_1_rejects_ladder_source_material_substitution(
+    tmp_path: Path,
+) -> None:
+    manifest = _write_bundle(tmp_path / "bundle")
+    _attach_ladder(
+        manifest,
+        supported_through=5,
+        source_material_domain="TiO2",
+    )
+    with pytest.raises(ValueError, match="source_material_domain does not match"):
+        validate_characterization_bundle(manifest)
 
 
 def test_schema_version_and_ladder_presence_are_fail_closed(tmp_path: Path) -> None:
@@ -297,7 +369,9 @@ def test_ladder_artifact_tamper_and_manifest_summary_substitution_fail_closed(
         validate_characterization_bundle(manifest)
 
 
-def test_replayed_assessment_rejects_nonmonotonic_supported_level(tmp_path: Path) -> None:
+def test_replayed_assessment_rejects_nonmonotonic_supported_level(
+    tmp_path: Path,
+) -> None:
     manifest = _write_bundle(tmp_path / "bundle")
     _attach_ladder(manifest, supported_through=4)
     payload = json.loads(manifest.read_text(encoding="utf-8"))
