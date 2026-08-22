@@ -9,19 +9,24 @@ import pytest
 from materials_data_analyzer.research_loop.xlsx_structural_intake import (
     XlsxStructuralIntakeError,
     inspect_xlsx_structure,
+    resolve_xlsx_relationship_target,
 )
 
 
-def _workbook_bytes(*, malicious_name: str | None = None) -> bytes:
+def _workbook_bytes(
+    *,
+    malicious_name: str | None = None,
+    relationship_target: str = "worksheets/sheet1.xml",
+) -> bytes:
     workbook = b'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
  <sheets><sheet name="Measurements" sheetId="1" r:id="rId1"/></sheets>
 </workbook>'''
-    rels = b'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    rels = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
- <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-</Relationships>'''
+ <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="{relationship_target}"/>
+</Relationships>'''.encode("utf-8")
     strings = b'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="2" uniqueCount="2">
  <si><t>Laser Power (W)</t></si><si><t>Melt Pool Width (um)</t></si>
@@ -63,6 +68,41 @@ def test_structural_intake_lists_sheets_and_small_preview_without_scientific_upg
     assert report["requires_domain_mapping"] is True
     assert report["scientific_status_changed"] is False
     assert report["structural_parse_is_scientific_validation"] is False
+
+
+def test_relationship_target_dot_segments_are_resolved_relative_to_source_part():
+    assert (
+        resolve_xlsx_relationship_target(
+            "xl/workbook.xml",
+            "../xl/worksheets/sheet1.xml",
+        )
+        == "xl/worksheets/sheet1.xml"
+    )
+    report = inspect_xlsx_structure(
+        _workbook_bytes(relationship_target="../xl/worksheets/sheet1.xml")
+    )
+    assert report["sheets"][0]["worksheet_member"] == "xl/worksheets/sheet1.xml"
+
+
+def test_package_absolute_relationship_target_is_normalized_safely():
+    report = inspect_xlsx_structure(
+        _workbook_bytes(relationship_target="/xl/worksheets/sheet1.xml")
+    )
+    assert report["sheets"][0]["worksheet_member"] == "xl/worksheets/sheet1.xml"
+
+
+def test_relationship_target_cannot_resolve_outside_package_root():
+    with pytest.raises(XlsxStructuralIntakeError, match="outside the package root"):
+        inspect_xlsx_structure(
+            _workbook_bytes(relationship_target="../../escape.xml")
+        )
+
+
+def test_external_style_uri_without_external_mode_fails_closed():
+    with pytest.raises(XlsxStructuralIntakeError, match="scheme"):
+        inspect_xlsx_structure(
+            _workbook_bytes(relationship_target="https://example.org/sheet1.xml")
+        )
 
 
 def test_zip_slip_style_member_is_rejected_even_without_extraction():
