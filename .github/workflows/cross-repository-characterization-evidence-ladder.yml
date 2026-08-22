@@ -158,8 +158,11 @@ jobs:
               encoding="utf-8",
           )
 
+          # The builder's config contract is schema 1.0. Supplying the optional
+          # scientific_evidence_ladder input causes the produced bundle itself to be
+          # schema 1.1. Keep these two version domains deliberately distinct.
           config = {
-              "schema_version": "1.1",
+              "schema_version": "1.0",
               "case_id": "cross-repository-ladder-contract",
               "producer_repository": "jhin0410-lgtm/materials-characterization-analyzer",
               "evidence_level": "Diagnostic",
@@ -196,6 +199,7 @@ jobs:
               config_path,
               root / "bundle",
           )
+          assert result["validation"]["schema_version"] == "1.1"
           assert result["validation"]["scientific_evidence_ladder_present"] is True
           assert result["validation"]["scientific_evidence_ladder"]["first_blocking_level"] == (
               "L6_independent_external_validation"
