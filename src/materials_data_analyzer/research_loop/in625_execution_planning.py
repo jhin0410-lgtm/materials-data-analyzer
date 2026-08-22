@@ -182,7 +182,7 @@ def build_in625_execution_planning_state(
         frontier = []
         reason = "The active research budget cannot fund the registered external-evidence action."
         selection_status = "budget_blocked"
-        stop_status = "budget_exhausted"
+        stop_status = "operationally_blocked"
         blocker_code = "external_evidence_action_budget_unavailable"
     else:
         selected = {
