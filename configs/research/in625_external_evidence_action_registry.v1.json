@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "registry_id": "in625-external-evidence-typed-actions-v1",
+  "domain": "in625_external_empirical_evidence",
+  "actions": [
+    {
+      "action_type": "external_evidence_search",
+      "version": "1.0",
+      "availability": "available",
+      "category": "external_evidence_search",
+      "scientific_purpose": "Register one real, independently checksum-verified external IN625 empirical source archive as provenance-bound evidence for subsequent scientific intake without claiming condition equivalence or empirical validity.",
+      "target_blockers": [
+        "empirical_evidence_not_acquired",
+        "independent_external_evidence_missing"
+      ],
+      "preconditions": [
+        "active_research_run_with_budget",
+        "explicit_external_acquisition_authorization",
+        "exact_source_config_checksum_bound",
+        "exact_archive_checksum_bound",
+        "independent_request_and_ledger_sha_handoff"
+      ],
+      "required_inputs": [
+        {
+          "name": "source_config",
+          "kind": "json_file",
+          "required": true,
+          "description": "Repository-pinned Zenodo source identity containing exact provider metadata and verified archive SHA-256."
+        },
+        {
+          "name": "archive_path",
+          "kind": "binary_archive",
+          "required": true,
+          "description": "Real externally acquired Dataset.zip bytes matching the pinned Zenodo source identity."
+        }
+      ],
+      "expected_outputs": [
+        {
+          "path": "action_result.json",
+          "kind": "json_report",
+          "required": true,
+          "description": "Typed action report binding the exact request, source config, archive, registry, and immutable ledger action."
+        },
+        {
+          "path": "reports/verified_external_evidence.json",
+          "kind": "json_report",
+          "required": true,
+          "description": "Provenance-only evidence record binding the verified archive and bounded numerical-source member hashes."
+        }
+      ],
+      "cost_units": 2,
+      "binding": {
+        "kind": "source_script",
+        "name": null,
+        "path": "scripts/run_in625_external_evidence_action.py",
+        "platform": "cross_platform"
+      },
+      "verifier_checks": [
+        "exact_execution_request_bytes_pinned",
+        "research_ledger_sha256_pinned_before_execution",
+        "execution_registry_identity_reverified",
+        "source_config_sha256_reverified",
+        "zenodo_record_identity_reverified",
+        "full_external_archive_sha256_reverified",
+        "safe_archive_inventory_reconstructed",
+        "selected_numerical_member_sha256_recomputed",
+        "scientific_nonpromotion_boundary_reverified"
+      ],
+      "allowed_outcomes": [
+        "verified_external_source_archive_registered"
+      ],
+      "prohibited_effects": [
+        "synthetic_empirical_measurement_creation",
+        "sample_identity_inference",
+        "measurement_semantics_inference",
+        "replicate_independence_inference",
+        "direct_nist_condition_comparability_claim",
+        "empirical_model_validation_claim",
+        "hypothesis_truth_claim",
+        "positive_scientific_closeout",
+        "physical_experiment_execution",
+        "automatic_scientific_evidence_promotion",
+        "engineering_decision"
+      ]
+    }
+  ]
+}
