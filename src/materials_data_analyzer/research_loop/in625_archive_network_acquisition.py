@@ -194,7 +194,7 @@ def build_in625_archive_network_authorization(
         )
     except ResearchLoopError as exc:
         raise In625ArchiveNetworkAcquisitionError(
-            "README/source metadata did not pass the exact verified-source boundary"
+            f"README/source metadata did not pass the exact verified-source boundary or exact Zenodo host restriction: {exc}"
         ) from exc
     file_bindings = _mapping(readme_manifest.get("file_bindings"), "readme_manifest.file_bindings")
     archive_binding = _mapping(
