@@ -26,7 +26,7 @@ def review_replay(tmp_path_factory: pytest.TempPathFactory) -> tuple[ModuleType,
     fixture_builder = getattr(module.replay, "__wrapped__", None)
     if fixture_builder is None:
         raise RuntimeError("replay fixture lost its underlying deterministic builder")
-    state = fixture_builder(tmp_path_factory.mktemp("public-recursive-review"))
+    state = fixture_builder(tmp_path_factory)
     return module, state
 
 
