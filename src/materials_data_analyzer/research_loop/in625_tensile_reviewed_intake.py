@@ -23,7 +23,11 @@ from typing import Any, TextIO
 from xml.etree import ElementTree as ET
 
 from .kernel import ResearchLoopError
-from .xlsx_structural_intake import inspect_xlsx_structure
+from .xlsx_structural_intake import (
+    XlsxStructuralIntakeError,
+    inspect_xlsx_structure,
+    resolve_xlsx_relationship_target,
+)
 
 SCHEMA_VERSION = "1.0"
 EXPECTED_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
@@ -186,8 +190,14 @@ def _sheet_members(
             raise In625TensileReviewedIntakeError("workbook relationship is malformed")
         if rel.get("TargetMode") == "External":
             continue
-        candidate = target.lstrip("/") if target.startswith("/") else str(PurePosixPath("xl") / target)
-        targets[rel_id] = _safe_member_name(candidate)
+        if rel_id in targets:
+            raise In625TensileReviewedIntakeError(f"duplicate workbook relationship Id: {rel_id}")
+        try:
+            targets[rel_id] = resolve_xlsx_relationship_target("xl/workbook.xml", target)
+        except XlsxStructuralIntakeError as exc:
+            raise In625TensileReviewedIntakeError(
+                f"workbook relationship target is unsafe: {target!r}"
+            ) from exc
     sheets_node = workbook.find(f"{{{_MAIN_NS}}}sheets")
     if sheets_node is None:
         raise In625TensileReviewedIntakeError("workbook has no worksheet collection")
