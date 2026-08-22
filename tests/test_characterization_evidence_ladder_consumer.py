@@ -25,6 +25,12 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _manifest(tmp_path: Path) -> Path:
+    path = tmp_path / "characterization_handoff_bundle.json"
+    path.write_text('{"case_id":"case-1"}\n', encoding="utf-8")
+    return path
+
+
 def _assessment(
     *,
     case_id: str,
@@ -221,19 +227,21 @@ def test_first_blocker_maps_to_provenance_bound_target_material_gap(tmp_path: Pa
         evidence_paths=evidence_paths,
         instruments=["raman"],
     )
+    manifest = _manifest(tmp_path)
 
     first = build_characterization_research_evidence_gap(
-        bundle_manifest_sha256="b" * 64,
+        bundle_manifest_path=manifest,
         instruments=["raman"],
         ladder=ladder,
     )
     second = build_characterization_research_evidence_gap(
-        bundle_manifest_sha256="b" * 64,
+        bundle_manifest_path=manifest,
         instruments=["raman"],
         ladder=ladder,
     )
 
     assert first == second
+    assert first["bundle_manifest_sha256"] == _sha(manifest)
     assert first["first_blocking_level"] == "L5_material_domain_validation"
     assert first["next_requirement"]["requirement_id"] == (
         "characterization_target_material_validation_required"
@@ -241,6 +249,34 @@ def test_first_blocker_maps_to_provenance_bound_target_material_gap(tmp_path: Pa
     assert first["scientific_status_promoted"] is False
     assert first["downstream_use_authorized"] is False
     assert first["semantic_marker"] == "planning_requirement_not_scientific_evidence"
+
+
+def test_gap_digest_changes_when_bound_manifest_bytes_change(tmp_path: Path) -> None:
+    _, evidence_paths, record = _ladder_fixture(tmp_path, supported_through=4)
+    ladder, _ = validate_bundle_scientific_evidence_ladder(
+        bundle_root=tmp_path,
+        record=record,
+        case_id="case-1",
+        evidence_paths=evidence_paths,
+        instruments=["raman"],
+    )
+    manifest = _manifest(tmp_path)
+    first = build_characterization_research_evidence_gap(
+        bundle_manifest_path=manifest,
+        instruments=["raman"],
+        ladder=ladder,
+    )
+    manifest.write_text('{"case_id":"case-1","revision":2}\n', encoding="utf-8")
+    second = build_characterization_research_evidence_gap(
+        bundle_manifest_path=manifest,
+        instruments=["raman"],
+        ladder=ladder,
+    )
+
+    assert first["bundle_manifest_sha256"] != second["bundle_manifest_sha256"]
+    assert first["characterization_evidence_gap_sha256"] != second[
+        "characterization_evidence_gap_sha256"
+    ]
 
 
 def test_independence_blocker_maps_to_external_validation_requirement(tmp_path: Path) -> None:
@@ -254,7 +290,7 @@ def test_independence_blocker_maps_to_external_validation_requirement(tmp_path: 
     )
 
     gap = build_characterization_research_evidence_gap(
-        bundle_manifest_sha256="c" * 64,
+        bundle_manifest_path=_manifest(tmp_path),
         instruments=["raman"],
         ladder=ladder,
     )
@@ -265,9 +301,11 @@ def test_independence_blocker_maps_to_external_validation_requirement(tmp_path: 
     )
 
 
-def test_legacy_bundle_requires_maturity_assessment_instead_of_inferred_level() -> None:
+def test_legacy_bundle_requires_maturity_assessment_instead_of_inferred_level(
+    tmp_path: Path,
+) -> None:
     gap = build_characterization_research_evidence_gap(
-        bundle_manifest_sha256="d" * 64,
+        bundle_manifest_path=_manifest(tmp_path),
         instruments=["xrd"],
         ladder=None,
     )
@@ -291,7 +329,7 @@ def test_complete_ladder_has_no_next_characterization_requirement_but_authorizes
     )
 
     gap = build_characterization_research_evidence_gap(
-        bundle_manifest_sha256="e" * 64,
+        bundle_manifest_path=_manifest(tmp_path),
         instruments=["raman"],
         ladder=ladder,
     )
