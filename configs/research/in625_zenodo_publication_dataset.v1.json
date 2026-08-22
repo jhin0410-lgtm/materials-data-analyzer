@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "episode_id": "in625-zenodo-20503603-publication-evidence",
   "mission_id": "in625-independent-public-evidence",
   "research_question": "What independently published LPBF Inconel 625 evidence is available for build-orientation and heat-treatment effects on mechanical, tribological, and corrosion responses?",
@@ -22,19 +22,53 @@
   "zenodo": {
     "record_id": 20503603,
     "version_doi": "10.5281/zenodo.20503603",
+    "expected_title": "Dataset for a publication \"Influence of Build Orientation and Heat Treatment on Mechanical, Tribological, and Corrosion Performance of LPBF Inconel 625\"",
+    "publication_date": "2026-06-02",
+    "license_id": "cc-by-4.0",
     "related_article_doi": "10.1016/j.jmrt.2026.05.163",
+    "related_article_relation": "isSupplementTo",
     "selected_files": [
       "README - Dataset description.txt",
       "Dataset.zip"
     ],
-    "archive_file": "Dataset.zip"
+    "readme_file": "README - Dataset description.txt",
+    "archive_file": "Dataset.zip",
+    "files": {
+      "README - Dataset description.txt": {
+        "size_bytes": 1408,
+        "provider_checksum_algorithm": "md5",
+        "provider_checksum_digest": "00313a86d70bbb388a9ee84677f23c5f",
+        "verified_sha256": "73571f59125e98403816a0fbac8eca6edc3dd2276c0e8aecc0fb824088e4cbd6"
+      },
+      "Dataset.zip": {
+        "size_bytes": 180726708,
+        "provider_checksum_algorithm": "md5",
+        "provider_checksum_digest": "54601f974a9590be104cf1e3090b68bd",
+        "verified_sha256": null
+      }
+    },
+    "archive_policy": {
+      "max_members": 10000,
+      "max_total_uncompressed_bytes": 2147483648,
+      "max_member_uncompressed_bytes": 536870912,
+      "max_selected_tabular_bytes": 67108864,
+      "selected_extensions": [
+        ".csv",
+        ".txt"
+      ],
+      "reject_symlinks": true,
+      "reject_path_traversal": true
+    }
   },
   "scientific_boundaries": {
     "issue_76_eligible": false,
     "automatic_scientific_promotion": false,
     "publication_supplement_evidence_class": "E2_publication_supplement",
     "external_validation_requires_sample_acquisition_lineage": true,
-    "figure_or_table_values_must_preserve_extraction_route": true
+    "figure_or_table_values_must_preserve_extraction_route": true,
+    "source_acquisition_establishes_direct_nist_comparability": false,
+    "source_acquisition_establishes_hypothesis_truth": false,
+    "source_acquisition_establishes_positive_scientific_closeout": false
   },
   "episode_budget": {
     "max_iterations": 20,
