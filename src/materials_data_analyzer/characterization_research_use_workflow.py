@@ -1,17 +1,25 @@
 """Downstream-use workflow for legacy and L0-L8 characterization research bundles."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
 
+from loaders.characterization_features import sha256_file
 from loaders.characterization_research_bundle import (
+    ValidatedResearchCharacterizationBundle,
     consume_characterization_research_bundle,
     validate_characterization_research_bundle,
 )
 
 from .characterization_use_contract import require_characterization_use
 from .characterization_use_workflow import _normalized_group_values, _record_eligibility
+from .research_loop.characterization_evidence_gap import (
+    build_characterization_evidence_gap,
+)
+
+EVIDENCE_GAP_FILE_NAME = "characterization_evidence_gap.json"
 
 
 def _verify_split_group_binding(
@@ -124,6 +132,75 @@ def _verify_split_group_binding(
     }
 
 
+def _record_planning_gap(
+    outputs: dict[str, Path],
+    bundle: ValidatedResearchCharacterizationBundle,
+) -> dict[str, Path]:
+    record = bundle.scientific_evidence_ladder
+    assessment = bundle.scientific_evidence_ladder_assessment
+    if record is None or assessment is None:
+        return outputs
+
+    artifact = build_characterization_evidence_gap(
+        scientific_evidence_ladder=record,
+        scientific_evidence_ladder_assessment=assessment,
+        source_bundle_manifest_sha256=sha256_file(bundle.manifest_path),
+    )
+    summary_path = outputs["cross_repository_summary"]
+    report_path = outputs["cross_repository_report"]
+    manifest_path = outputs["cross_repository_manifest"]
+    output_root = summary_path.parent
+    gap_path = output_root / EVIDENCE_GAP_FILE_NAME
+    gap_path.write_text(
+        json.dumps(artifact, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    outputs["characterization_evidence_gap"] = gap_path
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if not isinstance(summary, dict):
+        raise ValueError("cross-repository summary must contain a JSON object")
+    summary["autonomous_research_planning"] = artifact
+    summary_path.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    gap = artifact["evidence_gap"]
+    next_requirement = (
+        "No unresolved L0-L8 successor requirement."
+        if gap is None
+        else str(gap["requirement"])
+    )
+    report = report_path.read_text(encoding="utf-8").rstrip()
+    report += f"""
+
+## Autonomous Research Planning Handoff
+
+- First blocking evidence level: `{artifact['first_blocking_level']}`
+- Planning artifact SHA-256: `{artifact['canonical_sha256']}`
+- Automatic execution authorized: `false`
+- Scientific status promoted: `false`
+
+Next evidence requirement: {next_requirement}
+
+This is a provenance-bound planning requirement, not a scientific result. Any search,
+analysis, simulation, replication, or physical experiment still passes through the
+research-loop planning and explicit execution-authority boundaries.
+"""
+    report_path.write_text(report + "\n", encoding="utf-8")
+
+    consumer_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(consumer_manifest, dict):
+        raise ValueError("cross-repository manifest must contain a JSON object")
+    consumer_manifest["autonomous_research_planning"] = artifact
+    manifest_path.write_text(
+        json.dumps(consumer_manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return outputs
+
+
 def consume_characterization_bundle_for_use(
     manifest_path: str | Path,
     output_dir: str | Path,
@@ -138,6 +215,7 @@ def consume_characterization_bundle_for_use(
         requested_use=requested_use,
         split_group_field=split_group_field,
     )
+    bundle = validate_characterization_research_bundle(manifest_path)
     split_group_binding = _verify_split_group_binding(
         manifest_path,
         process_table_path,
@@ -148,7 +226,8 @@ def consume_characterization_bundle_for_use(
         output_dir,
         process_table_path=process_table_path,
     )
+    outputs = _record_planning_gap(outputs, bundle)
     return _record_eligibility(outputs, decision, split_group_binding)
 
 
-__all__ = ["consume_characterization_bundle_for_use"]
+__all__ = ["EVIDENCE_GAP_FILE_NAME", "consume_characterization_bundle_for_use"]
