@@ -47,6 +47,7 @@
   "metadata_block_start_label": "Specimen",
   "specimen_label": "Oznaka vzorca / Specimen",
   "max_parallel_tests_per_sheet": 3,
+  "expected_total_measurement_rows": 200289,
   "max_measurement_rows_total": 300000,
   "max_cells_total": 4000000,
   "sheets": {
@@ -54,43 +55,50 @@
       "manufacturing_route": "conventional_manufacturing",
       "condition": "solution_annealed",
       "heat_treatment_text": "solution annealed at 1050 °C",
-      "build_orientation": null
+      "build_orientation": null,
+      "expected_parallel_test_blocks": 2
     },
     "AM-AB-H": {
       "manufacturing_route": "additive_manufacturing",
       "condition": "as_built",
       "heat_treatment_text": null,
-      "build_orientation": "horizontal"
+      "build_orientation": "horizontal",
+      "expected_parallel_test_blocks": 3
     },
     "AM-AB-V": {
       "manufacturing_route": "additive_manufacturing",
       "condition": "as_built",
       "heat_treatment_text": null,
-      "build_orientation": "vertical"
+      "build_orientation": "vertical",
+      "expected_parallel_test_blocks": 2
     },
     "AM-SR-H": {
       "manufacturing_route": "additive_manufacturing",
       "condition": "stress_relief_annealed",
       "heat_treatment_text": "870 °C/1h",
-      "build_orientation": "horizontal"
+      "build_orientation": "horizontal",
+      "expected_parallel_test_blocks": 3
     },
     "AM-SR-V": {
       "manufacturing_route": "additive_manufacturing",
       "condition": "stress_relief_annealed",
       "heat_treatment_text": "870 °C/1h",
-      "build_orientation": "vertical"
+      "build_orientation": "vertical",
+      "expected_parallel_test_blocks": 3
     },
     "AM-ST-H": {
       "manufacturing_route": "additive_manufacturing",
       "condition": "solution_annealed",
       "heat_treatment_text": "1050 °C/1h",
-      "build_orientation": "horizontal"
+      "build_orientation": "horizontal",
+      "expected_parallel_test_blocks": 3
     },
     "AM-ST-V": {
       "manufacturing_route": "additive_manufacturing",
       "condition": "solution_annealed",
       "heat_treatment_text": "1050 °C/1h",
-      "build_orientation": "vertical"
+      "build_orientation": "vertical",
+      "expected_parallel_test_blocks": 3
     }
   },
   "scientific_boundaries": {
