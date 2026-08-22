@@ -12,6 +12,13 @@ import pandas as pd
 from .characterization_evidence_binding import (
     validate_required_evidence_identity_binding,
 )
+from .characterization_evidence_ladder import (
+    LADDER_BUNDLE_SCHEMA_VERSION,
+    LEGACY_BUNDLE_SCHEMA_VERSION,
+    SUPPORTED_BUNDLE_SCHEMA_VERSIONS,
+    CharacterizationEvidenceLadderError,
+    validate_bundle_scientific_evidence_ladder,
+)
 from .characterization_features import (
     REQUIRED_COLUMNS,
     run_characterization_handoff,
@@ -19,7 +26,7 @@ from .characterization_features import (
     validate_characterization_features,
 )
 
-BUNDLE_SCHEMA_VERSION = "1.0"
+BUNDLE_SCHEMA_VERSION = LEGACY_BUNDLE_SCHEMA_VERSION
 BUNDLE_TYPE = "materials_characterization_feature_handoff"
 CONSUMER_SCHEMA_VERSION = "1.0"
 SUMMARY_NAME = "cross_repository_handoff_summary.json"
@@ -41,6 +48,8 @@ class ValidatedCharacterizationBundle:
     feature_table: pd.DataFrame
     sample_context: pd.DataFrame
     evidence_identity_binding: dict[str, Any]
+    scientific_evidence_ladder: dict[str, Any] | None = None
+    scientific_evidence_ladder_binding: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -104,16 +113,33 @@ def _resolve_sibling(bundle_root: Path, record: object, label: str) -> Path:
     return target
 
 
+def _validate_bundle_schema(manifest: dict[str, Any]) -> str:
+    schema_version = manifest.get("schema_version")
+    if schema_version not in SUPPORTED_BUNDLE_SCHEMA_VERSIONS:
+        raise ValueError(
+            f"Unsupported characterization bundle schema_version: {schema_version}"
+        )
+    ladder_present = "scientific_evidence_ladder" in manifest
+    if schema_version == LEGACY_BUNDLE_SCHEMA_VERSION and ladder_present:
+        raise ValueError(
+            "characterization bundle schema_version 1.0 must not contain "
+            "scientific_evidence_ladder"
+        )
+    if schema_version == LADDER_BUNDLE_SCHEMA_VERSION and not ladder_present:
+        raise ValueError(
+            "characterization bundle schema_version 1.1 requires "
+            "scientific_evidence_ladder"
+        )
+    return str(schema_version)
+
+
 def validate_characterization_bundle(
     manifest_path: str | Path,
 ) -> ValidatedCharacterizationBundle:
     """Validate bundle schema, files, counts, IDs, provenance, and claim boundary."""
     manifest_path = Path(manifest_path)
     manifest = _read_json_object(manifest_path, "characterization bundle manifest")
-    if manifest.get("schema_version") != BUNDLE_SCHEMA_VERSION:
-        raise ValueError(
-            f"Unsupported characterization bundle schema_version: {manifest.get('schema_version')}"
-        )
+    schema_version = _validate_bundle_schema(manifest)
     if manifest.get("bundle_type") != BUNDLE_TYPE:
         raise ValueError(
             f"Unsupported characterization bundle_type: {manifest.get('bundle_type')}"
@@ -239,6 +265,23 @@ def validate_characterization_bundle(
         if not isinstance(closeout.get(field), list):
             raise ValueError(f"scientific_closeout {field} must be a list.")
 
+    scientific_evidence_ladder: dict[str, Any] | None = None
+    scientific_evidence_ladder_binding: dict[str, Any] | None = None
+    if schema_version == LADDER_BUNDLE_SCHEMA_VERSION:
+        try:
+            (
+                scientific_evidence_ladder,
+                scientific_evidence_ladder_binding,
+            ) = validate_bundle_scientific_evidence_ladder(
+                bundle_root=root,
+                record=manifest.get("scientific_evidence_ladder"),
+                case_id=manifest["case_id"].strip(),
+                evidence_paths=evidence_paths,
+                instruments=expected_feature_metadata["instruments"],
+            )
+        except CharacterizationEvidenceLadderError as exc:
+            raise ValueError(f"invalid scientific evidence ladder: {exc}") from exc
+
     return ValidatedCharacterizationBundle(
         manifest_path=manifest_path,
         manifest=manifest,
@@ -248,6 +291,8 @@ def validate_characterization_bundle(
         feature_table=features,
         sample_context=context,
         evidence_identity_binding=evidence_identity_binding,
+        scientific_evidence_ladder=scientific_evidence_ladder,
+        scientific_evidence_ladder_binding=scientific_evidence_ladder_binding,
     )
 
 
@@ -457,6 +502,11 @@ def _build_report(summary: dict[str, Any]) -> str:
     process = summary["process_input"]
     binding = summary["evidence_identity_binding"]
     verified_identity = ", ".join(process["verified_identity_columns"])
+    ladder = summary["scientific_evidence_ladder"]
+    if ladder is None:
+        ladder_section = """## Scientific Evidence Ladder\n\nNo independently replayable L0-L8 maturity assessment is present in this legacy bundle. No evidence level is inferred from that absence.\n"""
+    else:
+        ladder_section = f"""## Scientific Evidence Ladder\n\n- Highest contiguous supported level: `{ladder['highest_contiguous_supported_level']}`\n- First blocking level: `{ladder['first_blocking_level']}`\n- Declaration SHA-256: `{ladder['declaration_sha256']}`\n- Assessment SHA-256: `{ladder['assessment_sha256']}`\n- Scientific status promoted: `{str(ladder['scientific_status_promoted']).lower()}`\n- Downstream use authorized: `{str(ladder['downstream_use_authorized']).lower()}`\n\nThe consumer independently replayed the producer declaration and cross-bound it to this bundle's case, empirical evidence files, and represented modality. This maturity assessment is planning metadata, not new scientific evidence or downstream-use authorization.\n"""
     return f"""# Cross-Repository Characterization Handoff Report
 
 ## Result
@@ -495,6 +545,7 @@ checks comparability sample/modality identity coverage. It does not trust a
 producer-side validation summary. Legacy bundles without the optional contract
 retain their historical checksum-only validation semantics.
 
+{ladder_section}
 ## Process Input
 
 - Mode: `{process['mode']}`
@@ -622,6 +673,8 @@ def consume_characterization_bundle(
         "unit_label_normalization": normalization,
         "join_summary": join_summary,
         "evidence_identity_binding": bundle.evidence_identity_binding,
+        "scientific_evidence_ladder": bundle.scientific_evidence_ladder,
+        "scientific_evidence_ladder_binding": bundle.scientific_evidence_ladder_binding,
         "software_validation": {
             "all_bundle_checksums_verified": True,
             "stable_feature_contract_validated": True,
@@ -635,6 +688,9 @@ def consume_characterization_bundle(
             "legacy_checksum_only_evidence_validation": bundle.evidence_identity_binding[
                 "legacy_checksum_only_validation"
             ],
+            "scientific_evidence_ladder_present": bundle.scientific_evidence_ladder is not None,
+            "scientific_evidence_ladder_independently_replayed": bundle.scientific_evidence_ladder is not None,
+            "scientific_evidence_ladder_authorized_downstream_use": False,
             "scientific_comparability_established": False,
             "external_process_table_used": bool(process_table_path is not None),
             "process_identity_columns_verified": process_input.metadata[
@@ -684,6 +740,8 @@ def consume_characterization_bundle(
         "process_input": process_input.metadata,
         "unit_label_normalization": normalization,
         "evidence_identity_binding": bundle.evidence_identity_binding,
+        "scientific_evidence_ladder": bundle.scientific_evidence_ladder,
+        "scientific_evidence_ladder_binding": bundle.scientific_evidence_ladder_binding,
         "validation": summary["software_validation"],
         "join_summary": join_summary,
         "scientific_closeout": bundle.manifest["scientific_closeout"],
