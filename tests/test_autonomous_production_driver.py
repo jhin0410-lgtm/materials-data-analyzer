@@ -50,6 +50,14 @@ def test_run_autonomous_parser_needs_no_pre_authored_request_queue() -> None:
     assert not hasattr(args, "request_queue")
 
 
+@pytest.mark.parametrize("flag", ["--request-queue", "--result", "--success"])
+def test_run_autonomous_rejects_caller_authored_control_inputs(flag: str) -> None:
+    with pytest.raises(SystemExit):
+        research_program_cli.build_parser().parse_args(
+            ["run-autonomous", flag, "forged.json"]
+        )
+
+
 def test_run_autonomous_uses_independent_production_pin(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -106,6 +114,37 @@ def test_driver_rejects_untrusted_mission_root_before_network(
     assert network_called is False
 
 
+@pytest.mark.parametrize("max_cycles", [0, 9, True])
+def test_driver_rejects_cycle_budget_outside_finite_range_before_network(
+    monkeypatch: pytest.MonkeyPatch,
+    max_cycles: object,
+) -> None:
+    network_called = False
+
+    def forbidden_network(*args: object, **kwargs: object) -> bytes:
+        nonlocal network_called
+        network_called = True
+        raise AssertionError("network must not be reached under invalid cycle budget")
+
+    monkeypatch.setattr(
+        autonomous_production_driver,
+        "_exact_zenodo_get",
+        forbidden_network,
+    )
+    with pytest.raises(
+        autonomous_production_driver.AutonomousProductionDriverError,
+        match="max_cycles must be an integer from 1 to 8",
+    ):
+        autonomous_production_driver.run_autonomous_production(
+            repository_root=REPOSITORY_ROOT,
+            mission_path=MISSION,
+            expected_mission_sha256=EXPECTED_MISSION_SHA256,
+            output_root=Path("outputs") / "must-not-be-created-cycle-budget",
+            max_cycles=max_cycles,  # type: ignore[arg-type]
+        )
+    assert network_called is False
+
+
 def test_driver_rejects_non_zenodo_target_before_urlopen(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -132,6 +171,10 @@ def test_driver_rejects_non_zenodo_target_before_urlopen(
 
 
 def test_bounded_successor_stop_never_claims_global_evidence_absence() -> None:
+    assert (
+        "reviewed_physical_comparability_assessment"
+        not in autonomous_production_driver._PRODUCTION_CAPABILITIES
+    )
     stop = autonomous_production_driver._bounded_successor_stop(
         {
             "next_action": {
@@ -155,15 +198,25 @@ def _write_reauthorized_network_fixture(
     tmp_path: Path,
     *,
     mutate_policy: Callable[[dict[str, Any]], None],
-) -> tuple[Path, Path, Path, str]:
+    mutate_source: Callable[[dict[str, Any]], None] | None = None,
+) -> tuple[Path, Path, Path, Path, str]:
     root = tmp_path / "repo"
     config_dir = root / "configs/research"
     config_dir.mkdir(parents=True)
 
+    source = json.loads(SOURCE_CONFIG.read_text(encoding="utf-8"))
+    if mutate_source is not None:
+        mutate_source(source)
+    source_bytes = (
+        json.dumps(source, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+    ).encode("utf-8")
     source_path = config_dir / SOURCE_CONFIG.name
-    source_path.write_bytes(SOURCE_CONFIG.read_bytes())
+    source_path.write_bytes(source_bytes)
 
     policy = json.loads(NETWORK_POLICY.read_text(encoding="utf-8"))
+    policy["source_binding"]["source_config_sha256"] = hashlib.sha256(
+        source_bytes
+    ).hexdigest()
     mutate_policy(policy)
     policy_bytes = (
         json.dumps(policy, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
@@ -181,13 +234,13 @@ def _write_reauthorized_network_fixture(
     mission_path = config_dir / MISSION.name
     mission_path.write_bytes(mission_bytes)
     mission_sha = hashlib.sha256(mission_bytes).hexdigest()
-    return root, mission_path, policy_path, mission_sha
+    return root, mission_path, policy_path, source_path, mission_sha
 
 
 def test_network_policy_rejects_widened_host_even_under_new_mission_root(
     tmp_path: Path,
 ) -> None:
-    root, mission_path, policy_path, mission_sha = (
+    root, mission_path, policy_path, source_path, mission_sha = (
         _write_reauthorized_network_fixture(
             tmp_path,
             mutate_policy=lambda policy: policy["transport"].__setitem__(
@@ -204,7 +257,32 @@ def test_network_policy_rejects_widened_host_even_under_new_mission_root(
             mission_path=mission_path,
             expected_mission_sha256=mission_sha,
             policy_path=policy_path,
-            source_config_path=root / "configs/research" / SOURCE_CONFIG.name,
+            source_config_path=source_path,
+        )
+
+
+def test_network_policy_rejects_source_identity_substitution_even_if_repinned(
+    tmp_path: Path,
+) -> None:
+    root, mission_path, policy_path, source_path, mission_sha = (
+        _write_reauthorized_network_fixture(
+            tmp_path,
+            mutate_policy=lambda policy: None,
+            mutate_source=lambda source: source.__setitem__(
+                "source_id", "attacker-controlled-source"
+            ),
+        )
+    )
+    with pytest.raises(
+        in625_network_policy.In625NetworkPolicyError,
+        match="source config identity drifted",
+    ):
+        in625_network_policy.authenticate_in625_network_policy(
+            repository_root=root,
+            mission_path=mission_path,
+            expected_mission_sha256=mission_sha,
+            policy_path=policy_path,
+            source_config_path=source_path,
         )
 
 
