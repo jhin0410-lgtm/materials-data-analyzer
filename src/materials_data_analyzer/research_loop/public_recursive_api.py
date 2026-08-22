@@ -35,9 +35,6 @@ from .in625_post_acquisition_rediagnosis_v2 import (
     build_in625_post_acquisition_rediagnosis_v2,
 )
 from .in625_tensile_quality_contract import verify_in625_tensile_observed_quality
-from .in625_tensile_reviewed_intake import (
-    build_reviewed_in625_tensile_intake as build_strict_in625_tensile_intake,
-)
 from .in625_tensile_reviewed_intake_v2 import (
     build_reviewed_in625_tensile_intake_v2,
 )
@@ -86,8 +83,7 @@ advance_recursive_cycle_after_verified_transition = (
 )
 complete_recursive_cycle_with_rediagnosis = complete_public_recursive_cycle_with_rediagnosis
 
-# The public IN625 intake preserves real source missingness.  The original strict contract
-# remains available explicitly for regression/diagnostic use but is no longer the public default.
+# The public IN625 intake preserves exact source missingness and never imputes it.
 build_reviewed_in625_tensile_intake = build_reviewed_in625_tensile_intake_v2
 
 __all__ = [
@@ -118,7 +114,6 @@ __all__ = [
     "build_public_recursive_replay_manifest",
     "build_reviewed_in625_tensile_intake",
     "build_reviewed_in625_tensile_intake_v2",
-    "build_strict_in625_tensile_intake",
     "build_validated_recursive_planning_checkpoint",
     "complete_public_recursive_cycle_with_rediagnosis",
     "complete_recursive_cycle_with_rediagnosis",
