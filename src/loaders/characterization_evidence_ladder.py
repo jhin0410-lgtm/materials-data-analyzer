@@ -92,9 +92,9 @@ class CharacterizationEvidenceLadderError(ValueError):
     """Raised when a characterization maturity artifact fails closed."""
 
 
-def _canonical_sha256(value: object) -> str:
+def _canonical_json_bytes(value: object) -> bytes:
     try:
-        payload = json.dumps(
+        return json.dumps(
             value,
             ensure_ascii=False,
             sort_keys=True,
@@ -105,7 +105,15 @@ def _canonical_sha256(value: object) -> str:
         raise CharacterizationEvidenceLadderError(
             "characterization evidence ladder must be canonical-JSON serializable"
         ) from exc
-    return hashlib.sha256(payload).hexdigest()
+
+
+def _canonical_sha256(value: object) -> str:
+    return hashlib.sha256(_canonical_json_bytes(value)).hexdigest()
+
+
+def _json_exact_equal(left: object, right: object) -> bool:
+    """Compare JSON values without Python's bool/int equality coercion."""
+    return _canonical_json_bytes(left) == _canonical_json_bytes(right)
 
 
 def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -411,7 +419,7 @@ def replay_scientific_evidence_ladder_assessment(
     recomputed = evaluate_scientific_evidence_ladder(
         _declaration_from_persisted(declaration)
     )
-    if dict(persisted) != recomputed:
+    if not _json_exact_equal(dict(persisted), recomputed):
         raise CharacterizationEvidenceLadderError(
             "scientific evidence ladder assessment does not match independent replay"
         )
@@ -529,7 +537,7 @@ def _validate_manifest_record(
         "downstream_use_authorized": False,
         "lower_level_evidence_preserved": True,
     }
-    if dict(manifest_record) != expected_record:
+    if not _json_exact_equal(dict(manifest_record), expected_record):
         raise CharacterizationEvidenceLadderError(
             "scientific evidence ladder manifest summary does not match independent replay"
         )
