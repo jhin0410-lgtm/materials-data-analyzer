@@ -13,6 +13,8 @@ from loaders.characterization_bundle import (
     validate_characterization_bundle,
 )
 from loaders.characterization_evidence_ladder import (
+    LADDER_HANDOFF_CONTRACT,
+    LADDER_RECORD_SCHEMA_VERSION,
     LEVELS,
     evaluate_scientific_evidence_ladder,
 )
@@ -184,12 +186,20 @@ def _write_bundle(tmp_path: Path, *, with_ladder: bool) -> Path:
             json.dumps(assessment, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        declaration = assessment["declaration"]
+        handoff = assessment["handoff"]
+        assert isinstance(declaration, dict)
+        assert isinstance(handoff, dict)
         manifest["scientific_evidence_ladder"] = {
-            **_record(ladder_path),
+            "contract": LADDER_HANDOFF_CONTRACT,
+            "schema_version": LADDER_RECORD_SCHEMA_VERSION,
+            "policy_version": assessment["policy_version"],
+            "assessment": _record(ladder_path),
+            "declaration_id": declaration["declaration_id"],
             "declaration_sha256": assessment["declaration_sha256"],
             "assessment_sha256": assessment["assessment_sha256"],
-            "subject": assessment["declaration"]["subject"],
-            "source_bindings": assessment["declaration"]["source_bindings"],
+            "subject": handoff["subject"],
+            "source_bindings": handoff["source_bindings"],
             "highest_contiguous_supported_level": assessment[
                 "highest_contiguous_supported_level"
             ],
@@ -197,6 +207,7 @@ def _write_bundle(tmp_path: Path, *, with_ladder: bool) -> Path:
             "readiness": assessment["readiness"],
             "scientific_status_promoted": False,
             "downstream_use_authorized": False,
+            "lower_level_evidence_preserved": True,
         }
 
     manifest_path = tmp_path / "characterization_handoff_bundle.json"
@@ -217,6 +228,7 @@ def test_schema_11_bundle_exposes_independently_verified_ladder(tmp_path: Path) 
     assert bundle.scientific_evidence_ladder["first_blocking_level"] == (
         "L5_material_domain_validation"
     )
+    assert bundle.scientific_evidence_ladder["contract"] == LADDER_HANDOFF_CONTRACT
     assert bundle.scientific_evidence_ladder_binding == {
         "case_id_bound": True,
         "required_source_roles": [
