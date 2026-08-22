@@ -9,6 +9,11 @@ from typing import Any
 
 import pandas as pd
 
+from materials_data_analyzer.characterization_research_gap import (
+    build_characterization_research_evidence_gap,
+    write_characterization_research_evidence_gap,
+)
+
 from .characterization_evidence_binding import (
     validate_required_evidence_identity_binding,
 )
@@ -507,6 +512,12 @@ def _build_report(summary: dict[str, Any]) -> str:
         ladder_section = """## Scientific Evidence Ladder\n\nNo independently replayable L0-L8 maturity assessment is present in this legacy bundle. No evidence level is inferred from that absence.\n"""
     else:
         ladder_section = f"""## Scientific Evidence Ladder\n\n- Highest contiguous supported level: `{ladder['highest_contiguous_supported_level']}`\n- First blocking level: `{ladder['first_blocking_level']}`\n- Declaration SHA-256: `{ladder['declaration_sha256']}`\n- Assessment SHA-256: `{ladder['assessment_sha256']}`\n- Scientific status promoted: `{str(ladder['scientific_status_promoted']).lower()}`\n- Downstream use authorized: `{str(ladder['downstream_use_authorized']).lower()}`\n\nThe consumer independently replayed the producer declaration and cross-bound it to this bundle's case, empirical evidence files, and represented modality. This maturity assessment is planning metadata, not new scientific evidence or downstream-use authorization.\n"""
+    research_gap = summary["characterization_research_evidence_gap"]
+    next_requirement = research_gap["next_requirement"]
+    if next_requirement is None:
+        gap_section = """## Autonomous Research Evidence Gap\n\nNo next characterization evidence requirement is emitted because the independently replayed ladder has no blocking level. This does not itself authorize engineering use; downstream-use policy remains separate.\n"""
+    else:
+        gap_section = f"""## Autonomous Research Evidence Gap\n\n- Requirement ID: `{next_requirement['requirement_id']}`\n- Category: `{next_requirement['category']}`\n- First blocking level: `{research_gap['first_blocking_level']}`\n- Gap SHA-256: `{research_gap['characterization_evidence_gap_sha256']}`\n- Scientific status promoted: `{str(research_gap['scientific_status_promoted']).lower()}`\n- Downstream use authorized: `{str(research_gap['downstream_use_authorized']).lower()}`\n\n{next_requirement['description']}\n\nThis artifact is deterministic planning metadata for the autonomous research loop, not scientific evidence and not action authorization.\n"""
     return f"""# Cross-Repository Characterization Handoff Report
 
 ## Result
@@ -546,6 +557,7 @@ producer-side validation summary. Legacy bundles without the optional contract
 retain their historical checksum-only validation semantics.
 
 {ladder_section}
+{gap_section}
 ## Process Input
 
 - Mode: `{process['mode']}`
@@ -618,6 +630,18 @@ def consume_characterization_bundle(
     )
 
     outputs: dict[str, Path] = {"normalized_bundle_input": normalized_input}
+    instruments = sorted(set(bundle.feature_table["instrument"].astype(str)))
+    research_gap = build_characterization_research_evidence_gap(
+        bundle_manifest_path=bundle.manifest_path,
+        instruments=instruments,
+        ladder=bundle.scientific_evidence_ladder,
+    )
+    research_gap_path = write_characterization_research_evidence_gap(
+        output,
+        research_gap,
+    )
+    outputs["characterization_research_evidence_gap"] = research_gap_path
+
     if process_table_path is not None:
         process_input_path = output / EXTERNAL_PROCESS_INPUT_NAME
         process_input.table.to_csv(process_input_path, index=False)
@@ -675,6 +699,7 @@ def consume_characterization_bundle(
         "evidence_identity_binding": bundle.evidence_identity_binding,
         "scientific_evidence_ladder": bundle.scientific_evidence_ladder,
         "scientific_evidence_ladder_binding": bundle.scientific_evidence_ladder_binding,
+        "characterization_research_evidence_gap": research_gap,
         "software_validation": {
             "all_bundle_checksums_verified": True,
             "stable_feature_contract_validated": True,
@@ -691,6 +716,8 @@ def consume_characterization_bundle(
             "scientific_evidence_ladder_present": bundle.scientific_evidence_ladder is not None,
             "scientific_evidence_ladder_independently_replayed": bundle.scientific_evidence_ladder is not None,
             "scientific_evidence_ladder_authorized_downstream_use": False,
+            "characterization_research_evidence_gap_emitted": True,
+            "characterization_research_evidence_gap_is_scientific_evidence": False,
             "scientific_comparability_established": False,
             "external_process_table_used": bool(process_table_path is not None),
             "process_identity_columns_verified": process_input.metadata[
@@ -742,6 +769,7 @@ def consume_characterization_bundle(
         "evidence_identity_binding": bundle.evidence_identity_binding,
         "scientific_evidence_ladder": bundle.scientific_evidence_ladder,
         "scientific_evidence_ladder_binding": bundle.scientific_evidence_ladder_binding,
+        "characterization_research_evidence_gap": research_gap,
         "validation": summary["software_validation"],
         "join_summary": join_summary,
         "scientific_closeout": bundle.manifest["scientific_closeout"],
