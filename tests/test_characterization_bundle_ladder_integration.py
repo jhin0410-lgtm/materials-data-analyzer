@@ -267,7 +267,7 @@ def test_schema_10_bundle_remains_legacy_compatible(tmp_path: Path) -> None:
     assert bundle.scientific_evidence_ladder_binding is None
 
 
-def test_schema_11_consumer_outputs_preserve_verified_ladder(tmp_path: Path) -> None:
+def test_schema_11_consumer_emits_verified_blocker_as_research_gap(tmp_path: Path) -> None:
     bundle_dir = tmp_path / "bundle"
     bundle_dir.mkdir()
     manifest = _write_bundle(bundle_dir, with_ladder=True)
@@ -277,6 +277,9 @@ def test_schema_11_consumer_outputs_preserve_verified_ladder(tmp_path: Path) -> 
     summary = json.loads(outputs["cross_repository_summary"].read_text(encoding="utf-8"))
     consumer_manifest = json.loads(
         outputs["cross_repository_manifest"].read_text(encoding="utf-8")
+    )
+    gap = json.loads(
+        outputs["characterization_research_evidence_gap"].read_text(encoding="utf-8")
     )
 
     assert summary["scientific_evidence_ladder"]["first_blocking_level"] == (
@@ -288,9 +291,48 @@ def test_schema_11_consumer_outputs_preserve_verified_ladder(tmp_path: Path) -> 
     assert summary["software_validation"][
         "scientific_evidence_ladder_authorized_downstream_use"
     ] is False
+    assert summary["software_validation"][
+        "characterization_research_evidence_gap_emitted"
+    ] is True
+    assert gap["ladder_present"] is True
+    assert gap["first_blocking_level"] == "L5_material_domain_validation"
+    assert gap["next_requirement"]["requirement_id"] == (
+        "characterization_target_material_validation_required"
+    )
+    assert gap["scientific_status_promoted"] is False
+    assert gap["downstream_use_authorized"] is False
+    assert summary["characterization_research_evidence_gap"] == gap
     assert consumer_manifest["scientific_evidence_ladder"] == summary[
         "scientific_evidence_ladder"
     ]
+    assert consumer_manifest["characterization_research_evidence_gap"] == gap
+    assert consumer_manifest["outputs"]["characterization_research_evidence_gap"] == (
+        "characterization_research_evidence_gap.json"
+    )
+    assert consumer_manifest["output_sha256"]["characterization_research_evidence_gap"] == (
+        _sha(outputs["characterization_research_evidence_gap"])
+    )
+
+
+def test_schema_10_consumer_emits_maturity_assessment_requirement(tmp_path: Path) -> None:
+    bundle_dir = tmp_path / "bundle"
+    bundle_dir.mkdir()
+    manifest = _write_bundle(bundle_dir, with_ladder=False)
+    output = tmp_path / "consumer-output"
+
+    outputs = consume_characterization_bundle(manifest, output)
+    gap = json.loads(
+        outputs["characterization_research_evidence_gap"].read_text(encoding="utf-8")
+    )
+    summary = json.loads(outputs["cross_repository_summary"].read_text(encoding="utf-8"))
+
+    assert gap["ladder_present"] is False
+    assert gap["first_blocking_level"] is None
+    assert gap["next_requirement"]["requirement_id"] == (
+        "characterization_evidence_maturity_assessment_required"
+    )
+    assert gap["semantic_marker"] == "planning_requirement_not_scientific_evidence"
+    assert summary["characterization_research_evidence_gap"] == gap
 
 
 def test_schema_10_cannot_smuggle_ladder_field(tmp_path: Path) -> None:
