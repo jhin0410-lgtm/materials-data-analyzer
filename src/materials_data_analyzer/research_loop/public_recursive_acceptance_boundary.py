@@ -1,13 +1,9 @@
-"""Acceptance hardening for public recursive replay boundaries.
+"""Acceptance hardening for the public two-cycle real-evidence replay.
 
-An empty planner frontier is not evidence that no repository-authorized action exists. The
-bounded second-cycle stop must therefore be backed by the exact action registry already
-pinned by the preceding typed heat execution request.
-
-The cross-cycle acceptance manifest also proves that cycle-2 planning descends through the
-exact cycle-1 progression and re-diagnosis completion, rather than merely sharing a previous
-checkpoint.  Nothing here creates scientific authority, performs network access, or turns
-absence in one registry into a global evidence-unavailability claim.
+A caller-authored empty frontier is not evidence that no authorized acquisition action
+exists.  Both planning-state construction and final manifest publication independently
+reload the exact request-pinned registry.  The manifest also reconstructs cycle-1
+progression/completion and exact cycle-2 ancestry.
 """
 from __future__ import annotations
 
@@ -33,8 +29,8 @@ from .public_recursive_progression import (
 )
 
 EXTERNAL_CANDIDATE_RESOLUTION_SCHEMA_VERSION = "1.0"
-EXTERNAL_CANDIDATE_RESOLUTION_POLICY_VERSION = "1.0"
-CROSS_CYCLE_ANCESTRY_POLICY_VERSION = "1.0"
+EXTERNAL_CANDIDATE_RESOLUTION_POLICY_VERSION = "1.1"
+CROSS_CYCLE_ANCESTRY_POLICY_VERSION = "1.1"
 
 
 def _canonical_sha256(value: object) -> str:
@@ -155,20 +151,10 @@ def _resolve_request_path(request_file: Path, value: object, *, field: str) -> P
         raise PublicRecursivePlanningError(f"{field} no longer resolves") from exc
 
 
-def build_registry_verified_external_evidence_waiting_program_state(
-    *,
-    planning_handoff: Mapping[str, Any],
+def _resolve_registry_state(
     discrepancy_report: Mapping[str, Any],
-    evaluated_graph: Mapping[str, Any],
-    previous_discrepancy_report: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Build a waiting state only after proving the exact registry has no live candidate."""
-    state = _build_waiting_state(
-        planning_handoff=planning_handoff,
-        discrepancy_report=discrepancy_report,
-        evaluated_graph=evaluated_graph,
-        previous_discrepancy_report=previous_discrepancy_report,
-    )
+    """Independently reload the exact request-pinned registry and classify candidates."""
     request, request_record = _request_snapshot(discrepancy_report)
     request_file = Path(request_record["path"])
     repository_root = _resolve_request_path(
@@ -202,7 +188,6 @@ def build_registry_verified_external_evidence_waiting_program_state(
         raise PublicRecursivePlanningError(
             "execution request is not pinned to the current replay registry"
         )
-
     actions = registry.get("actions")
     if not isinstance(actions, list):
         raise PublicRecursivePlanningError("validated action registry omitted actions")
@@ -220,21 +205,7 @@ def build_registry_verified_external_evidence_waiting_program_state(
         and action.get("category") == "external_evidence_search"
         and action.get("availability") == "planned"
     )
-    if available:
-        raise PublicRecursivePlanningError(
-            "bounded evidence-waiting stop is invalid because the exact replay registry "
-            "contains an available external_evidence_search action"
-        )
-
-    hardened = copy.deepcopy(state)
-    binding = dict(
-        _mapping(
-            hardened.get("public_recursive_planner_binding"),
-            "public_recursive_planner_binding",
-        )
-    )
-    binding["repository_authorized_external_candidate_available"] = False
-    binding["external_candidate_resolution"] = {
+    return {
         "schema_version": EXTERNAL_CANDIDATE_RESOLUTION_SCHEMA_VERSION,
         "policy_version": EXTERNAL_CANDIDATE_RESOLUTION_POLICY_VERSION,
         "scope": "exact_replay_action_registry_only",
@@ -246,11 +217,53 @@ def build_registry_verified_external_evidence_waiting_program_state(
         "planned_external_evidence_action_types": planned,
         "available_external_evidence_action_count": len(available),
         "planned_external_evidence_action_count": len(planned),
-        "bounded_stop_justified_by_no_available_registry_candidate": True,
+        "bounded_stop_justified_by_no_available_registry_candidate": not available,
         "global_external_evidence_unavailability_claimed": False,
         "network_search_performed": False,
         "synthetic_candidate_created": False,
     }
+
+
+def _require_no_available_registry_candidate(resolution: Mapping[str, Any]) -> None:
+    if resolution.get("available_external_evidence_action_count") != 0:
+        raise PublicRecursivePlanningError(
+            "bounded evidence-waiting stop is invalid because the exact replay registry "
+            "contains an available external_evidence_search action"
+        )
+    if resolution.get("available_external_evidence_action_types") != []:
+        raise PublicRecursivePlanningError(
+            "bounded evidence-waiting stop has inconsistent available-action evidence"
+        )
+    if resolution.get("bounded_stop_justified_by_no_available_registry_candidate") is not True:
+        raise PublicRecursivePlanningError(
+            "exact replay registry does not justify a bounded no-candidate stop"
+        )
+
+
+def build_registry_verified_external_evidence_waiting_program_state(
+    *,
+    planning_handoff: Mapping[str, Any],
+    discrepancy_report: Mapping[str, Any],
+    evaluated_graph: Mapping[str, Any],
+    previous_discrepancy_report: Mapping[str, Any],
+) -> dict[str, Any]:
+    state = _build_waiting_state(
+        planning_handoff=planning_handoff,
+        discrepancy_report=discrepancy_report,
+        evaluated_graph=evaluated_graph,
+        previous_discrepancy_report=previous_discrepancy_report,
+    )
+    resolution = _resolve_registry_state(discrepancy_report)
+    _require_no_available_registry_candidate(resolution)
+    hardened = copy.deepcopy(state)
+    binding = dict(
+        _mapping(
+            hardened.get("public_recursive_planner_binding"),
+            "public_recursive_planner_binding",
+        )
+    )
+    binding["repository_authorized_external_candidate_available"] = False
+    binding["external_candidate_resolution"] = resolution
     hardened["public_recursive_planner_binding"] = binding
     return hardened
 
@@ -267,18 +280,9 @@ def _verify_cross_cycle_completion_ancestry(
     cycle2 = validate_public_recursive_planning_context(cycle2_planning_context)
     inputs1 = _mapping(cycle1.get("validation_inputs"), "cycle1.validation_inputs")
     inputs2 = _mapping(cycle2.get("validation_inputs"), "cycle2.validation_inputs")
-    report1 = _mapping(
-        inputs1.get("source_discrepancy_report"),
-        "cycle1.source_discrepancy_report",
-    )
-    report2 = _mapping(
-        inputs2.get("source_discrepancy_report"),
-        "cycle2.source_discrepancy_report",
-    )
-    graph2 = _mapping(
-        inputs2.get("source_evaluated_graph"),
-        "cycle2.source_evaluated_graph",
-    )
+    report1 = _mapping(inputs1.get("source_discrepancy_report"), "cycle1.source_discrepancy_report")
+    report2 = _mapping(inputs2.get("source_discrepancy_report"), "cycle2.source_discrepancy_report")
+    graph2 = _mapping(inputs2.get("source_evaluated_graph"), "cycle2.source_evaluated_graph")
     previous_context = _mapping(
         inputs2.get("previous_validated_planning_context"),
         "cycle2.previous_validated_planning_context",
@@ -287,7 +291,6 @@ def _verify_cross_cycle_completion_ancestry(
         raise PublicRecursiveProgressionError(
             "cycle2 predecessor context differs from the exact cycle1 planning context"
         )
-
     progression_check = validate_public_recursive_progression(
         cycle1_progression,
         validated_planning_context=cycle1_planning_context,
@@ -302,7 +305,6 @@ def _verify_cross_cycle_completion_ancestry(
         raise PublicRecursiveProgressionError(
             "cycle1 progression validator and canonical progression SHA differ"
         )
-
     rebuilt_completion = complete_public_recursive_cycle_with_rediagnosis(
         validated_planning_context=cycle1_planning_context,
         progression=cycle1_progression,
@@ -324,46 +326,29 @@ def _verify_cross_cycle_completion_ancestry(
         raise PublicRecursiveProgressionError(
             "rebuilt completion SHA differs from supplied completion"
         )
-
-    completion_ancestry = _mapping(
-        rebuilt_completion.get("ancestry"),
-        "cycle1_completion.ancestry",
-    )
-    if completion_ancestry.get("progression_sha256") != progression_sha:
+    ancestry = _mapping(rebuilt_completion.get("ancestry"), "cycle1_completion.ancestry")
+    if ancestry.get("progression_sha256") != progression_sha:
         raise PublicRecursiveProgressionError(
             "cycle1 completion is not bound to the exact cycle1 progression SHA"
         )
-    handoff2 = _mapping(
-        inputs2.get("planning_handoff"),
-        "cycle2.validation_inputs.planning_handoff",
-    )
-    next_handoff = _mapping(
-        rebuilt_completion.get("next_planning_handoff"),
-        "cycle1_completion.next_planning_handoff",
-    )
+    handoff2 = _mapping(inputs2.get("planning_handoff"), "cycle2.planning_handoff")
+    next_handoff = _mapping(rebuilt_completion.get("next_planning_handoff"), "cycle1.next_handoff")
     if dict(next_handoff) != dict(handoff2):
         raise PublicRecursiveProgressionError(
             "cycle2 planning handoff differs from the exact cycle1 completion output"
         )
-    if completion_ancestry.get("next_planning_handoff_sha256") != handoff2.get(
-        "handoff_sha256"
-    ):
+    if ancestry.get("next_planning_handoff_sha256") != handoff2.get("handoff_sha256"):
         raise PublicRecursiveProgressionError(
             "cycle2 handoff SHA is not the exact cycle1 completion handoff SHA"
         )
-    if completion_ancestry.get("previous_discrepancy_report_sha256") != report1.get(
-        "report_sha256"
-    ):
+    if ancestry.get("previous_discrepancy_report_sha256") != report1.get("report_sha256"):
         raise PublicRecursiveProgressionError(
             "cycle1 completion previous discrepancy ancestry drifted"
         )
-    if completion_ancestry.get("current_discrepancy_report_sha256") != report2.get(
-        "report_sha256"
-    ):
+    if ancestry.get("current_discrepancy_report_sha256") != report2.get("report_sha256"):
         raise PublicRecursiveProgressionError(
             "cycle1 completion current discrepancy ancestry drifted"
         )
-
     return {
         "policy_version": CROSS_CYCLE_ANCESTRY_POLICY_VERSION,
         "cycle1_planning_context_sha256": cycle1["context_sha256"],
@@ -372,6 +357,9 @@ def _verify_cross_cycle_completion_ancestry(
         "cycle2_planning_context_sha256": cycle2["context_sha256"],
         "cycle2_previous_context_exact_match": True,
         "cycle1_progression_exact_sha_verified": True,
+        "cycle1_execution_and_transition_reconstructed": progression_check.get(
+            "execution_and_transition_deterministically_reconstructed"
+        ) is True,
         "cycle1_completion_deterministically_reconstructed": True,
         "cycle2_handoff_is_exact_cycle1_completion_output": True,
         "previous_discrepancy_ancestry_exact": True,
@@ -387,7 +375,6 @@ def build_registry_hardened_public_recursive_replay_manifest(
     cycle2_planning_context: Mapping[str, Any],
     recursive_limits: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Build replay evidence only when stop and cross-cycle ancestry are reconstructed."""
     try:
         cross_cycle = _verify_cross_cycle_completion_ancestry(
             cycle1_planning_context=cycle1_planning_context,
@@ -403,29 +390,29 @@ def build_registry_hardened_public_recursive_replay_manifest(
         ) from exc
 
     inputs = _mapping(cycle2.get("validation_inputs"), "cycle2.validation_inputs")
-    planner_state = _mapping(
-        inputs.get("planner_program_state"),
-        "cycle2.validation_inputs.planner_program_state",
-    )
+    planner_state = _mapping(inputs.get("planner_program_state"), "cycle2.planner_program_state")
     binding = _mapping(
         planner_state.get("public_recursive_planner_binding"),
         "cycle2.public_recursive_planner_binding",
     )
-    resolution = _mapping(
+    embedded_resolution = _mapping(
         binding.get("external_candidate_resolution"),
         "cycle2.external_candidate_resolution",
     )
+    report2 = _mapping(inputs.get("source_discrepancy_report"), "cycle2.source_discrepancy_report")
+    independent_resolution = _resolve_registry_state(report2)
+    _require_no_available_registry_candidate(independent_resolution)
+    if dict(embedded_resolution) != independent_resolution:
+        raise PublicRecursiveProgressionError(
+            "cycle2 bounded-stop registry evidence differs from independent request/registry reconstruction"
+        )
     if (
-        resolution.get("bounded_stop_justified_by_no_available_registry_candidate")
-        is not True
-        or resolution.get("available_external_evidence_action_count") != 0
-        or resolution.get("available_external_evidence_action_types") != []
-        or resolution.get("global_external_evidence_unavailability_claimed") is not False
-        or resolution.get("network_search_performed") is not False
-        or resolution.get("synthetic_candidate_created") is not False
+        independent_resolution.get("global_external_evidence_unavailability_claimed") is not False
+        or independent_resolution.get("network_search_performed") is not False
+        or independent_resolution.get("synthetic_candidate_created") is not False
     ):
         raise PublicRecursiveProgressionError(
-            "cycle2 bounded stop lacks exact-registry no-candidate evidence"
+            "cycle2 bounded-stop evidence overclaims or fabricates external evidence state"
         )
 
     manifest = _build_replay_manifest(
@@ -437,7 +424,7 @@ def build_registry_hardened_public_recursive_replay_manifest(
     )
     result = copy.deepcopy(manifest)
     result["cross_cycle_ancestry"] = cross_cycle
-    result["bounded_stop_evidence"] = copy.deepcopy(dict(resolution))
+    result["bounded_stop_evidence"] = copy.deepcopy(independent_resolution)
     result.pop("manifest_sha256", None)
     result["manifest_sha256"] = _canonical_sha256(result)
     return result
