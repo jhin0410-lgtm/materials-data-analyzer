@@ -1,0 +1,90 @@
+name: IN625 Zenodo live evidence
+
+on:
+  push:
+    branches:
+      - feature/verified-in625-recursive-acquisition-211
+    paths:
+      - ".github/workflows/in625-zenodo-live-evidence.yml"
+      - "configs/research/in625_zenodo_publication_dataset.v1.json"
+      - "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py"
+      - "tests/test_in625_zenodo_live_evidence.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acquire-live-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Observe exact Zenodo record and README bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p outputs/in625-zenodo-live-evidence
+          python - <<'PY'
+          import hashlib
+          import json
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          record_id = "20503603"
+          api_url = f"https://zenodo.org/api/records/{record_id}"
+          req = urllib.request.Request(api_url, headers={"User-Agent": "materials-data-analyzer/2.7 provenance-probe"})
+          with urllib.request.urlopen(req, timeout=60) as response:
+              api_bytes = response.read()
+          record = json.loads(api_bytes.decode("utf-8"))
+          files = record.get("files", [])
+          observed = {
+              "record_id": str(record.get("id")),
+              "doi": record.get("doi"),
+              "title": record.get("metadata", {}).get("title"),
+              "publication_date": record.get("metadata", {}).get("publication_date"),
+              "license": record.get("metadata", {}).get("license"),
+              "api_sha256": hashlib.sha256(api_bytes).hexdigest(),
+              "files": [],
+          }
+          readme = None
+          for item in files:
+              entry = {
+                  "key": item.get("key"),
+                  "size": item.get("size"),
+                  "checksum": item.get("checksum"),
+                  "self": item.get("links", {}).get("self"),
+              }
+              observed["files"].append(entry)
+              if item.get("key") == "README - Dataset description.txt":
+                  readme = item
+          if readme is None:
+              raise SystemExit("README file missing from exact Zenodo record")
+          download_url = readme.get("links", {}).get("content") or readme.get("links", {}).get("self")
+          if not isinstance(download_url, str) or not download_url.startswith("https://zenodo.org/"):
+              raise SystemExit(f"unexpected README URL: {download_url!r}")
+          req = urllib.request.Request(download_url, headers={"User-Agent": "materials-data-analyzer/2.7 provenance-probe"})
+          with urllib.request.urlopen(req, timeout=60) as response:
+              readme_bytes = response.read()
+          observed["readme_observed"] = {
+              "size": len(readme_bytes),
+              "md5": hashlib.md5(readme_bytes).hexdigest(),
+              "sha256": hashlib.sha256(readme_bytes).hexdigest(),
+              "content_type": response.headers.get("Content-Type"),
+          }
+          out = Path("outputs/in625-zenodo-live-evidence")
+          (out / "record.json").write_bytes(api_bytes)
+          (out / "README - Dataset description.txt").write_bytes(readme_bytes)
+          (out / "observed.json").write_text(json.dumps(observed, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          print(json.dumps(observed, indent=2, ensure_ascii=False))
+          PY
+      - name: Upload live provenance probe
+        uses: actions/upload-artifact@v7
+        with:
+          name: in625-zenodo-live-evidence-probe
+          path: outputs/in625-zenodo-live-evidence/
+          if-no-files-found: error
+          retention-days: 30
