@@ -14,6 +14,7 @@ from .planning_state_legacy import *  # noqa: F401,F403
 
 _NIST_ADAPTER = "nist-ambench-process-characterization"
 _HEAT_ADAPTER = "reference-heat-conduction"
+_IN625_ADAPTER = "in625-external-evidence"
 _LEGACY_ENTRYPOINTS = {"build_research_planning_state"}
 
 
@@ -79,6 +80,18 @@ def build_research_planning_state(
         from .heat_execution_planning import build_heat_execution_planning_state
 
         return build_heat_execution_planning_state(
+            repository_root=repository_root,
+            research_run=research_run,
+            action_registry_path=action_registry_path,
+        )
+    if adapter_id == _IN625_ADAPTER:
+        if research_run is None or action_registry_path is None:
+            raise PlanningStateError(
+                "IN625 external-evidence executable planning requires both research_run and action_registry_path"
+            )
+        from .in625_execution_planning import build_in625_execution_planning_state
+
+        return build_in625_execution_planning_state(
             repository_root=repository_root,
             research_run=research_run,
             action_registry_path=action_registry_path,
