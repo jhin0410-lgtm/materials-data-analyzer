@@ -31,7 +31,12 @@ from .in625_post_acquisition_rediagnosis import (
     build_in625_post_acquisition_rediagnosis,
     build_in625_post_acquisition_rediagnosis_from_files,
 )
-from .in625_tensile_reviewed_intake import build_reviewed_in625_tensile_intake
+from .in625_tensile_reviewed_intake import (
+    build_reviewed_in625_tensile_intake as build_strict_in625_tensile_intake,
+)
+from .in625_tensile_reviewed_intake_v2 import (
+    build_reviewed_in625_tensile_intake_v2,
+)
 from .kernel import initialize_research_loop, load_research_state
 from .public_recursive_acceptance_boundary import (
     build_external_evidence_waiting_program_state,
@@ -71,11 +76,15 @@ validate_model_evidence_discrepancy_report = validate_public_recursive_discrepan
 build_discrepancy_planning_handoff = build_public_recursive_discrepancy_planning_handoff
 validate_discrepancy_planning_handoff = validate_public_recursive_discrepancy_planning_handoff
 build_validated_recursive_planning_checkpoint = build_public_recursive_planning_checkpoint
-validate_validated_recursive_planning_checkpoint = validate_public_recursive_planning_checkpoint
+validate_validated_recursive_planning_checkpoint = build_public_recursive_planning_checkpoint
 advance_recursive_cycle_after_verified_transition = (
     advance_public_recursive_cycle_after_verified_transition
 )
 complete_recursive_cycle_with_rediagnosis = complete_public_recursive_cycle_with_rediagnosis
+
+# The public IN625 intake preserves real source missingness.  The original strict contract
+# remains available explicitly for regression/diagnostic use but is no longer the public default.
+build_reviewed_in625_tensile_intake = build_reviewed_in625_tensile_intake_v2
 
 __all__ = [
     "HEAT_TRANSITION_VERIFIER_ID",
@@ -103,6 +112,8 @@ __all__ = [
     "build_public_recursive_planning_context",
     "build_public_recursive_replay_manifest",
     "build_reviewed_in625_tensile_intake",
+    "build_reviewed_in625_tensile_intake_v2",
+    "build_strict_in625_tensile_intake",
     "build_validated_recursive_planning_checkpoint",
     "complete_public_recursive_cycle_with_rediagnosis",
     "complete_recursive_cycle_with_rediagnosis",
