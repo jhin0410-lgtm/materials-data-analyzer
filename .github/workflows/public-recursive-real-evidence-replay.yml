@@ -1,0 +1,99 @@
+name: Public recursive real-evidence replay
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-recursive-replay-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run public recursive real-evidence replay
+        shell: bash
+        env:
+          PUBLIC_RECURSIVE_REPLAY_MANIFEST_OUT: outputs/public-recursive-replay/replay-manifest.json
+        run: |
+          mkdir -p outputs/public-recursive-replay
+          set -o pipefail
+          python -m pytest -q \
+            tests/test_public_recursive_real_evidence_replay.py \
+            tests/test_public_recursive_review_regressions.py \
+            2>&1 | tee outputs/public-recursive-replay/pytest.log
+          test -s outputs/public-recursive-replay/replay-manifest.json
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path("outputs/public-recursive-replay/replay-manifest.json")
+          manifest = json.loads(path.read_text(encoding="utf-8"))
+          embedded = manifest.pop("manifest_sha256")
+          raw = json.dumps(
+              manifest,
+              ensure_ascii=False,
+              sort_keys=True,
+              separators=(",", ":"),
+              allow_nan=False,
+          ).encode("utf-8")
+          assert hashlib.sha256(raw).hexdigest() == embedded
+          assert manifest["acceptance_status"] == (
+              "public_api_two_cycle_replay_reached_bounded_second_cycle"
+          )
+          assert manifest["cross_cycle_ancestry"][
+              "cycle1_progression_exact_sha_verified"
+          ] is True
+          assert manifest["cross_cycle_ancestry"][
+              "cycle1_execution_and_transition_reconstructed"
+          ] is True
+          assert manifest["bounded_stop_evidence"][
+              "bounded_stop_justified_by_no_available_registry_candidate"
+          ] is True
+          assert manifest["bounded_stop_evidence"][
+              "global_external_evidence_unavailability_claimed"
+          ] is False
+          assert manifest["scientific_boundary"][
+              "synthetic_empirical_measurement_used"
+          ] is False
+          assert manifest["scientific_boundary"][
+              "hypothesis_truth_established"
+          ] is False
+          PY
+
+      - name: Upload recursive replay evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-recursive-replay-${{ matrix.os }}
+          path: |
+            outputs/public-recursive-replay/pytest.log
+            outputs/public-recursive-replay/replay-manifest.json
+          if-no-files-found: error
+          retention-days: 30
