@@ -14,6 +14,7 @@ import zipfile
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
 from .kernel import ResearchLoopError
@@ -48,6 +49,49 @@ def _safe_member_name(name: str) -> str:
     if any(part in {"", ".", ".."} for part in path.parts):
         raise XlsxStructuralIntakeError("XLSX member path escapes the workbook root")
     return path.as_posix()
+
+
+def resolve_xlsx_relationship_target(source_part: str, target: str) -> str:
+    """Resolve one internal OPC relationship target to a safe package member path.
+
+    Relationship targets are URI references relative to the *source part* rather than the
+    ``_rels`` directory that stores the relationship document.  Therefore a legitimate
+    producer may emit dot segments such as ``../xl/worksheets/sheet1.xml`` for a relationship
+    whose source part is ``xl/workbook.xml``.  Dot segments are resolved lexically first and
+    only the resulting package member is accepted.  Actual ZIP member names continue to pass
+    through :func:`_safe_member_name` unchanged, so this does not relax ZIP-slip protection.
+    """
+    source = _safe_member_name(source_part)
+    if not isinstance(target, str) or not target or "\\" in target:
+        raise XlsxStructuralIntakeError("XLSX relationship target is not a safe URI path")
+    parsed = urlsplit(target)
+    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
+        raise XlsxStructuralIntakeError(
+            "internal XLSX relationship target may not contain scheme, authority, query, or fragment"
+        )
+    raw_path = parsed.path
+    if not raw_path:
+        raise XlsxStructuralIntakeError("XLSX relationship target path is empty")
+
+    parts: list[str] = [] if raw_path.startswith("/") else list(PurePosixPath(source).parent.parts)
+    for part in raw_path.split("/"):
+        if not part:
+            if raw_path.startswith("/") and not parts:
+                continue
+            raise XlsxStructuralIntakeError("XLSX relationship target contains an empty path segment")
+        if part == ".":
+            continue
+        if part == "..":
+            if not parts:
+                raise XlsxStructuralIntakeError(
+                    "XLSX relationship target resolves outside the package root"
+                )
+            parts.pop()
+            continue
+        parts.append(part)
+    if not parts:
+        raise XlsxStructuralIntakeError("XLSX relationship target resolves to the package root")
+    return _safe_member_name("/".join(parts))
 
 
 def _safe_xml(raw: bytes, *, field: str) -> ET.Element:
@@ -232,10 +276,7 @@ def inspect_xlsx_structure(
                 raise XlsxStructuralIntakeError("workbook relationship is missing Id/Target")
             if mode == "External":
                 continue
-            if target.startswith("/"):
-                normalized = _safe_member_name(target.lstrip("/"))
-            else:
-                normalized = _safe_member_name(str(PurePosixPath("xl") / target))
+            normalized = resolve_xlsx_relationship_target("xl/workbook.xml", target)
             if rel_id in rel_targets:
                 raise XlsxStructuralIntakeError(f"duplicate workbook relationship Id: {rel_id}")
             rel_targets[rel_id] = normalized
@@ -351,5 +392,6 @@ __all__ = [
     "XLSX_STRUCTURAL_INTAKE_SCHEMA_VERSION",
     "XlsxStructuralIntakeError",
     "inspect_xlsx_structure",
+    "resolve_xlsx_relationship_target",
     "structural_intake_acquired_xlsx",
 ]
