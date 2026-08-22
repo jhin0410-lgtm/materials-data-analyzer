@@ -36,10 +36,12 @@ from .public_recursive_planning import (
     build_public_candidate_match_record,
     build_public_recursive_discrepancy_planning_handoff,
     build_public_recursive_planning_checkpoint,
-    build_public_recursive_planning_context,
     validate_public_recursive_discrepancy_planning_handoff,
     validate_public_recursive_planning_checkpoint,
     validate_public_recursive_planning_context,
+)
+from .public_recursive_planning_context_boundary import (
+    build_public_recursive_planning_context,
 )
 from .public_recursive_progression import (
     PublicRecursiveProgressionError,
