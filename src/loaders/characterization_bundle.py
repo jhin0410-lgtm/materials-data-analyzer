@@ -517,7 +517,7 @@ def _build_report(summary: dict[str, Any]) -> str:
     if next_requirement is None:
         gap_section = """## Autonomous Research Evidence Gap\n\nNo next characterization evidence requirement is emitted because the independently replayed ladder has no blocking level. This does not itself authorize engineering use; downstream-use policy remains separate.\n"""
     else:
-        gap_section = f"""## Autonomous Research Evidence Gap\n\n- Requirement ID: `{next_requirement['requirement_id']}`\n- Category: `{next_requirement['category']}`\n- First blocking level: `{research_gap['first_blocking_level']}`\n- Gap SHA-256: `{research_gap['characterization_evidence_gap_sha256']}`\n- Scientific status promoted: `{str(research_gap['scientific_status_promoted']).lower()}`\n- Downstream use authorized: `{str(research_gap['downstream_use_authorized']).lower()}`\n\n{next_requirement['description']}\n\nThis artifact is deterministic planning metadata for the autonomous research loop, not scientific evidence and not action authorization.\n"""
+        gap_section = f"""## Autonomous Research Evidence Gap\n\n- Requirement ID: `{next_requirement['requirement_id']}`\n- Category: `{next_requirement['category']}`\n- First blocking level: `{research_gap['first_blocking_level']}`\n- Gap SHA-256: `{research_gap['characterization_evidence_gap_sha256']}`\n- Scientific status promoted: `{str(research_gap['scientific_status_promoted']).lower()}`\n- Downstream use authorized: `{str(research_gap['downstream_use_authorized']).lower()}`\n- Action execution authorized: `{str(research_gap['action_execution_authorized']).lower()}`\n\n{next_requirement['description']}\n\nThis artifact is deterministic planning metadata for the autonomous research loop, not scientific evidence and not action authorization.\n"""
     return f"""# Cross-Repository Characterization Handoff Report
 
 ## Result
@@ -635,6 +635,7 @@ def consume_characterization_bundle(
         bundle_manifest_path=bundle.manifest_path,
         instruments=instruments,
         ladder=bundle.scientific_evidence_ladder,
+        ladder_binding=bundle.scientific_evidence_ladder_binding,
     )
     research_gap_path = write_characterization_research_evidence_gap(
         output,
@@ -718,6 +719,7 @@ def consume_characterization_bundle(
             "scientific_evidence_ladder_authorized_downstream_use": False,
             "characterization_research_evidence_gap_emitted": True,
             "characterization_research_evidence_gap_is_scientific_evidence": False,
+            "characterization_research_evidence_gap_authorized_action_execution": False,
             "scientific_comparability_established": False,
             "external_process_table_used": bool(process_table_path is not None),
             "process_identity_columns_verified": process_input.metadata[
