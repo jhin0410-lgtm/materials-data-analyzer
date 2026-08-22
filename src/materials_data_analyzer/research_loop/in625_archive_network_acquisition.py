@@ -25,10 +25,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from .in625_zenodo_live_evidence import (
-    In625ZenodoLiveEvidenceError,
-    build_verified_in625_zenodo_readme_manifest,
-)
+from .in625_zenodo_live_evidence import build_verified_in625_zenodo_readme_manifest
 from .kernel import ResearchLoopError
 
 NETWORK_ACQUISITION_AUTHORIZATION_SCHEMA_VERSION = "1.0"
@@ -195,7 +192,7 @@ def build_in625_archive_network_authorization(
             metadata_bytes=metadata_bytes,
             readme_bytes=readme_bytes,
         )
-    except In625ZenodoLiveEvidenceError as exc:
+    except ResearchLoopError as exc:
         raise In625ArchiveNetworkAcquisitionError(
             "README/source metadata did not pass the exact verified-source boundary"
         ) from exc
