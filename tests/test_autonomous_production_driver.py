@@ -46,7 +46,7 @@ def test_run_autonomous_parser_needs_no_pre_authored_request_queue() -> None:
     args = research_program_cli.build_parser().parse_args(["run-autonomous"])
     assert args.command == "run-autonomous"
     assert args.repository_root == Path(".")
-    assert args.max_cycles == 2
+    assert args.max_cycles == 3
     assert not hasattr(args, "request_queue")
 
 
@@ -83,7 +83,7 @@ def test_run_autonomous_uses_independent_production_pin(
     assert captured["repository_root"] == REPOSITORY_ROOT.resolve()
     assert captured["mission_path"] == MISSION.resolve()
     assert captured["expected_mission_sha256"] == EXPECTED_MISSION_SHA256
-    assert captured["max_cycles"] == 2
+    assert captured["max_cycles"] == 3
 
 
 def test_driver_rejects_untrusted_mission_root_before_network(
@@ -170,15 +170,22 @@ def test_driver_rejects_non_zenodo_target_before_urlopen(
     assert urlopen_called is False
 
 
-def test_bounded_successor_stop_never_claims_global_evidence_absence() -> None:
+def test_comparability_is_registered_but_geometry_acquisition_is_new_frontier() -> None:
     assert (
         "reviewed_physical_comparability_assessment"
+        in autonomous_production_driver._PRODUCTION_CAPABILITIES
+    )
+    assert (
+        "nist_mds2_2923_geometry_evidence_acquisition"
         not in autonomous_production_driver._PRODUCTION_CAPABILITIES
     )
+
+
+def test_bounded_successor_stop_never_claims_global_evidence_absence() -> None:
     stop = autonomous_production_driver._bounded_successor_stop(
         {
             "next_action": {
-                "action_class": "reviewed_physical_comparability_assessment"
+                "action_class": "nist_mds2_2923_geometry_evidence_acquisition"
             }
         }
     )
@@ -187,11 +194,25 @@ def test_bounded_successor_stop_never_claims_global_evidence_absence() -> None:
         == "registered_capability_unavailable_for_current_next_action"
     )
     assert stop["requested_action_class"] == (
-        "reviewed_physical_comparability_assessment"
+        "nist_mds2_2923_geometry_evidence_acquisition"
     )
     assert stop["global_evidence_unavailability_claimed"] is False
     assert stop["positive_scientific_closeout"] is False
     assert stop["scientific_status_changed"] is False
+
+
+def test_bounded_stop_rejects_an_action_that_has_a_registered_handler() -> None:
+    with pytest.raises(
+        autonomous_production_driver.AutonomousProductionDriverError,
+        match="implemented production capability",
+    ):
+        autonomous_production_driver._bounded_successor_stop(
+            {
+                "next_action": {
+                    "action_class": "reviewed_physical_comparability_assessment"
+                }
+            }
+        )
 
 
 def _write_reauthorized_network_fixture(
