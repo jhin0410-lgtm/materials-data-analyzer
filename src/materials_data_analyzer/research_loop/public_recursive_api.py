@@ -22,13 +22,16 @@ from .heat_transition_verification import (
     publish_heat_transition_verification_decision,
 )
 from .kernel import initialize_research_loop, load_research_state
+from .public_recursive_acceptance_boundary import (
+    build_external_evidence_waiting_program_state,
+    build_public_recursive_replay_manifest,
+)
 from .public_recursive_discrepancy import (
     build_public_recursive_discrepancy_report,
     validate_public_recursive_discrepancy_report,
 )
 from .public_recursive_planning import (
     PublicRecursivePlanningError,
-    build_external_evidence_waiting_program_state,
     build_heat_recursive_planner_program_state,
     build_public_candidate_match_record,
     build_public_recursive_discrepancy_planning_handoff,
@@ -41,7 +44,6 @@ from .public_recursive_planning import (
 from .public_recursive_progression import (
     PublicRecursiveProgressionError,
     advance_public_recursive_cycle_after_verified_transition,
-    build_public_recursive_replay_manifest,
     complete_public_recursive_cycle_with_rediagnosis,
     validate_public_recursive_progression,
 )
