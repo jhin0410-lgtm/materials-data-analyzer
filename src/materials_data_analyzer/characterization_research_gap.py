@@ -1,6 +1,6 @@
 """Convert verified characterization maturity into autonomous research requirements.
 
-The output of this module is planning metadata.  It is not empirical evidence and it
+The output of this module is planning metadata. It is not empirical evidence and it
 cannot authorize downstream scientific or engineering use.
 """
 from __future__ import annotations
@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 BLOCKING_LEVEL_REQUIREMENTS: dict[str, dict[str, str]] = {
@@ -112,25 +113,37 @@ def _nonempty_text(value: object, field: str) -> str:
     return value.strip()
 
 
+def _manifest_sha256(path: str | Path) -> tuple[Path, str]:
+    manifest_path = Path(path)
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise CharacterizationResearchGapError(
+            "bundle_manifest_path must be a regular non-symlink file"
+        )
+    resolved = manifest_path.resolve()
+    try:
+        digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise CharacterizationResearchGapError(
+            f"could not read bundle manifest: {resolved}"
+        ) from exc
+    return resolved, digest
+
+
 def build_characterization_research_evidence_gap(
     *,
-    bundle_manifest_sha256: str,
+    bundle_manifest_path: str | Path,
     instruments: list[str],
     ladder: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Build deterministic next-evidence planning metadata from a verified ladder.
 
-    ``ladder`` must already have passed the independent bundle validator.  This function
-    never interprets the ladder as authorization; it only identifies the next unresolved
+    ``ladder`` must already have passed the independent bundle validator. The manifest
+    digest is recomputed from the persisted bytes in this function so callers cannot
+    bind the gap to an unrelated but syntactically valid digest. This function never
+    interprets the ladder as authorization; it only identifies the next unresolved
     evidence requirement.
     """
-    manifest_sha = _nonempty_text(
-        bundle_manifest_sha256, "bundle_manifest_sha256"
-    ).lower()
-    if len(manifest_sha) != 64 or any(char not in "0123456789abcdef" for char in manifest_sha):
-        raise CharacterizationResearchGapError(
-            "bundle_manifest_sha256 must be a SHA-256 digest"
-        )
+    _, manifest_sha = _manifest_sha256(bundle_manifest_path)
     normalized_instruments = sorted(
         {_nonempty_text(item, "instrument").lower() for item in instruments}
     )
