@@ -11,6 +11,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+RESEARCH_EVIDENCE_GAP_NAME = "characterization_research_evidence_gap.json"
+
 BLOCKING_LEVEL_REQUIREMENTS: dict[str, dict[str, str]] = {
     "L0_software_integration": {
         "requirement_id": "characterization_software_integration_evidence_required",
@@ -226,8 +228,59 @@ def build_characterization_research_evidence_gap(
     return result
 
 
+def write_characterization_research_evidence_gap(
+    output_dir: str | Path,
+    artifact: Mapping[str, Any],
+) -> Path:
+    """Persist one verified planning-gap artifact without allowing overwrite or promotion."""
+    payload = dict(artifact)
+    if payload.get("schema_version") != "1.0":
+        raise CharacterizationResearchGapError(
+            "unsupported characterization research gap schema_version"
+        )
+    if payload.get("artifact_type") != "characterization_research_evidence_gap":
+        raise CharacterizationResearchGapError(
+            "characterization research gap artifact_type mismatch"
+        )
+    if payload.get("scientific_status_promoted") is not False:
+        raise CharacterizationResearchGapError(
+            "characterization research gap must not promote scientific status"
+        )
+    if payload.get("downstream_use_authorized") is not False:
+        raise CharacterizationResearchGapError(
+            "characterization research gap must not authorize downstream use"
+        )
+    if payload.get("semantic_marker") != "planning_requirement_not_scientific_evidence":
+        raise CharacterizationResearchGapError(
+            "characterization research gap semantic boundary mismatch"
+        )
+    recorded_sha = payload.pop("characterization_evidence_gap_sha256", None)
+    if not isinstance(recorded_sha, str) or recorded_sha != _canonical_sha256(payload):
+        raise CharacterizationResearchGapError(
+            "characterization research gap canonical SHA-256 mismatch"
+        )
+    payload["characterization_evidence_gap_sha256"] = recorded_sha
+
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    if output.is_symlink() or not output.is_dir():
+        raise CharacterizationResearchGapError("output_dir must be a real directory")
+    path = output / RESEARCH_EVIDENCE_GAP_NAME
+    if path.exists():
+        raise FileExistsError(
+            f"refusing to overwrite characterization research gap artifact: {path}"
+        )
+    path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 __all__ = [
     "BLOCKING_LEVEL_REQUIREMENTS",
     "CharacterizationResearchGapError",
+    "RESEARCH_EVIDENCE_GAP_NAME",
     "build_characterization_research_evidence_gap",
+    "write_characterization_research_evidence_gap",
 ]
