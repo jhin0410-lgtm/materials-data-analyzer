@@ -30,6 +30,43 @@ IMPLEMENTATION_ID = "mds2-2923-naderi-reference-chain-evidence-v1"
 MAX_CLAIM_MATCH_UTF8_BYTES = 4096
 TEXT_NORMALIZATION_ID = "pdf-discretionary-break-normalization-v1"
 
+_DIAGNOSTIC_PROBES: dict[str, tuple[str, ...]] = {
+    "naderi-ammt-in625-weaver-detail-reference": (
+        "AMMT",
+        "195 W",
+        "800 mm/s",
+        "spot diameters ranging from 50",
+        "256",
+        "More details are provided",
+        "Weaver",
+    ),
+    "naderi-reference-7-weaver-spot-size-paper": (
+        "7. Weaver",
+        "Weaver JS",
+        "Heigel JC",
+        "Lane BM",
+        "Laser spot size",
+        "scaling laws",
+        "laser beam additive manufacturing",
+    ),
+    "naderi-reference-31-ammt-design": (
+        "31. Lane",
+        "Lane B",
+        "Mekhontsev S",
+        "Grantham S",
+        "Design, developments, and results",
+        "NIST additive manufacturing metrology testbed",
+    ),
+    "naderi-reference-32-lane-in625-protocol": (
+        "32. Lane",
+        "Heigel J",
+        "Ricker R",
+        "Measurements of melt pool geometry",
+        "individual laser traces",
+        "IN625 bare plates",
+    ),
+}
+
 
 class NistMds22923ReferenceChainEvidenceError(ValueError):
     """Raised when reference-chain acquisition leaves exact source authority."""
@@ -61,7 +98,7 @@ def _canonical_sha(value: object) -> str:
 def _normalize_text(value: str) -> str:
     # Springer/NIST PDF text extraction can insert non-printing discretionary
     # break controls inside words (for example ``manu\x02facturing``) and soft
-    # hyphens.  These are layout artifacts, not source semantics.  Remove only
+    # hyphens. These are layout artifacts, not source semantics. Remove only
     # those non-whitespace controls and soft hyphens before collapsing
     # whitespace so exact source-byte and policy/anchor bindings remain intact.
     value = value.replace("\u00ad", "")
@@ -121,6 +158,19 @@ def _claim_receipt(
     }
 
 
+def _claim_diagnostics(claim_ids: Sequence[str], pages: Sequence[str]) -> str:
+    """Return boolean probe hits only; never return or persist source text."""
+    lowered_pages = [page.casefold() for page in pages]
+    diagnostics: dict[str, dict[str, bool]] = {}
+    for claim_id in claim_ids:
+        probes = _DIAGNOSTIC_PROBES.get(claim_id, ())
+        diagnostics[claim_id] = {
+            probe: any(probe.casefold() in page for page in lowered_pages)
+            for probe in probes
+        }
+    return json.dumps(diagnostics, sort_keys=True, separators=(",", ":"))
+
+
 def acquire_naderi_reference_chain_evidence(
     *,
     qualification: Mapping[str, Any],
@@ -173,10 +223,14 @@ def acquire_naderi_reference_chain_evidence(
         for claim_id, anchor, scope in CLAIMS
     ]
     failed_claim_ids = [item["claim_id"] for item in claims if not item["matched"]]
-    _require(
-        not failed_claim_ids,
-        "required Naderi reference-chain claim did not match: " + ", ".join(failed_claim_ids),
-    )
+    if failed_claim_ids:
+        diagnostics = _claim_diagnostics(failed_claim_ids, pages)
+        raise NistMds22923ReferenceChainEvidenceError(
+            "required Naderi reference-chain claim did not match: "
+            + ", ".join(failed_claim_ids)
+            + "; bounded_probe_hits="
+            + diagnostics
+        )
 
     report: dict[str, Any] = {
         "schema_version": "1.0",
