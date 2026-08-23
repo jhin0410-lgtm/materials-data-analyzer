@@ -90,7 +90,7 @@
       "claims_under_review": [
         {
           "claim_id": "ricker-two-machine-bare-plate-design",
-          "anchor_regex": "three different power and speed settings.*Additive Manufacturing Metrology Testbed.*commercial AM machine",
+          "anchor_regex": "3 different power and speed settings.*Additive Manufacturing Metrology Testbed.*commercial AM machine",
           "scope": "two-machine bare-plate benchmark design"
         }
       ]
