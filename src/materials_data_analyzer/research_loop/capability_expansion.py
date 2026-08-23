@@ -223,6 +223,59 @@ def _action_requirements(action_class: str) -> dict[str, Any]:
                 "Preserve direct comparable rows at 0 and Issue #76 at 0/3 unless the acquired source explicitly proves the required bridge.",
             ],
         }
+    if action_class == "mds2_2923_experiment_identity_reference_chain_assessment":
+        return {
+            "required_inputs": [
+                "verified_mds2_2923_scientific_intake",
+                "exact_predecessor_nerdm_metadata_bytes",
+                "verified_nist_ammt_calibration_candidate_bridge_assessment",
+                "verified_multisource_source_acquisition",
+                "verified_calibration_source_discovery_report",
+                "mission_pinned_naderi_reference_chain_evidence_policy",
+            ],
+            "required_outputs": [
+                "exact_dataset_publication_association_receipts",
+                "exact_mds2_195w_800mm_s_condition_signature",
+                "typed_reference_graph_with_non_transitive_authority",
+                "experiment_identity_gate",
+                "calibration_and_protocol_gate",
+                "next_weaver_full_text_action_without_implicit_authority",
+            ],
+            "scientific_acceptance": [
+                "A dataset-publication association is not exact row identity or exact experiment identity.",
+                "A matching AMMT 195 W / 800 mm/s condition signature is not exact experiment identity.",
+                "A Naderi-to-Weaver citation edge does not establish that specific mds2 rows are the Weaver experiment.",
+                "Same-platform or protocol citations do not establish machine-setting-to-calibrated-power conversion, protocol equivalence, spot-size transfer, or uncertainty transfer.",
+                "Do not promote publication, citation, or reference-chain evidence to row-level measurement authority.",
+                "Preserve directly comparable mds2 rows at 0, direct numerical cross-source validation disabled, cross-machine pooling disabled, and Issue #76 at 0/3 unless explicit experiment-scoped evidence proves otherwise.",
+                "Missing Weaver primary full text is a bounded next evidence frontier and is not proof of evidence absence.",
+            ],
+        }
+    if action_class == "weaver_2021_spot_size_full_text_derived_acquisition":
+        return {
+            "required_inputs": [
+                "verified_mds2_2923_reference_chain_assessment",
+                "provenance_bound_weaver_primary_reference_locator",
+                "separately_authenticated_derived_full_text_acquisition_policy",
+            ],
+            "required_outputs": [
+                "derived_weaver_full_text_authorization_bound_to_reference_graph",
+                "exact_weaver_primary_full_text_sha256_and_parser_receipt",
+                "experiment_identity_claim_receipts",
+                "machine_setting_and_calibrated_power_claim_receipts",
+                "spot_definition_protocol_and_uncertainty_claim_receipts",
+                "updated_reference_chain_gate_assessment",
+            ],
+            "scientific_acceptance": [
+                "Do not accept a caller-authored Weaver URL or retroactively widen the predecessor reference-chain policy.",
+                "A citation or bibliographic identity is a locator only and does not itself authorize full-text acquisition.",
+                "Successful full-text acquisition or parsing does not establish mds2 row identity, calibration equivalence, protocol equivalence, or uncertainty transfer.",
+                "Do not infer machine-setting-to-calibrated-power conversion from matching nominal conditions or spot-size ranges.",
+                "Do not promote literature to row-level measurement authority.",
+                "Preserve directly comparable rows at 0 and Issue #76 at 0/3 unless exact experiment-scoped evidence satisfies the corresponding gates.",
+                "A failed bounded acquisition is operational evidence only and does not establish global evidence absence.",
+            ],
+        }
     return {
         "required_inputs": ["verified_predecessor_research_state"],
         "required_outputs": ["provenance_bound_action_result"],

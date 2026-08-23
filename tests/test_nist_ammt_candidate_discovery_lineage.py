@@ -18,7 +18,7 @@ from materials_data_analyzer.research_loop import (
 
 ROOT = Path(__file__).resolve().parents[1]
 MISSION = ROOT / "configs/research/autonomous_in625_production_mission.v1.json"
-MISSION_SHA = "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
+MISSION_SHA = "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea"
 SOURCE_URL = "https://www.nist.gov/el/ammt/relevant-publications"
 CANDIDATE_URL = (
     "https://www.nist.gov/publications/"

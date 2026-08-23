@@ -8,6 +8,8 @@ from materials_data_analyzer.research_loop import capability_expansion
 
 
 ACTION_CLASS = "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
+REFERENCE_CHAIN_ACTION_CLASS = "mds2_2923_experiment_identity_reference_chain_assessment"
+WEAVER_ACTION_CLASS = "weaver_2021_spot_size_full_text_derived_acquisition"
 
 
 def _action() -> dict[str, object]:
@@ -20,6 +22,14 @@ def _action() -> dict[str, object]:
             "authoritative_repository_or_dataset",
             "characterization_evidence",
         ],
+    }
+
+
+def _typed_action(action_class: str) -> dict[str, object]:
+    return {
+        "action_class": action_class,
+        "objective": f"Execute bounded research action {action_class}.",
+        "eligible_evidence_lanes": ["authoritative_repository_or_dataset"],
     }
 
 
@@ -117,6 +127,48 @@ def test_bridge_spec_preserves_scientific_boundaries_and_no_self_promotion() -> 
     assert spec["authority_policy"]["may_execute_physical_instrument"] is False
     assert spec["authority_policy"]["may_promote_literature_to_row_level_measurement"] is False
     assert any("Issue #76 remains 0/3" in item for item in spec["scientific_acceptance"])
+
+
+def test_reference_chain_spec_rejects_identity_and_equivalence_shortcuts() -> None:
+    gap = capability_expansion.build_capability_gap(
+        requested_action=_typed_action(REFERENCE_CHAIN_ACTION_CLASS),
+        predecessor_report=_predecessor(),
+        available_action_classes=[],
+    )
+    spec = capability_expansion.build_capability_specification(gap)
+
+    assert spec["gap_class"] == "missing_analysis_executor"
+    assert "exact_predecessor_nerdm_metadata_bytes" in spec["required_inputs"]
+    assert "typed_reference_graph_with_non_transitive_authority" in spec["required_outputs"]
+    acceptance = spec["scientific_acceptance"]
+    assert any("association is not exact row identity" in item for item in acceptance)
+    assert any("condition signature is not exact experiment identity" in item for item in acceptance)
+    assert any("Naderi-to-Weaver citation edge" in item for item in acceptance)
+    assert any("machine-setting-to-calibrated-power conversion" in item for item in acceptance)
+    assert any("Missing Weaver primary full text" in item for item in acceptance)
+    assert spec["authority_policy"]["may_promote_literature_to_row_level_measurement"] is False
+
+
+def test_weaver_full_text_spec_requires_separate_derived_authority() -> None:
+    gap = capability_expansion.build_capability_gap(
+        requested_action=_typed_action(WEAVER_ACTION_CLASS),
+        predecessor_report=_predecessor(),
+        available_action_classes=[],
+    )
+    spec = capability_expansion.build_capability_specification(gap)
+
+    assert spec["gap_class"] == "missing_source_adapter"
+    assert "separately_authenticated_derived_full_text_acquisition_policy" in spec[
+        "required_inputs"
+    ]
+    assert "derived_weaver_full_text_authorization_bound_to_reference_graph" in spec[
+        "required_outputs"
+    ]
+    acceptance = spec["scientific_acceptance"]
+    assert any("caller-authored Weaver URL" in item for item in acceptance)
+    assert any("citation or bibliographic identity is a locator only" in item for item in acceptance)
+    assert any("Successful full-text acquisition" in item for item in acceptance)
+    assert any("failed bounded acquisition is operational evidence only" in item for item in acceptance)
 
 
 def test_tampered_gap_cannot_compile_into_capability_specification() -> None:

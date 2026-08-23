@@ -16,7 +16,7 @@ from materials_data_analyzer.research_loop import (
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
-from materials_data_analyzer.research_loop.autonomous_production_candidate_acquisition_extension import (
+from materials_data_analyzer.research_loop.autonomous_production_reference_chain_extension import (
     run_autonomous_production,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import (
@@ -33,7 +33,7 @@ _AUTONOMOUS_PRODUCTION_MISSION = Path(
     "configs/research/autonomous_in625_production_mission.v1.json"
 )
 _AUTONOMOUS_PRODUCTION_MISSION_SHA256 = (
-    "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
+    "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea"
 )
 _AUTONOMOUS_PRODUCTION_OUTPUT = Path("outputs/autonomous-in625-production")
 
@@ -97,9 +97,10 @@ def build_parser() -> argparse.ArgumentParser:
             "result-to-graph transitions, run a finite policy-authorized local execute-record-regate "
             "loop, or run the exact audited autonomous IN625 production profile. Only run-autonomous "
             "may initiate narrowly mission-pinned Zenodo, NIST mds2-2923, reviewed official/paper "
-            "condition evidence, NIST AMMT publication-index discovery, and provenance-derived NIST "
-            "calibration-candidate acquisition; no command grants unrestricted-web, physical-experiment, "
-            "caller-authored URL, or arbitrary-command authority."
+            "condition evidence, NIST AMMT publication-index discovery, provenance-derived NIST "
+            "calibration-candidate acquisition, and the exact Naderi reference-chain evidence lane; "
+            "no command grants unrestricted-web, physical-experiment, caller-authored URL, or "
+            "arbitrary-command authority."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -122,16 +123,12 @@ def build_parser() -> argparse.ArgumentParser:
     autonomous = subparsers.add_parser(
         "run-autonomous",
         help=(
-            "Run the exact audited IN625 production mission from the independently pinned mission "
-            "SHA: acquire Zenodo 20503603, execute the typed row-level intake and physical "
-            "comparability gate, acquire and scientifically intake exact NIST mds2-2923 geometry "
-            "evidence, acquire mission-pinned NIST official pages and primary papers, run reviewed "
-            "geometry-condition mapping, expand/verify/resume the missing bridge capability, repeat "
-            "capability expansion for mission-pinned NIST AMMT source discovery, then derive and "
-            "independently verify a candidate-acquisition capability from the exact discovery report "
-            "and predecessor manifest before acquiring the NIST publication page/full text and running "
-            "a conservative experiment-specific bridge assessment. Literature retains its original "
-            "authority and never becomes row-level measurement evidence."
+            "Run the exact audited IN625 production mission through provenance-derived NIST "
+            "calibration evidence and the mds2-2923 experiment-identity reference-chain frontier. "
+            "The reference graph separates official dataset association, explicit paper references, "
+            "condition-signature compatibility, platform relevance and protocol relevance from exact "
+            "row/experiment identity. Literature retains its original authority; absent Weaver full "
+            "text becomes a narrower derived-acquisition gap rather than an inferred bridge."
         ),
     )
     autonomous.add_argument(
@@ -152,8 +149,8 @@ def build_parser() -> argparse.ArgumentParser:
     autonomous.add_argument(
         "--max-cycles",
         type=int,
-        default=10,
-        help="Maximum audited production cycles (1-10). Defaults to 10.",
+        default=12,
+        help="Maximum audited production cycles (1-12). Defaults to 12.",
     )
 
     show = subparsers.add_parser(
