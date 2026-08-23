@@ -44,7 +44,7 @@
     },
     {
       "policy_id": "in625-geometry-condition-multisource-acquisition-v1",
-      "sha256": "07ca7b33267a2c7062d6ade41c0b504f3722ab5dad9868aa4a4d9e7f80e3346f"
+      "sha256": "a2b70b96096650811671db445bd27897795f028a508608c2eb7c4a0226658652"
     }
   ],
   "request_delegation_policy_pins": [
