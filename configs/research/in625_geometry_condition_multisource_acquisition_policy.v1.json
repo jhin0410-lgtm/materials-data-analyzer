@@ -4,7 +4,7 @@
   "action_class": "reviewed_geometry_condition_mapping_assessment",
   "source_registry": {
     "path": "configs/research/in625_geometry_condition_source_reconnaissance.v1.json",
-    "git_blob_sha1": "f70137bce4b1d83f4664a28c49eb43ac92b97f40",
+    "git_blob_sha1": "b9884fd149e445b67c76546362cd77fd7492f3ae",
     "schema_version": "1.0",
     "reconnaissance_id": "in625-geometry-condition-multisource-recon-v1"
   },
@@ -30,6 +30,7 @@
   },
   "scientific_boundaries": [
     "Official and primary-paper claims may constrain condition, calibration, spot-size, protocol, and uncertainty semantics but do not replace row-level dataset measurements.",
+    "Publication metadata/abstract evidence must remain lower authority than verified full-text evidence and must never be described as acquired full text.",
     "Source-version conflicts must be retained and reconciled by scope or left unresolved; later publication date is not automatic truth authority.",
     "No cross-machine pooling or programmed-to-calibrated power conversion is authorized without an explicit scoped bridge.",
     "Issue #76 remains 0/3 unless exact requested cells are independently established."
