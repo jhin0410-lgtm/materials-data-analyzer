@@ -203,10 +203,10 @@
     },
     {
       "source_id": "nist-2026-ambench-uncertainty-synthesis",
-      "source_class": "official_technical_paper",
-      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=962360",
-      "media_type": "pdf",
-      "authority": "NIST-hosted conference paper",
+      "source_class": "official_technical_paper_metadata",
+      "url": "https://www.nist.gov/publications/enabling-modelers-test-their-simulations-against-rigorous-highly-controlled-additive",
+      "media_type": "html",
+      "authority": "NIST official publication record and abstract; Local Download currently returns No Content",
       "title": "ENABLING MODELERS TO TEST THEIR SIMULATIONS AGAINST RIGOROUS, HIGHLY CONTROLLED ADDITIVE MANUFACTURING BENCHMARK (AM BENCH) MEASUREMENT DATA",
       "authors": [
         "Jordan Weaver",
@@ -222,14 +222,15 @@
         {
           "claim_id": "nist-2026-machine-parameter-uncertainty",
           "anchor_regex": "Machine performance and parameter uncertainty were quantified",
-          "scope": "latest NIST synthesis states machine/parameter uncertainty is part of benchmark evidence"
+          "scope": "official abstract states machine/parameter uncertainty is part of benchmark evidence"
         },
         {
           "claim_id": "nist-2026-cross-section-uncertainty",
           "anchor_regex": "uncertainty analysis.*cross-section melt pool measurands|cross-section melt pool measurands.*uncertainty analysis",
-          "scope": "latest NIST synthesis states cross-section measurement uncertainty was analyzed"
+          "scope": "official abstract states cross-section measurement uncertainty was analyzed"
         }
-      ]
+      ],
+      "full_text_status": "official NIST Local Download endpoint pub_id=962360 returned HTML No Content during live reconnaissance; no full-text claim is inferred"
     }
   ]
 }
