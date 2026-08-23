@@ -16,7 +16,7 @@ from materials_data_analyzer.research_loop import (
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
-from materials_data_analyzer.research_loop.autonomous_production_capability_extension import (
+from materials_data_analyzer.research_loop.autonomous_production_recursive_capability_extension import (
     run_autonomous_production,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import (
@@ -33,7 +33,7 @@ _AUTONOMOUS_PRODUCTION_MISSION = Path(
     "configs/research/autonomous_in625_production_mission.v1.json"
 )
 _AUTONOMOUS_PRODUCTION_MISSION_SHA256 = (
-    "414db2c30a229691078b4ede280221a2fbe47b003ce3455ba4af52027ee1afdb"
+    "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
 )
 _AUTONOMOUS_PRODUCTION_OUTPUT = Path("outputs/autonomous-in625-production")
 
@@ -96,9 +96,9 @@ def build_parser() -> argparse.ArgumentParser:
             "bundles, evaluate and critique checksum-bound epistemic graphs, create immutable "
             "result-to-graph transitions, run a finite policy-authorized local execute-record-regate "
             "loop, or run the exact audited autonomous IN625 production profile. Only run-autonomous "
-            "may initiate narrowly mission-pinned evidence acquisition and verified capability "
-            "expansion; no command grants unrestricted-web, physical-experiment, arbitrary-command, "
-            "or candidate self-promotion authority."
+            "may initiate narrowly mission-pinned Zenodo, NIST mds2-2923, reviewed official/paper "
+            "condition-evidence acquisition, and mission-pinned NIST AMMT publication-index discovery; "
+            "no command grants unrestricted-web, physical-experiment, or arbitrary-command authority."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -122,12 +122,13 @@ def build_parser() -> argparse.ArgumentParser:
         "run-autonomous",
         help=(
             "Run the exact audited IN625 production mission from the independently pinned mission "
-            "SHA: acquire and intake real Zenodo/NIST evidence, review multi-source condition "
-            "mapping, detect the missing AMMT calibration/protocol capability, compile a bounded "
-            "capability specification, discover only verified-primitive candidates, independently "
-            "verify and promote the first admissible adapter, resume the exact blocked research "
-            "action, and re-diagnose the resulting evidence state. Literature claims retain "
-            "claim-level authority and never become row-level measurements."
+            "SHA: acquire Zenodo 20503603, execute the typed row-level intake and physical "
+            "comparability gate, acquire and scientifically intake exact NIST mds2-2923 geometry "
+            "evidence, acquire mission-pinned NIST official pages and primary papers, run reviewed "
+            "geometry-condition mapping, expand and independently verify a missing bridge capability, "
+            "resume it, then repeat capability expansion for mission-pinned NIST AMMT source discovery. "
+            "Literature and discovered links retain their original authority and never become row-level "
+            "measurements or automatic acquisition authority."
         ),
     )
     autonomous.add_argument(
@@ -148,8 +149,8 @@ def build_parser() -> argparse.ArgumentParser:
     autonomous.add_argument(
         "--max-cycles",
         type=int,
-        default=7,
-        help="Maximum audited production/capability cycles (1-8). Defaults to 7.",
+        default=8,
+        help="Maximum audited production cycles (1-8). Defaults to 8.",
     )
 
     show = subparsers.add_parser(
