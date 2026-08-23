@@ -199,6 +199,30 @@ def _action_requirements(action_class: str) -> dict[str, Any]:
                 "Preserve direct comparable rows at 0 and Issue #76 at 0/3 unless later independently acquired evidence proves otherwise.",
             ],
         }
+    if action_class == "experiment_specific_calibration_record_candidate_acquisition":
+        return {
+            "required_inputs": [
+                "verified_nist_ammt_source_discovery_report",
+                "verified_predecessor_autonomous_manifest",
+                "mission_pinned_derived_candidate_acquisition_policy",
+            ],
+            "required_outputs": [
+                "derived_candidate_authorization_bound_to_discovery_report_and_manifest",
+                "exact_candidate_page_provenance_receipt",
+                "page_derived_full_text_url_receipt",
+                "exact_full_text_sha256_and_parser_receipt",
+                "calibration_methodology_claim_receipts",
+                "experiment_specific_bridge_assessment",
+            ],
+            "scientific_acceptance": [
+                "Do not accept a caller-authored candidate URL; the candidate must be derived from the authenticated discovery report.",
+                "Do not follow DOI or arbitrary external links; acquire only the NIST publication page and its page-derived NIST Local Download under finite host and byte authority.",
+                "Acquisition or PDF parsing success does not establish an experiment-specific calibration bridge.",
+                "General AMMT/testbed calibration methodology is insufficient to map mds2 machine-setting power to AMB2018 calibrated actual power without an explicit experiment-scoped relation.",
+                "Do not promote literature to row-level measurement authority.",
+                "Preserve direct comparable rows at 0 and Issue #76 at 0/3 unless the acquired source explicitly proves the required bridge.",
+            ],
+        }
     return {
         "required_inputs": ["verified_predecessor_research_state"],
         "required_outputs": ["provenance_bound_action_result"],
