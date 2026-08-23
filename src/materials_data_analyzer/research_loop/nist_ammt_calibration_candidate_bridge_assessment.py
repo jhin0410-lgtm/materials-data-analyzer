@@ -152,6 +152,7 @@ def build_calibration_candidate_bridge_assessment(
         "gate_decision": {
             "directly_comparable_mds2_rows": 0,
             "direct_numerical_validation_authorized": False,
+            "direct_numerical_cross_source_validation_authorized": False,
             "cross_machine_pooling_authorized": False,
             "literature_promoted_to_row_level_measurement_authority": False,
             "issue_76_exact_target_cells_satisfied": 0,
