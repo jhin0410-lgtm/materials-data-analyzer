@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "in625-geometry-condition-multisource-acquisition-v1",
+  "action_class": "reviewed_geometry_condition_mapping_assessment",
+  "source_registry": {
+    "path": "configs/research/in625_geometry_condition_source_reconnaissance.v1.json",
+    "git_blob_sha1": "d117162543a8e0c01328d65acadbe482172b16dd",
+    "schema_version": "1.0",
+    "reconnaissance_id": "in625-geometry-condition-multisource-recon-v1"
+  },
+  "network": {
+    "scheme": "https",
+    "allowed_hosts": [
+      "www.nist.gov",
+      "tsapps.nist.gov"
+    ],
+    "max_requests": 8,
+    "max_source_bytes": 33554432,
+    "max_total_bytes": 100663296,
+    "timeout_seconds": 180,
+    "unrestricted_search_allowed": false,
+    "caller_authored_urls_allowed": false
+  },
+  "authority": {
+    "source_count": 8,
+    "paper_claims_may_be_row_level_measurement_authority": false,
+    "source_bytes_may_be_committed": false,
+    "claim_anchor_match_required": true,
+    "scientific_status_change_authorized_by_acquisition": false
+  },
+  "scientific_boundaries": [
+    "Official and primary-paper claims may constrain condition, calibration, spot-size, protocol, and uncertainty semantics but do not replace row-level dataset measurements.",
+    "Publication metadata/abstract evidence must remain lower authority than verified full-text evidence and must never be described as acquired full text.",
+    "Source-version conflicts must be retained and reconciled by scope or left unresolved; later publication date is not automatic truth authority.",
+    "No cross-machine pooling or programmed-to-calibrated power conversion is authorized without an explicit scoped bridge.",
+    "Issue #76 remains 0/3 unless exact requested cells are independently established."
+  ]
+}

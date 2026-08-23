@@ -6,7 +6,9 @@ on:
     paths:
       - ".github/workflows/live-nist-mds2-2923-acquisition.yml"
       - "configs/research/in625_external_physical_source_frontier.v1.json"
+      - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "scripts/audit_live_nist_mds2_2923.py"
+      - "scripts/recon_in625_geometry_condition_sources.py"
       - "scripts/verify_live_nist_mds2_2923_micrographs.py"
       - "src/materials_data_analyzer/public_acquisition_cli.py"
       - "src/materials_data_analyzer/research_loop/frontier_acquisition.py"
@@ -25,7 +27,7 @@ permissions:
 jobs:
   live-acquisition-intake:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
 
@@ -37,6 +39,40 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]" -c constraints-release.txt
+          python -m pip install "pypdf>=5,<7"
+
+      - name: Acquire official paper and benchmark evidence bytes
+        run: |
+          python scripts/recon_in625_geometry_condition_sources.py \
+            --config configs/research/in625_geometry_condition_source_reconnaissance.v1.json \
+            --output outputs/nist-mds2-2923/condition-source-reconnaissance.json
+
+      - name: Verify paper and official-source provenance boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("outputs/nist-mds2-2923/condition-source-reconnaissance.json")
+          result = json.loads(path.read_text(encoding="utf-8"))
+          assert result["source_count"] == 8
+          assert result["all_sources_fetched"] is True
+          assert result["all_claim_anchors_matched"] is True
+          assert result["unrestricted_search_performed"] is False
+          assert result["arbitrary_url_fetch_performed"] is False
+          assert result["source_bytes_persisted"] is False
+          assert result["paper_claims_promoted_to_row_level_authority"] is False
+          assert result["scientific_status_changed"] is False
+          by_id = {item["source_id"]: item for item in result["sources"]}
+          assert by_id["nist-official-amb2018-02-description"]["source_class"] == "official_web_document"
+          assert by_id["ricker-2019-topographic-tracks"]["source_class"] == "primary_paper"
+          assert by_id["lane-2020-melt-pool-geometry"]["media_type"] == "pdf"
+          assert by_id["naderi-2022-scaling-fidelity"]["media_type"] == "pdf"
+          assert by_id["weaver-2021-spot-size-scaling-metadata"]["media_type"] == "html"
+          assert all(item["row_level_measurement_authority"] is False for item in result["sources"])
+          assert all(item["source_size_bytes"] > 0 for item in result["sources"])
+          assert all(len(item["source_sha256"]) == 64 for item in result["sources"])
+          PY
 
       - name: Run deterministic NIST acquisition and intake regressions
         run: |
@@ -175,10 +211,11 @@ jobs:
 
       - name: Upload bounded acquisition and scientific-intake evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nist-mds2-2923-live-intake
           path: |
+            outputs/nist-mds2-2923/condition-source-reconnaissance.json
             outputs/nist-mds2-2923/frontier_acquisition_report.json
             outputs/nist-mds2-2923/packages/
             outputs/nist-mds2-2923/intake/*.json

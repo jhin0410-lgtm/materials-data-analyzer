@@ -8,6 +8,8 @@
     "The typed IN625 registration request is machine-authored only under the mission-pinned request-delegation policy.",
     "Real row-level tensile evidence and observed source missingness are preserved without imputation, inverse reconstruction, coercion, or silent row exclusion.",
     "The exact NIST mds2-2923 geometry source is acquired only after the comparability gate generates that action and only under its separately mission-pinned standing network policy.",
+    "The reviewed geometry-condition mapping acquires only mission-pinned official/paper sources, binds exact source bytes at execution, preserves claim/version conflicts, and never promotes literature claims to row-level measurement authority.",
+    "Unavailable full text remains explicitly metadata/abstract evidence and is never represented as acquired full-text evidence.",
     "After re-diagnosis, the program generates the next scientific action from the new evidence state and stops only for an explicit bounded reason when that action is not registered."
   ],
   "constraints": [
@@ -39,6 +41,10 @@
     {
       "policy_id": "nist-mds2-2923-network-acquisition-v1",
       "sha256": "4b19c64f4f2c764f5315971c5afba16000763a4d307929ec5e463f42ee1cbebf"
+    },
+    {
+      "policy_id": "in625-geometry-condition-multisource-acquisition-v1",
+      "sha256": "a2b70b96096650811671db445bd27897795f028a508608c2eb7c4a0226658652"
     }
   ],
   "request_delegation_policy_pins": [
@@ -62,6 +68,7 @@
     "initial_expected_action_class": "external_evidence_search",
     "post_acquisition_expected_action_class": "reviewed_physical_comparability_assessment",
     "post_comparability_expected_action_class": "nist_mds2_2923_geometry_evidence_acquisition",
+    "post_nist_expected_action_class": "reviewed_geometry_condition_mapping_assessment",
     "evidence_source_scope": [
       "authoritative_dataset",
       "paper_and_supplementary_material",
