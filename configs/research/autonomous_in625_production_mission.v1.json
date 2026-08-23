@@ -62,7 +62,7 @@
     },
     {
       "policy_id": "nist-mds2-2923-reference-chain-naderi-evidence-v1",
-      "sha256": "686faaf7e697a4d2f3ada5c9abfcae041d48bc96bfeb3809312b5b1ab1c26569"
+      "sha256": "f57ff93cf18d38c72ddf27f71028c28309fb2eae8476a1381931c6eab4028815"
     }
   ],
   "request_delegation_policy_pins": [
