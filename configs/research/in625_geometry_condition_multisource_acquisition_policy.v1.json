@@ -4,7 +4,7 @@
   "action_class": "reviewed_geometry_condition_mapping_assessment",
   "source_registry": {
     "path": "configs/research/in625_geometry_condition_source_reconnaissance.v1.json",
-    "git_blob_sha1": "aee56798d25ef5978b17e3391532a29cf5224ae3",
+    "git_blob_sha1": "f70137bce4b1d83f4664a28c49eb43ac92b97f40",
     "schema_version": "1.0",
     "reconnaissance_id": "in625-geometry-condition-multisource-recon-v1"
   },
