@@ -3,3 +3,7 @@
 # rewrite mission/policy/registry/spec JSON from LF to CRLF after the blob hash
 # was pinned into another authenticated artifact.
 configs/research/*.json text eol=lf
+
+# Tracked scientific target CSVs are also authenticated by exact SHA-256 bytes.
+# Preserve their repository LF representation on Windows checkout as well.
+data/case_studies/nist_ambench_2018_02/*.csv text eol=lf
