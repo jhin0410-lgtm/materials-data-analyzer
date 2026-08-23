@@ -13,11 +13,14 @@ from materials_data_analyzer.research_loop import (
     capability_resolver,
     capability_verifier,
 )
+from materials_data_analyzer.research_loop import (
+    nist_ammt_calibration_source_discovery as discovery,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
 MISSION = ROOT / "configs/research/autonomous_in625_production_mission.v1.json"
-MISSION_SHA = "414db2c30a229691078b4ede280221a2fbe47b003ce3455ba4af52027ee1afdb"
+MISSION_SHA = "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
 
 
 def _spec(action_class: str = bridge.ACTION_CLASS) -> dict[str, object]:
@@ -50,6 +53,33 @@ def test_resolver_discovers_only_finite_bridge_factory() -> None:
     assert result["arbitrary_code_generation_performed"] is False
 
 
+def test_resolver_discovers_finite_nist_index_factory_only_with_required_primitives() -> None:
+    registry = capability_registry.build_initial_capability_registry(
+        verified_action_classes=[]
+    )
+    spec = _spec(discovery.ACTION_CLASS)
+    result = capability_resolver.resolve_or_discover_capability(
+        registry=registry,
+        capability_specification=spec,
+        available_verified_primitives=discovery.REQUIRED_VERIFIED_PRIMITIVES,
+    )
+    assert result["resolution_status"] == "bounded_candidate_discovered"
+    assert result["factory_id"] == discovery.FACTORY_ID
+    assert result["factory_catalogue_size"] == 2
+    assert result["candidate"]["implementation_id"] == discovery.IMPLEMENTATION_ID
+    assert result["candidate"]["mechanism"] == "generate_declarative_adapter_instance"
+    assert result["candidate"]["network_authority_granted"] is False
+    assert result["candidate"]["execution_authority_granted"] is False
+
+    missing = capability_resolver.resolve_or_discover_capability(
+        registry=registry,
+        capability_specification=spec,
+        available_verified_primitives=discovery.REQUIRED_VERIFIED_PRIMITIVES[:-1],
+    )
+    assert missing["resolution_status"] == "no_bounded_candidate_available"
+    assert missing["candidate"] is None
+
+
 def test_resolver_does_not_invent_candidate_for_unknown_action() -> None:
     registry = capability_registry.build_initial_capability_registry(
         verified_action_classes=[]
@@ -74,6 +104,21 @@ def test_missing_verified_primitive_prevents_candidate_discovery() -> None:
         available_verified_primitives=bridge.REQUIRED_VERIFIED_PRIMITIVES[:-1],
     )
     assert result["resolution_status"] == "no_bounded_candidate_available"
+
+
+def test_discovery_fixture_excludes_untrusted_host_and_never_authorizes_acquisition() -> None:
+    fixture = b"""
+    <html><body><h1>AMMT Relevant Publications</h1><ul>
+      <li><a href='/publications/laser-calibration-powder-bed-fusion-additive-manufacturing-process'>Laser Calibration for Powder Bed Fusion Additive Manufacturing Process</a></li>
+      <li><a href='https://evil.example/calibration'>laser power calibration</a></li>
+    </ul></body></html>
+    """
+    candidates, _ = discovery._candidate_records(fixture)
+    assert len(candidates) == 1
+    assert candidates[0]["link_host"] == "www.nist.gov"
+    assert candidates[0]["candidate_url_followed"] is False
+    assert candidates[0]["acquisition_authorized"] is False
+    assert candidates[0]["row_level_measurement_authority"] is False
 
 
 def test_independent_verifier_requires_real_source_smoke_for_network_candidate(
