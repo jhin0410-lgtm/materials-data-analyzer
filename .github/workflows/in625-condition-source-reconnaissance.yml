@@ -8,6 +8,11 @@ on:
       - ".github/workflows/in625-condition-source-reconnaissance.yml"
       - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "scripts/recon_in625_geometry_condition_sources.py"
+  pull_request:
+    paths:
+      - ".github/workflows/in625-condition-source-reconnaissance.yml"
+      - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
+      - "scripts/recon_in625_geometry_condition_sources.py"
   workflow_dispatch:
 
 permissions:
