@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "mission_id": "autonomous-in625-production-v1",
   "mission": "Autonomously advance the verified IN625 external empirical evidence state by selecting only mission-pinned source acquisition and typed research capabilities, preserving exact provenance and observed source quality, and iterating until the next scientific action is either executed under an audited capability or boundedly unavailable.",
   "success_criteria": [
@@ -12,7 +12,8 @@
     "Unavailable full text remains explicitly metadata/abstract evidence and is never represented as acquired full-text evidence.",
     "After re-diagnosis, the program generates the next scientific action from the new evidence state and stops only for an explicit bounded reason when that action is not registered.",
     "When a valid next action lacks an executor, the program emits a provenance-bound capability gap/specification, promotes only independently verified bounded capabilities, resumes the blocked action, and may use only separately mission-pinned discovery indices for source discovery.",
-    "A source candidate discovered by a verified index capability may be acquired only through a separately mission-pinned derived-authority policy that binds the exact discovery report, predecessor manifest, candidate identity/rank, candidate page bytes, and any page-derived full-text link before scientific assessment."
+    "A source candidate discovered by a verified index capability may be acquired only through a separately mission-pinned derived-authority policy that binds the exact discovery report, predecessor manifest, candidate identity/rank, candidate page bytes, and any page-derived full-text link before scientific assessment.",
+    "Experiment-identity assessment must construct a typed provenance graph from exact dataset metadata and exact primary-paper references, forbid transitive identity/power promotion, and emit a narrower derived-acquisition frontier when required full text is missing."
   ],
   "constraints": [
     "Never fabricate or infer missing measurements, sample identity, replicate independence, calibration, or condition equivalence.",
@@ -22,7 +23,8 @@
     "Authoritative datasets, papers and supplementary materials, official technical reports and documentation, characterization evidence, and other provenance-verifiable real physical evidence remain eligible evidence classes under source-specific trust and scientific-intake boundaries.",
     "Physical experiment execution remains external until a separately authorized laboratory interface exists.",
     "Capability expansion may compose verified primitives or declarative adapters, but it may not synthesize unrestricted network authority, caller-authored URLs, arbitrary executable code, or scientific truth.",
-    "Discovery output is not acquisition authority; follow-up candidate acquisition must derive authority from authenticated predecessor artifacts and must not accept caller-authored candidate URLs."
+    "Discovery output is not acquisition authority; follow-up candidate acquisition must derive authority from authenticated predecessor artifacts and must not accept caller-authored candidate URLs.",
+    "Dataset-publication association, condition-signature match, same-platform citation, or protocol citation alone must never be promoted to exact row identity, experiment identity, power conversion, protocol equivalence, or uncertainty transfer."
   ],
   "stop_rules": [
     "When the current verified next-action class has no audited executor, attempt bounded capability expansion; stop only if no independently verifiable candidate is available under exact mission authority.",
@@ -57,6 +59,10 @@
     {
       "policy_id": "nist-ammt-calibration-candidate-derived-acquisition-v1",
       "sha256": "ef92f5d436a85f756d87e136ebc59a2cf64c932f8c599f23cd13c4c59bd8319b"
+    },
+    {
+      "policy_id": "nist-mds2-2923-reference-chain-naderi-evidence-v1",
+      "sha256": "686faaf7e697a4d2f3ada5c9abfcae041d48bc96bfeb3809312b5b1ab1c26569"
     }
   ],
   "request_delegation_policy_pins": [
@@ -92,6 +98,8 @@
       "characterization_evidence",
       "other_provenance_verifiable_physical_evidence"
     ],
-    "scientific_closeout_expected_in_first_profile": false
+    "scientific_closeout_expected_in_first_profile": false,
+    "post_candidate_acquisition_expected_action_class": "mds2_2923_experiment_identity_reference_chain_assessment",
+    "post_reference_chain_expected_action_class": "weaver_2021_spot_size_full_text_derived_acquisition"
   }
 }
