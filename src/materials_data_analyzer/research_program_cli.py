@@ -16,7 +16,7 @@ from materials_data_analyzer.research_loop import (
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
-from materials_data_analyzer.research_loop.autonomous_production_multisource_extension import (
+from materials_data_analyzer.research_loop.autonomous_production_capability_extension import (
     run_autonomous_production,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import (
@@ -96,9 +96,9 @@ def build_parser() -> argparse.ArgumentParser:
             "bundles, evaluate and critique checksum-bound epistemic graphs, create immutable "
             "result-to-graph transitions, run a finite policy-authorized local execute-record-regate "
             "loop, or run the exact audited autonomous IN625 production profile. Only run-autonomous "
-            "may initiate narrowly mission-pinned Zenodo, NIST mds2-2923, and reviewed official/paper "
-            "condition-evidence acquisitions; no command grants unrestricted-web, physical-experiment, "
-            "or arbitrary-command authority."
+            "may initiate narrowly mission-pinned evidence acquisition and verified capability "
+            "expansion; no command grants unrestricted-web, physical-experiment, arbitrary-command, "
+            "or candidate self-promotion authority."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -122,12 +122,12 @@ def build_parser() -> argparse.ArgumentParser:
         "run-autonomous",
         help=(
             "Run the exact audited IN625 production mission from the independently pinned mission "
-            "SHA: acquire Zenodo 20503603, execute the typed row-level intake and physical "
-            "comparability gate, acquire and scientifically intake exact NIST mds2-2923 geometry "
-            "evidence, then acquire mission-pinned NIST official pages and primary papers and run "
-            "a reviewed geometry-condition mapping. Literature claims retain claim-level authority "
-            "and never become row-level measurements. The command advances to a bounded calibration/"
-            "protocol bridge frontier when direct condition equivalence is not established."
+            "SHA: acquire and intake real Zenodo/NIST evidence, review multi-source condition "
+            "mapping, detect the missing AMMT calibration/protocol capability, compile a bounded "
+            "capability specification, discover only verified-primitive candidates, independently "
+            "verify and promote the first admissible adapter, resume the exact blocked research "
+            "action, and re-diagnose the resulting evidence state. Literature claims retain "
+            "claim-level authority and never become row-level measurements."
         ),
     )
     autonomous.add_argument(
@@ -148,8 +148,8 @@ def build_parser() -> argparse.ArgumentParser:
     autonomous.add_argument(
         "--max-cycles",
         type=int,
-        default=5,
-        help="Maximum audited production cycles (1-8). Defaults to 5.",
+        default=7,
+        help="Maximum audited production/capability cycles (1-8). Defaults to 7.",
     )
 
     show = subparsers.add_parser(
