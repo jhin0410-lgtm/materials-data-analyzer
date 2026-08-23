@@ -16,7 +16,7 @@ from materials_data_analyzer.research_loop import (
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
-from materials_data_analyzer.research_loop.autonomous_production_nist_extension import (
+from materials_data_analyzer.research_loop.autonomous_production_multisource_extension import (
     run_autonomous_production,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import (
@@ -33,7 +33,7 @@ _AUTONOMOUS_PRODUCTION_MISSION = Path(
     "configs/research/autonomous_in625_production_mission.v1.json"
 )
 _AUTONOMOUS_PRODUCTION_MISSION_SHA256 = (
-    "39d24e68d07edb93672c87a2ee753cca811eab05704277abd718f550ebfc7426"
+    "44091458e8a10a6ba4ef67a47056d98e4ba1a2ac5e29695cbeba7bb79f47160f"
 )
 _AUTONOMOUS_PRODUCTION_OUTPUT = Path("outputs/autonomous-in625-production")
 
@@ -96,9 +96,9 @@ def build_parser() -> argparse.ArgumentParser:
             "bundles, evaluate and critique checksum-bound epistemic graphs, create immutable "
             "result-to-graph transitions, run a finite policy-authorized local execute-record-regate "
             "loop, or run the exact audited autonomous IN625 production profile. Only run-autonomous "
-            "may initiate only the narrowly mission-pinned Zenodo and NIST mds2-2923 network "
-            "acquisitions; no command grants unrestricted-web, physical-experiment, or "
-            "arbitrary-command authority."
+            "may initiate narrowly mission-pinned Zenodo, NIST mds2-2923, and reviewed official/paper "
+            "condition-evidence acquisitions; no command grants unrestricted-web, physical-experiment, "
+            "or arbitrary-command authority."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -122,12 +122,12 @@ def build_parser() -> argparse.ArgumentParser:
         "run-autonomous",
         help=(
             "Run the exact audited IN625 production mission from the independently pinned mission "
-            "SHA: acquire Zenodo 20503603 under its standing policy, compile and execute the "
-            "machine-authored typed registration request, review row quality, execute the "
-            "physical-comparability gate, then acquire and scientifically intake exact NIST "
-            "mds2-2923 width/depth evidence under a separate standing policy before bounded "
-            "re-diagnosis. Papers and other evidence remain eligible only through their own "
-            "source-specific trust boundaries."
+            "SHA: acquire Zenodo 20503603, execute the typed row-level intake and physical "
+            "comparability gate, acquire and scientifically intake exact NIST mds2-2923 geometry "
+            "evidence, then acquire mission-pinned NIST official pages and primary papers and run "
+            "a reviewed geometry-condition mapping. Literature claims retain claim-level authority "
+            "and never become row-level measurements. The command advances to a bounded calibration/"
+            "protocol bridge frontier when direct condition equivalence is not established."
         ),
     )
     autonomous.add_argument(
@@ -148,8 +148,8 @@ def build_parser() -> argparse.ArgumentParser:
     autonomous.add_argument(
         "--max-cycles",
         type=int,
-        default=4,
-        help="Maximum audited production cycles (1-8). Defaults to 4.",
+        default=5,
+        help="Maximum audited production cycles (1-8). Defaults to 5.",
     )
 
     show = subparsers.add_parser(
