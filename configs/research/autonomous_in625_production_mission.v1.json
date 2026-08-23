@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.3",
+  "schema_version": "1.2",
   "mission_id": "autonomous-in625-production-v1",
   "mission": "Autonomously advance the verified IN625 external empirical evidence state by selecting only mission-pinned source acquisition and typed research capabilities, preserving exact provenance and observed source quality, and iterating until the next scientific action is either executed under an audited capability or boundedly unavailable.",
   "success_criteria": [
