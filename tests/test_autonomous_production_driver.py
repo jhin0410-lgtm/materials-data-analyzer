@@ -30,7 +30,7 @@ IN625_REGISTRY = (
     / "configs/research/in625_external_evidence_action_registry.v1.json"
 )
 EXPECTED_MISSION_SHA256 = (
-    "44091458e8a10a6ba4ef67a47056d98e4ba1a2ac5e29695cbeba7bb79f47160f"
+    "414db2c30a229691078b4ede280221a2fbe47b003ce3455ba4af52027ee1afdb"
 )
 
 
