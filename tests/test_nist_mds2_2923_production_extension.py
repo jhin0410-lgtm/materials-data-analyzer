@@ -19,7 +19,7 @@ MISSION = REPOSITORY_ROOT / "configs/research/autonomous_in625_production_missio
 POLICY = REPOSITORY_ROOT / "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
 FRONTIER = REPOSITORY_ROOT / "configs/research/in625_external_physical_source_frontier.v1.json"
 EXPECTED_MISSION_SHA256 = (
-    "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
+    "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
 )
 EXPECTED_POLICY_SHA256 = (
     "4b19c64f4f2c764f5315971c5afba16000763a4d307929ec5e463f42ee1cbebf"
@@ -79,9 +79,9 @@ def _write_reauthorized_fixture(
     frontier_path = config / FRONTIER.name
     frontier_path.write_bytes(_json_bytes(frontier))
 
-    policy = json.loads(POLICY.read_text(encoding="utf-8"))
-    mutate_policy(policy)
-    policy_bytes = _json_bytes(policy)
+    policy_value = json.loads(POLICY.read_text(encoding="utf-8"))
+    mutate_policy(policy_value)
+    policy_bytes = _json_bytes(policy_value)
     policy_path = config / POLICY.name
     policy_path.write_bytes(policy_bytes)
 
@@ -108,23 +108,23 @@ def _write_reauthorized_fixture(
     ("mutator", "message"),
     [
         (
-            lambda policy: policy["network"]["artifact_allowed_hosts"].append(
+            lambda value: value["network"]["artifact_allowed_hosts"].append(
                 "example.com"
             ),
             "network authority widened or drifted",
         ),
         (
-            lambda policy: policy["source_identity"].__setitem__(
+            lambda value: value["source_identity"].__setitem__(
                 "product_id", "attacker-product"
             ),
             "source identity drifted",
         ),
         (
-            lambda policy: policy.__setitem__("candidate_id", "attacker-candidate"),
+            lambda value: value.__setitem__("candidate_id", "attacker-candidate"),
             "candidate identity drifted",
         ),
         (
-            lambda policy: policy["files"][0].__setitem__(
+            lambda value: value["files"][0].__setitem__(
                 "path", "Attacker_README.txt"
             ),
             "file bytes/size identity drifted",
@@ -136,7 +136,7 @@ def test_repinning_cannot_widen_intrinsic_nist_authority(
     mutator: Any,
     message: str,
 ) -> None:
-    root, mission, policy, frontier, mission_sha = _write_reauthorized_fixture(
+    root, mission, policy_path, frontier, mission_sha = _write_reauthorized_fixture(
         tmp_path,
         mutate_policy=mutator,
     )
@@ -148,7 +148,7 @@ def test_repinning_cannot_widen_intrinsic_nist_authority(
             repository_root=root,
             mission_path=mission,
             expected_mission_sha256=mission_sha,
-            policy_path=policy,
+            policy_path=policy_path,
             frontier_path=frontier,
         )
 
@@ -164,9 +164,9 @@ def test_frontier_response_substitution_is_rejected_even_with_unchanged_policy(
         )
         candidate["responses"] = ["tensile_stress"]
 
-    root, mission, policy, frontier, mission_sha = _write_reauthorized_fixture(
+    root, mission, policy_path, frontier, mission_sha = _write_reauthorized_fixture(
         tmp_path,
-        mutate_policy=lambda policy: None,
+        mutate_policy=lambda value: None,
         mutate_frontier=mutate_frontier,
     )
     with pytest.raises(
@@ -177,7 +177,7 @@ def test_frontier_response_substitution_is_rejected_even_with_unchanged_policy(
             repository_root=root,
             mission_path=mission,
             expected_mission_sha256=mission_sha,
-            policy_path=policy,
+            policy_path=policy_path,
             frontier_path=frontier,
         )
 
