@@ -16,6 +16,8 @@ from .nist_mds2_2923_reference_chain_policy import (
     ACTION_CLASS,
     ALLOWED_HOSTS,
     CLAIMS,
+    MATCH_MODE,
+    MAX_CLAIM_SPAN_UTF8_BYTES,
     MAX_SOURCE_BYTES,
     MAX_TOTAL_BYTES,
     POLICY_ID,
@@ -28,46 +30,7 @@ from .nist_mds2_2923_reference_chain_policy import (
 )
 
 IMPLEMENTATION_ID = "mds2-2923-naderi-reference-chain-evidence-v1"
-MAX_CLAIM_MATCH_UTF8_BYTES = 4096
 TEXT_NORMALIZATION_ID = "pdf-discretionary-word-break-normalization-v2"
-
-_DIAGNOSTIC_PROBES: dict[str, tuple[str, ...]] = {
-    "naderi-ammt-in625-weaver-detail-reference": (
-        "AMMT",
-        "195 W",
-        "800 mm/s",
-        "spot diameters ranging from 50",
-        "256",
-        "More details are provided",
-        "Weaver",
-    ),
-    "naderi-reference-7-weaver-spot-size-paper": (
-        "7. Weaver",
-        "Weaver JS",
-        "Heigel JC",
-        "Lane BM",
-        "Laser spot size",
-        "scaling laws",
-        "laser beam additive manufacturing",
-    ),
-    "naderi-reference-31-ammt-design": (
-        "31. Lane",
-        "Lane B",
-        "Mekhontsev S",
-        "Grantham S",
-        "Design, developments, and results",
-        "NIST additive manufacturing metrology testbed",
-    ),
-    "naderi-reference-32-lane-in625-protocol": (
-        "32. Lane",
-        "Heigel J",
-        "Ricker R",
-        "Measurements of melt pool geometry",
-        "individual laser traces",
-        "IN625 bare plates",
-    ),
-}
-
 _CONTROL_CLASS = r"\x00-\x08\x0b\x0c\x0e-\x1f\x7f"
 
 
@@ -101,18 +64,12 @@ def _canonical_sha(value: object) -> str:
 def _normalize_text(value: str) -> str:
     """Normalize only Unicode compatibility and PDF discretionary word breaks."""
     value = unicodedata.normalize("NFKC", value)
-    # Some Springer/NIST text layers encode a discretionary line break as a
-    # non-printing control with optional whitespace on either side. When that
-    # marker sits between two word characters it is a layout instruction, not
-    # a semantic separator, so join the two word fragments deterministically.
     value = re.sub(
         rf"(?<=\w)\s*[{_CONTROL_CLASS}]\s*(?=\w)",
         "",
         value,
     )
     value = re.sub(r"(?<=\w)\s*\u00ad\s*(?=\w)", "", value)
-    # Remove any remaining non-whitespace C0/DEL layout controls without
-    # joining surrounding tokens that were not explicitly a word break.
     value = re.sub(rf"[{_CONTROL_CLASS}]", "", value)
     value = value.replace("\u00ad", "")
     return re.sub(r"\s+", " ", value).strip()
@@ -133,36 +90,40 @@ def _pdf_pages(body: bytes) -> list[str]:
 
 def _claim_receipt(
     claim_id: str,
-    anchor_regex: str,
+    required_fragments: Sequence[str],
     scope: str,
     pages: Sequence[str],
 ) -> dict[str, Any]:
-    bounded = anchor_regex.replace(".*", f".{{0,{MAX_CLAIM_MATCH_UTF8_BYTES}}}?")
-    try:
-        pattern = re.compile(bounded, flags=re.IGNORECASE | re.DOTALL)
-    except re.error as exc:
-        raise NistMds22923ReferenceChainEvidenceError(
-            f"invalid reference-chain claim anchor {claim_id}: {exc}"
-        ) from exc
+    _require(bool(required_fragments), f"reference-chain claim {claim_id} has no fragments")
+    _require(
+        all(isinstance(item, str) and item for item in required_fragments),
+        f"reference-chain claim {claim_id} fragments are invalid",
+    )
+    gap = f".{{0,{MAX_CLAIM_SPAN_UTF8_BYTES}}}?"
+    pattern_text = gap.join(re.escape(item) for item in required_fragments)
+    pattern = re.compile(pattern_text, flags=re.IGNORECASE | re.DOTALL)
     matches: list[dict[str, Any]] = []
     for page_index, page in enumerate(pages):
         match = pattern.search(page)
         if match is None:
             continue
         raw = match.group(0).encode("utf-8")
-        if len(raw) > MAX_CLAIM_MATCH_UTF8_BYTES:
+        if len(raw) > MAX_CLAIM_SPAN_UTF8_BYTES:
             continue
         matches.append(
             {
                 "page_index_zero_based": page_index,
-                "matched_text_sha256": _sha256(raw),
-                "matched_text_utf8_bytes": len(raw),
+                "matched_span_sha256": _sha256(raw),
+                "matched_span_utf8_bytes": len(raw),
             }
         )
     return {
         "claim_id": claim_id,
         "scope": scope,
-        "anchor_regex_sha256": _sha256(anchor_regex.encode("utf-8")),
+        "match_mode": MATCH_MODE,
+        "max_span_utf8_bytes": MAX_CLAIM_SPAN_UTF8_BYTES,
+        "required_fragment_count": len(required_fragments),
+        "required_fragments_sha256": _canonical_sha(list(required_fragments)),
         "matched": bool(matches),
         "match_count": len(matches),
         "matches": matches,
@@ -170,15 +131,17 @@ def _claim_receipt(
     }
 
 
-def _claim_diagnostics(claim_ids: Sequence[str], pages: Sequence[str]) -> str:
-    """Return boolean probe hits only; never return or persist source text."""
+def _claim_diagnostics(
+    failed_claims: Sequence[tuple[str, Sequence[str], str]],
+    pages: Sequence[str],
+) -> str:
+    """Return fragment-presence booleans only; never source text."""
     lowered_pages = [page.casefold() for page in pages]
     diagnostics: dict[str, dict[str, bool]] = {}
-    for claim_id in claim_ids:
-        probes = _DIAGNOSTIC_PROBES.get(claim_id, ())
+    for claim_id, fragments, _scope in failed_claims:
         diagnostics[claim_id] = {
-            probe: any(probe.casefold() in page for page in lowered_pages)
-            for probe in probes
+            fragment: any(fragment.casefold() in page for page in lowered_pages)
+            for fragment in fragments
         }
     return json.dumps(diagnostics, sort_keys=True, separators=(",", ":"))
 
@@ -188,7 +151,7 @@ def acquire_naderi_reference_chain_evidence(
     qualification: Mapping[str, Any],
     fetcher: Fetcher = fetch_exact_source,
 ) -> dict[str, Any]:
-    """Acquire one exact NIST-hosted paper and emit claim receipts only."""
+    """Acquire one exact NIST-hosted paper and emit bounded claim receipts only."""
     _require(
         qualification.get("qualification_status")
         == "exact_nist_mds2_2923_reference_chain_policy_authenticated",
@@ -211,6 +174,11 @@ def acquire_naderi_reference_chain_evidence(
         "reference-chain network authority drifted",
     )
     _require(
+        qualification.get("claim_match_mode") == MATCH_MODE
+        and qualification.get("max_claim_span_utf8_bytes") == MAX_CLAIM_SPAN_UTF8_BYTES,
+        "reference-chain claim matching authority drifted",
+    )
+    _require(
         qualification.get("network_access_performed") is False
         and qualification.get("caller_authored_url_used") is False
         and qualification.get("scientific_status_changed") is False,
@@ -231,21 +199,22 @@ def acquire_naderi_reference_chain_evidence(
     _require(observed_sha == SOURCE_SHA256, "reference source exact SHA-256 changed")
     pages = _pdf_pages(fetched.body)
     claims = [
-        _claim_receipt(claim_id, anchor, scope, pages)
-        for claim_id, anchor, scope in CLAIMS
+        _claim_receipt(claim_id, fragments, scope, pages)
+        for claim_id, fragments, scope in CLAIMS
     ]
-    failed_claim_ids = [item["claim_id"] for item in claims if not item["matched"]]
-    if failed_claim_ids:
-        diagnostics = _claim_diagnostics(failed_claim_ids, pages)
+    failed_ids = {item["claim_id"] for item in claims if not item["matched"]}
+    if failed_ids:
+        failed_claims = [item for item in CLAIMS if item[0] in failed_ids]
+        diagnostics = _claim_diagnostics(failed_claims, pages)
         raise NistMds22923ReferenceChainEvidenceError(
             "required Naderi reference-chain claim did not match: "
-            + ", ".join(failed_claim_ids)
-            + "; bounded_probe_hits="
+            + ", ".join(sorted(failed_ids))
+            + "; bounded_fragment_hits="
             + diagnostics
         )
 
     report: dict[str, Any] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "action_class": ACTION_CLASS,
         "acquisition_status": "exact_naderi_reference_chain_evidence_acquired",
         "policy_id": POLICY_ID,
@@ -266,6 +235,8 @@ def acquire_naderi_reference_chain_evidence(
             "source_text_persisted": False,
             "row_level_measurement_authority": False,
         },
+        "claim_match_mode": MATCH_MODE,
+        "max_claim_span_utf8_bytes": MAX_CLAIM_SPAN_UTF8_BYTES,
         "claims": claims,
         "all_claims_matched": True,
         "network_requests_performed": 1,
