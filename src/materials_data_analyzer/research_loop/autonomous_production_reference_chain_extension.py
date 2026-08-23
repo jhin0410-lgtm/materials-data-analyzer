@@ -100,6 +100,70 @@ def _validate_self_hash(value: Mapping[str, Any], field: str) -> str:
     return digest
 
 
+def _authenticate_predecessor_candidate(
+    *,
+    predecessor_resolution: Mapping[str, Any],
+    predecessor_candidate: Mapping[str, Any],
+    capability_specification: Mapping[str, Any],
+    predecessor_manifest_sha256: str,
+) -> dict[str, Any]:
+    """Re-authenticate the exact cycle-10 candidate without rediscovering it."""
+    spec_sha = _validate_self_hash(
+        capability_specification,
+        "capability_specification_sha256_without_self_field",
+    )
+    candidate_sha = _validate_self_hash(
+        predecessor_candidate,
+        "capability_candidate_sha256_without_self_field",
+    )
+    resolution_candidate = predecessor_resolution.get("candidate")
+    _require(
+        predecessor_resolution.get("resolution_status") == "bounded_candidate_discovered"
+        and isinstance(resolution_candidate, Mapping),
+        "predecessor did not persist a bounded reference-chain candidate",
+    )
+    _require(
+        dict(resolution_candidate) == dict(predecessor_candidate),
+        "predecessor resolution/candidate artifact binding drifted",
+    )
+    _require(
+        predecessor_candidate.get("state") == "candidate"
+        and predecessor_candidate.get("action_class") == reference_capability.ACTION_CLASS
+        and predecessor_candidate.get("implementation_id")
+        == reference_capability.IMPLEMENTATION_ID
+        and predecessor_candidate.get("factory_id") == reference_capability.FACTORY_ID
+        and predecessor_candidate.get("mechanism") == reference_capability.MECHANISM,
+        "predecessor reference-chain candidate identity drifted",
+    )
+    _require(
+        predecessor_candidate.get("capability_specification_sha256") == spec_sha,
+        "predecessor candidate specification binding drifted",
+    )
+    _require(
+        predecessor_candidate.get("network_authority_granted") is False
+        and predecessor_candidate.get("execution_authority_granted") is False
+        and predecessor_candidate.get("scientific_status_change_authorized") is False
+        and predecessor_candidate.get("self_promotion_requested") is False,
+        "predecessor candidate attempted to acquire authority before verification",
+    )
+    receipt: dict[str, Any] = {
+        "schema_version": "1.0",
+        "artifact_type": "predecessor_capability_candidate_reauthentication",
+        "resolution_status": "predecessor_candidate_reauthenticated",
+        "action_class": reference_capability.ACTION_CLASS,
+        "capability_specification_sha256": spec_sha,
+        "capability_candidate_sha256": candidate_sha,
+        "predecessor_manifest_sha256": predecessor_manifest_sha256,
+        "candidate_rediscovery_performed": False,
+        "unrestricted_discovery_performed": False,
+        "network_authority_granted": False,
+        "execution_authority_granted": False,
+        "scientific_status_changed": False,
+    }
+    receipt["report_sha256_without_self_field"] = _canonical_sha(receipt)
+    return receipt
+
+
 def _resolved_output(root: Path, output_root: str | Path) -> Path:
     output = Path(output_root).expanduser()
     if not output.is_absolute():
@@ -211,8 +275,10 @@ def run_autonomous_production(
     _require(
         predecessor.get("generated_next_action_class") == reference_capability.ACTION_CLASS
         and predecessor.get("fourth_capability_gap_emitted") is True
+        and predecessor.get("fourth_capability_candidate_discovered") is True
+        and predecessor.get("fourth_capability_candidate_promoted") is False
         and predecessor.get("third_research_action_resumed") is True,
-        "predecessor did not stop at exact reference-chain frontier",
+        "predecessor did not stop at exact discovered reference-chain candidate frontier",
     )
     _require(
         predecessor.get("bridge_established") is False
@@ -233,6 +299,14 @@ def run_autonomous_production(
     fourth_spec = _read_json(
         output / "capability-specification-4.json", "fourth capability specification"
     )
+    predecessor_resolution = _read_json(
+        output / "capability-resolution-4.json",
+        "predecessor fourth capability resolution",
+    )
+    predecessor_candidate = _read_json(
+        output / "capability-candidate-4.json",
+        "predecessor fourth capability candidate",
+    )
     _validate_self_hash(fourth_gap, "capability_gap_sha256_without_self_field")
     _validate_self_hash(
         fourth_spec, "capability_specification_sha256_without_self_field"
@@ -242,6 +316,17 @@ def run_autonomous_production(
         and fourth_spec.get("requested_action_class") == reference_capability.ACTION_CLASS,
         "fourth gap/spec action drifted",
     )
+    candidate_reauthentication = _authenticate_predecessor_candidate(
+        predecessor_resolution=predecessor_resolution,
+        predecessor_candidate=predecessor_candidate,
+        capability_specification=fourth_spec,
+        predecessor_manifest_sha256=predecessor_sha,
+    )
+    _write_json(
+        output / "capability-resolution-4-derived.json",
+        candidate_reauthentication,
+    )
+    candidate = dict(predecessor_candidate)
 
     nist_intake = _read_json(output / "nist-scientific-intake.json", "NIST scientific intake")
     multisource = _read_json(
@@ -278,28 +363,16 @@ def run_autonomous_production(
         "predecessor NERDm byte binding drifted",
     )
 
-    resolution = resolve_or_discover_capability(
-        registry=registry,
-        capability_specification=fourth_spec,
-        available_verified_primitives=_VERIFIED_PRIMITIVES,
-    )
-    candidate = resolution.get("candidate")
-    _require(
-        resolution.get("resolution_status") == "bounded_candidate_discovered"
-        and isinstance(candidate, dict),
-        "no bounded reference-chain capability candidate was discovered",
-    )
-    _write_json(output / "capability-resolution-4-derived.json", resolution)
-    _write_json(output / "capability-candidate-4.json", candidate)
-
     cycle11: dict[str, Any] = {
         "cycle_index": 11,
         "predecessor_cycle_sha256": cycles[-1]["cycle_sha256"],
         "input_blocker": "experiment_identity_reference_chain_capability_not_established",
         "selected_action_class": reference_capability.ACTION_CLASS,
         "capability_available": False,
-        "resolution_status": resolution["resolution_status"],
-        "bounded_candidate_discovered": True,
+        "resolution_status": candidate_reauthentication["resolution_status"],
+        "bounded_candidate_discovered": False,
+        "predecessor_candidate_reauthenticated": True,
+        "candidate_rediscovery_performed": False,
         "capability_candidate_sha256": candidate[
             "capability_candidate_sha256_without_self_field"
         ],
@@ -308,7 +381,7 @@ def run_autonomous_production(
         "caller_authored_url_used": False,
         "arbitrary_code_generation_performed": False,
         "global_evidence_unavailability_claimed": False,
-        "new_verified_information": True,
+        "new_verified_information": False,
         "scientific_status_changed": False,
     }
     cycle11["cycle_sha256"] = _canonical_sha(cycle11)
@@ -327,6 +400,8 @@ def run_autonomous_production(
                 "fourth_capability_candidate_discovered": True,
                 "fourth_capability_candidate_promoted": False,
                 "fourth_research_action_resumed": False,
+                "fourth_candidate_reauthenticated_from_predecessor": True,
+                "fourth_candidate_rediscovery_performed": False,
                 "generated_next_action_class": reference_capability.ACTION_CLASS,
             },
         )
@@ -474,6 +549,8 @@ def run_autonomous_production(
             "fourth_capability_candidate_discovered": True,
             "fourth_capability_candidate_promoted": True,
             "fourth_research_action_resumed": True,
+            "fourth_candidate_reauthenticated_from_predecessor": True,
+            "fourth_candidate_rediscovery_performed": False,
             "reference_chain_policy_sha256": qualification["policy_sha256"],
             "naderi_reference_evidence_sha256": naderi[
                 "report_sha256_without_self_field"
@@ -501,5 +578,6 @@ __all__ = [
     "AUTONOMOUS_PRODUCTION_POLICY_VERSION",
     "AUTONOMOUS_PRODUCTION_SCHEMA_VERSION",
     "AutonomousProductionReferenceChainExtensionError",
+    "_authenticate_predecessor_candidate",
     "run_autonomous_production",
 ]
