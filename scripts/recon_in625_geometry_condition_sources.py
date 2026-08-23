@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import importlib.metadata
 import json
 import re
 import sys
@@ -20,6 +21,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+MAX_CLAIM_MATCH_UTF8_BYTES = 4096
+_IGNORED_HTML_TAGS = frozenset({"script", "style", "noscript", "template", "svg"})
 
 
 class ReconError(ValueError):
@@ -30,9 +34,19 @@ class _TextCollector(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.parts: list[str] = []
+        self._ignored_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        del attrs
+        if tag.lower() in _IGNORED_HTML_TAGS:
+            self._ignored_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in _IGNORED_HTML_TAGS and self._ignored_depth:
+            self._ignored_depth -= 1
 
     def handle_data(self, data: str) -> None:
-        if data.strip():
+        if self._ignored_depth == 0 and data.strip():
             self.parts.append(data)
 
 
@@ -127,7 +141,7 @@ def _fetch(
     request = Request(
         url,
         headers={
-            "User-Agent": "materials-data-analyzer/condition-recon/1.1",
+            "User-Agent": "materials-data-analyzer/condition-recon/1.2",
             "Accept": "text/html,application/pdf,*/*;q=0.1",
         },
     )
@@ -135,12 +149,20 @@ def _fetch(
         with opener.open(request, timeout=timeout_seconds) as response:
             final_url = response.geturl()
             _validate_url(final_url, allowed_hosts, "final URL")
+            content_length = response.headers.get("Content-Length")
+            if content_length is not None:
+                try:
+                    declared = int(content_length)
+                except ValueError as exc:
+                    raise ReconError("source Content-Length is invalid") from exc
+                if declared < 0 or declared > max_bytes:
+                    raise ReconError(f"source Content-Length exceeds current byte budget: {url}")
             body = response.read(max_bytes + 1)
             content_type = response.headers.get_content_type()
     except OSError as exc:
         raise ReconError(f"source fetch failed for {url}: {exc}") from exc
     if len(body) > max_bytes:
-        raise ReconError(f"source exceeded max byte budget: {url}")
+        raise ReconError(f"source exceeded current byte budget: {url}")
     if not body:
         raise ReconError(f"source returned empty body: {url}")
     return body, final_url, content_type
@@ -193,6 +215,11 @@ def _pdf_pages(body: bytes, *, source_id: str, content_type: str | None) -> list
     return pages
 
 
+def _bounded_anchor_pattern(pattern: str) -> str:
+    """Bound configured wildcard spans without changing the committed anchor identity."""
+    return pattern.replace(".*", f".{{0,{MAX_CLAIM_MATCH_UTF8_BYTES}}}?")
+
+
 def _anchor_result(
     *,
     anchor: dict[str, Any],
@@ -202,8 +229,9 @@ def _anchor_result(
     claim_id = _strict_text(anchor.get("claim_id"), "claim_id")
     pattern = _strict_text(anchor.get("anchor_regex"), f"{claim_id}.anchor_regex")
     scope = _strict_text(anchor.get("scope"), f"{claim_id}.scope")
+    bounded_pattern = _bounded_anchor_pattern(pattern)
     try:
-        compiled = re.compile(pattern, flags=re.IGNORECASE | re.DOTALL)
+        compiled = re.compile(bounded_pattern, flags=re.IGNORECASE | re.DOTALL)
     except re.error as exc:
         raise ReconError(f"invalid anchor regex for {claim_id}: {exc}") from exc
     matches: list[dict[str, Any]] = []
@@ -212,6 +240,8 @@ def _anchor_result(
         if match is None:
             continue
         matched = match.group(0).encode("utf-8")
+        if len(matched) > MAX_CLAIM_MATCH_UTF8_BYTES:
+            continue
         matches.append(
             {
                 "page_index_zero_based": page_index if is_pdf else None,
@@ -223,6 +253,10 @@ def _anchor_result(
         "claim_id": claim_id,
         "scope": scope,
         "anchor_regex_sha256": _sha256(pattern.encode("utf-8")),
+        "matching_policy": {
+            "wildcard_span_bounded": True,
+            "max_matched_text_utf8_bytes": MAX_CLAIM_MATCH_UTF8_BYTES,
+        },
         "matched": bool(matches),
         "match_count": len(matches),
         "matches": matches,
@@ -268,10 +302,14 @@ def run(config_path: Path) -> dict[str, Any]:
         media_type = _strict_text(raw_source.get("media_type"), f"{source_id}.media_type")
         if media_type not in {"html", "pdf"}:
             raise ReconError(f"unsupported media_type for {source_id}: {media_type}")
+        remaining_total_bytes = max_total_bytes - total_bytes
+        if remaining_total_bytes <= 0:
+            raise ReconError("total reconnaissance byte budget exhausted before next fetch")
+        current_fetch_budget = min(max_source_bytes, remaining_total_bytes)
         body, final_url, content_type = _fetch(
             url,
             allowed_hosts=allowed_hosts,
-            max_bytes=max_source_bytes,
+            max_bytes=current_fetch_budget,
             timeout_seconds=timeout_seconds,
         )
         total_bytes += len(body)
@@ -333,6 +371,16 @@ def run(config_path: Path) -> dict[str, Any]:
         "config_sha256": _sha256(config_path.read_bytes()),
         "source_count": len(results),
         "total_source_bytes_observed": total_bytes,
+        "claim_matching_policy": {
+            "wildcard_span_bounded": True,
+            "max_matched_text_utf8_bytes": MAX_CLAIM_MATCH_UTF8_BYTES,
+            "ignored_html_tags": sorted(_IGNORED_HTML_TAGS),
+        },
+        "pdf_extractor": {
+            "package": "pypdf",
+            "version": importlib.metadata.version("pypdf"),
+            "strict": False,
+        },
         "all_sources_fetched": True,
         "all_claim_anchors_matched": True,
         "sources": results,
