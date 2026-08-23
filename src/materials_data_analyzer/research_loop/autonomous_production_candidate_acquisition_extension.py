@@ -425,13 +425,30 @@ def run_autonomous_production(
         capability_specification=fourth_spec,
         available_verified_primitives=_VERIFIED_PRIMITIVES,
     )
+    fourth_candidate = fourth_resolution.get("candidate")
     _write_json(output / "capability-gap-4.json", fourth_gap)
     _write_json(output / "capability-specification-4.json", fourth_spec)
     _write_json(output / "capability-resolution-4.json", fourth_resolution)
     _require(
-        fourth_resolution.get("resolution_status") == "no_bounded_candidate_available",
-        "reference-chain assessment unexpectedly gained unaudited capability",
+        fourth_resolution.get("resolution_status") == "bounded_candidate_discovered"
+        and isinstance(fourth_candidate, dict),
+        "reference-chain assessment did not produce the bounded registered candidate",
     )
+    _require(
+        fourth_candidate.get("state") == "candidate"
+        and fourth_candidate.get("action_class") == next_action_class
+        and fourth_candidate.get("capability_specification_sha256")
+        == fourth_spec["capability_specification_sha256_without_self_field"]
+        and fourth_candidate.get("network_authority_granted") is False
+        and fourth_candidate.get("execution_authority_granted") is False
+        and fourth_candidate.get("scientific_status_change_authorized") is False
+        and fourth_candidate.get("self_promotion_requested") is False,
+        "reference-chain candidate violated bounded candidate authority",
+    )
+    _write_json(output / "capability-candidate-4.json", fourth_candidate)
+    fourth_candidate_sha = fourth_candidate[
+        "capability_candidate_sha256_without_self_field"
+    ]
 
     stop = _stop(
         "capability_expansion_required",
@@ -441,7 +458,10 @@ def run_autonomous_production(
         capability_specification_sha256=fourth_spec[
             "capability_specification_sha256_without_self_field"
         ],
-        bounded_candidate_discovered=False,
+        bounded_candidate_discovered=True,
+        capability_candidate_sha256=fourth_candidate_sha,
+        candidate_verified=False,
+        candidate_promoted=False,
         caller_authored_url_used=False,
         arbitrary_code_generation_performed=False,
     )
@@ -477,9 +497,12 @@ def run_autonomous_production(
             "direct_numerical_cross_source_validation_authorized": False,
             "issue_76_exact_target_cells_satisfied": 0,
             "fourth_capability_gap_emitted": True,
-            "fourth_capability_candidate_discovered": False,
+            "fourth_capability_candidate_discovered": True,
+            "fourth_capability_candidate_sha256": fourth_candidate_sha,
+            "fourth_capability_candidate_promoted": False,
+            "fourth_research_action_resumed": False,
             "generated_next_action_class": next_action_class,
-            "final_blocker": "experiment_identity_reference_chain_capability_not_established",
+            "final_blocker": "experiment_identity_reference_chain_candidate_unverified",
         },
     )
 
