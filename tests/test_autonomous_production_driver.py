@@ -30,7 +30,7 @@ IN625_REGISTRY = (
     / "configs/research/in625_external_evidence_action_registry.v1.json"
 )
 EXPECTED_MISSION_SHA256 = (
-    "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
+    "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
 )
 
 
@@ -46,7 +46,7 @@ def test_run_autonomous_parser_needs_no_pre_authored_request_queue() -> None:
     args = research_program_cli.build_parser().parse_args(["run-autonomous"])
     assert args.command == "run-autonomous"
     assert args.repository_root == Path(".")
-    assert args.max_cycles == 8
+    assert args.max_cycles == 10
     assert not hasattr(args, "request_queue")
 
 
@@ -83,7 +83,7 @@ def test_run_autonomous_uses_independent_production_pin(
     assert captured["repository_root"] == REPOSITORY_ROOT.resolve()
     assert captured["mission_path"] == MISSION.resolve()
     assert captured["expected_mission_sha256"] == EXPECTED_MISSION_SHA256
-    assert captured["max_cycles"] == 8
+    assert captured["max_cycles"] == 10
 
 
 def test_driver_rejects_untrusted_mission_root_before_network(
@@ -234,13 +234,13 @@ def _write_reauthorized_network_fixture(
     source_path = config_dir / SOURCE_CONFIG.name
     source_path.write_bytes(source_bytes)
 
-    policy = json.loads(NETWORK_POLICY.read_text(encoding="utf-8"))
-    policy["source_binding"]["source_config_sha256"] = hashlib.sha256(
+    policy_value = json.loads(NETWORK_POLICY.read_text(encoding="utf-8"))
+    policy_value["source_binding"]["source_config_sha256"] = hashlib.sha256(
         source_bytes
     ).hexdigest()
-    mutate_policy(policy)
+    mutate_policy(policy_value)
     policy_bytes = (
-        json.dumps(policy, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+        json.dumps(policy_value, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
     ).encode("utf-8")
     policy_path = config_dir / NETWORK_POLICY.name
     policy_path.write_bytes(policy_bytes)
@@ -264,7 +264,7 @@ def test_network_policy_rejects_widened_host_even_under_new_mission_root(
     root, mission_path, policy_path, source_path, mission_sha = (
         _write_reauthorized_network_fixture(
             tmp_path,
-            mutate_policy=lambda policy: policy["transport"].__setitem__(
+            mutate_policy=lambda value: value["transport"].__setitem__(
                 "host", "example.com"
             ),
         )
@@ -288,7 +288,7 @@ def test_network_policy_rejects_source_identity_substitution_even_if_repinned(
     root, mission_path, policy_path, source_path, mission_sha = (
         _write_reauthorized_network_fixture(
             tmp_path,
-            mutate_policy=lambda policy: None,
+            mutate_policy=lambda value: None,
             mutate_source=lambda source: source.__setitem__(
                 "source_id", "attacker-controlled-source"
             ),
