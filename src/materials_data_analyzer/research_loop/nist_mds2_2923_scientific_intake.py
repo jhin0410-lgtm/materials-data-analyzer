@@ -100,6 +100,18 @@ def _sha256(body: bytes) -> str:
     return hashlib.sha256(body).hexdigest()
 
 
+def _canonical_sha(value: object) -> str:
+    """Hash provenance objects using the repository-wide canonical JSON convention."""
+    raw = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return _sha256(raw)
+
+
 def _excel_number(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise NistMds22923ScientificIntakeError(
@@ -810,7 +822,7 @@ def audit_mds2_2923(
         },
         "measurements": measurements,
     }
-    report["report_sha256_without_self_field"] = _sha256(_json_bytes(report))
+    report["report_sha256_without_self_field"] = _canonical_sha(report)
     return report
 
 
