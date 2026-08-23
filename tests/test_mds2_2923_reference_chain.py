@@ -186,6 +186,29 @@ def _build() -> dict[str, Any]:
     )
 
 
+def _reference_spec() -> dict[str, Any]:
+    gap = capability_expansion.build_capability_gap(
+        requested_action={
+            "action_class": capability.ACTION_CLASS,
+            "objective": "Build the exact mds2 reference graph.",
+            "eligible_evidence_lanes": ["paper_and_supplementary_material"],
+        },
+        predecessor_report={"report_sha256_without_self_field": "a" * 64},
+        available_action_classes=[],
+    )
+    return capability_expansion.build_capability_specification(gap)
+
+
+def _verification_context(metadata: bytes) -> dict[str, Any]:
+    return {
+        "nerdm_metadata_bytes": metadata,
+        "nist_intake": _intake(metadata),
+        "multisource_evidence": _multisource(),
+        "source_discovery_report": _discovery(),
+        "calibration_candidate_assessment": _calibration(),
+    }
+
+
 def test_exact_reference_policy_authenticates_without_network() -> None:
     assert hashlib.sha256(MISSION.read_bytes()).hexdigest() == MISSION_SHA
     result = policy.authenticate_nist_mds2_2923_reference_chain_policy(
@@ -267,16 +290,7 @@ def test_reference_graph_rejects_missing_explicit_reference_claim() -> None:
 
 
 def test_resolver_discovers_reference_candidate_only_from_verified_primitives() -> None:
-    gap = capability_expansion.build_capability_gap(
-        requested_action={
-            "action_class": capability.ACTION_CLASS,
-            "objective": "Build the exact mds2 reference graph.",
-            "eligible_evidence_lanes": ["paper_and_supplementary_material"],
-        },
-        predecessor_report={"report_sha256_without_self_field": "a" * 64},
-        available_action_classes=[],
-    )
-    spec = capability_expansion.build_capability_specification(gap)
+    spec = _reference_spec()
     registry = capability_registry.build_initial_capability_registry(
         verified_action_classes=[]
     )
@@ -298,18 +312,43 @@ def test_resolver_discovers_reference_candidate_only_from_verified_primitives() 
     assert missing["resolution_status"] == "no_bounded_candidate_available"
 
 
+def test_repinned_semantically_weakened_spec_cannot_pass_independent_verifier() -> None:
+    spec = _reference_spec()
+    weakened = dict(spec)
+    weakened["scientific_acceptance"] = list(spec["scientific_acceptance"])
+    weakened["scientific_acceptance"][0] = (
+        "A dataset-publication association may be treated as exact row identity."
+    )
+    weakened.pop("capability_specification_sha256_without_self_field")
+    weakened["capability_specification_sha256_without_self_field"] = _canonical_sha(
+        weakened
+    )
+    candidate = capability_registry.build_capability_candidate(
+        capability_specification=weakened,
+        factory_id=capability.FACTORY_ID,
+        implementation_id=capability.IMPLEMENTATION_ID,
+        mechanism=capability.MECHANISM,
+        required_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
+    )
+    metadata = _metadata()
+    receipt = verifier.verify_reference_chain_capability_candidate(
+        capability_specification=weakened,
+        candidate=candidate,
+        available_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
+        repository_root=ROOT,
+        mission_path=MISSION,
+        expected_mission_sha256=MISSION_SHA,
+        verification_context=_verification_context(metadata),
+        perform_real_source_smoke=False,
+    )
+    assert receipt["semantic_spec_contract_verified"] is False
+    assert receipt["verification_results"]["deterministic_contract_tests"] is False
+    assert receipt["promotion_eligible"] is False
+
+
 def test_no_real_source_smoke_cannot_promote_reference_candidate() -> None:
     metadata = _metadata()
-    gap = capability_expansion.build_capability_gap(
-        requested_action={
-            "action_class": capability.ACTION_CLASS,
-            "objective": "Build the exact mds2 reference graph.",
-            "eligible_evidence_lanes": ["paper_and_supplementary_material"],
-        },
-        predecessor_report={"report_sha256_without_self_field": "a" * 64},
-        available_action_classes=[],
-    )
-    spec = capability_expansion.build_capability_specification(gap)
+    spec = _reference_spec()
     candidate = capability_registry.build_capability_candidate(
         capability_specification=spec,
         factory_id=capability.FACTORY_ID,
@@ -324,15 +363,10 @@ def test_no_real_source_smoke_cannot_promote_reference_candidate() -> None:
         repository_root=ROOT,
         mission_path=MISSION,
         expected_mission_sha256=MISSION_SHA,
-        verification_context={
-            "nerdm_metadata_bytes": metadata,
-            "nist_intake": _intake(metadata),
-            "multisource_evidence": _multisource(),
-            "source_discovery_report": _discovery(),
-            "calibration_candidate_assessment": _calibration(),
-        },
+        verification_context=_verification_context(metadata),
         perform_real_source_smoke=False,
     )
+    assert receipt["semantic_spec_contract_verified"] is True
     assert receipt["promotion_eligible"] is False
     assert receipt["verification_results"][
         "real_source_smoke_test_when_network_evidence_is_required"
