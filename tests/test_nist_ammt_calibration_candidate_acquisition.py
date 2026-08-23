@@ -20,7 +20,7 @@ from materials_data_analyzer.research_loop import nist_ammt_candidate_acquisitio
 ROOT = Path(__file__).resolve().parents[1]
 MISSION = ROOT / "configs/research/autonomous_in625_production_mission.v1.json"
 POLICY = ROOT / "configs/research/nist_ammt_calibration_candidate_derived_acquisition_policy.v1.json"
-MISSION_SHA = "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
+MISSION_SHA = "7de1c78d1411805623a4687a6d1956517edc009abe5790a0870e89ab6ccb4e88"
 POLICY_SHA = "ef92f5d436a85f756d87e136ebc59a2cf64c932f8c599f23cd13c4c59bd8319b"
 CANDIDATE_URL = (
     "https://www.nist.gov/publications/"

@@ -33,7 +33,7 @@ _AUTONOMOUS_PRODUCTION_MISSION = Path(
     "configs/research/autonomous_in625_production_mission.v1.json"
 )
 _AUTONOMOUS_PRODUCTION_MISSION_SHA256 = (
-    "2b44306219627493c3b2bc1f2add218a68b68e2f205d1ef1838aabcdf70385d9"
+    "7de1c78d1411805623a4687a6d1956517edc009abe5790a0870e89ab6ccb4e88"
 )
 _AUTONOMOUS_PRODUCTION_OUTPUT = Path("outputs/autonomous-in625-production")
 
