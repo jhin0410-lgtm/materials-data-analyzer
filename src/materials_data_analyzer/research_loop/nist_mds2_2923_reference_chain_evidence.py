@@ -31,6 +31,7 @@ from .nist_mds2_2923_reference_chain_policy import (
 
 IMPLEMENTATION_ID = "mds2-2923-naderi-reference-chain-evidence-v1"
 TEXT_NORMALIZATION_ID = "pdf-discretionary-word-break-normalization-v2"
+TEXT_EXTRACTION_MODES = ("plain", "layout")
 _CONTROL_CLASS = r"\x00-\x08\x0b\x0c\x0e-\x1f\x7f"
 
 
@@ -75,53 +76,103 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
-def _pdf_pages(body: bytes) -> list[str]:
+def _extract_page_text(page: object, mode: str) -> str:
+    _require(mode in TEXT_EXTRACTION_MODES, "unsupported Naderi PDF extraction mode")
+    extractor = getattr(page, "extract_text", None)
+    _require(callable(extractor), "Naderi PDF page has no text extractor")
+    if mode == "plain":
+        return _normalize_text(extractor() or "")
+    return _normalize_text(extractor(extraction_mode="layout") or "")
+
+
+def _pdf_views(body: bytes) -> dict[str, list[str]]:
+    """Build two deterministic textual views from the same exact PDF bytes."""
     _require(body.startswith(b"%PDF-"), "Naderi reference source is not PDF bytes")
     try:
         reader = PdfReader(BytesIO(body), strict=False)
-        pages = [_normalize_text(page.extract_text() or "") for page in reader.pages]
+        views = {
+            mode: [_extract_page_text(page, mode) for page in reader.pages]
+            for mode in TEXT_EXTRACTION_MODES
+        }
     except Exception as exc:
         raise NistMds22923ReferenceChainEvidenceError(
             f"Naderi reference PDF could not be parsed: {exc}"
         ) from exc
-    _require(any(pages), "Naderi reference PDF produced no extractable text")
-    return pages
+    _require(
+        all(len(pages) == len(views[TEXT_EXTRACTION_MODES[0]]) for pages in views.values()),
+        "Naderi PDF extraction views disagree on page count",
+    )
+    _require(
+        any(any(page for page in pages) for pages in views.values()),
+        "Naderi reference PDF produced no extractable text",
+    )
+    return views
+
+
+def _ordered_span(text: str, required_fragments: Sequence[str]) -> bytes | None:
+    """Return a bounded original-text span only when every fragment occurs in order."""
+    first_pattern = re.compile(re.escape(required_fragments[0]), flags=re.IGNORECASE)
+    for first in first_pattern.finditer(text):
+        start = first.start()
+        cursor = first.end()
+        matched = True
+        for fragment in required_fragments[1:]:
+            pattern = re.compile(re.escape(fragment), flags=re.IGNORECASE)
+            following = pattern.search(text, cursor)
+            if following is None:
+                matched = False
+                break
+            cursor = following.end()
+        if not matched:
+            continue
+        raw = text[start:cursor].encode("utf-8")
+        if len(raw) <= MAX_CLAIM_SPAN_UTF8_BYTES:
+            return raw
+    return None
 
 
 def _claim_receipt(
     claim_id: str,
     required_fragments: Sequence[str],
     scope: str,
-    pages: Sequence[str],
+    views: Mapping[str, Sequence[str]],
 ) -> dict[str, Any]:
     _require(bool(required_fragments), f"reference-chain claim {claim_id} has no fragments")
     _require(
         all(isinstance(item, str) and item for item in required_fragments),
         f"reference-chain claim {claim_id} fragments are invalid",
     )
-    gap = f".{{0,{MAX_CLAIM_SPAN_UTF8_BYTES}}}?"
-    pattern_text = gap.join(re.escape(item) for item in required_fragments)
-    pattern = re.compile(pattern_text, flags=re.IGNORECASE | re.DOTALL)
+    _require(
+        tuple(views) == TEXT_EXTRACTION_MODES,
+        "Naderi PDF extraction view set/order drifted",
+    )
     matches: list[dict[str, Any]] = []
-    for page_index, page in enumerate(pages):
-        match = pattern.search(page)
-        if match is None:
-            continue
-        raw = match.group(0).encode("utf-8")
-        if len(raw) > MAX_CLAIM_SPAN_UTF8_BYTES:
-            continue
-        matches.append(
-            {
-                "page_index_zero_based": page_index,
-                "matched_span_sha256": _sha256(raw),
-                "matched_span_utf8_bytes": len(raw),
-            }
-        )
+    selected_mode: str | None = None
+    for mode in TEXT_EXTRACTION_MODES:
+        mode_matches: list[dict[str, Any]] = []
+        for page_index, page in enumerate(views[mode]):
+            raw = _ordered_span(page, required_fragments)
+            if raw is None:
+                continue
+            mode_matches.append(
+                {
+                    "page_index_zero_based": page_index,
+                    "text_extraction_mode": mode,
+                    "matched_span_sha256": _sha256(raw),
+                    "matched_span_utf8_bytes": len(raw),
+                }
+            )
+        if mode_matches:
+            selected_mode = mode
+            matches = mode_matches
+            break
     return {
         "claim_id": claim_id,
         "scope": scope,
         "match_mode": MATCH_MODE,
         "max_span_utf8_bytes": MAX_CLAIM_SPAN_UTF8_BYTES,
+        "allowed_text_extraction_modes": list(TEXT_EXTRACTION_MODES),
+        "selected_text_extraction_mode": selected_mode,
         "required_fragment_count": len(required_fragments),
         "required_fragments_sha256": _canonical_sha(list(required_fragments)),
         "matched": bool(matches),
@@ -133,16 +184,18 @@ def _claim_receipt(
 
 def _claim_diagnostics(
     failed_claims: Sequence[tuple[str, Sequence[str], str]],
-    pages: Sequence[str],
+    views: Mapping[str, Sequence[str]],
 ) -> str:
-    """Return fragment-presence booleans only; never source text."""
-    lowered_pages = [page.casefold() for page in pages]
-    diagnostics: dict[str, dict[str, bool]] = {}
+    """Return fragment-presence booleans by extraction view only; never source text."""
+    diagnostics: dict[str, dict[str, dict[str, bool]]] = {}
     for claim_id, fragments, _scope in failed_claims:
-        diagnostics[claim_id] = {
-            fragment: any(fragment.casefold() in page for page in lowered_pages)
-            for fragment in fragments
-        }
+        diagnostics[claim_id] = {}
+        for mode in TEXT_EXTRACTION_MODES:
+            lowered_pages = [page.casefold() for page in views[mode]]
+            diagnostics[claim_id][mode] = {
+                fragment: any(fragment.casefold() in page for page in lowered_pages)
+                for fragment in fragments
+            }
     return json.dumps(diagnostics, sort_keys=True, separators=(",", ":"))
 
 
@@ -197,15 +250,15 @@ def acquire_naderi_reference_chain_evidence(
     _require(len(fetched.body) == SOURCE_SIZE_BYTES, "reference source exact size changed")
     observed_sha = _sha256(fetched.body)
     _require(observed_sha == SOURCE_SHA256, "reference source exact SHA-256 changed")
-    pages = _pdf_pages(fetched.body)
+    views = _pdf_views(fetched.body)
     claims = [
-        _claim_receipt(claim_id, fragments, scope, pages)
+        _claim_receipt(claim_id, fragments, scope, views)
         for claim_id, fragments, scope in CLAIMS
     ]
     failed_ids = {item["claim_id"] for item in claims if not item["matched"]}
     if failed_ids:
         failed_claims = [item for item in CLAIMS if item[0] in failed_ids]
-        diagnostics = _claim_diagnostics(failed_claims, pages)
+        diagnostics = _claim_diagnostics(failed_claims, views)
         raise NistMds22923ReferenceChainEvidenceError(
             "required Naderi reference-chain claim did not match: "
             + ", ".join(sorted(failed_ids))
@@ -213,8 +266,9 @@ def acquire_naderi_reference_chain_evidence(
             + diagnostics
         )
 
+    page_count = len(views[TEXT_EXTRACTION_MODES[0]])
     report: dict[str, Any] = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "action_class": ACTION_CLASS,
         "acquisition_status": "exact_naderi_reference_chain_evidence_acquired",
         "policy_id": POLICY_ID,
@@ -227,10 +281,11 @@ def acquire_naderi_reference_chain_evidence(
             "final_url": fetched.final_url,
             "source_sha256": observed_sha,
             "source_size_bytes": len(fetched.body),
-            "pdf_page_count": len(pages),
+            "pdf_page_count": page_count,
             "http_content_type": fetched.content_type,
             "pypdf_version": importlib.metadata.version("pypdf"),
             "text_normalization_id": TEXT_NORMALIZATION_ID,
+            "text_extraction_modes": list(TEXT_EXTRACTION_MODES),
             "source_bytes_persisted": False,
             "source_text_persisted": False,
             "row_level_measurement_authority": False,
@@ -256,6 +311,7 @@ def acquire_naderi_reference_chain_evidence(
 __all__ = [
     "IMPLEMENTATION_ID",
     "NistMds22923ReferenceChainEvidenceError",
+    "TEXT_EXTRACTION_MODES",
     "TEXT_NORMALIZATION_ID",
     "acquire_naderi_reference_chain_evidence",
 ]
