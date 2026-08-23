@@ -2,7 +2,8 @@
 
 The verifier may authenticate and smoke-test only the already mission-pinned Naderi source
 authority. Promotion remains owned by the common immutable registry kernel, and verifier
-evidence is never reused as execution evidence.
+evidence is never reused as execution evidence. The verifier independently pins the semantic
+capability contract instead of trusting the capability-specification builder.
 """
 from __future__ import annotations
 
@@ -17,14 +18,47 @@ from . import nist_mds2_2923_reference_chain_evidence as reference_evidence
 from . import nist_mds2_2923_reference_chain_policy as reference_policy
 from .capability_registry import build_capability_verification_receipt
 
-VERIFIER_SCHEMA_VERSION = "1.1"
-VERIFIER_POLICY_VERSION = "1.1"
+VERIFIER_SCHEMA_VERSION = "1.2"
+VERIFIER_POLICY_VERSION = "1.2"
 _REQUIRED_CONTEXT_FIELDS = (
     "nerdm_metadata_bytes",
     "nist_intake",
     "multisource_evidence",
     "source_discovery_report",
     "calibration_candidate_assessment",
+)
+_EXPECTED_REQUIRED_INPUTS = (
+    "verified_mds2_2923_scientific_intake",
+    "exact_predecessor_nerdm_metadata_bytes",
+    "verified_nist_ammt_calibration_candidate_bridge_assessment",
+    "verified_multisource_source_acquisition",
+    "verified_calibration_source_discovery_report",
+    "mission_pinned_naderi_reference_chain_evidence_policy",
+)
+_EXPECTED_REQUIRED_OUTPUTS = (
+    "exact_dataset_publication_association_receipts",
+    "exact_mds2_195w_800mm_s_condition_signature",
+    "typed_reference_graph_with_non_transitive_authority",
+    "experiment_identity_gate",
+    "calibration_and_protocol_gate",
+    "next_weaver_full_text_action_without_implicit_authority",
+)
+_EXPECTED_SCIENTIFIC_ACCEPTANCE = (
+    "A dataset-publication association is not exact row identity or exact experiment identity.",
+    "A matching AMMT 195 W / 800 mm/s condition signature is not exact experiment identity.",
+    "A Naderi-to-Weaver citation edge does not establish that specific mds2 rows are the Weaver experiment.",
+    "Same-platform or protocol citations do not establish machine-setting-to-calibrated-power conversion, protocol equivalence, spot-size transfer, or uncertainty transfer.",
+    "Do not promote publication, citation, or reference-chain evidence to row-level measurement authority.",
+    "Preserve directly comparable mds2 rows at 0, direct numerical cross-source validation disabled, cross-machine pooling disabled, and Issue #76 at 0/3 unless explicit experiment-scoped evidence proves otherwise.",
+    "Missing Weaver primary full text is a bounded next evidence frontier and is not proof of evidence absence.",
+)
+_EXPECTED_VERIFICATION_REQUIREMENTS = (
+    "deterministic_contract_tests",
+    "adversarial_authority_and_provenance_tests",
+    "fixture_replay",
+    "real_source_smoke_test_when_network_evidence_is_required",
+    "epistemic_boundary_test",
+    "exact_spec_implementation_and_verifier_byte_bindings",
 )
 
 
@@ -74,6 +108,41 @@ def _context(
         "reference-chain verifier reports must be mappings",
     )
     return metadata, reports[0], reports[1], reports[2], reports[3]  # type: ignore[return-value]
+
+
+def _semantic_spec_contract_ok(specification: Mapping[str, Any]) -> bool:
+    """Independently pin the scientific contract, including repinned-spec attacks."""
+    promotion = specification.get("promotion_policy")
+    authority = specification.get("authority_policy")
+    mechanisms = specification.get("allowed_implementation_mechanisms")
+    forbidden = specification.get("forbidden_implementation_mechanisms")
+    return bool(
+        specification.get("requested_action_class") == capability.ACTION_CLASS
+        and specification.get("gap_class") == "missing_analysis_executor"
+        and specification.get("required_inputs") == list(_EXPECTED_REQUIRED_INPUTS)
+        and specification.get("required_outputs") == list(_EXPECTED_REQUIRED_OUTPUTS)
+        and specification.get("scientific_acceptance")
+        == list(_EXPECTED_SCIENTIFIC_ACCEPTANCE)
+        and specification.get("verification_requirements")
+        == list(_EXPECTED_VERIFICATION_REQUIREMENTS)
+        and isinstance(mechanisms, list)
+        and capability.MECHANISM in mechanisms
+        and isinstance(forbidden, list)
+        and "arbitrary_python_eval_or_exec" in forbidden
+        and "self_modifying_runtime_code" in forbidden
+        and "unreviewed_network_host_expansion" in forbidden
+        and "candidate_self_promotion" in forbidden
+        and isinstance(promotion, Mapping)
+        and promotion.get("candidate_may_self_promote") is False
+        and promotion.get("independent_verifier_required") is True
+        and promotion.get("verified_registry_predecessor_required") is True
+        and promotion.get("scientific_truth_promotion_authorized") is False
+        and isinstance(authority, Mapping)
+        and authority.get("may_synthesize_new_network_hosts") is False
+        and authority.get("may_synthesize_arbitrary_urls") is False
+        and authority.get("may_execute_physical_instrument") is False
+        and authority.get("may_promote_literature_to_row_level_measurement") is False
+    )
 
 
 def _boundary_ok(report: Mapping[str, Any]) -> bool:
@@ -129,8 +198,10 @@ def verify_reference_chain_capability_candidate(
         "candidate implementation drifted",
     )
     _require(candidate.get("mechanism") == capability.MECHANISM, "candidate mechanism drifted")
-    deterministic_contract = candidate.get("required_verified_primitives") == sorted(
-        capability.REQUIRED_VERIFIED_PRIMITIVES
+    deterministic_contract = bool(
+        candidate.get("required_verified_primitives")
+        == sorted(capability.REQUIRED_VERIFIED_PRIMITIVES)
+        and _semantic_spec_contract_ok(capability_specification)
     )
     authority_and_provenance = bool(
         candidate.get("network_authority_granted") is False
@@ -230,6 +301,7 @@ def verify_reference_chain_capability_candidate(
         {
             "verifier_schema_version": VERIFIER_SCHEMA_VERSION,
             "verifier_policy_version": VERIFIER_POLICY_VERSION,
+            "semantic_spec_contract_verified": deterministic_contract,
             "implementation_component_sha256": component_hashes,
             "implementation_sha256": implementation_sha,
             "verifier_sha256": verifier_sha,
