@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Sequence
 
 from . import calibration_protocol_bridge_capability as bridge
+from . import mds2_2923_experiment_identity_reference_chain as reference_chain
 from . import nist_ammt_calibration_candidate_acquisition as candidate_acquisition
 from . import nist_ammt_calibration_source_discovery as discovery
 from .capability_registry import (
@@ -11,8 +12,9 @@ from .capability_registry import (
     resolve_verified_capability,
 )
 
-CAPABILITY_RESOLVER_SCHEMA_VERSION = "1.2"
-CAPABILITY_RESOLVER_POLICY_VERSION = "1.2"
+CAPABILITY_RESOLVER_SCHEMA_VERSION = "1.3"
+CAPABILITY_RESOLVER_POLICY_VERSION = "1.3"
+_FACTORY_CATALOGUE_SIZE = 4
 
 
 class CapabilityResolverError(ValueError):
@@ -40,6 +42,10 @@ def _bounded_factory(
         candidate_acquisition.REQUIRED_VERIFIED_PRIMITIVES
     ).issubset(primitives):
         return candidate_acquisition, "generate_declarative_adapter_instance"
+    if action_class == reference_chain.ACTION_CLASS and set(
+        reference_chain.REQUIRED_VERIFIED_PRIMITIVES
+    ).issubset(primitives):
+        return reference_chain, "compose_verified_primitives"
     return None
 
 
@@ -65,6 +71,7 @@ def resolve_or_discover_capability(
             "registry_sha256": resolution["registry_sha256"],
             "implementation_id": resolution["implementation_id"],
             "candidate": None,
+            "factory_catalogue_size": _FACTORY_CATALOGUE_SIZE,
             "unrestricted_discovery_performed": False,
             "arbitrary_code_generation_performed": False,
         }
@@ -92,7 +99,7 @@ def resolve_or_discover_capability(
             "implementation_id": None,
             "candidate": candidate,
             "factory_id": factory_id,
-            "factory_catalogue_size": 3,
+            "factory_catalogue_size": _FACTORY_CATALOGUE_SIZE,
             "unrestricted_discovery_performed": False,
             "arbitrary_code_generation_performed": False,
         }
@@ -105,7 +112,7 @@ def resolve_or_discover_capability(
         "registry_sha256": resolution["registry_sha256"],
         "implementation_id": None,
         "candidate": None,
-        "factory_catalogue_size": 3,
+        "factory_catalogue_size": _FACTORY_CATALOGUE_SIZE,
         "unrestricted_discovery_performed": False,
         "arbitrary_code_generation_performed": False,
     }
