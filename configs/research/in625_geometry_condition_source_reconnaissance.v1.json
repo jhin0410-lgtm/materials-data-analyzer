@@ -1,0 +1,184 @@
+{
+  "schema_version": "1.0",
+  "reconnaissance_id": "in625-geometry-condition-multisource-recon-v1",
+  "purpose": "Acquire exact official NIST-hosted evidence bytes needed to review machine, power calibration, laser spot size, surface state, measurement protocol, and uncertainty mappings without promoting literature claims to row-level authority.",
+  "network_policy": {
+    "scheme": "https",
+    "allowed_hosts": [
+      "www.nist.gov",
+      "tsapps.nist.gov"
+    ],
+    "max_source_bytes": 33554432,
+    "max_total_bytes": 100663296,
+    "timeout_seconds": 180,
+    "unrestricted_search": false,
+    "arbitrary_url_fetch": false
+  },
+  "sources": [
+    {
+      "source_id": "nist-official-amb2018-02-description",
+      "source_class": "official_web_document",
+      "url": "https://www.nist.gov/ambench/amb2018-02-description",
+      "media_type": "html",
+      "authority": "National Institute of Standards and Technology",
+      "title": "AMB2018-02 Description",
+      "claims_under_review": [
+        {
+          "claim_id": "amb2018-ammt-actual-power-correction",
+          "anchor_regex": "137\\.9\\s*W.*400\\s*mm/s.*179\\.2\\s*W.*800\\s*mm/s.*179\\.2\\s*W.*1200\\s*mm/s",
+          "scope": "official calibration correction for the three AMMT AMB2018-02 cases"
+        },
+        {
+          "claim_id": "amb2018-programmed-cases-and-replications",
+          "anchor_regex": "150.*400.*3.*195.*800.*3.*195.*1200.*4",
+          "scope": "programmed power/speed cases and stated replication counts"
+        }
+      ]
+    },
+    {
+      "source_id": "nist-official-amb2018-benchmark-test-data",
+      "source_class": "official_web_document",
+      "url": "https://www.nist.gov/ambench/benchmark-test-data",
+      "media_type": "html",
+      "authority": "National Institute of Standards and Technology",
+      "title": "Benchmark Test Data",
+      "claims_under_review": [
+        {
+          "claim_id": "benchmark-ammt-calibration-note",
+          "anchor_regex": "true laser power levels for AMMT.*137\\.9.*179\\.2.*179\\.2",
+          "scope": "official benchmark-page correction from commanded to actual AMMT power"
+        }
+      ]
+    },
+    {
+      "source_id": "nist-official-amb2018-challenges-description",
+      "source_class": "official_web_document",
+      "url": "https://www.nist.gov/ambench/challenges-and-descriptions",
+      "media_type": "html",
+      "authority": "National Institute of Standards and Technology",
+      "title": "Challenges and Descriptions",
+      "claims_under_review": [
+        {
+          "claim_id": "benchmark-later-spot-size-correction-note",
+          "anchor_regex": "true laser spot sizes.*AMMT.*CBM.*different than intended and originally reported",
+          "scope": "official notice that later spot-size investigation changed the interpretation of original benchmark conditions"
+        }
+      ]
+    },
+    {
+      "source_id": "ricker-2019-topographic-tracks",
+      "source_class": "primary_paper",
+      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=928240",
+      "media_type": "pdf",
+      "authority": "NIST-hosted primary paper",
+      "title": "Topographic Measurement of Individual Laser Tracks in Alloy 625 Bare Plates",
+      "doi": "10.1007/s40192-019-00157-0",
+      "claims_under_review": [
+        {
+          "claim_id": "ricker-two-machine-bare-plate-design",
+          "anchor_regex": "three different power and speed settings.*Additive Manufacturing Metrology Testbed.*commercial AM machine",
+          "scope": "two-machine bare-plate benchmark design"
+        }
+      ]
+    },
+    {
+      "source_id": "lane-2020-melt-pool-geometry",
+      "source_class": "primary_paper",
+      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=927485",
+      "media_type": "pdf",
+      "authority": "NIST-hosted primary paper",
+      "title": "Measurements of Melt Pool Geometry and Cooling Rates of Individual Laser Traces on IN625 Bare Plates",
+      "doi": "10.1007/s40192-020-00169-1",
+      "claims_under_review": [
+        {
+          "claim_id": "lane-surface-preparation-320-grit",
+          "anchor_regex": "surface is prepared with 320\\s*grit",
+          "scope": "bare-plate surface preparation"
+        },
+        {
+          "claim_id": "lane-ammt-cbm-spot-diameters",
+          "anchor_regex": "D4.*170.*FWHM.*100.*CBM.*D4.*100.*FWHM.*59|CBM.*D4.*100.*FWHM.*59.*AMMT.*D4.*170.*FWHM.*100",
+          "scope": "machine-specific D4-sigma and FWHM spot sizes"
+        },
+        {
+          "claim_id": "lane-machine-environment",
+          "anchor_regex": "Nitrogen.*Argon.*0\\.5%.*0\\.08%|Argon.*Nitrogen.*0\\.08%.*0\\.5%",
+          "scope": "CBM versus AMMT inert gas and oxygen-level distinction"
+        },
+        {
+          "claim_id": "lane-ammt-corrected-cases",
+          "anchor_regex": "137\\.9.*400.*179\\.2.*800.*179\\.2.*1200",
+          "scope": "AMMT applied-power cases in the later experiment synthesis"
+        },
+        {
+          "claim_id": "lane-cross-section-uncertainty-exists",
+          "anchor_regex": "uncertainty analysis.*melt pool|melt pool.*uncertainty analysis",
+          "scope": "paper contains an explicit uncertainty treatment for melt-pool measurements"
+        }
+      ]
+    },
+    {
+      "source_id": "weaver-2021-spot-size-scaling-metadata",
+      "source_class": "primary_paper_metadata",
+      "url": "https://www.nist.gov/publications/laser-spot-size-and-scaling-laws-laser-beam-additive-manufacturing",
+      "media_type": "html",
+      "authority": "NIST official publication record",
+      "title": "Laser spot size and scaling laws for laser beam additive manufacturing",
+      "doi": "10.1016/j.jmapro.2021.10.053",
+      "claims_under_review": [
+        {
+          "claim_id": "weaver-spot-size-range-abstract",
+          "anchor_regex": "spot size.*D4.*range of 50.*322.*melt pool",
+          "scope": "official abstract establishes deliberate spot-size variation in the associated experiment family"
+        }
+      ],
+      "full_text_status": "not_pinned_in_this_reconnaissance; official publication metadata/abstract only"
+    },
+    {
+      "source_id": "naderi-2022-scaling-fidelity",
+      "source_class": "primary_paper",
+      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935135",
+      "media_type": "pdf",
+      "authority": "NIST-hosted primary paper",
+      "title": "On the Fidelity of the Scaling Laws for Melt Pool Depth Analysis During Laser Powder Bed Fusion",
+      "doi": "10.1007/s40192-022-00289-w",
+      "claims_under_review": [
+        {
+          "claim_id": "naderi-eos-m270-condition-space",
+          "anchor_regex": "EOS M270.*four laser powers.*122.*179.*150.*195.*four laser scan speeds",
+          "scope": "EOS M270 condition-space statement"
+        },
+        {
+          "claim_id": "naderi-ammt-spot-range",
+          "anchor_regex": "AMMT.*195\\s*W.*800\\s*mm/s.*spot diameters ranging from 50.*256",
+          "scope": "AMMT spot-size sweep in the associated geometry dataset family"
+        },
+        {
+          "claim_id": "naderi-spot-measurement-authority",
+          "anchor_regex": "EOS machine was estimated based on machine specifications.*AMMT laser spot size was measured|AMMT laser spot size was measured.*EOS machine was estimated based on machine specifications",
+          "scope": "different spot-size evidence basis for EOS versus AMMT"
+        }
+      ]
+    },
+    {
+      "source_id": "nist-2026-ambench-uncertainty-synthesis",
+      "source_class": "official_technical_paper",
+      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=962360",
+      "media_type": "pdf",
+      "authority": "NIST-hosted conference paper",
+      "title": "ENABLING MODELERS TO TEST THEIR SIMULATIONS AGAINST RIGOROUS, HIGHLY CONTROLLED ADDITIVE MANUFACTURING BENCHMARK (AM BENCH) MEASUREMENT DATA",
+      "claims_under_review": [
+        {
+          "claim_id": "nist-2026-machine-parameter-uncertainty",
+          "anchor_regex": "Machine performance and parameter uncertainty were quantified",
+          "scope": "latest NIST synthesis states machine/parameter uncertainty is part of benchmark evidence"
+        },
+        {
+          "claim_id": "nist-2026-cross-section-uncertainty",
+          "anchor_regex": "uncertainty analysis.*cross-section melt pool measurands|cross-section melt pool measurands.*uncertainty analysis",
+          "scope": "latest NIST synthesis states cross-section measurement uncertainty was analyzed"
+        }
+      ]
+    }
+  ]
+}
