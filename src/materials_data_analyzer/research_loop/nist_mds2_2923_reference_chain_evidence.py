@@ -5,6 +5,7 @@ import hashlib
 import importlib.metadata
 import json
 import re
+import unicodedata
 from io import BytesIO
 from typing import Any, Callable, Mapping, Sequence
 
@@ -28,7 +29,7 @@ from .nist_mds2_2923_reference_chain_policy import (
 
 IMPLEMENTATION_ID = "mds2-2923-naderi-reference-chain-evidence-v1"
 MAX_CLAIM_MATCH_UTF8_BYTES = 4096
-TEXT_NORMALIZATION_ID = "pdf-discretionary-break-normalization-v1"
+TEXT_NORMALIZATION_ID = "pdf-discretionary-word-break-normalization-v2"
 
 _DIAGNOSTIC_PROBES: dict[str, tuple[str, ...]] = {
     "naderi-ammt-in625-weaver-detail-reference": (
@@ -67,6 +68,8 @@ _DIAGNOSTIC_PROBES: dict[str, tuple[str, ...]] = {
     ),
 }
 
+_CONTROL_CLASS = r"\x00-\x08\x0b\x0c\x0e-\x1f\x7f"
+
 
 class NistMds22923ReferenceChainEvidenceError(ValueError):
     """Raised when reference-chain acquisition leaves exact source authority."""
@@ -96,13 +99,22 @@ def _canonical_sha(value: object) -> str:
 
 
 def _normalize_text(value: str) -> str:
-    # Springer/NIST PDF text extraction can insert non-printing discretionary
-    # break controls inside words (for example ``manu\x02facturing``) and soft
-    # hyphens. These are layout artifacts, not source semantics. Remove only
-    # those non-whitespace controls and soft hyphens before collapsing
-    # whitespace so exact source-byte and policy/anchor bindings remain intact.
+    """Normalize only Unicode compatibility and PDF discretionary word breaks."""
+    value = unicodedata.normalize("NFKC", value)
+    # Some Springer/NIST text layers encode a discretionary line break as a
+    # non-printing control with optional whitespace on either side. When that
+    # marker sits between two word characters it is a layout instruction, not
+    # a semantic separator, so join the two word fragments deterministically.
+    value = re.sub(
+        rf"(?<=\w)\s*[{_CONTROL_CLASS}]\s*(?=\w)",
+        "",
+        value,
+    )
+    value = re.sub(r"(?<=\w)\s*\u00ad\s*(?=\w)", "", value)
+    # Remove any remaining non-whitespace C0/DEL layout controls without
+    # joining surrounding tokens that were not explicitly a word break.
+    value = re.sub(rf"[{_CONTROL_CLASS}]", "", value)
     value = value.replace("\u00ad", "")
-    value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", value)
     return re.sub(r"\s+", " ", value).strip()
 
 
