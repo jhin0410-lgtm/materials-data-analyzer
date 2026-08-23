@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/provenance-derived-calibration-candidate-acquisition-224
+      - feature/mds2-experiment-identity-reference-chain-226
     paths:
       - ".github/workflows/autonomous-production-live.yml"
       - "configs/research/autonomous_in625_production_mission.v1.json"
@@ -12,6 +12,7 @@ on:
       - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "configs/research/nist_ammt_publication_index_source_discovery_policy.v1.json"
       - "configs/research/nist_ammt_calibration_candidate_derived_acquisition_policy.v1.json"
+      - "configs/research/nist_mds2_2923_reference_chain_naderi_evidence_policy.v1.json"
       - "configs/research/in625_external_evidence_request_delegation_policy.v1.json"
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
@@ -25,6 +26,7 @@ on:
       - "src/materials_data_analyzer/research_loop/autonomous_production_*.py"
       - "src/materials_data_analyzer/research_loop/capability_*.py"
       - "src/materials_data_analyzer/research_loop/calibration_protocol_bridge_capability.py"
+      - "src/materials_data_analyzer/research_loop/mds2_2923_*.py"
       - "src/materials_data_analyzer/research_loop/nist_ammt_*.py"
       - "src/materials_data_analyzer/research_loop/in625_geometry_condition_*.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
@@ -32,6 +34,7 @@ on:
       - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "tests/test_autonomous_production_driver.py"
       - "tests/test_capability_*.py"
+      - "tests/test_mds2_2923_reference_chain.py"
       - "tests/test_nist_ammt_calibration_*.py"
       - "tests/test_in625_geometry_condition_multisource_extension.py"
       - "tests/test_in625_physical_comparability_assessment.py"
@@ -45,6 +48,7 @@ on:
       - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "configs/research/nist_ammt_publication_index_source_discovery_policy.v1.json"
       - "configs/research/nist_ammt_calibration_candidate_derived_acquisition_policy.v1.json"
+      - "configs/research/nist_mds2_2923_reference_chain_naderi_evidence_policy.v1.json"
       - "configs/research/in625_external_evidence_request_delegation_policy.v1.json"
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
@@ -58,6 +62,7 @@ on:
       - "src/materials_data_analyzer/research_loop/autonomous_production_*.py"
       - "src/materials_data_analyzer/research_loop/capability_*.py"
       - "src/materials_data_analyzer/research_loop/calibration_protocol_bridge_capability.py"
+      - "src/materials_data_analyzer/research_loop/mds2_2923_*.py"
       - "src/materials_data_analyzer/research_loop/nist_ammt_*.py"
       - "src/materials_data_analyzer/research_loop/in625_geometry_condition_*.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
@@ -65,6 +70,7 @@ on:
       - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "tests/test_autonomous_production_driver.py"
       - "tests/test_capability_*.py"
+      - "tests/test_mds2_2923_reference_chain.py"
       - "tests/test_nist_ammt_calibration_*.py"
       - "tests/test_in625_geometry_condition_multisource_extension.py"
       - "tests/test_in625_physical_comparability_assessment.py"
@@ -96,13 +102,14 @@ jobs:
           tests/test_capability_expansion.py
           tests/test_capability_registry.py
           tests/test_capability_resolver_verifier.py
+          tests/test_mds2_2923_reference_chain.py
           tests/test_nist_ammt_calibration_source_discovery.py
           tests/test_nist_ammt_calibration_candidate_acquisition.py
           tests/test_in625_physical_comparability_assessment.py
           tests/test_nist_mds2_2923_production_extension.py
           tests/test_nist_mds2_2923_scientific_intake.py
           tests/test_in625_geometry_condition_multisource_extension.py
-      - name: Run literal public autonomous command through derived NIST calibration candidate acquisition
+      - name: Run literal public autonomous command through mds2 reference-chain frontier
         run: mda-research-program run-autonomous
       - name: Verify live autonomous production result
         shell: python
@@ -128,10 +135,20 @@ jobs:
           acquisition3 = load("nist-ammt-calibration-candidate-acquisition.json")
           assessment3 = load("nist-ammt-calibration-candidate-bridge-assessment.json")
           gap4 = load("capability-gap-4.json")
-          resolution4 = load("capability-resolution-4.json")
+          predecessor_resolution4 = load("capability-resolution-4.json")
+          derived_resolution4 = load("capability-resolution-4-derived.json")
+          candidate4 = load("capability-candidate-4.json")
+          verification4 = load("capability-verification-4.json")
+          registry4 = load("capability-registry-promoted-4.json")
+          resolved4 = load("capability-post-promotion-resolution-4.json")
+          reference_policy = load("nist-mds2-2923-reference-chain-policy-qualification.json")
+          reference_evidence = load("nist-mds2-2923-reference-chain-evidence.json")
+          reference_graph = load("mds2-2923-experiment-identity-reference-chain.json")
+          gap5 = load("capability-gap-5.json")
+          resolution5 = load("capability-resolution-5.json")
 
-          assert manifest["schema_version"] == "1.7"
-          assert manifest["policy_version"] == "1.7"
+          assert manifest["schema_version"] == "1.8"
+          assert manifest["policy_version"] == "1.8"
           assert manifest["measurement_row_count"] == 200289
           assert manifest["complete_numeric_measurement_row_count"] == 200288
           assert manifest["incomplete_numeric_measurement_row_count"] == 1
@@ -224,44 +241,117 @@ jobs:
           assert assessment3["experiment_specific_bridge"]["exact_machine_setting_to_calibrated_power_relation_established"] is False
           assert assessment3["experiment_specific_bridge"]["bridge_established"] is False
           assert assessment3["gate_decision"]["directly_comparable_mds2_rows"] == 0
-          assert assessment3["gate_decision"]["direct_numerical_validation_authorized"] is False
+          assert assessment3["gate_decision"]["direct_numerical_cross_source_validation_authorized"] is False
           assert assessment3["gate_decision"]["issue_76_exact_target_cells_satisfied"] == 0
           assert assessment3["next_action"]["action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
 
-          assert len(manifest["cycles"]) == 10
-          cycle9, cycle10 = manifest["cycles"][8:10]
+          assert gap4["gap_class"] == "missing_analysis_executor"
+          assert predecessor_resolution4["resolution_status"] == "no_bounded_candidate_available"
+          assert derived_resolution4["resolution_status"] == "bounded_candidate_discovered"
+          assert candidate4["state"] == "candidate"
+          assert candidate4["implementation_id"] == "mds2-2923-experiment-identity-reference-chain-v1"
+          assert candidate4["network_authority_granted"] is False
+          assert candidate4["execution_authority_granted"] is False
+          assert candidate4["self_promotion_requested"] is False
+          assert verification4["all_required_checks_passed"] is True
+          assert verification4["promotion_eligible"] is True
+          assert verification4["real_source_smoke_receipt"]["network_requests_performed"] == 1
+          assert verification4["real_source_smoke_receipt"]["execution_evidence_reuse_authorized"] is False
+          assert any(
+              item["action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
+              and item["state"] == "verified"
+              for item in registry4["records"]
+          )
+          assert resolved4["resolution_status"] == "verified_capability_resolved"
+          assert resolved4["implementation_id"] == "mds2-2923-experiment-identity-reference-chain-v1"
+
+          assert reference_policy["qualification_status"] == "exact_nist_mds2_2923_reference_chain_policy_authenticated"
+          assert reference_policy["allowed_hosts"] == ["tsapps.nist.gov"]
+          assert reference_policy["max_requests"] == 1
+          assert reference_policy["network_access_performed"] is False
+          assert reference_evidence["acquisition_status"] == "exact_naderi_reference_chain_evidence_acquired"
+          assert reference_evidence["network_requests_performed"] == 1
+          assert reference_evidence["all_claims_matched"] is True
+          assert reference_evidence["source"]["raw_bytes_persisted"] is False if "raw_bytes_persisted" in reference_evidence["source"] else reference_evidence["source"]["source_bytes_persisted"] is False
+          assert reference_evidence["literature_promoted_to_row_level_measurement_authority"] is False
+          assert reference_evidence["reference_chain_promoted_to_power_conversion"] is False
+
+          identity = reference_graph["experiment_identity"]
+          gate = reference_graph["calibration_and_protocol_gate"]
+          assert reference_graph["reference_graph"]["transitive_authority_promotion_allowed"] is False
+          assert reference_graph["condition_signature"]["signature_match"] is True
+          assert identity["dataset_to_weaver_association_established"] is True
+          assert identity["dataset_to_naderi_association_established"] is True
+          assert identity["naderi_to_weaver_experiment_detail_reference_established"] is True
+          assert identity["exact_mds2_rows_to_weaver_experiment_established"] is False
+          assert identity["exact_mds2_experiment_identity_established"] is False
+          assert gate["weaver_full_text_acquired"] is False
+          assert gate["machine_setting_to_calibrated_power_relation_established"] is False
+          assert gate["spot_size_transfer_authorized"] is False
+          assert gate["protocol_equivalence_established"] is False
+          assert gate["uncertainty_transfer_authorized"] is False
+          assert gate["directly_comparable_mds2_rows"] == 0
+          assert gate["direct_numerical_cross_source_validation_authorized"] is False
+          assert gate["cross_machine_pooling_authorized"] is False
+          assert gate["issue_76_exact_target_cells_satisfied"] == 0
+          assert reference_graph["next_action"]["action_class"] == "weaver_2021_spot_size_full_text_derived_acquisition"
+          assert reference_graph["next_action"]["automatic_acquisition_authorized"] is False
+          assert reference_graph["next_action"]["caller_authored_url_authorized"] is False
+
+          assert len(manifest["cycles"]) == 12
+          cycle9, cycle10, cycle11, cycle12 = manifest["cycles"][8:12]
           assert cycle9["selected_action_class"] == "experiment_specific_calibration_record_candidate_acquisition"
           assert cycle9["bounded_candidate_discovered"] is True
           assert cycle10["capability_available"] is True
           assert cycle10["research_action_resumed"] is True
           assert cycle10["network_requests_performed"] == 2
-          assert cycle10["candidate_url_derived_from_discovery"] is True
-          assert cycle10["full_text_url_derived_from_candidate_page"] is True
           assert cycle10["bridge_established"] is False
           assert cycle10["output_next_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
+          assert cycle11["selected_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
+          assert cycle11["bounded_candidate_discovered"] is True
+          assert cycle11["capability_available"] is False
+          assert cycle11["arbitrary_code_generation_performed"] is False
+          assert cycle12["capability_available"] is True
+          assert cycle12["research_action_resumed"] is True
+          assert cycle12["execution_network_requests_performed"] == 1
+          assert cycle12["verifier_smoke_network_requests_performed"] == 1
+          assert cycle12["dataset_publication_association_established"] is True
+          assert cycle12["condition_signature_match_established"] is True
+          assert cycle12["exact_mds2_experiment_identity_established"] is False
+          assert cycle12["bridge_established"] is False
+          assert cycle12["directly_comparable_mds2_rows"] == 0
+          assert cycle12["issue_76_exact_target_cells_satisfied"] == 0
+          assert cycle12["output_next_action_class"] == "weaver_2021_spot_size_full_text_derived_acquisition"
 
-          assert gap4["gap_class"] == "missing_analysis_executor"
-          assert resolution4["resolution_status"] == "no_bounded_candidate_available"
+          assert gap5["gap_class"] == "missing_source_adapter"
+          assert resolution5["resolution_status"] == "no_bounded_candidate_available"
           assert manifest["third_capability_candidate_promoted"] is True
           assert manifest["third_research_action_resumed"] is True
           assert manifest["derived_candidate_acquisition_executed"] is True
-          assert manifest["calibration_methodology_established"] is True
+          assert manifest["fourth_capability_candidate_discovered"] is True
+          assert manifest["fourth_capability_candidate_promoted"] is True
+          assert manifest["fourth_research_action_resumed"] is True
+          assert manifest["dataset_to_weaver_association_established"] is True
+          assert manifest["naderi_to_weaver_experiment_detail_reference_established"] is True
+          assert manifest["mds2_195_800_condition_signature_match"] is True
           assert manifest["exact_mds2_experiment_identity_established"] is False
           assert manifest["exact_machine_setting_to_calibrated_power_relation_established"] is False
           assert manifest["bridge_established"] is False
           assert manifest["directly_comparable_mds2_rows"] == 0
+          assert manifest["direct_numerical_cross_source_validation_authorized"] is False
           assert manifest["issue_76_exact_target_cells_satisfied"] == 0
-          assert manifest["fourth_capability_gap_emitted"] is True
-          assert manifest["fourth_capability_candidate_discovered"] is False
-          assert manifest["generated_next_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
-          assert manifest["final_blocker"] == "experiment_identity_reference_chain_capability_not_established"
+          assert manifest["fifth_capability_gap_emitted"] is True
+          assert manifest["generated_next_action_class"] == "weaver_2021_spot_size_full_text_derived_acquisition"
+          assert manifest["final_blocker"] == "weaver_primary_full_text_acquisition_capability_not_established"
           assert manifest["scientific_status_changed"] is False
           assert manifest["positive_scientific_closeout_established"] is False
           assert manifest["global_evidence_unavailability_claimed"] is False
 
           assert stop["reason_code"] == "capability_expansion_required"
-          assert stop["requested_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
+          assert stop["requested_action_class"] == "weaver_2021_spot_size_full_text_derived_acquisition"
           assert stop["bounded_candidate_discovered"] is False
+          assert stop["caller_authored_url_used"] is False
+          assert stop["arbitrary_code_generation_performed"] is False
           assert stop["global_evidence_unavailability_claimed"] is False
       - name: Upload bounded autonomous provenance
         if: always()
@@ -289,5 +379,8 @@ jobs:
             outputs/autonomous-in625-production/nist-ammt-derived-candidate-authorization.json
             outputs/autonomous-in625-production/nist-ammt-calibration-candidate-acquisition.json
             outputs/autonomous-in625-production/nist-ammt-calibration-candidate-bridge-assessment.json
+            outputs/autonomous-in625-production/nist-mds2-2923-reference-chain-policy-qualification.json
+            outputs/autonomous-in625-production/nist-mds2-2923-reference-chain-evidence.json
+            outputs/autonomous-in625-production/mds2-2923-experiment-identity-reference-chain.json
           if-no-files-found: warn
           retention-days: 14
