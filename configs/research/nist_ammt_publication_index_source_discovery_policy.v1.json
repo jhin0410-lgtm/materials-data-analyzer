@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "nist-ammt-publication-index-source-discovery-v1",
+  "action_class": "experiment_specific_calibration_record_source_discovery",
+  "source_index": {
+    "source_id": "nist-ammt-relevant-publications-index",
+    "url": "https://www.nist.gov/el/ammt/relevant-publications",
+    "source_class": "official_curated_publication_index",
+    "media_type": "html"
+  },
+  "network": {
+    "scheme": "https",
+    "allowed_hosts": [
+      "www.nist.gov"
+    ],
+    "max_requests": 1,
+    "max_source_bytes": 2097152,
+    "max_total_bytes": 2097152,
+    "timeout_seconds": 60,
+    "unrestricted_search_allowed": false,
+    "caller_authored_urls_allowed": false,
+    "same_host_redirects_only": true
+  },
+  "discovery": {
+    "query_terms": [
+      "AMMT",
+      "calibration",
+      "laser",
+      "power",
+      "spot",
+      "metrology",
+      "machine-setting"
+    ],
+    "candidate_link_hosts": [
+      "www.nist.gov",
+      "tsapps.nist.gov",
+      "doi.org"
+    ],
+    "max_candidates": 12,
+    "follow_candidate_links_during_discovery": false,
+    "candidate_urls_gain_acquisition_authority": false,
+    "source_index_text_may_be_row_level_measurement_authority": false
+  },
+  "authority": {
+    "scientific_status_change_authorized_by_discovery": false,
+    "discovered_candidate_may_self_authorize_acquisition": false,
+    "global_evidence_unavailability_may_be_claimed_from_empty_results": false
+  }
+}
