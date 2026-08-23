@@ -16,14 +16,25 @@ def test_reference_claim_matches_after_pdf_control_normalization() -> None:
         "7. Weaver JS, Heigel JC, Lane BM (2022) Laser spot size and "
         "scal \x02 ing laws for laser beam additive manu \x02 facturing."
     )
+    fragments = (
+        "7. Weaver JS",
+        "Heigel JC",
+        "Lane BM",
+        "Laser spot size and scaling laws for laser beam additive manufacturing",
+    )
+    views = {
+        "plain": [page],
+        "layout": [page],
+    }
     receipt = evidence._claim_receipt(
         "weaver",
-        r"7\.\s*Weaver JS.*Heigel JC.*Lane BM.*Laser spot size and scaling laws for laser beam additive manufacturing",
+        fragments,
         "fixture",
-        [page],
+        views,
     )
     assert receipt["matched"] is True
     assert receipt["match_count"] == 1
+    assert receipt["selected_text_extraction_mode"] == "plain"
 
 
 def test_non_word_control_does_not_merge_independent_tokens() -> None:
