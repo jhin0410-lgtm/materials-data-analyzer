@@ -155,35 +155,56 @@ def build_capability_gap(
     return gap
 
 
-def _bridge_requirements(action_class: str) -> dict[str, Any]:
-    if action_class != "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition":
+def _action_requirements(action_class: str) -> dict[str, Any]:
+    if action_class == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition":
         return {
-            "required_inputs": ["verified_predecessor_research_state"],
-            "required_outputs": ["provenance_bound_action_result"],
+            "required_inputs": [
+                "verified_mds2_2923_scientific_intake",
+                "verified_geometry_condition_mapping_assessment",
+                "mission_pinned_source_authority",
+            ],
+            "required_outputs": [
+                "experiment_specific_machine_setting_to_calibrated_power_relation_or_explicit_absence",
+                "experiment_identity_and_scope",
+                "laser_spot_definition_and_measurement_basis",
+                "cross_section_protocol_identity_and_uncertainty",
+                "source_level_provenance_receipts",
+            ],
             "scientific_acceptance": [
-                "Preserve uncertainty and unresolved semantics.",
-                "Do not promote operational success to scientific truth.",
+                "Do not infer mds2 machine-setting power as AMB2018 calibrated actual power without an explicit experiment-scoped bridge.",
+                "Do not pool EOS M270 rows with AMMT rows.",
+                "Preserve calibration, spot-size, protocol, and uncertainty conflicts when unresolved.",
+                "Issue #76 remains 0/3 unless its exact requested AMMT cells are separately proven.",
+                "A failed or empty network retrieval is operational evidence only, not proof that scientific evidence does not exist.",
+            ],
+        }
+    if action_class == "experiment_specific_calibration_record_source_discovery":
+        return {
+            "required_inputs": [
+                "verified_calibration_protocol_bridge_frontier",
+                "mission_pinned_official_source_index_policy",
+            ],
+            "required_outputs": [
+                "exact_source_index_provenance_receipt",
+                "bounded_ranked_calibration_record_candidates",
+                "candidate_link_authority_classification",
+                "next_candidate_acquisition_action_without_implicit_authority",
+            ],
+            "scientific_acceptance": [
+                "Read only the separately mission-pinned official source index and do not perform unrestricted search.",
+                "Do not follow discovered candidate links during discovery.",
+                "A discovered URL is a candidate identifier only and does not gain acquisition authority.",
+                "Do not treat publication-index text or candidate metadata as row-level measurements.",
+                "An empty candidate set is not proof that calibration evidence does not exist globally.",
+                "Preserve direct comparable rows at 0 and Issue #76 at 0/3 unless later independently acquired evidence proves otherwise.",
             ],
         }
     return {
-        "required_inputs": [
-            "verified_mds2_2923_scientific_intake",
-            "verified_geometry_condition_mapping_assessment",
-            "mission_pinned_source_authority",
-        ],
-        "required_outputs": [
-            "experiment_specific_machine_setting_to_calibrated_power_relation_or_explicit_absence",
-            "experiment_identity_and_scope",
-            "laser_spot_definition_and_measurement_basis",
-            "cross_section_protocol_identity_and_uncertainty",
-            "source_level_provenance_receipts",
-        ],
+        "required_inputs": ["verified_predecessor_research_state"],
+        "required_outputs": ["provenance_bound_action_result"],
         "scientific_acceptance": [
-            "Do not infer mds2 machine-setting power as AMB2018 calibrated actual power without an explicit experiment-scoped bridge.",
-            "Do not pool EOS M270 rows with AMMT rows.",
-            "Preserve calibration, spot-size, protocol, and uncertainty conflicts when unresolved.",
-            "Issue #76 remains 0/3 unless its exact requested AMMT cells are separately proven.",
-            "A failed or empty network retrieval is operational evidence only, not proof that scientific evidence does not exist.",
+            "Preserve uncertainty and unresolved semantics.",
+            "Do not promote operational success to scientific truth.",
         ],
     }
 
@@ -223,7 +244,7 @@ def build_capability_specification(capability_gap: Mapping[str, Any]) -> dict[st
     )
     gap_class = _strict_text(capability_gap.get("gap_class"), "gap_class")
     _require(gap_class in _ALLOWED_GAP_CLASSES, "unsupported capability gap class")
-    requirements = _bridge_requirements(action_class)
+    requirements = _action_requirements(action_class)
 
     specification: dict[str, Any] = {
         "schema_version": CAPABILITY_SPEC_SCHEMA_VERSION,
