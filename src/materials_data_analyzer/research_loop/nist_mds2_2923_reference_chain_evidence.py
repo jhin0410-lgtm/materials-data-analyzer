@@ -28,6 +28,7 @@ from .nist_mds2_2923_reference_chain_policy import (
 
 IMPLEMENTATION_ID = "mds2-2923-naderi-reference-chain-evidence-v1"
 MAX_CLAIM_MATCH_UTF8_BYTES = 4096
+TEXT_NORMALIZATION_ID = "pdf-discretionary-break-normalization-v1"
 
 
 class NistMds22923ReferenceChainEvidenceError(ValueError):
@@ -58,6 +59,13 @@ def _canonical_sha(value: object) -> str:
 
 
 def _normalize_text(value: str) -> str:
+    # Springer/NIST PDF text extraction can insert non-printing discretionary
+    # break controls inside words (for example ``manu\x02facturing``) and soft
+    # hyphens.  These are layout artifacts, not source semantics.  Remove only
+    # those non-whitespace controls and soft hyphens before collapsing
+    # whitespace so exact source-byte and policy/anchor bindings remain intact.
+    value = value.replace("\u00ad", "")
+    value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", value)
     return re.sub(r"\s+", " ", value).strip()
 
 
@@ -164,7 +172,11 @@ def acquire_naderi_reference_chain_evidence(
         _claim_receipt(claim_id, anchor, scope, pages)
         for claim_id, anchor, scope in CLAIMS
     ]
-    _require(all(item["matched"] for item in claims), "required Naderi reference-chain claim did not match")
+    failed_claim_ids = [item["claim_id"] for item in claims if not item["matched"]]
+    _require(
+        not failed_claim_ids,
+        "required Naderi reference-chain claim did not match: " + ", ".join(failed_claim_ids),
+    )
 
     report: dict[str, Any] = {
         "schema_version": "1.0",
@@ -183,6 +195,7 @@ def acquire_naderi_reference_chain_evidence(
             "pdf_page_count": len(pages),
             "http_content_type": fetched.content_type,
             "pypdf_version": importlib.metadata.version("pypdf"),
+            "text_normalization_id": TEXT_NORMALIZATION_ID,
             "source_bytes_persisted": False,
             "source_text_persisted": False,
             "row_level_measurement_authority": False,
@@ -206,5 +219,6 @@ def acquire_naderi_reference_chain_evidence(
 __all__ = [
     "IMPLEMENTATION_ID",
     "NistMds22923ReferenceChainEvidenceError",
+    "TEXT_NORMALIZATION_ID",
     "acquire_naderi_reference_chain_evidence",
 ]
