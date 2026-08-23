@@ -9,7 +9,7 @@ from typing import Any
 POLICY_ID = "in625-geometry-condition-multisource-acquisition-v1"
 ACTION_CLASS = "reviewed_geometry_condition_mapping_assessment"
 REGISTRY_PATH = "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
-REGISTRY_BLOB_SHA1 = "b9884fd149e445b67c76546362cd77fd7492f3ae"
+REGISTRY_BLOB_SHA1 = "d117162543a8e0c01328d65acadbe482172b16dd"
 RECONNAISSANCE_ID = "in625-geometry-condition-multisource-recon-v1"
 ALLOWED_HOSTS = ("www.nist.gov", "tsapps.nist.gov")
 MAX_REQUESTS = 8
