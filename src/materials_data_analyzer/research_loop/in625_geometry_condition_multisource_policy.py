@@ -9,7 +9,7 @@ from typing import Any
 POLICY_ID = "in625-geometry-condition-multisource-acquisition-v1"
 ACTION_CLASS = "reviewed_geometry_condition_mapping_assessment"
 REGISTRY_PATH = "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
-REGISTRY_BLOB_SHA1 = "f70137bce4b1d83f4664a28c49eb43ac92b97f40"
+REGISTRY_BLOB_SHA1 = "b9884fd149e445b67c76546362cd77fd7492f3ae"
 RECONNAISSANCE_ID = "in625-geometry-condition-multisource-recon-v1"
 ALLOWED_HOSTS = ("www.nist.gov", "tsapps.nist.gov")
 MAX_REQUESTS = 8
@@ -64,7 +64,10 @@ _EXPECTED_SOURCES: dict[str, dict[str, Any]] = {
     },
     "weaver-2021-spot-size-scaling-metadata": {
         "source_class": "primary_paper_metadata",
-        "url": "https://www.nist.gov/publications/laser-spot-size-and-scaling-laws-laser-beam-additive-manufacturing",
+        "url": (
+            "https://www.nist.gov/publications/"
+            "laser-spot-size-and-scaling-laws-laser-beam-additive-manufacturing"
+        ),
         "media_type": "html",
         "doi": "10.1016/j.jmapro.2021.10.053",
         "claim_ids": ("weaver-spot-size-range-abstract",),
@@ -81,9 +84,12 @@ _EXPECTED_SOURCES: dict[str, dict[str, Any]] = {
         ),
     },
     "nist-2026-ambench-uncertainty-synthesis": {
-        "source_class": "official_technical_paper",
-        "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=962360",
-        "media_type": "pdf",
+        "source_class": "official_technical_paper_metadata",
+        "url": (
+            "https://www.nist.gov/publications/"
+            "enabling-modelers-test-their-simulations-against-rigorous-highly-controlled-additive"
+        ),
+        "media_type": "html",
         "doi": None,
         "claim_ids": (
             "nist-2026-machine-parameter-uncertainty",
@@ -173,7 +179,10 @@ def authenticate_geometry_condition_multisource_policy(
         for item in pins
         if isinstance(item, dict) and item.get("policy_id") == POLICY_ID
     ]
-    _require(len(matches) == 1, "mission must contain exactly one multi-source policy pin")
+    _require(
+        len(matches) == 1,
+        "mission must contain exactly one multi-source policy pin",
+    )
     _require(
         matches[0].get("sha256") == observed_policy_sha,
         "mission multi-source policy pin does not match exact policy bytes",
@@ -183,7 +192,10 @@ def authenticate_geometry_condition_multisource_policy(
     _require(policy.get("policy_id") == POLICY_ID, "policy identity drifted")
     _require(policy.get("action_class") == ACTION_CLASS, "policy action class drifted")
     source_binding = policy.get("source_registry")
-    _require(isinstance(source_binding, dict), "policy source registry binding is missing")
+    _require(
+        isinstance(source_binding, dict),
+        "policy source registry binding is missing",
+    )
     _require(
         source_binding
         == {
@@ -246,21 +258,36 @@ def authenticate_geometry_condition_multisource_policy(
         "registry network authority widened or drifted",
     )
     sources = registry.get("sources")
-    _require(isinstance(sources, list) and len(sources) == 8, "registry source count drifted")
+    _require(
+        isinstance(sources, list) and len(sources) == 8,
+        "registry source count drifted",
+    )
     by_id: dict[str, dict[str, Any]] = {}
     for raw in sources:
         _require(isinstance(raw, dict), "registry source entries must be objects")
         source_id = raw.get("source_id")
         _require(isinstance(source_id, str), "registry source_id missing")
-        _require(source_id not in by_id, "registry source_id values must be unique")
+        _require(
+            source_id not in by_id,
+            "registry source_id values must be unique",
+        )
         by_id[source_id] = raw
-    _require(set(by_id) == set(_EXPECTED_SOURCES), "registry source universe drifted")
+    _require(
+        set(by_id) == set(_EXPECTED_SOURCES),
+        "registry source universe drifted",
+    )
 
     for source_id, expected in _EXPECTED_SOURCES.items():
         source = by_id[source_id]
-        _require(source.get("source_class") == expected["source_class"], f"{source_id} source class drifted")
+        _require(
+            source.get("source_class") == expected["source_class"],
+            f"{source_id} source class drifted",
+        )
         _require(source.get("url") == expected["url"], f"{source_id} URL drifted")
-        _require(source.get("media_type") == expected["media_type"], f"{source_id} media type drifted")
+        _require(
+            source.get("media_type") == expected["media_type"],
+            f"{source_id} media type drifted",
+        )
         _require(source.get("doi") == expected["doi"], f"{source_id} DOI drifted")
         claims = source.get("claims_under_review")
         _require(isinstance(claims, list), f"{source_id} claims are missing")
@@ -273,7 +300,8 @@ def authenticate_geometry_condition_multisource_policy(
         )
         for claim in claims:
             _require(
-                isinstance(claim.get("anchor_regex"), str) and claim["anchor_regex"].strip(),
+                isinstance(claim.get("anchor_regex"), str)
+                and claim["anchor_regex"].strip(),
                 f"{source_id} claim anchor missing",
             )
             _require(
@@ -283,7 +311,9 @@ def authenticate_geometry_condition_multisource_policy(
 
     return {
         "schema_version": "1.0",
-        "qualification_status": "exact_multisource_condition_evidence_policy_authenticated",
+        "qualification_status": (
+            "exact_multisource_condition_evidence_policy_authenticated"
+        ),
         "policy_id": POLICY_ID,
         "action_class": ACTION_CLASS,
         "mission_sha256": observed_mission_sha,
@@ -298,6 +328,7 @@ def authenticate_geometry_condition_multisource_policy(
         "max_total_bytes": MAX_TOTAL_BYTES,
         "network_access_performed": False,
         "paper_claims_promoted_to_row_level_authority": False,
+        "metadata_or_abstract_sources_promoted_to_full_text": False,
         "scientific_status_changed": False,
     }
 
