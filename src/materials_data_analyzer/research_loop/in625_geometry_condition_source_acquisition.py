@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import importlib.metadata
 import json
 import re
 import socket
@@ -26,6 +27,9 @@ from .in625_geometry_condition_multisource_policy import (
     TIMEOUT_SECONDS,
 )
 
+MAX_CLAIM_MATCH_UTF8_BYTES = 4096
+_IGNORED_HTML_TAGS = frozenset({"script", "style", "noscript", "template", "svg"})
+
 
 class GeometryConditionSourceAcquisitionError(ValueError):
     """Raised when source acquisition cannot preserve finite authority."""
@@ -46,9 +50,19 @@ class _TextCollector(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.parts: list[str] = []
+        self._ignored_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        del attrs
+        if tag.lower() in _IGNORED_HTML_TAGS:
+            self._ignored_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in _IGNORED_HTML_TAGS and self._ignored_depth:
+            self._ignored_depth -= 1
 
     def handle_data(self, data: str) -> None:
-        if data.strip():
+        if self._ignored_depth == 0 and data.strip():
             self.parts.append(data)
 
 
@@ -117,7 +131,7 @@ def fetch_exact_source(
     max_bytes: int,
     timeout_seconds: float,
 ) -> FetchResult:
-    """Fetch one exact source under host and byte restrictions."""
+    """Fetch one exact source under host and current remaining byte restrictions."""
     _validate_https_url(url, allowed_hosts, "source URL")
     _require(
         isinstance(max_bytes, int) and not isinstance(max_bytes, bool) and max_bytes > 0,
@@ -128,7 +142,7 @@ def fetch_exact_source(
     request = Request(
         url,
         headers={
-            "User-Agent": "materials-data-analyzer/geometry-condition-evidence/1.1",
+            "User-Agent": "materials-data-analyzer/geometry-condition-evidence/1.2",
             "Accept": "text/html,application/pdf,*/*;q=0.1",
         },
         method="GET",
@@ -149,7 +163,7 @@ def fetch_exact_source(
                     ) from exc
                 _require(0 <= declared <= max_bytes, "source Content-Length exceeds budget")
             body = response.read(max_bytes + 1)
-            _require(len(body) <= max_bytes, "source bytes exceeded per-source budget")
+            _require(len(body) <= max_bytes, "source bytes exceeded current budget")
             _require(bool(body), "source returned empty bytes")
             return FetchResult(
                 body=body,
@@ -201,6 +215,11 @@ def _pdf_pages(
     return pages
 
 
+def _bounded_anchor_pattern(pattern: str) -> str:
+    """Constrain wildcard spans while preserving the committed raw anchor identity."""
+    return pattern.replace(".*", f".{{0,{MAX_CLAIM_MATCH_UTF8_BYTES}}}?")
+
+
 def _claim_receipt(
     claim: Mapping[str, Any],
     pages: Sequence[str],
@@ -213,8 +232,9 @@ def _claim_receipt(
     _require(isinstance(claim_id, str) and claim_id, "claim_id is missing")
     _require(isinstance(anchor, str) and anchor, f"{claim_id} anchor is missing")
     _require(isinstance(scope, str) and scope, f"{claim_id} scope is missing")
+    bounded_anchor = _bounded_anchor_pattern(anchor)
     try:
-        pattern = re.compile(anchor, flags=re.IGNORECASE | re.DOTALL)
+        pattern = re.compile(bounded_anchor, flags=re.IGNORECASE | re.DOTALL)
     except re.error as exc:
         raise GeometryConditionSourceAcquisitionError(
             f"invalid claim anchor for {claim_id}: {exc}"
@@ -225,6 +245,8 @@ def _claim_receipt(
         if match is None:
             continue
         encoded = match.group(0).encode("utf-8")
+        if len(encoded) > MAX_CLAIM_MATCH_UTF8_BYTES:
+            continue
         matches.append(
             {
                 "page_index_zero_based": page_index if is_pdf else None,
@@ -236,6 +258,10 @@ def _claim_receipt(
         "claim_id": claim_id,
         "scope": scope,
         "anchor_regex_sha256": _sha256(anchor.encode("utf-8")),
+        "matching_policy": {
+            "wildcard_span_bounded": True,
+            "max_matched_text_utf8_bytes": MAX_CLAIM_MATCH_UTF8_BYTES,
+        },
         "matched": bool(matches),
         "match_count": len(matches),
         "matches": matches,
@@ -288,15 +314,25 @@ def acquire_geometry_condition_sources(
         _require(isinstance(source_id, str) and source_id, "source_id missing")
         _require(isinstance(url, str) and url, f"{source_id} URL missing")
         _require(media_type in {"html", "pdf"}, f"{source_id} media type unsupported")
+        remaining_total_bytes = MAX_TOTAL_BYTES - total_bytes
+        _require(
+            remaining_total_bytes > 0,
+            "multi-source total byte budget exhausted before next fetch",
+        )
+        current_fetch_budget = min(MAX_SOURCE_BYTES, remaining_total_bytes)
         fetched = fetcher(
             url,
             allowed_hosts=ALLOWED_HOSTS,
-            max_bytes=MAX_SOURCE_BYTES,
+            max_bytes=current_fetch_budget,
             timeout_seconds=TIMEOUT_SECONDS,
         )
         _require(isinstance(fetched, FetchResult), "fetcher must return FetchResult")
         _validate_https_url(fetched.final_url, ALLOWED_HOSTS, "fetched final URL")
         _require(200 <= fetched.status_code < 300, "fetcher returned non-success status")
+        _require(
+            0 < len(fetched.body) <= current_fetch_budget,
+            "fetcher returned bytes beyond current remaining budget",
+        )
         total_bytes += len(fetched.body)
         _require(
             total_bytes <= MAX_TOTAL_BYTES,
@@ -370,6 +406,16 @@ def acquire_geometry_condition_sources(
         "network_requests_performed": len(results),
         "network_request_budget": MAX_REQUESTS,
         "total_source_bytes_observed": total_bytes,
+        "claim_matching_policy": {
+            "wildcard_span_bounded": True,
+            "max_matched_text_utf8_bytes": MAX_CLAIM_MATCH_UTF8_BYTES,
+            "ignored_html_tags": sorted(_IGNORED_HTML_TAGS),
+        },
+        "pdf_extractor": {
+            "package": "pypdf",
+            "version": importlib.metadata.version("pypdf"),
+            "strict": False,
+        },
         "sources": results,
         "all_sources_fetched": len(results) == MAX_REQUESTS,
         "all_claim_anchors_matched": all(
@@ -390,6 +436,7 @@ def acquire_geometry_condition_sources(
 __all__ = [
     "FetchResult",
     "GeometryConditionSourceAcquisitionError",
+    "MAX_CLAIM_MATCH_UTF8_BYTES",
     "acquire_geometry_condition_sources",
     "fetch_exact_source",
 ]
