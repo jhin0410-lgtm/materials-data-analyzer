@@ -10,7 +10,8 @@
     "The exact NIST mds2-2923 geometry source is acquired only after the comparability gate generates that action and only under its separately mission-pinned standing network policy.",
     "The reviewed geometry-condition mapping acquires only mission-pinned official/paper sources, binds exact source bytes at execution, preserves claim/version conflicts, and never promotes literature claims to row-level measurement authority.",
     "Unavailable full text remains explicitly metadata/abstract evidence and is never represented as acquired full-text evidence.",
-    "After re-diagnosis, the program generates the next scientific action from the new evidence state and stops only for an explicit bounded reason when that action is not registered."
+    "After re-diagnosis, the program generates the next scientific action from the new evidence state and stops only for an explicit bounded reason when that action is not registered.",
+    "When a valid next action lacks an executor, the program emits a provenance-bound capability gap/specification, promotes only independently verified bounded capabilities, resumes the blocked action, and may use only separately mission-pinned discovery indices for source discovery."
   ],
   "constraints": [
     "Never fabricate or infer missing measurements, sample identity, replicate independence, calibration, or condition equivalence.",
@@ -18,10 +19,11 @@
     "Never execute arbitrary Python, shell, provider, URL, or action outside exact mission-pinned policies and audited capability code.",
     "Network failures are operational evidence only and are never negative scientific evidence.",
     "Authoritative datasets, papers and supplementary materials, official technical reports and documentation, characterization evidence, and other provenance-verifiable real physical evidence remain eligible evidence classes under source-specific trust and scientific-intake boundaries.",
-    "Physical experiment execution remains external until a separately authorized laboratory interface exists."
+    "Physical experiment execution remains external until a separately authorized laboratory interface exists.",
+    "Capability expansion may compose verified primitives or declarative adapters, but it may not synthesize unrestricted network authority, caller-authored URLs, arbitrary executable code, or scientific truth."
   ],
   "stop_rules": [
-    "Stop when the current verified next-action class has no matching audited capability in the exact production capability set.",
+    "When the current verified next-action class has no audited executor, attempt bounded capability expansion; stop only if no independently verifiable candidate is available under exact mission authority.",
     "Stop on mission, policy, registry, source, request, ledger, checksum, or verifier binding mismatch.",
     "Stop when cycle or cost budget is exhausted or when a cycle produces no new verified information.",
     "Do not claim global evidence unavailability when only the current registered capability set is exhausted."
@@ -45,6 +47,10 @@
     {
       "policy_id": "in625-geometry-condition-multisource-acquisition-v1",
       "sha256": "a2b70b96096650811671db445bd27897795f028a508608c2eb7c4a0226658652"
+    },
+    {
+      "policy_id": "nist-ammt-publication-index-source-discovery-v1",
+      "sha256": "e053faca2a28adae1d299d5771b6df4a99e1e15400b536e1f7502f34051a9324"
     }
   ],
   "request_delegation_policy_pins": [
@@ -69,6 +75,8 @@
     "post_acquisition_expected_action_class": "reviewed_physical_comparability_assessment",
     "post_comparability_expected_action_class": "nist_mds2_2923_geometry_evidence_acquisition",
     "post_nist_expected_action_class": "reviewed_geometry_condition_mapping_assessment",
+    "post_geometry_mapping_expected_action_class": "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition",
+    "post_bridge_expected_action_class": "experiment_specific_calibration_record_source_discovery",
     "evidence_source_scope": [
       "authoritative_dataset",
       "paper_and_supplementary_material",
