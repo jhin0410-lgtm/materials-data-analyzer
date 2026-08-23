@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "nist-mds2-2923-reference-chain-naderi-evidence-v1",
+  "action_class": "mds2_2923_experiment_identity_reference_chain_assessment",
+  "source": {
+    "source_id": "naderi-2022-scaling-fidelity-reference-chain",
+    "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935135",
+    "source_class": "primary_paper",
+    "media_type": "pdf",
+    "doi": "10.1007/s40192-022-00289-w",
+    "expected_sha256": "c35a62f9f3b9346af2e0fa99de46710b3017c915e3c792dbf01c83b920a53e81",
+    "expected_size_bytes": 4597480
+  },
+  "network": {
+    "scheme": "https",
+    "allowed_hosts": [
+      "tsapps.nist.gov"
+    ],
+    "max_requests": 1,
+    "max_source_bytes": 8388608,
+    "max_total_bytes": 8388608,
+    "timeout_seconds": 120,
+    "unrestricted_search_allowed": false,
+    "caller_authored_urls_allowed": false,
+    "same_host_redirects_only": true
+  },
+  "claims": [
+    {
+      "claim_id": "naderi-ammt-in625-weaver-detail-reference",
+      "anchor_regex": "AMMT.*195\\s*W.*800\\s*mm/s.*spot diameters ranging from 50.*256.*More details are provided in the work of Weaver et\\s*al\\.\\s*\\[7\\]",
+      "scope": "Naderi identifies the IN625 AMMT 195 W / 800 mm/s spot-size experiment and delegates experiment details to Weaver et al. reference 7"
+    },
+    {
+      "claim_id": "naderi-reference-7-weaver-spot-size-paper",
+      "anchor_regex": "7\\.\\s*Weaver JS.*Heigel JC.*Lane BM.*Laser spot size and scaling laws for laser beam additive manufacturing",
+      "scope": "Naderi bibliography resolves reference 7 to the Weaver/Heigel/Lane IN625 spot-size paper"
+    },
+    {
+      "claim_id": "naderi-reference-31-ammt-design",
+      "anchor_regex": "31\\.\\s*Lane B.*Mekhontsev S.*Grantham S.*Design, developments, and results from the NIST additive manufacturing metrology testbed",
+      "scope": "Naderi bibliography resolves AMMT platform reference 31 to the 2016 NIST AMMT design paper"
+    },
+    {
+      "claim_id": "naderi-reference-32-lane-in625-protocol",
+      "anchor_regex": "32\\.\\s*Lane B.*Heigel J.*Ricker R.*Measurements of melt pool geometry and cooling rates of individual laser traces on IN625 bare plates",
+      "scope": "Naderi bibliography resolves reference 32 to the Lane 2020 IN625 cross-section protocol paper"
+    }
+  ],
+  "authority": {
+    "reference_claims_may_establish_dataset_row_identity": false,
+    "same_platform_may_establish_experiment_identity": false,
+    "reference_chain_may_establish_power_conversion_without_explicit_edge": false,
+    "literature_may_be_row_level_measurement_authority": false,
+    "scientific_status_change_authorized_by_acquisition": false,
+    "global_evidence_unavailability_may_be_claimed_from_failure": false
+  }
+}
