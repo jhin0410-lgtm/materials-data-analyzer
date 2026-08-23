@@ -19,9 +19,9 @@ POLICY = ROOT / "configs/research/in625_geometry_condition_multisource_acquisiti
 REGISTRY = ROOT / "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
 TARGET_PROCESS = ROOT / "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
 TARGET_RESPONSE = ROOT / "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
-EXPECTED_MISSION_SHA = "44091458e8a10a6ba4ef67a47056d98e4ba1a2ac5e29695cbeba7bb79f47160f"
-EXPECTED_POLICY_SHA = "2b8fd32a9da4b1fa460a352c4b95e97e8396934da8e28a235c5cf3b1e0598f7c"
-EXPECTED_REGISTRY_BLOB = "f70137bce4b1d83f4664a28c49eb43ac92b97f40"
+EXPECTED_MISSION_SHA = "414db2c30a229691078b4ede280221a2fbe47b003ce3455ba4af52027ee1afdb"
+EXPECTED_POLICY_SHA = "a2b70b96096650811671db445bd27897795f028a508608c2eb7c4a0226658652"
+EXPECTED_REGISTRY_BLOB = "d117162543a8e0c01328d65acadbe482172b16dd"
 
 
 def _json_bytes(value: object) -> bytes:
@@ -51,6 +51,7 @@ def test_multisource_exact_raw_byte_roots_authenticate_without_network() -> None
     assert result["max_requests"] == 8
     assert result["network_access_performed"] is False
     assert result["paper_claims_promoted_to_row_level_authority"] is False
+    assert result["metadata_or_abstract_sources_promoted_to_full_text"] is False
 
 
 def _write_repinned_fixture(
