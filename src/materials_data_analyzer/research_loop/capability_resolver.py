@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Sequence
 
 from . import calibration_protocol_bridge_capability as bridge
-from . import mds2_2923_experiment_identity_reference_chain as reference_chain
+from . import mds2_2923_reference_chain_capability as reference_chain
 from . import nist_ammt_calibration_candidate_acquisition as candidate_acquisition
 from . import nist_ammt_calibration_source_discovery as discovery
 from .capability_registry import (
@@ -45,7 +45,7 @@ def _bounded_factory(
     if action_class == reference_chain.ACTION_CLASS and set(
         reference_chain.REQUIRED_VERIFIED_PRIMITIVES
     ).issubset(primitives):
-        return reference_chain, "compose_verified_primitives"
+        return reference_chain, reference_chain.MECHANISM
     return None
 
 
