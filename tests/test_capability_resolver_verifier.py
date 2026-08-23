@@ -20,7 +20,7 @@ from materials_data_analyzer.research_loop import (
 
 ROOT = Path(__file__).resolve().parents[1]
 MISSION = ROOT / "configs/research/autonomous_in625_production_mission.v1.json"
-MISSION_SHA = "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
+MISSION_SHA = "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
 
 
 def _spec(action_class: str = bridge.ACTION_CLASS) -> dict[str, object]:
@@ -49,6 +49,7 @@ def test_resolver_discovers_only_finite_bridge_factory() -> None:
     assert result["factory_id"] == bridge.FACTORY_ID
     assert result["candidate"]["state"] == "candidate"
     assert result["candidate"]["implementation_id"] == bridge.IMPLEMENTATION_ID
+    assert result["factory_catalogue_size"] == 3
     assert result["unrestricted_discovery_performed"] is False
     assert result["arbitrary_code_generation_performed"] is False
 
@@ -65,7 +66,7 @@ def test_resolver_discovers_finite_nist_index_factory_only_with_required_primiti
     )
     assert result["resolution_status"] == "bounded_candidate_discovered"
     assert result["factory_id"] == discovery.FACTORY_ID
-    assert result["factory_catalogue_size"] == 2
+    assert result["factory_catalogue_size"] == 3
     assert result["candidate"]["implementation_id"] == discovery.IMPLEMENTATION_ID
     assert result["candidate"]["mechanism"] == "generate_declarative_adapter_instance"
     assert result["candidate"]["network_authority_granted"] is False
@@ -91,6 +92,7 @@ def test_resolver_does_not_invent_candidate_for_unknown_action() -> None:
     )
     assert result["resolution_status"] == "no_bounded_candidate_available"
     assert result["candidate"] is None
+    assert result["factory_catalogue_size"] == 3
     assert result["arbitrary_code_generation_performed"] is False
 
 
