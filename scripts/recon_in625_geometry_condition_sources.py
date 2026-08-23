@@ -124,7 +124,13 @@ def _fetch(
 ) -> tuple[bytes, str, str | None]:
     _validate_url(url, allowed_hosts, "source URL")
     opener = build_opener(_RestrictedRedirectHandler(allowed_hosts))
-    request = Request(url, headers={"User-Agent": "materials-data-analyzer/condition-recon/1.0"})
+    request = Request(
+        url,
+        headers={
+            "User-Agent": "materials-data-analyzer/condition-recon/1.1",
+            "Accept": "text/html,application/pdf,*/*;q=0.1",
+        },
+    )
     try:
         with opener.open(request, timeout=timeout_seconds) as response:
             final_url = response.geturl()
@@ -154,7 +160,12 @@ def _html_text(body: bytes) -> str:
     return _normalize_text(" ".join(parser.parts))
 
 
-def _pdf_pages(body: bytes) -> list[str]:
+def _pdf_pages(body: bytes, *, source_id: str, content_type: str | None) -> list[str]:
+    if not body.startswith(b"%PDF-"):
+        raise ReconError(
+            f"{source_id} expected PDF bytes but transport returned non-PDF body "
+            f"(content_type={content_type!r}, size={len(body)}, sha256={_sha256(body)})"
+        )
     try:
         from pypdf import PdfReader
     except ImportError as exc:  # pragma: no cover - workflow installs the recon dependency.
@@ -162,18 +173,23 @@ def _pdf_pages(body: bytes) -> list[str]:
     from io import BytesIO
 
     try:
-        reader = PdfReader(BytesIO(body), strict=True)
+        reader = PdfReader(BytesIO(body), strict=False)
     except Exception as exc:  # pragma: no cover - external source parser errors vary.
-        raise ReconError(f"failed to parse PDF: {exc}") from exc
+        raise ReconError(
+            f"{source_id} failed to parse exact PDF bytes "
+            f"(size={len(body)}, sha256={_sha256(body)}): {exc}"
+        ) from exc
     pages: list[str] = []
-    for page in reader.pages:
+    for page_index, page in enumerate(reader.pages):
         try:
             text = page.extract_text() or ""
         except Exception as exc:  # pragma: no cover - external source parser errors vary.
-            raise ReconError(f"failed to extract PDF text: {exc}") from exc
+            raise ReconError(
+                f"{source_id} failed to extract PDF page {page_index}: {exc}"
+            ) from exc
         pages.append(_normalize_text(text))
     if not any(pages):
-        raise ReconError("PDF produced no extractable text")
+        raise ReconError(f"{source_id} PDF produced no extractable text")
     return pages
 
 
@@ -263,7 +279,11 @@ def run(config_path: Path) -> dict[str, Any]:
             raise ReconError("total reconnaissance byte budget exceeded")
 
         if media_type == "pdf":
-            pages = _pdf_pages(body)
+            pages = _pdf_pages(
+                body,
+                source_id=source_id,
+                content_type=content_type,
+            )
         else:
             pages = [_html_text(body)]
         raw_anchors = raw_source.get("claims_under_review")
@@ -276,6 +296,14 @@ def run(config_path: Path) -> dict[str, Any]:
         ]
         if len(anchors) != len(raw_anchors):
             raise ReconError(f"{source_id} contains a non-object claim anchor")
+        if not all(item["matched"] for item in anchors):
+            missing_claim_ids = [
+                item["claim_id"] for item in anchors if not item["matched"]
+            ]
+            raise ReconError(
+                f"{source_id} required claim anchors did not match exact source bytes: "
+                + ", ".join(missing_claim_ids)
+            )
         results.append(
             {
                 "source_id": source_id,
@@ -291,7 +319,7 @@ def run(config_path: Path) -> dict[str, Any]:
                 "source_size_bytes": len(body),
                 "pdf_page_count": len(pages) if media_type == "pdf" else None,
                 "claims": anchors,
-                "all_claim_anchors_matched": all(item["matched"] for item in anchors),
+                "all_claim_anchors_matched": True,
                 "source_bytes_persisted": False,
                 "scientific_status_changed": False,
                 "row_level_measurement_authority": False,
@@ -306,9 +334,7 @@ def run(config_path: Path) -> dict[str, Any]:
         "source_count": len(results),
         "total_source_bytes_observed": total_bytes,
         "all_sources_fetched": True,
-        "all_claim_anchors_matched": all(
-            item["all_claim_anchors_matched"] for item in results
-        ),
+        "all_claim_anchors_matched": True,
         "sources": results,
         "unrestricted_search_performed": False,
         "arbitrary_url_fetch_performed": False,
