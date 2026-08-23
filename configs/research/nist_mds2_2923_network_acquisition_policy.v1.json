@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "nist-mds2-2923-network-acquisition-v1",
+  "action_class": "nist_mds2_2923_geometry_evidence_acquisition",
+  "candidate_id": "nist-mds2-2923-cross-sectional-micrographs",
+  "source_identity": {
+    "authority": "NIST Public Data Repository / AM-Bench",
+    "identifier": "10.18434/mds2-2923",
+    "product_id": "mds2-2923",
+    "metadata_endpoint": "https://data.nist.gov/od/id/mds2-2923"
+  },
+  "network": {
+    "scheme": "https",
+    "metadata_allowed_hosts": [
+      "data.nist.gov"
+    ],
+    "artifact_allowed_hosts": [
+      "data.nist.gov",
+      "nist-oar-cache.s3.amazonaws.com"
+    ],
+    "allowed_ports": [
+      443
+    ],
+    "max_network_requests": 3,
+    "timeout_seconds": 180,
+    "max_metadata_bytes": 33554432,
+    "max_artifact_bytes": 8388608,
+    "max_total_artifact_bytes": 1048576,
+    "unrestricted_search": false,
+    "arbitrary_url_fetch": false
+  },
+  "expected_nerdm_metadata_sha256": "e10b2afb0e8b5f0d3b0a015bb38ed59a285510e1bb8534fed73f2fd0b7e883b6",
+  "files": [
+    {
+      "path": "2923_README.txt",
+      "sha256": "8b8fc00ce62915af3e0c91c138dc4d033c031d7758161fb9da0e8702fa621c39",
+      "size_bytes": 8372
+    },
+    {
+      "path": "Master_TrackList_Measurements.xlsx",
+      "sha256": "6cd32669f5c84cdb9e90890ba40ddc5548c85b0dbb95cf038f2f6fc69da67a52",
+      "size_bytes": 59141
+    }
+  ],
+  "scientific_boundaries": {
+    "material": "IN625",
+    "responses": [
+      "melt_pool_width",
+      "melt_pool_depth"
+    ],
+    "data_sheet_row_level_authority": true,
+    "summary_is_derived_view": true,
+    "machine_setting_power_is_calibrated_actual_power": false,
+    "cross_machine_pooling_authorized": false,
+    "issue_76_automatic_promotion_authorized": false,
+    "paper_and_other_source_lanes_remain_allowed": true
+  }
+}

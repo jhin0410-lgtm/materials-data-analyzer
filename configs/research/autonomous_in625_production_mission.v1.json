@@ -7,6 +7,7 @@
     "The exact Zenodo 20503603 source is acquired only under the mission-pinned standing network policy and independently checksum verified.",
     "The typed IN625 registration request is machine-authored only under the mission-pinned request-delegation policy.",
     "Real row-level tensile evidence and observed source missingness are preserved without imputation, inverse reconstruction, coercion, or silent row exclusion.",
+    "The exact NIST mds2-2923 geometry source is acquired only after the comparability gate generates that action and only under its separately mission-pinned standing network policy.",
     "After re-diagnosis, the program generates the next scientific action from the new evidence state and stops only for an explicit bounded reason when that action is not registered."
   ],
   "constraints": [
@@ -14,6 +15,7 @@
     "Never treat network, checksum, parser, or workflow success as empirical model validation or hypothesis truth.",
     "Never execute arbitrary Python, shell, provider, URL, or action outside exact mission-pinned policies and audited capability code.",
     "Network failures are operational evidence only and are never negative scientific evidence.",
+    "Authoritative datasets, papers and supplementary materials, official technical reports and documentation, characterization evidence, and other provenance-verifiable real physical evidence remain eligible evidence classes under source-specific trust and scientific-intake boundaries.",
     "Physical experiment execution remains external until a separately authorized laboratory interface exists."
   ],
   "stop_rules": [
@@ -33,6 +35,10 @@
     {
       "policy_id": "in625-zenodo-20503603-network-acquisition-v1",
       "sha256": "8db925ef01934ac93b8b1886b2b0ed6d5114c68b04c46c754f754b56da93227c"
+    },
+    {
+      "policy_id": "nist-mds2-2923-network-acquisition-v1",
+      "sha256": "4b19c64f4f2c764f5315971c5afba16000763a4d307929ec5e463f42ee1cbebf"
     }
   ],
   "request_delegation_policy_pins": [
@@ -55,6 +61,15 @@
     "execution_adapter": "in625-external-evidence",
     "initial_expected_action_class": "external_evidence_search",
     "post_acquisition_expected_action_class": "reviewed_physical_comparability_assessment",
+    "post_comparability_expected_action_class": "nist_mds2_2923_geometry_evidence_acquisition",
+    "evidence_source_scope": [
+      "authoritative_dataset",
+      "paper_and_supplementary_material",
+      "official_technical_report",
+      "official_documentation",
+      "characterization_evidence",
+      "other_provenance_verifiable_physical_evidence"
+    ],
     "scientific_closeout_expected_in_first_profile": false
   }
 }

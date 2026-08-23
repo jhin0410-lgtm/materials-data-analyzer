@@ -30,7 +30,7 @@ IN625_REGISTRY = (
     / "configs/research/in625_external_evidence_action_registry.v1.json"
 )
 EXPECTED_MISSION_SHA256 = (
-    "d0edf9570ce4626b1c34902897aab555d55b2ac74176eadf97c8249172f64df8"
+    "39d24e68d07edb93672c87a2ee753cca811eab05704277abd718f550ebfc7426"
 )
 
 
@@ -46,7 +46,7 @@ def test_run_autonomous_parser_needs_no_pre_authored_request_queue() -> None:
     args = research_program_cli.build_parser().parse_args(["run-autonomous"])
     assert args.command == "run-autonomous"
     assert args.repository_root == Path(".")
-    assert args.max_cycles == 3
+    assert args.max_cycles == 4
     assert not hasattr(args, "request_queue")
 
 
@@ -83,7 +83,7 @@ def test_run_autonomous_uses_independent_production_pin(
     assert captured["repository_root"] == REPOSITORY_ROOT.resolve()
     assert captured["mission_path"] == MISSION.resolve()
     assert captured["expected_mission_sha256"] == EXPECTED_MISSION_SHA256
-    assert captured["max_cycles"] == 3
+    assert captured["max_cycles"] == 4
 
 
 def test_driver_rejects_untrusted_mission_root_before_network(
