@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from materials_data_analyzer.research_loop import autonomous_production_reference_chain_extension as production_extension
 from materials_data_analyzer.research_loop import capability_expansion
 from materials_data_analyzer.research_loop import capability_registry
 from materials_data_analyzer.research_loop import capability_resolver
@@ -199,6 +200,16 @@ def _reference_spec() -> dict[str, Any]:
     return capability_expansion.build_capability_specification(gap)
 
 
+def _candidate(spec: dict[str, Any]) -> dict[str, Any]:
+    return capability_registry.build_capability_candidate(
+        capability_specification=spec,
+        factory_id=capability.FACTORY_ID,
+        implementation_id=capability.IMPLEMENTATION_ID,
+        mechanism=capability.MECHANISM,
+        required_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
+    )
+
+
 def _verification_context(metadata: bytes) -> dict[str, Any]:
     return {
         "nerdm_metadata_bytes": metadata,
@@ -312,6 +323,51 @@ def test_resolver_discovers_reference_candidate_only_from_verified_primitives() 
     assert missing["resolution_status"] == "no_bounded_candidate_available"
 
 
+def test_cycle11_reauthenticates_exact_predecessor_candidate_without_rediscovery() -> None:
+    spec = _reference_spec()
+    candidate = _candidate(spec)
+    resolution = {
+        "resolution_status": "bounded_candidate_discovered",
+        "candidate": candidate,
+    }
+    receipt = production_extension._authenticate_predecessor_candidate(
+        predecessor_resolution=resolution,
+        predecessor_candidate=candidate,
+        capability_specification=spec,
+        predecessor_manifest_sha256="b" * 64,
+    )
+    assert receipt["resolution_status"] == "predecessor_candidate_reauthenticated"
+    assert receipt["capability_candidate_sha256"] == candidate[
+        "capability_candidate_sha256_without_self_field"
+    ]
+    assert receipt["candidate_rediscovery_performed"] is False
+    assert receipt["unrestricted_discovery_performed"] is False
+    assert receipt["network_authority_granted"] is False
+    assert receipt["execution_authority_granted"] is False
+
+
+def test_cycle11_rejects_rehashed_predecessor_candidate_authority_escalation() -> None:
+    spec = _reference_spec()
+    candidate = _candidate(spec)
+    candidate["network_authority_granted"] = True
+    candidate.pop("capability_candidate_sha256_without_self_field")
+    candidate["capability_candidate_sha256_without_self_field"] = _canonical_sha(candidate)
+    resolution = {
+        "resolution_status": "bounded_candidate_discovered",
+        "candidate": candidate,
+    }
+    with pytest.raises(
+        production_extension.AutonomousProductionReferenceChainExtensionError,
+        match="attempted to acquire authority",
+    ):
+        production_extension._authenticate_predecessor_candidate(
+            predecessor_resolution=resolution,
+            predecessor_candidate=candidate,
+            capability_specification=spec,
+            predecessor_manifest_sha256="b" * 64,
+        )
+
+
 def test_repinned_semantically_weakened_spec_cannot_pass_independent_verifier() -> None:
     spec = _reference_spec()
     weakened = dict(spec)
@@ -323,13 +379,7 @@ def test_repinned_semantically_weakened_spec_cannot_pass_independent_verifier() 
     weakened["capability_specification_sha256_without_self_field"] = _canonical_sha(
         weakened
     )
-    candidate = capability_registry.build_capability_candidate(
-        capability_specification=weakened,
-        factory_id=capability.FACTORY_ID,
-        implementation_id=capability.IMPLEMENTATION_ID,
-        mechanism=capability.MECHANISM,
-        required_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
-    )
+    candidate = _candidate(weakened)
     metadata = _metadata()
     receipt = verifier.verify_reference_chain_capability_candidate(
         capability_specification=weakened,
@@ -349,13 +399,7 @@ def test_repinned_semantically_weakened_spec_cannot_pass_independent_verifier() 
 def test_no_real_source_smoke_cannot_promote_reference_candidate() -> None:
     metadata = _metadata()
     spec = _reference_spec()
-    candidate = capability_registry.build_capability_candidate(
-        capability_specification=spec,
-        factory_id=capability.FACTORY_ID,
-        implementation_id=capability.IMPLEMENTATION_ID,
-        mechanism=capability.MECHANISM,
-        required_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
-    )
+    candidate = _candidate(spec)
     receipt = verifier.verify_reference_chain_capability_candidate(
         capability_specification=spec,
         candidate=candidate,
