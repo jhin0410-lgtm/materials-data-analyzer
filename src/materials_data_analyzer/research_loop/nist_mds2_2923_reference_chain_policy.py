@@ -9,7 +9,7 @@ from typing import Any
 POLICY_ID = "nist-mds2-2923-reference-chain-naderi-evidence-v1"
 ACTION_CLASS = "mds2_2923_experiment_identity_reference_chain_assessment"
 POLICY_PATH = "configs/research/nist_mds2_2923_reference_chain_naderi_evidence_policy.v1.json"
-POLICY_SHA256 = "686faaf7e697a4d2f3ada5c9abfcae041d48bc96bfeb3809312b5b1ab1c26569"
+POLICY_SHA256 = "f57ff93cf18d38c72ddf27f71028c28309fb2eae8476a1381931c6eab4028815"
 SOURCE_ID = "naderi-2022-scaling-fidelity-reference-chain"
 SOURCE_URL = "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935135"
 SOURCE_DOI = "10.1007/s40192-022-00289-w"
@@ -20,25 +20,67 @@ MAX_REQUESTS = 1
 MAX_SOURCE_BYTES = 8_388_608
 MAX_TOTAL_BYTES = 8_388_608
 TIMEOUT_SECONDS = 120
+MATCH_MODE = "ordered_same_page_fragments"
+MAX_CLAIM_SPAN_UTF8_BYTES = 4096
 CLAIMS = (
     (
         "naderi-ammt-in625-weaver-detail-reference",
-        r"AMMT.*195\s*W.*800\s*mm/s.*spot diameters ranging from 50.*256.*More details are provided in the work of Weaver et\s*al\.\s*\[7\]",
+        (
+            "AMMT",
+            "195 W",
+            "800 mm/s",
+            "spot diameters ranging from 50",
+            "256",
+            "AMMT laser spot size",
+            "Single tracks on IN625 substrates",
+            "More details are provided",
+            "Weaver",
+            "[7]",
+        ),
         "Naderi identifies the IN625 AMMT 195 W / 800 mm/s spot-size experiment and delegates experiment details to Weaver et al. reference 7",
     ),
     (
         "naderi-reference-7-weaver-spot-size-paper",
-        r"7\.\s*Weaver JS.*Heigel JC.*Lane BM.*Laser spot size and scaling laws for laser beam additive manufacturing",
+        (
+            "7. Weaver",
+            "Heigel JC",
+            "Lane BM",
+            "Laser spot size",
+            "J Manuf Process",
+            "73:26",
+        ),
         "Naderi bibliography resolves reference 7 to the Weaver/Heigel/Lane IN625 spot-size paper",
     ),
     (
         "naderi-reference-31-ammt-design",
-        r"31\.\s*Lane B.*Mekhontsev S.*Grantham S.*Design, developments, and results from the NIST additive manufacturing metrology testbed",
+        (
+            "31. Lane",
+            "Mekhontsev S",
+            "Grantham S",
+            "Vlasea ML",
+            "Design, developments, and results",
+            "NIST additive",
+            "metrology testbed (AMMT)",
+            "2016 International solid",
+            "freeform fabrication symposium",
+        ),
         "Naderi bibliography resolves AMMT platform reference 31 to the 2016 NIST AMMT design paper",
     ),
     (
         "naderi-reference-32-lane-in625-protocol",
-        r"32\.\s*Lane B.*Heigel J.*Ricker R.*Measurements of melt pool geometry and cooling rates of individual laser traces on IN625 bare plates",
+        (
+            "32. Lane",
+            "Heigel J",
+            "Ricker R",
+            "Zhirnov I",
+            "Weaver J",
+            "(2020)",
+            "melt pool geometry and cooling rates",
+            "individual laser traces",
+            "IN625 bare plates",
+            "Integr Mater Manuf Innov",
+            "9(1):16",
+        ),
         "Naderi bibliography resolves reference 32 to the Lane 2020 IN625 cross-section protocol paper",
     ),
 )
@@ -120,7 +162,7 @@ def authenticate_nist_mds2_2923_reference_chain_policy(
     )
 
     expected_policy = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "policy_id": POLICY_ID,
         "action_class": ACTION_CLASS,
         "source": {
@@ -144,8 +186,14 @@ def authenticate_nist_mds2_2923_reference_chain_policy(
             "same_host_redirects_only": True,
         },
         "claims": [
-            {"claim_id": claim_id, "anchor_regex": anchor, "scope": scope}
-            for claim_id, anchor, scope in CLAIMS
+            {
+                "claim_id": claim_id,
+                "match_mode": MATCH_MODE,
+                "max_span_utf8_bytes": MAX_CLAIM_SPAN_UTF8_BYTES,
+                "required_fragments": list(fragments),
+                "scope": scope,
+            }
+            for claim_id, fragments, scope in CLAIMS
         ],
         "authority": {
             "reference_claims_may_establish_dataset_row_identity": False,
@@ -158,7 +206,7 @@ def authenticate_nist_mds2_2923_reference_chain_policy(
     }
     _require(policy == expected_policy, "reference-chain policy semantics drifted or widened")
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "qualification_status": "exact_nist_mds2_2923_reference_chain_policy_authenticated",
         "policy_id": POLICY_ID,
         "policy_sha256": policy_sha,
@@ -174,6 +222,8 @@ def authenticate_nist_mds2_2923_reference_chain_policy(
         "max_source_bytes": MAX_SOURCE_BYTES,
         "max_total_bytes": MAX_TOTAL_BYTES,
         "timeout_seconds": TIMEOUT_SECONDS,
+        "claim_match_mode": MATCH_MODE,
+        "max_claim_span_utf8_bytes": MAX_CLAIM_SPAN_UTF8_BYTES,
         "network_access_performed": False,
         "caller_authored_url_used": False,
         "scientific_status_changed": False,
@@ -184,6 +234,8 @@ __all__ = [
     "ACTION_CLASS",
     "ALLOWED_HOSTS",
     "CLAIMS",
+    "MATCH_MODE",
+    "MAX_CLAIM_SPAN_UTF8_BYTES",
     "MAX_REQUESTS",
     "MAX_SOURCE_BYTES",
     "MAX_TOTAL_BYTES",
