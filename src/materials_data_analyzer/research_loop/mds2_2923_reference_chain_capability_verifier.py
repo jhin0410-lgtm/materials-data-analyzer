@@ -1,8 +1,8 @@
 """Independent verifier for the bounded mds2-2923 reference-chain capability.
 
-This verifier is capability-specific by design: it may authenticate and smoke-test only the
-already mission-pinned Naderi source authority.  Promotion remains owned by the common
-capability registry kernel.  Verifier evidence is never reused as execution evidence.
+The verifier may authenticate and smoke-test only the already mission-pinned Naderi source
+authority. Promotion remains owned by the common immutable registry kernel, and verifier
+evidence is never reused as execution evidence.
 """
 from __future__ import annotations
 
@@ -12,17 +12,13 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from . import mds2_2923_experiment_identity_reference_chain as reference_chain
+from . import mds2_2923_reference_chain_capability as capability
+from . import nist_mds2_2923_reference_chain_evidence as reference_evidence
+from . import nist_mds2_2923_reference_chain_policy as reference_policy
 from .capability_registry import build_capability_verification_receipt
-from .nist_mds2_2923_reference_chain_evidence import (
-    acquire_naderi_reference_chain_evidence,
-)
-from .nist_mds2_2923_reference_chain_policy import (
-    authenticate_nist_mds2_2923_reference_chain_policy,
-)
 
-VERIFIER_SCHEMA_VERSION = "1.0"
-VERIFIER_POLICY_VERSION = "1.0"
-EXPECTED_MECHANISM = "compose_verified_primitives"
+VERIFIER_SCHEMA_VERSION = "1.1"
+VERIFIER_POLICY_VERSION = "1.1"
 _REQUIRED_CONTEXT_FIELDS = (
     "nerdm_metadata_bytes",
     "nist_intake",
@@ -58,7 +54,15 @@ def _module_sha(module: object, field: str) -> str:
     return hashlib.sha256(Path(raw_path).resolve(strict=True).read_bytes()).hexdigest()
 
 
-def _context(value: Mapping[str, Any] | None) -> tuple[bytes, Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]]:
+def _context(
+    value: Mapping[str, Any] | None,
+) -> tuple[
+    bytes,
+    Mapping[str, Any],
+    Mapping[str, Any],
+    Mapping[str, Any],
+    Mapping[str, Any],
+]:
     _require(isinstance(value, Mapping), "reference-chain verifier context is missing")
     missing = [field for field in _REQUIRED_CONTEXT_FIELDS if field not in value]
     _require(not missing, f"reference-chain verifier context missing fields: {missing}")
@@ -118,24 +122,15 @@ def verify_reference_chain_capability_candidate(
     perform_real_source_smoke: bool = True,
 ) -> dict[str, Any]:
     """Verify exact contract, deterministic replay, source authority and epistemic boundary."""
+    _require(candidate.get("action_class") == capability.ACTION_CLASS, "candidate action drifted")
+    _require(candidate.get("factory_id") == capability.FACTORY_ID, "candidate factory drifted")
     _require(
-        candidate.get("action_class") == reference_chain.ACTION_CLASS,
-        "reference-chain candidate action class drifted",
+        candidate.get("implementation_id") == capability.IMPLEMENTATION_ID,
+        "candidate implementation drifted",
     )
-    _require(
-        candidate.get("factory_id") == reference_chain.FACTORY_ID,
-        "reference-chain candidate factory drifted",
-    )
-    _require(
-        candidate.get("implementation_id") == reference_chain.IMPLEMENTATION_ID,
-        "reference-chain candidate implementation drifted",
-    )
-    _require(
-        candidate.get("mechanism") == EXPECTED_MECHANISM,
-        "reference-chain candidate mechanism drifted",
-    )
+    _require(candidate.get("mechanism") == capability.MECHANISM, "candidate mechanism drifted")
     deterministic_contract = candidate.get("required_verified_primitives") == sorted(
-        reference_chain.REQUIRED_VERIFIED_PRIMITIVES
+        capability.REQUIRED_VERIFIED_PRIMITIVES
     )
     authority_and_provenance = bool(
         candidate.get("network_authority_granted") is False
@@ -144,20 +139,20 @@ def verify_reference_chain_capability_candidate(
         and candidate.get("self_promotion_requested") is False
     )
 
-    metadata, nist_intake, multisource, discovery, calibration = _context(
-        verification_context
-    )
+    metadata, nist_intake, multisource, discovery, calibration = _context(verification_context)
     smoke_receipt: dict[str, Any] | None = None
     fixture_ok = False
     epistemic_boundary_ok = False
     real_source_smoke_ok = False
     if perform_real_source_smoke:
-        qualification = authenticate_nist_mds2_2923_reference_chain_policy(
+        qualification = reference_policy.authenticate_nist_mds2_2923_reference_chain_policy(
             repository_root=repository_root,
             mission_path=mission_path,
             expected_mission_sha256=expected_mission_sha256,
         )
-        naderi = acquire_naderi_reference_chain_evidence(qualification=qualification)
+        naderi = reference_evidence.acquire_naderi_reference_chain_evidence(
+            qualification=qualification
+        )
         first = reference_chain.build_mds2_2923_experiment_identity_reference_chain(
             nerdm_metadata_bytes=metadata,
             nist_intake=nist_intake,
@@ -206,7 +201,13 @@ def verify_reference_chain_capability_candidate(
         }
         smoke_receipt["report_sha256_without_self_field"] = _canonical_sha(smoke_receipt)
 
-    implementation_sha = _module_sha(reference_chain, "reference-chain implementation")
+    component_hashes = {
+        "capability_descriptor_sha256": _module_sha(capability, "capability descriptor"),
+        "reference_graph_sha256": _module_sha(reference_chain, "reference graph"),
+        "reference_evidence_adapter_sha256": _module_sha(reference_evidence, "evidence adapter"),
+        "reference_policy_authenticator_sha256": _module_sha(reference_policy, "policy authenticator"),
+    }
+    implementation_sha = _canonical_sha(component_hashes)
     verifier_sha = hashlib.sha256(Path(__file__).resolve(strict=True).read_bytes()).hexdigest()
     byte_bindings_ok = len(implementation_sha) == 64 and len(verifier_sha) == 64
     verification_results = {
@@ -229,6 +230,7 @@ def verify_reference_chain_capability_candidate(
         {
             "verifier_schema_version": VERIFIER_SCHEMA_VERSION,
             "verifier_policy_version": VERIFIER_POLICY_VERSION,
+            "implementation_component_sha256": component_hashes,
             "implementation_sha256": implementation_sha,
             "verifier_sha256": verifier_sha,
             "real_source_smoke_receipt": smoke_receipt,
