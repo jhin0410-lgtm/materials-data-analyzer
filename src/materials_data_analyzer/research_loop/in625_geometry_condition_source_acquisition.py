@@ -9,7 +9,6 @@ import socket
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from io import BytesIO
-from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -129,7 +128,7 @@ def fetch_exact_source(
     request = Request(
         url,
         headers={
-            "User-Agent": "materials-data-analyzer/geometry-condition-evidence/1.0",
+            "User-Agent": "materials-data-analyzer/geometry-condition-evidence/1.1",
             "Accept": "text/html,application/pdf,*/*;q=0.1",
         },
         method="GET",
@@ -179,19 +178,35 @@ def _html_pages(body: bytes) -> list[str]:
     return [text]
 
 
-def _pdf_pages(body: bytes) -> list[str]:
+def _pdf_pages(
+    body: bytes,
+    *,
+    source_id: str,
+    content_type: str | None,
+) -> list[str]:
+    if not body.startswith(b"%PDF-"):
+        raise GeometryConditionSourceAcquisitionError(
+            f"{source_id} expected PDF bytes but transport returned non-PDF body "
+            f"(content_type={content_type!r}, size={len(body)}, sha256={_sha256(body)})"
+        )
     try:
-        reader = PdfReader(BytesIO(body), strict=True)
+        reader = PdfReader(BytesIO(body), strict=False)
         pages = [_normalize_text(page.extract_text() or "") for page in reader.pages]
     except Exception as exc:
         raise GeometryConditionSourceAcquisitionError(
-            f"PDF source could not be parsed: {exc}"
+            f"{source_id} PDF could not be parsed "
+            f"(size={len(body)}, sha256={_sha256(body)}): {exc}"
         ) from exc
-    _require(any(pages), "PDF source produced no extractable text")
+    _require(any(pages), f"{source_id} PDF produced no extractable text")
     return pages
 
 
-def _claim_receipt(claim: Mapping[str, Any], pages: Sequence[str], *, is_pdf: bool) -> dict[str, Any]:
+def _claim_receipt(
+    claim: Mapping[str, Any],
+    pages: Sequence[str],
+    *,
+    is_pdf: bool,
+) -> dict[str, Any]:
     claim_id = claim.get("claim_id")
     anchor = claim.get("anchor_regex")
     scope = claim.get("scope")
@@ -243,17 +258,26 @@ def acquire_geometry_condition_sources(
     _require(qualification.get("policy_id") == POLICY_ID, "policy identity drifted")
     _require(qualification.get("action_class") == ACTION_CLASS, "action class drifted")
     _require(qualification.get("source_count") == MAX_REQUESTS, "source count drifted")
-    _require(qualification.get("allowed_hosts") == list(ALLOWED_HOSTS), "allowed hosts drifted")
+    _require(
+        qualification.get("allowed_hosts") == list(ALLOWED_HOSTS),
+        "allowed hosts drifted",
+    )
     _require(qualification.get("max_requests") == MAX_REQUESTS, "request budget drifted")
     _require(
         qualification.get("max_source_bytes") == MAX_SOURCE_BYTES
         and qualification.get("max_total_bytes") == MAX_TOTAL_BYTES,
         "byte budgets drifted",
     )
-    _require(qualification.get("network_access_performed") is False, "qualification claimed network access")
+    _require(
+        qualification.get("network_access_performed") is False,
+        "qualification claimed network access",
+    )
 
     sources = source_registry.get("sources")
-    _require(isinstance(sources, list) and len(sources) == MAX_REQUESTS, "source registry count drifted")
+    _require(
+        isinstance(sources, list) and len(sources) == MAX_REQUESTS,
+        "source registry count drifted",
+    )
     results: list[dict[str, Any]] = []
     total_bytes = 0
     for request_index, raw_source in enumerate(sources, start=1):
@@ -274,18 +298,42 @@ def acquire_geometry_condition_sources(
         _validate_https_url(fetched.final_url, ALLOWED_HOSTS, "fetched final URL")
         _require(200 <= fetched.status_code < 300, "fetcher returned non-success status")
         total_bytes += len(fetched.body)
-        _require(total_bytes <= MAX_TOTAL_BYTES, "multi-source total byte budget exceeded")
-        pages = _pdf_pages(fetched.body) if media_type == "pdf" else _html_pages(fetched.body)
+        _require(
+            total_bytes <= MAX_TOTAL_BYTES,
+            "multi-source total byte budget exceeded",
+        )
+        pages = (
+            _pdf_pages(
+                fetched.body,
+                source_id=source_id,
+                content_type=fetched.content_type,
+            )
+            if media_type == "pdf"
+            else _html_pages(fetched.body)
+        )
         claims_raw = raw_source.get("claims_under_review")
-        _require(isinstance(claims_raw, list) and claims_raw, f"{source_id} claims missing")
+        _require(
+            isinstance(claims_raw, list) and claims_raw,
+            f"{source_id} claims missing",
+        )
         claim_receipts = [
             _claim_receipt(claim, pages, is_pdf=media_type == "pdf")
             for claim in claims_raw
             if isinstance(claim, Mapping)
         ]
-        _require(len(claim_receipts) == len(claims_raw), f"{source_id} claim entry malformed")
+        _require(
+            len(claim_receipts) == len(claims_raw),
+            f"{source_id} claim entry malformed",
+        )
         all_matched = all(item["matched"] for item in claim_receipts)
-        _require(all_matched, f"{source_id} required claim anchor did not match exact source bytes")
+        if not all_matched:
+            missing = [
+                item["claim_id"] for item in claim_receipts if not item["matched"]
+            ]
+            raise GeometryConditionSourceAcquisitionError(
+                f"{source_id} required claim anchors did not match exact source bytes: "
+                + ", ".join(missing)
+            )
         results.append(
             {
                 "request_index": request_index,
@@ -305,7 +353,7 @@ def acquire_geometry_condition_sources(
                 "source_size_bytes": len(fetched.body),
                 "pdf_page_count": len(pages) if media_type == "pdf" else None,
                 "claims": claim_receipts,
-                "all_claim_anchors_matched": all_matched,
+                "all_claim_anchors_matched": True,
                 "row_level_measurement_authority": False,
                 "source_bytes_persisted": False,
                 "scientific_status_changed": False,
@@ -324,7 +372,9 @@ def acquire_geometry_condition_sources(
         "total_source_bytes_observed": total_bytes,
         "sources": results,
         "all_sources_fetched": len(results) == MAX_REQUESTS,
-        "all_claim_anchors_matched": all(item["all_claim_anchors_matched"] for item in results),
+        "all_claim_anchors_matched": all(
+            item["all_claim_anchors_matched"] for item in results
+        ),
         "unrestricted_network_search_performed": False,
         "caller_authored_url_used": False,
         "arbitrary_url_fetch_performed": False,
