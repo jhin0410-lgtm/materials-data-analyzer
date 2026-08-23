@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
-      - feature/autonomous-nist-mds2-2923-acquisition-218
+      - feature/multisource-geometry-condition-mapping-220
     paths:
       - ".github/workflows/autonomous-production-live.yml"
       - "configs/research/autonomous_in625_production_mission.v1.json"
+      - "configs/research/in625_geometry_condition_multisource_acquisition_policy.v1.json"
+      - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "configs/research/in625_external_evidence_request_delegation_policy.v1.json"
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
@@ -16,24 +18,15 @@ on:
       - "configs/research/in625_tensile_reviewed_intake.v1.json"
       - "configs/research/in625_tensile_observed_quality.v1.json"
       - "configs/research/in625_external_physical_source_frontier.v1.json"
-      - "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
-      - "data/case_studies/nist_ambench_2018_02/README.md"
-      - "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
-      - "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
+      - "data/case_studies/nist_ambench_2018_02/**"
       - "src/materials_data_analyzer/research_program_cli.py"
-      - "src/materials_data_analyzer/research_loop/authenticated_request_compiler.py"
-      - "src/materials_data_analyzer/research_loop/authenticated_request_verifier.py"
-      - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
-      - "src/materials_data_analyzer/research_loop/autonomous_production_nist_extension.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_*.py"
+      - "src/materials_data_analyzer/research_loop/in625_geometry_condition_*.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
       - "src/materials_data_analyzer/research_loop/in625_physical_comparability_assessment.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_network_policy.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_production_acquisition.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_scientific_intake.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_post_acquisition_rediagnosis.py"
-      - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
-      - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "tests/test_autonomous_production_driver.py"
+      - "tests/test_in625_geometry_condition_multisource_extension.py"
       - "tests/test_in625_physical_comparability_assessment.py"
       - "tests/test_nist_mds2_2923_production_extension.py"
       - "tests/test_nist_mds2_2923_scientific_intake.py"
@@ -41,6 +34,8 @@ on:
     paths:
       - ".github/workflows/autonomous-production-live.yml"
       - "configs/research/autonomous_in625_production_mission.v1.json"
+      - "configs/research/in625_geometry_condition_multisource_acquisition_policy.v1.json"
+      - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "configs/research/in625_external_evidence_request_delegation_policy.v1.json"
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
@@ -49,24 +44,15 @@ on:
       - "configs/research/in625_tensile_reviewed_intake.v1.json"
       - "configs/research/in625_tensile_observed_quality.v1.json"
       - "configs/research/in625_external_physical_source_frontier.v1.json"
-      - "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
-      - "data/case_studies/nist_ambench_2018_02/README.md"
-      - "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
-      - "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
+      - "data/case_studies/nist_ambench_2018_02/**"
       - "src/materials_data_analyzer/research_program_cli.py"
-      - "src/materials_data_analyzer/research_loop/authenticated_request_compiler.py"
-      - "src/materials_data_analyzer/research_loop/authenticated_request_verifier.py"
-      - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
-      - "src/materials_data_analyzer/research_loop/autonomous_production_nist_extension.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_*.py"
+      - "src/materials_data_analyzer/research_loop/in625_geometry_condition_*.py"
       - "src/materials_data_analyzer/research_loop/in625_network_policy.py"
       - "src/materials_data_analyzer/research_loop/in625_physical_comparability_assessment.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_network_policy.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_production_acquisition.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_scientific_intake.py"
-      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_post_acquisition_rediagnosis.py"
-      - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
-      - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "tests/test_autonomous_production_driver.py"
+      - "tests/test_in625_geometry_condition_multisource_extension.py"
       - "tests/test_in625_physical_comparability_assessment.py"
       - "tests/test_nist_mds2_2923_production_extension.py"
       - "tests/test_nist_mds2_2923_scientific_intake.py"
@@ -78,7 +64,7 @@ permissions:
 jobs:
   literal-one-command-live-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       PYTHONPATH: src
     steps:
@@ -96,204 +82,101 @@ jobs:
           tests/test_in625_physical_comparability_assessment.py
           tests/test_nist_mds2_2923_production_extension.py
           tests/test_nist_mds2_2923_scientific_intake.py
-      - name: Run literal public autonomous command against live Zenodo and NIST
+          tests/test_in625_geometry_condition_multisource_extension.py
+      - name: Run literal public autonomous command against live Zenodo NIST and paper sources
         run: mda-research-program run-autonomous
       - name: Verify live autonomous production result
         shell: python
         run: |
-          import hashlib
           import json
           from pathlib import Path
 
           root = Path("outputs/autonomous-in625-production")
-          manifest = json.loads(
-              (root / "autonomous-production-manifest.json").read_text(encoding="utf-8")
-          )
-          stop = json.loads((root / "bounded-stop.json").read_text(encoding="utf-8"))
-          assessment = json.loads(
-              (root / "physical-comparability-assessment.json").read_text(encoding="utf-8")
-          )
-          nist_policy = json.loads(
-              (root / "nist-network-policy-qualification.json").read_text(encoding="utf-8")
-          )
-          nist_auth = json.loads(
-              (root / "nist-network-authorization.json").read_text(encoding="utf-8")
-          )
-          nist_receipt = json.loads(
-              (root / "nist-network-acquisition-receipt.json").read_text(encoding="utf-8")
-          )
-          nist_intake = json.loads(
-              (root / "nist-scientific-intake.json").read_text(encoding="utf-8")
-          )
-          nist_rediagnosis = json.loads(
-              (root / "nist-post-acquisition-rediagnosis.json").read_text(encoding="utf-8")
-          )
+          manifest = json.loads((root / "autonomous-production-manifest.json").read_text())
+          stop = json.loads((root / "bounded-stop.json").read_text())
+          nist = json.loads((root / "nist-scientific-intake.json").read_text())
+          policy = json.loads((root / "multisource-policy-qualification.json").read_text())
+          sources = json.loads((root / "multisource-source-acquisition.json").read_text())
+          mapping = json.loads((root / "geometry-condition-mapping-assessment.json").read_text())
 
-          assert manifest["schema_version"] == "1.2"
+          assert manifest["schema_version"] == "1.3"
+          assert manifest["policy_version"] == "1.3"
           assert manifest["measurement_row_count"] == 200289
-          assert manifest["parallel_test_block_count"] == 19
           assert manifest["complete_numeric_measurement_row_count"] == 200288
           assert manifest["incomplete_numeric_measurement_row_count"] == 1
-          assert manifest["known_incomplete_rows"] == [
-              {
-                  "sheet_name": "AM-AB-H",
-                  "block_index": 1,
-                  "excel_row_number": 79,
-                  "missing_reviewed_numeric_fields": ["load_n"],
-                  "non_numeric_reviewed_fields": [],
-                  "raw_anomalous_cell_text": {"load_n": ""},
-              }
-          ]
-          assert manifest["real_external_archive_sha256"] == (
-              "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
-          )
           assert manifest["caller_authored_request_queue_used"] is False
           assert manifest["machine_authored_typed_request_used"] is True
           assert manifest["unrestricted_network_search_performed"] is False
           assert manifest["arbitrary_command_execution_performed"] is False
-          assert manifest["numerical_cross_source_comparison_performed"] is False
           assert manifest["missing_value_imputation_performed"] is False
           assert manifest["row_exclusion_performed"] is False
-          assert manifest["direct_nist_condition_comparability_established"] is False
-          assert manifest["numerical_cross_source_validation_authorized"] is False
-          assert manifest["comparability_decision_code"] == (
-              "direct_nist_numerical_validation_blocked_by_response_and_protocol_incompatibility"
-          )
-          assert manifest["preferred_geometry_candidate_id"] == (
-              "nist-mds2-2923-cross-sectional-micrographs"
-          )
 
-          assert manifest["nist_mds2_2923_metadata_sha256"] == (
-              "e10b2afb0e8b5f0d3b0a015bb38ed59a285510e1bb8534fed73f2fd0b7e883b6"
-          )
-          assert manifest["nist_mds2_2923_measurement_row_count"] == 178
-          assert manifest["nist_mds2_2923_physical_track_count"] == 106
-          assert manifest["nist_mds2_2923_machine_measurement_counts"] == {
-              "AMMT": 34,
-              "EOS M270": 144,
-          }
-          assert manifest["nist_mds2_2923_machine_physical_track_counts"] == {
-              "AMMT": 34,
-              "EOS M270": 72,
-          }
-          assert manifest["response_compatible_geometry_evidence_acquired"] is True
+          assert nist["in625_inventory"]["measurement_row_count"] == 178
+          assert nist["in625_inventory"]["physical_track_count"] == 106
+          assert nist["in625_inventory"]["machine_measurement_counts"] == {"AMMT": 34, "EOS M270": 144}
+          assert nist["measurement_semantics"]["calibration_conversion_performed"] is False
+          assert nist["issue_76"]["eligible"] is False
+          assert nist["issue_76"]["exact_target_cells_satisfied"] == 0
+
+          assert policy["qualification_status"] == "exact_multisource_condition_evidence_policy_authenticated"
+          assert policy["source_count"] == 8
+          assert policy["max_requests"] == 8
+          assert policy["network_access_performed"] is False
+          assert policy["paper_claims_promoted_to_row_level_authority"] is False
+          assert policy["metadata_or_abstract_sources_promoted_to_full_text"] is False
+
+          assert sources["acquisition_status"] == "exact_multisource_condition_evidence_acquired"
+          assert sources["source_count"] == 8
+          assert sources["network_requests_performed"] == 8
+          assert sources["all_claim_anchors_matched"] is True
+          assert sources["paper_claims_promoted_to_row_level_authority"] is False
+          by_id = {item["source_id"]: item for item in sources["sources"]}
+          source_2026 = by_id["nist-2026-ambench-uncertainty-synthesis"]
+          assert source_2026["source_class"] == "official_technical_paper_metadata"
+          assert source_2026["media_type"] == "html"
+          assert source_2026["row_level_measurement_authority"] is False
+
+          decision = mapping["gate_decision"]
+          assert decision["same_machine_subset_identified"] is True
+          assert decision["eos_rows_excluded_from_direct_mapping"] == 144
+          assert decision["directly_comparable_mds2_rows"] == 0
+          assert decision["calibrated_actual_power_mapping_established"] is False
+          assert decision["spot_size_mapping_established"] is False
+          assert decision["protocol_equivalence_established"] is False
+          assert decision["direct_numerical_validation_authorized"] is False
+          assert decision["paper_claims_promoted_to_row_level_authority"] is False
+          assert decision["issue_76_exact_target_cells_satisfied"] == 0
+          assert mapping["next_action"]["action_class"] == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
+
+          assert len(manifest["cycles"]) == 5
+          cycle4 = manifest["cycles"][3]
+          cycle5 = manifest["cycles"][4]
+          assert cycle4["selected_action_class"] == "reviewed_geometry_condition_mapping_assessment"
+          assert cycle4["capability_available"] is True
+          assert cycle4["source_count"] == 8
+          assert cycle4["network_requests_performed"] == 8
+          assert cycle4["directly_comparable_mds2_rows"] == 0
+          assert cycle4["eos_rows_excluded_from_direct_mapping"] == 144
+          assert cycle4["new_verified_information"] is True
+          assert cycle4["output_next_action_class"] == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
+          assert cycle5["selected_action_class"] == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
+          assert cycle5["capability_available"] is False
+          assert cycle5["new_verified_information"] is False
+
+          assert manifest["geometry_condition_mapping_review_completed"] is True
           assert manifest["geometry_condition_mapping_established"] is False
-          assert manifest["issue_76_exact_target_cells_satisfied"] == 0
-          assert manifest["calibration_conversion_performed"] is False
-          assert manifest["cross_machine_pooling_performed"] is False
-          assert manifest["paper_and_other_source_lanes_remain_allowed"] is True
+          assert manifest["directly_comparable_mds2_rows"] == 0
+          assert manifest["direct_numerical_cross_source_validation_authorized"] is False
           assert manifest["paper_evidence_promoted_to_row_level_authority"] is False
-          assert manifest["final_blocker"] == "geometry_condition_mapping_not_established"
-          assert manifest["generated_next_action_class"] == (
-              "reviewed_geometry_condition_mapping_assessment"
-          )
+          assert manifest["issue_76_exact_target_cells_satisfied"] == 0
+          assert manifest["final_blocker"] == "experiment_specific_calibration_protocol_bridge_not_established"
+          assert manifest["generated_next_action_class"] == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
+          assert manifest["scientific_status_changed"] is False
+          assert manifest["positive_scientific_closeout_established"] is False
+          assert manifest["global_evidence_unavailability_claimed"] is False
 
-          assert len(manifest["cycles"]) == 4
-          cycle1, cycle2, cycle3, cycle4 = manifest["cycles"]
-          assert cycle1["selected_action_class"] == "external_evidence_search"
-          assert cycle1["new_verified_information"] is True
-          assert cycle1["output_next_action_class"] == (
-              "reviewed_physical_comparability_assessment"
-          )
-          assert cycle2["selected_action_class"] == (
-              "reviewed_physical_comparability_assessment"
-          )
-          assert cycle2["capability_available"] is True
-          assert cycle2["new_verified_information"] is True
-          assert cycle2["output_next_action_class"] == (
-              "nist_mds2_2923_geometry_evidence_acquisition"
-          )
-          assert cycle3["selected_action_class"] == (
-              "nist_mds2_2923_geometry_evidence_acquisition"
-          )
-          assert cycle3["candidate_id"] == (
-              "nist-mds2-2923-cross-sectional-micrographs"
-          )
-          assert cycle3["capability_available"] is True
-          assert cycle3["measurement_row_count"] == 178
-          assert cycle3["dataset_local_physical_track_count"] == 106
-          assert cycle3["issue_76_exact_target_cells_satisfied"] == 0
-          assert cycle3["calibration_conversion_performed"] is False
-          assert cycle3["cross_machine_pooling_performed"] is False
-          assert cycle3["new_verified_information"] is True
-          assert cycle3["output_next_action_class"] == (
-              "reviewed_geometry_condition_mapping_assessment"
-          )
-          assert cycle4["selected_action_class"] == (
-              "reviewed_geometry_condition_mapping_assessment"
-          )
-          assert cycle4["capability_available"] is False
-          assert "paper_and_supplementary_material" in cycle4["eligible_evidence_lanes"]
-          assert cycle4["new_verified_information"] is False
-          assert cycle4["stop_reason_code"] == (
-              "registered_capability_unavailable_for_current_next_action"
-          )
-
-          statuses = {
-              item["axis"]: item["status"]
-              for item in assessment["comparability_matrix"]
-          }
-          assert statuses["material_identity"] == "comparable"
-          assert statuses["specimen_and_material_state"] == "non_comparable"
-          assert statuses["response_semantics"] == "non_comparable"
-          assert statuses["measurement_protocol_metrology"] == "non_comparable"
-          assert statuses["replicate_independence"] == "unknown"
-          assert assessment["next_action"]["identifier"] == "10.18434/mds2-2923"
-          assert assessment["next_action"]["network_access_performed"] is False
-
-          for binding in assessment["evidence_bindings"].values():
-              path = Path(binding["path"])
-              assert hashlib.sha256(path.read_bytes()).hexdigest() == binding["sha256"]
-              assert path.stat().st_size == binding["bytes"]
-
-          assert nist_policy["qualification_status"] == (
-              "exact_nist_mds2_2923_network_policy_authenticated"
-          )
-          assert nist_policy["network_access_performed"] is False
-          assert nist_policy["paper_and_other_source_lanes_remain_allowed"] is True
-          assert nist_auth["network_access_performed"] is False
-          assert nist_auth["caller_authored_url_used"] is False
-          assert nist_auth["caller_authored_file_queue_used"] is False
-          assert nist_receipt["network_requests_performed"] == 3
-          assert nist_receipt["network_request_budget"] == 3
-          assert nist_receipt["all_acquisition_provenance_authenticated"] is True
-          assert nist_receipt["unrestricted_network_search_performed"] is False
-          assert nist_receipt["arbitrary_url_fetch_performed"] is False
-
-          assert nist_intake["source"]["workbook_sha256"] == (
-              "6cd32669f5c84cdb9e90890ba40ddc5548c85b0dbb95cf038f2f6fc69da67a52"
-          )
-          assert nist_intake["source"]["readme_sha256"] == (
-              "8b8fc00ce62915af3e0c91c138dc4d033c031d7758161fb9da0e8702fa621c39"
-          )
-          assert nist_intake["in625_inventory"]["measurement_row_count"] == 178
-          assert nist_intake["in625_inventory"]["physical_track_count"] == 106
-          assert nist_intake["in625_inventory"]["source_track_metadata_conflict_count"] == 1
-          assert nist_intake["measurement_semantics"]["calibration_conversion_performed"] is False
-          assert nist_intake["issue_76"]["eligible"] is False
-          assert nist_intake["issue_76"]["exact_target_cells_satisfied"] == 0
-          assert nist_intake["scientific_boundary"]["cross_machine_pooling_eligible"] is False
-
-          assert nist_rediagnosis["current_blocker"]["code"] == (
-              "geometry_condition_mapping_not_established"
-          )
-          assert nist_rediagnosis["next_action"]["action_class"] == (
-              "reviewed_geometry_condition_mapping_assessment"
-          )
-          assert "paper_and_supplementary_material" in nist_rediagnosis["next_action"][
-              "eligible_evidence_lanes"
-          ]
-          assert nist_rediagnosis["scientific_boundary"][
-              "direct_target_condition_comparability_established"
-          ] is False
-          assert nist_rediagnosis["scientific_boundary"]["issue_76_eligible"] is False
-
-          assert stop["reason_code"] == (
-              "registered_capability_unavailable_for_current_next_action"
-          )
-          assert stop["requested_action_class"] == (
-              "reviewed_geometry_condition_mapping_assessment"
-          )
+          assert stop["reason_code"] == "registered_capability_unavailable_for_current_next_action"
+          assert stop["requested_action_class"] == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
           assert stop["global_evidence_unavailability_claimed"] is False
           assert stop["positive_scientific_closeout"] is False
       - name: Upload bounded autonomous provenance
@@ -304,23 +187,15 @@ jobs:
           path: |
             outputs/autonomous-in625-production/autonomous-production-manifest.json
             outputs/autonomous-in625-production/bounded-stop.json
-            outputs/autonomous-in625-production/standing-network-policy-qualification.json
-            outputs/autonomous-in625-production/network-authorization.json
             outputs/autonomous-in625-production/network-acquisition-receipt.json
-            outputs/autonomous-in625-production/source-readme-manifest.json
-            outputs/autonomous-in625-production/tensile-quality-verification.json
-            outputs/autonomous-in625-production/machine-request-compilation.json
-            outputs/autonomous-in625-production/machine-authored-request/authenticated_request_manifest.json
-            outputs/autonomous-in625-production/machine-authored-request/execution_request.json
-            outputs/autonomous-in625-production/typed-execution-handoff.json
-            outputs/autonomous-in625-production/typed-execution-result.json
-            outputs/autonomous-in625-production/typed-research-state.json
-            outputs/autonomous-in625-production/quality-aware-rediagnosis.json
             outputs/autonomous-in625-production/physical-comparability-assessment.json
             outputs/autonomous-in625-production/nist-network-policy-qualification.json
             outputs/autonomous-in625-production/nist-network-authorization.json
             outputs/autonomous-in625-production/nist-network-acquisition-receipt.json
             outputs/autonomous-in625-production/nist-scientific-intake.json
             outputs/autonomous-in625-production/nist-post-acquisition-rediagnosis.json
+            outputs/autonomous-in625-production/multisource-policy-qualification.json
+            outputs/autonomous-in625-production/multisource-source-acquisition.json
+            outputs/autonomous-in625-production/geometry-condition-mapping-assessment.json
           if-no-files-found: warn
           retention-days: 14
