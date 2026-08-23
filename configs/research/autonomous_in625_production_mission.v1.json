@@ -11,7 +11,8 @@
     "The reviewed geometry-condition mapping acquires only mission-pinned official/paper sources, binds exact source bytes at execution, preserves claim/version conflicts, and never promotes literature claims to row-level measurement authority.",
     "Unavailable full text remains explicitly metadata/abstract evidence and is never represented as acquired full-text evidence.",
     "After re-diagnosis, the program generates the next scientific action from the new evidence state and stops only for an explicit bounded reason when that action is not registered.",
-    "When a valid next action lacks an executor, the program emits a provenance-bound capability gap/specification, promotes only independently verified bounded capabilities, resumes the blocked action, and may use only separately mission-pinned discovery indices for source discovery."
+    "When a valid next action lacks an executor, the program emits a provenance-bound capability gap/specification, promotes only independently verified bounded capabilities, resumes the blocked action, and may use only separately mission-pinned discovery indices for source discovery.",
+    "A source candidate discovered by a verified index capability may be acquired only through a separately mission-pinned derived-authority policy that binds the exact discovery report, predecessor manifest, candidate identity/rank, candidate page bytes, and any page-derived full-text link before scientific assessment."
   ],
   "constraints": [
     "Never fabricate or infer missing measurements, sample identity, replicate independence, calibration, or condition equivalence.",
@@ -20,7 +21,8 @@
     "Network failures are operational evidence only and are never negative scientific evidence.",
     "Authoritative datasets, papers and supplementary materials, official technical reports and documentation, characterization evidence, and other provenance-verifiable real physical evidence remain eligible evidence classes under source-specific trust and scientific-intake boundaries.",
     "Physical experiment execution remains external until a separately authorized laboratory interface exists.",
-    "Capability expansion may compose verified primitives or declarative adapters, but it may not synthesize unrestricted network authority, caller-authored URLs, arbitrary executable code, or scientific truth."
+    "Capability expansion may compose verified primitives or declarative adapters, but it may not synthesize unrestricted network authority, caller-authored URLs, arbitrary executable code, or scientific truth.",
+    "Discovery output is not acquisition authority; follow-up candidate acquisition must derive authority from authenticated predecessor artifacts and must not accept caller-authored candidate URLs."
   ],
   "stop_rules": [
     "When the current verified next-action class has no audited executor, attempt bounded capability expansion; stop only if no independently verifiable candidate is available under exact mission authority.",
@@ -51,6 +53,10 @@
     {
       "policy_id": "nist-ammt-publication-index-source-discovery-v1",
       "sha256": "e053faca2a28adae1d299d5771b6df4a99e1e15400b536e1f7502f34051a9324"
+    },
+    {
+      "policy_id": "nist-ammt-calibration-candidate-derived-acquisition-v1",
+      "sha256": "ef92f5d436a85f756d87e136ebc59a2cf64c932f8c599f23cd13c4c59bd8319b"
     }
   ],
   "request_delegation_policy_pins": [
@@ -77,6 +83,7 @@
     "post_nist_expected_action_class": "reviewed_geometry_condition_mapping_assessment",
     "post_geometry_mapping_expected_action_class": "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition",
     "post_bridge_expected_action_class": "experiment_specific_calibration_record_source_discovery",
+    "post_source_discovery_expected_action_class": "experiment_specific_calibration_record_candidate_acquisition",
     "evidence_source_scope": [
       "authoritative_dataset",
       "paper_and_supplementary_material",
