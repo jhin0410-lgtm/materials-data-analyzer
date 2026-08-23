@@ -40,6 +40,7 @@ on:
       - "tests/test_in625_physical_comparability_assessment.py"
       - "tests/test_nist_mds2_2923_production_extension.py"
       - "tests/test_nist_mds2_2923_scientific_intake.py"
+      - "tests/test_nist_mds2_2923_self_hash_contract.py"
   pull_request:
     paths:
       - ".github/workflows/autonomous-production-live.yml"
@@ -76,6 +77,7 @@ on:
       - "tests/test_in625_physical_comparability_assessment.py"
       - "tests/test_nist_mds2_2923_production_extension.py"
       - "tests/test_nist_mds2_2923_scientific_intake.py"
+      - "tests/test_nist_mds2_2923_self_hash_contract.py"
   workflow_dispatch:
 
 permissions:
@@ -108,17 +110,28 @@ jobs:
           tests/test_in625_physical_comparability_assessment.py
           tests/test_nist_mds2_2923_production_extension.py
           tests/test_nist_mds2_2923_scientific_intake.py
+          tests/test_nist_mds2_2923_self_hash_contract.py
           tests/test_in625_geometry_condition_multisource_extension.py
       - name: Run literal public autonomous command through mds2 reference-chain frontier
         run: mda-research-program run-autonomous
       - name: Verify live autonomous production result
         shell: python
         run: |
+          import hashlib
           import json
           from pathlib import Path
 
           root = Path("outputs/autonomous-in625-production")
           load = lambda name: json.loads((root / name).read_text(encoding="utf-8"))
+          canonical_sha = lambda value: hashlib.sha256(
+              json.dumps(
+                  value,
+                  ensure_ascii=False,
+                  sort_keys=True,
+                  separators=(",", ":"),
+                  allow_nan=False,
+              ).encode("utf-8")
+          ).hexdigest()
           manifest = load("autonomous-production-manifest.json")
           stop = load("bounded-stop.json")
           nist = load("nist-scientific-intake.json")
@@ -137,7 +150,7 @@ jobs:
           gap4 = load("capability-gap-4.json")
           spec4 = load("capability-specification-4.json")
           predecessor_resolution4 = load("capability-resolution-4.json")
-          derived_resolution4 = load("capability-resolution-4-derived.json")
+          candidate_reauth4 = load("capability-resolution-4-derived.json")
           candidate4 = load("capability-candidate-4.json")
           verification4 = load("capability-verification-4.json")
           registry4 = load("capability-registry-promoted-4.json")
@@ -160,6 +173,9 @@ jobs:
           assert manifest["missing_value_imputation_performed"] is False
           assert manifest["row_exclusion_performed"] is False
 
+          nist_unsigned = dict(nist)
+          nist_self_hash = nist_unsigned.pop("report_sha256_without_self_field")
+          assert nist_self_hash == canonical_sha(nist_unsigned)
           assert nist["in625_inventory"]["measurement_row_count"] == 178
           assert nist["in625_inventory"]["physical_track_count"] == 106
           assert nist["in625_inventory"]["machine_measurement_counts"] == {"AMMT": 34, "EOS M270": 144}
@@ -248,17 +264,20 @@ jobs:
 
           assert gap4["gap_class"] == "missing_analysis_executor"
           assert predecessor_resolution4["resolution_status"] == "bounded_candidate_discovered"
-          assert derived_resolution4["resolution_status"] == "bounded_candidate_discovered"
           predecessor_candidate4 = predecessor_resolution4["candidate"]
-          derived_candidate4 = derived_resolution4["candidate"]
           assert predecessor_candidate4["capability_specification_sha256"] == spec4["capability_specification_sha256_without_self_field"]
-          assert predecessor_candidate4["capability_candidate_sha256_without_self_field"] == derived_candidate4["capability_candidate_sha256_without_self_field"]
           assert predecessor_candidate4["capability_candidate_sha256_without_self_field"] == candidate4["capability_candidate_sha256_without_self_field"]
+          assert candidate_reauth4["resolution_status"] == "predecessor_candidate_reauthenticated"
+          assert candidate_reauth4["capability_specification_sha256"] == spec4["capability_specification_sha256_without_self_field"]
+          assert candidate_reauth4["capability_candidate_sha256"] == candidate4["capability_candidate_sha256_without_self_field"]
+          assert candidate_reauth4["candidate_rediscovery_performed"] is False
+          assert candidate_reauth4["unrestricted_discovery_performed"] is False
           assert candidate4["state"] == "candidate"
           assert candidate4["implementation_id"] == "mds2-2923-experiment-identity-reference-chain-v1"
           assert candidate4["network_authority_granted"] is False
           assert candidate4["execution_authority_granted"] is False
           assert candidate4["self_promotion_requested"] is False
+          assert verification4["semantic_spec_contract_verified"] is True
           assert verification4["all_required_checks_passed"] is True
           assert verification4["promotion_eligible"] is True
           assert verification4["real_source_smoke_receipt"]["network_requests_performed"] == 1
@@ -314,7 +333,9 @@ jobs:
           assert cycle10["bridge_established"] is False
           assert cycle10["output_next_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
           assert cycle11["selected_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
-          assert cycle11["bounded_candidate_discovered"] is True
+          assert cycle11["bounded_candidate_discovered"] is False
+          assert cycle11["predecessor_candidate_reauthenticated"] is True
+          assert cycle11["candidate_rediscovery_performed"] is False
           assert cycle11["capability_available"] is False
           assert cycle11["arbitrary_code_generation_performed"] is False
           assert cycle12["capability_available"] is True
@@ -337,6 +358,8 @@ jobs:
           assert manifest["fourth_capability_candidate_discovered"] is True
           assert manifest["fourth_capability_candidate_promoted"] is True
           assert manifest["fourth_research_action_resumed"] is True
+          assert manifest["fourth_candidate_reauthenticated_from_predecessor"] is True
+          assert manifest["fourth_candidate_rediscovery_performed"] is False
           assert manifest["dataset_to_weaver_association_established"] is True
           assert manifest["naderi_to_weaver_experiment_detail_reference_established"] is True
           assert manifest["mds2_195_800_condition_signature_match"] is True
