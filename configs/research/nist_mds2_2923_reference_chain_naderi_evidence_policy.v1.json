@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "policy_id": "nist-mds2-2923-reference-chain-naderi-evidence-v1",
   "action_class": "mds2_2923_experiment_identity_reference_chain_assessment",
   "source": {
@@ -27,22 +27,70 @@
   "claims": [
     {
       "claim_id": "naderi-ammt-in625-weaver-detail-reference",
-      "anchor_regex": "AMMT.*195\\s*W.*800\\s*mm/s.*spot diameters ranging from 50.*256.*More details are provided in the work of Weaver et\\s*al\\.\\s*\\[7\\]",
+      "match_mode": "ordered_same_page_fragments",
+      "max_span_utf8_bytes": 4096,
+      "required_fragments": [
+        "AMMT",
+        "195 W",
+        "800 mm/s",
+        "spot diameters ranging from 50",
+        "256",
+        "AMMT laser spot size",
+        "Single tracks on IN625 substrates",
+        "More details are provided",
+        "Weaver",
+        "[7]"
+      ],
       "scope": "Naderi identifies the IN625 AMMT 195 W / 800 mm/s spot-size experiment and delegates experiment details to Weaver et al. reference 7"
     },
     {
       "claim_id": "naderi-reference-7-weaver-spot-size-paper",
-      "anchor_regex": "7\\.\\s*Weaver JS.*Heigel JC.*Lane BM.*Laser spot size and scaling laws for laser beam additive manufacturing",
+      "match_mode": "ordered_same_page_fragments",
+      "max_span_utf8_bytes": 4096,
+      "required_fragments": [
+        "7. Weaver",
+        "Heigel JC",
+        "Lane BM",
+        "Laser spot size",
+        "J Manuf Process",
+        "73:26"
+      ],
       "scope": "Naderi bibliography resolves reference 7 to the Weaver/Heigel/Lane IN625 spot-size paper"
     },
     {
       "claim_id": "naderi-reference-31-ammt-design",
-      "anchor_regex": "31\\.\\s*Lane B.*Mekhontsev S.*Grantham S.*Design, developments, and results from the NIST additive manufacturing metrology testbed",
+      "match_mode": "ordered_same_page_fragments",
+      "max_span_utf8_bytes": 4096,
+      "required_fragments": [
+        "31. Lane",
+        "Mekhontsev S",
+        "Grantham S",
+        "Vlasea ML",
+        "Design, developments, and results",
+        "NIST additive",
+        "metrology testbed (AMMT)",
+        "2016 International solid",
+        "freeform fabrication symposium"
+      ],
       "scope": "Naderi bibliography resolves AMMT platform reference 31 to the 2016 NIST AMMT design paper"
     },
     {
       "claim_id": "naderi-reference-32-lane-in625-protocol",
-      "anchor_regex": "32\\.\\s*Lane B.*Heigel J.*Ricker R.*Measurements of melt pool geometry and cooling rates of individual laser traces on IN625 bare plates",
+      "match_mode": "ordered_same_page_fragments",
+      "max_span_utf8_bytes": 4096,
+      "required_fragments": [
+        "32. Lane",
+        "Heigel J",
+        "Ricker R",
+        "Zhirnov I",
+        "Weaver J",
+        "(2020)",
+        "melt pool geometry and cooling rates",
+        "individual laser traces",
+        "IN625 bare plates",
+        "Integr Mater Manuf Innov",
+        "9(1):16"
+      ],
       "scope": "Naderi bibliography resolves reference 32 to the Lane 2020 IN625 cross-section protocol paper"
     }
   ],
