@@ -19,7 +19,7 @@ MISSION = REPOSITORY_ROOT / "configs/research/autonomous_in625_production_missio
 POLICY = REPOSITORY_ROOT / "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
 FRONTIER = REPOSITORY_ROOT / "configs/research/in625_external_physical_source_frontier.v1.json"
 EXPECTED_MISSION_SHA256 = (
-    "44091458e8a10a6ba4ef67a47056d98e4ba1a2ac5e29695cbeba7bb79f47160f"
+    "414db2c30a229691078b4ede280221a2fbe47b003ce3455ba4af52027ee1afdb"
 )
 EXPECTED_POLICY_SHA256 = (
     "4b19c64f4f2c764f5315971c5afba16000763a4d307929ec5e463f42ee1cbebf"
