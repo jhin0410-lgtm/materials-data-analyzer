@@ -6,6 +6,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .nist_ammt_source_discovery_policy import (
+    POLICY_SHA256 as DISCOVERY_POLICY_SHA256,
+    SOURCE_URL as DISCOVERY_SOURCE_URL,
+)
+
 POLICY_ID = "nist-ammt-calibration-candidate-derived-acquisition-v1"
 ACTION_CLASS = "experiment_specific_calibration_record_candidate_acquisition"
 POLICY_PATH = (
@@ -106,6 +111,16 @@ def authenticate_nist_ammt_candidate_acquisition_policy(
         len(matches) == 1 and matches[0].get("sha256") == policy_sha,
         "mission derived acquisition policy pin does not match exact policy bytes",
     )
+    discovery_matches = [
+        item
+        for item in pins
+        if isinstance(item, dict) and item.get("policy_id") == DISCOVERY_POLICY_ID
+    ]
+    _require(
+        len(discovery_matches) == 1
+        and discovery_matches[0].get("sha256") == DISCOVERY_POLICY_SHA256,
+        "mission discovery-policy lineage does not match exact pinned bytes",
+    )
 
     expected_policy = {
         "schema_version": "1.0",
@@ -159,7 +174,9 @@ def authenticate_nist_ammt_candidate_acquisition_policy(
         "mission_sha256": mission_sha,
         "policy_sha256": policy_sha,
         "required_discovery_policy_id": DISCOVERY_POLICY_ID,
+        "required_discovery_policy_sha256": DISCOVERY_POLICY_SHA256,
         "required_discovery_source_id": DISCOVERY_SOURCE_ID,
+        "required_discovery_source_url": DISCOVERY_SOURCE_URL,
         "required_candidate_rank": REQUIRED_CANDIDATE_RANK,
         "required_candidate_host": REQUIRED_CANDIDATE_HOST,
         "candidate_path_prefix": CANDIDATE_PATH_PREFIX,
@@ -186,7 +203,9 @@ __all__ = [
     "CANDIDATE_PAGE_ALLOWED_HOSTS",
     "CANDIDATE_PATH_PREFIX",
     "DISCOVERY_POLICY_ID",
+    "DISCOVERY_POLICY_SHA256",
     "DISCOVERY_SOURCE_ID",
+    "DISCOVERY_SOURCE_URL",
     "FULL_TEXT_ALLOWED_HOSTS",
     "FULL_TEXT_LINK_LABEL",
     "FULL_TEXT_PATH_PREFIX",
