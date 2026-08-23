@@ -19,7 +19,7 @@ POLICY = ROOT / "configs/research/in625_geometry_condition_multisource_acquisiti
 REGISTRY = ROOT / "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
 TARGET_PROCESS = ROOT / "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
 TARGET_RESPONSE = ROOT / "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
-EXPECTED_MISSION_SHA = "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
+EXPECTED_MISSION_SHA = "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
 EXPECTED_POLICY_SHA = "a2b70b96096650811671db445bd27897795f028a508608c2eb7c4a0226658652"
 EXPECTED_REGISTRY_BLOB = "d117162543a8e0c01328d65acadbe482172b16dd"
 
@@ -71,11 +71,11 @@ def _write_repinned_fixture(
     registry_path = config / REGISTRY.name
     registry_path.write_bytes(registry_bytes)
 
-    policy = json.loads(POLICY.read_text(encoding="utf-8"))
-    policy["source_registry"]["git_blob_sha1"] = _blob_sha(registry_bytes)
+    policy_value = json.loads(POLICY.read_text(encoding="utf-8"))
+    policy_value["source_registry"]["git_blob_sha1"] = _blob_sha(registry_bytes)
     if mutate_policy is not None:
-        mutate_policy(policy)
-    policy_bytes = _json_bytes(policy)
+        mutate_policy(policy_value)
+    policy_bytes = _json_bytes(policy_value)
     policy_path = config / POLICY.name
     policy_path.write_bytes(policy_bytes)
 
@@ -105,7 +105,7 @@ def test_registry_repinning_cannot_substitute_source_or_claim_contract(
     tmp_path: Path,
     mutator: Any,
 ) -> None:
-    root, mission, policy, registry, mission_sha = _write_repinned_fixture(
+    root, mission, policy_path, registry_path, mission_sha = _write_repinned_fixture(
         tmp_path,
         mutate_registry=mutator,
     )
@@ -117,17 +117,17 @@ def test_registry_repinning_cannot_substitute_source_or_claim_contract(
             repository_root=root,
             mission_path=mission,
             expected_mission_sha256=mission_sha,
-            policy_path=policy,
-            registry_path=registry,
+            policy_path=policy_path,
+            registry_path=registry_path,
         )
 
 
 def test_policy_repinning_cannot_widen_hosts_or_request_budget(tmp_path: Path) -> None:
-    def mutate(policy: dict[str, Any]) -> None:
-        policy["network"]["allowed_hosts"].append("example.com")
-        policy["network"]["max_requests"] = 9
+    def mutate(value: dict[str, Any]) -> None:
+        value["network"]["allowed_hosts"].append("example.com")
+        value["network"]["max_requests"] = 9
 
-    root, mission, policy, registry, mission_sha = _write_repinned_fixture(
+    root, mission, policy_path, registry_path, mission_sha = _write_repinned_fixture(
         tmp_path,
         mutate_policy=mutate,
     )
@@ -139,8 +139,8 @@ def test_policy_repinning_cannot_widen_hosts_or_request_budget(tmp_path: Path) -
             repository_root=root,
             mission_path=mission,
             expected_mission_sha256=mission_sha,
-            policy_path=policy,
-            registry_path=registry,
+            policy_path=policy_path,
+            registry_path=registry_path,
         )
 
 

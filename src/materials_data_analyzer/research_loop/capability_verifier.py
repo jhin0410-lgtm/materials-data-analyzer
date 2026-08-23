@@ -13,14 +13,19 @@ from typing import Any, Mapping, Sequence
 
 from . import calibration_protocol_bridge_capability as bridge
 from . import capability_verifier as _this_module
+from . import nist_ammt_calibration_candidate_acquisition as candidate_acquisition
 from . import nist_ammt_calibration_source_discovery as discovery
 from .capability_registry import build_capability_verification_receipt
+from .nist_ammt_candidate_acquisition_policy import (
+    authenticate_nist_ammt_candidate_acquisition_policy,
+)
+from .nist_ammt_candidate_discovery_lineage import verify_discovery_lineage
 from .nist_ammt_source_discovery_policy import (
     authenticate_nist_ammt_source_discovery_policy,
 )
 
-CAPABILITY_VERIFIER_SCHEMA_VERSION = "1.1"
-CAPABILITY_VERIFIER_POLICY_VERSION = "1.1"
+CAPABILITY_VERIFIER_SCHEMA_VERSION = "1.3"
+CAPABILITY_VERIFIER_POLICY_VERSION = "1.3"
 
 
 class CapabilityVerifierError(ValueError):
@@ -140,6 +145,103 @@ def _verify_discovery_fixture() -> tuple[bool, bool]:
     return fixture_ok, boundary_ok
 
 
+def _verify_candidate_acquisition_fixture() -> tuple[bool, bool]:
+    candidate_url = (
+        "https://www.nist.gov/publications/"
+        "laser-calibration-powder-bed-fusion-additive-manufacturing-process"
+    )
+    candidate_id = "nist-ammt-index-" + hashlib.sha256(
+        candidate_url.encode("utf-8")
+    ).hexdigest()[:16]
+    discovery_report: dict[str, Any] = {
+        "schema_version": "1.0",
+        "action_class": discovery.ACTION_CLASS,
+        "discovery_status": "official_nist_ammt_publication_index_reviewed",
+        "policy_id": "nist-ammt-publication-index-source-discovery-v1",
+        "policy_sha256": (
+            "e053faca2a28adae1d299d5771b6df4a99e1e15400b536e1f7502f34051a9324"
+        ),
+        "source_index": {
+            "source_id": "nist-ammt-relevant-publications-index",
+            "requested_url": "https://www.nist.gov/el/ammt/relevant-publications",
+            "final_url": "https://www.nist.gov/el/ammt/relevant-publications",
+            "source_sha256": "a" * 64,
+        },
+        "candidate_links_followed": 0,
+        "caller_authored_url_used": False,
+        "unrestricted_search_performed": False,
+        "candidate_urls_gain_acquisition_authority": False,
+        "candidates": [
+            {
+                "candidate_id": candidate_id,
+                "rank": 1,
+                "url": candidate_url,
+                "link_host": "www.nist.gov",
+                "discovered_from_source_id": "nist-ammt-relevant-publications-index",
+                "candidate_url_followed": False,
+                "acquisition_authorized": False,
+                "row_level_measurement_authority": False,
+            }
+        ],
+        "next_action": {
+            "action_class": candidate_acquisition.ACTION_CLASS,
+            "candidate_ids": [candidate_id],
+            "automatic_acquisition_authorized": False,
+            "caller_authored_arbitrary_urls_authorized": False,
+        },
+    }
+    discovery_report["report_sha256_without_self_field"] = _canonical_sha(discovery_report)
+    manifest: dict[str, Any] = {
+        "nist_ammt_source_discovery_sha256": discovery_report[
+            "report_sha256_without_self_field"
+        ],
+        "generated_next_action_class": candidate_acquisition.ACTION_CLASS,
+        "third_capability_gap_emitted": True,
+        "directly_comparable_mds2_rows": 0,
+        "issue_76_exact_target_cells_satisfied": 0,
+        "bridge_established": False,
+    }
+    manifest["manifest_sha256"] = _canonical_sha(manifest)
+    qualification = {
+        "qualification_status": "exact_nist_ammt_candidate_acquisition_policy_authenticated",
+        "policy_id": "nist-ammt-calibration-candidate-derived-acquisition-v1",
+        "policy_sha256": "b" * 64,
+        "mission_sha256": "c" * 64,
+        "action_class": candidate_acquisition.ACTION_CLASS,
+    }
+    try:
+        authorization = candidate_acquisition.build_derived_candidate_authorization(
+            qualification=qualification,
+            discovery_report=discovery_report,
+            predecessor_manifest=manifest,
+        )
+        fixture_page = b"""
+        <html><body><h1>Laser Calibration for Powder Bed Fusion Additive Manufacturing Process</h1>
+        <div>Published July 27, 2022</div><div>Author(s) Ho Yeung, Steven Grantham</div>
+        <h3>Download Paper</h3>
+        <a href='https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935350'>Local Download</a>
+        <a href='https://evil.example/forged.pdf'>Local Download</a>
+        </body></html>
+        """
+        _, pdf_url = candidate_acquisition._parse_candidate_page(
+            fixture_page,
+            authorization["candidate_url"],
+        )
+    except (TypeError, ValueError):
+        return False, False
+    fixture_ok = (
+        authorization.get("candidate_url_derived_from_discovery") is True
+        and authorization.get("candidate_rank") == 1
+        and pdf_url == "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935350"
+    )
+    boundary_ok = (
+        authorization.get("caller_authored_url_used") is False
+        and authorization.get("full_text_url_derived_from_candidate_page") is False
+        and authorization.get("scientific_status_change_authorized") is False
+    )
+    return fixture_ok, boundary_ok
+
+
 def _implementation_contract(
     candidate: Mapping[str, Any],
 ) -> tuple[object, tuple[str, ...], str, str, str]:
@@ -160,6 +262,14 @@ def _implementation_contract(
             discovery.IMPLEMENTATION_ID,
             "generate_declarative_adapter_instance",
         )
+    if action_class == candidate_acquisition.ACTION_CLASS:
+        return (
+            candidate_acquisition,
+            candidate_acquisition.REQUIRED_VERIFIED_PRIMITIVES,
+            candidate_acquisition.FACTORY_ID,
+            candidate_acquisition.IMPLEMENTATION_ID,
+            "generate_declarative_adapter_instance",
+        )
     raise CapabilityVerifierError("no verifier is registered for candidate action class")
 
 
@@ -169,6 +279,7 @@ def _real_source_smoke(
     repository_root: str | Path,
     mission_path: str | Path,
     expected_mission_sha256: str,
+    verification_context: Mapping[str, Any] | None,
 ) -> tuple[bool, dict[str, Any]]:
     if module is bridge:
         receipt = bridge.smoke_exact_source_authority(
@@ -185,27 +296,80 @@ def _real_source_smoke(
         )
         return ok, receipt
 
-    qualification = authenticate_nist_ammt_source_discovery_policy(
+    if module is discovery:
+        qualification = authenticate_nist_ammt_source_discovery_policy(
+            repository_root=repository_root,
+            mission_path=mission_path,
+            expected_mission_sha256=expected_mission_sha256,
+        )
+        receipt = discovery.discover_nist_ammt_calibration_sources(
+            qualification=qualification,
+        )
+        ok = (
+            receipt.get("discovery_status")
+            == "official_nist_ammt_publication_index_reviewed"
+            and receipt.get("network_requests_performed") == 1
+            and receipt.get("candidate_count", 0) > 0
+            and receipt.get("candidate_links_followed") == 0
+            and receipt.get("unrestricted_search_performed") is False
+            and receipt.get("caller_authored_url_used") is False
+            and receipt.get("candidate_urls_gain_acquisition_authority") is False
+            and receipt.get("global_evidence_unavailability_claimed") is False
+            and receipt.get("scientific_status_changed") is False
+        )
+        return ok, receipt
+
+    _require(
+        isinstance(verification_context, Mapping),
+        "derived candidate acquisition verification requires predecessor context",
+    )
+    discovery_report = verification_context.get("discovery_report")
+    predecessor_manifest = verification_context.get("predecessor_manifest")
+    _require(
+        isinstance(discovery_report, Mapping)
+        and isinstance(predecessor_manifest, Mapping),
+        "derived candidate acquisition verification context is incomplete",
+    )
+    qualification = authenticate_nist_ammt_candidate_acquisition_policy(
         repository_root=repository_root,
         mission_path=mission_path,
         expected_mission_sha256=expected_mission_sha256,
     )
-    receipt = discovery.discover_nist_ammt_calibration_sources(
+    lineage = verify_discovery_lineage(
         qualification=qualification,
+        discovery_report=discovery_report,
+    )
+    receipt = candidate_acquisition.smoke_derived_candidate_acquisition(
+        repository_root=str(repository_root),
+        mission_path=str(mission_path),
+        expected_mission_sha256=expected_mission_sha256,
+        discovery_report=discovery_report,
+        predecessor_manifest=predecessor_manifest,
     )
     ok = (
-        receipt.get("discovery_status")
-        == "official_nist_ammt_publication_index_reviewed"
-        and receipt.get("network_requests_performed") == 1
-        and receipt.get("candidate_count", 0) > 0
-        and receipt.get("candidate_links_followed") == 0
-        and receipt.get("unrestricted_search_performed") is False
+        lineage.get("verification_status")
+        == "exact_discovery_policy_source_and_rank1_lineage_verified"
+        and receipt.get("acquisition_status")
+        == "derived_nist_calibration_candidate_and_full_text_acquired"
+        and receipt.get("network_requests_performed") == 2
+        and receipt.get("candidate_url_derived_from_discovery") is True
+        and receipt.get("full_text_url_derived_from_candidate_page") is True
         and receipt.get("caller_authored_url_used") is False
-        and receipt.get("candidate_urls_gain_acquisition_authority") is False
-        and receipt.get("global_evidence_unavailability_claimed") is False
+        and receipt.get("unrestricted_search_performed") is False
+        and receipt.get("literature_promoted_to_row_level_measurement_authority") is False
+        and receipt.get("acquisition_success_establishes_calibration_bridge") is False
         and receipt.get("scientific_status_changed") is False
     )
-    return ok, receipt
+    combined: dict[str, Any] = {
+        "schema_version": "1.0",
+        "smoke_status": "derived_candidate_lineage_and_acquisition_verified",
+        "lineage_verification": lineage,
+        "acquisition_receipt": receipt,
+        "network_requests_performed": receipt.get("network_requests_performed"),
+        "scientific_status_changed": False,
+    }
+    combined["report_sha256_without_self_field"] = _canonical_sha(combined)
+    return ok, combined
 
 
 def verify_bounded_capability_candidate(
@@ -217,6 +381,7 @@ def verify_bounded_capability_candidate(
     mission_path: str | Path,
     expected_mission_sha256: str,
     perform_real_source_smoke: bool,
+    verification_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Verify one candidate and return a byte-bound independent promotion receipt."""
     module, required_primitives, factory_id, implementation_id, mechanism = (
@@ -242,8 +407,10 @@ def verify_bounded_capability_candidate(
 
     if module is bridge:
         fixture_ok, epistemic_boundary_ok = _verify_bridge_fixture()
-    else:
+    elif module is discovery:
         fixture_ok, epistemic_boundary_ok = _verify_discovery_fixture()
+    else:
+        fixture_ok, epistemic_boundary_ok = _verify_candidate_acquisition_fixture()
 
     smoke_receipt: dict[str, Any] | None = None
     if perform_real_source_smoke:
@@ -252,6 +419,7 @@ def verify_bounded_capability_candidate(
             repository_root=repository_root,
             mission_path=mission_path,
             expected_mission_sha256=expected_mission_sha256,
+            verification_context=verification_context,
         )
     else:
         real_source_smoke_ok = False

@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "nist-ammt-calibration-candidate-derived-acquisition-v1",
+  "action_class": "experiment_specific_calibration_record_candidate_acquisition",
+  "derived_authority": {
+    "required_discovery_policy_id": "nist-ammt-publication-index-source-discovery-v1",
+    "required_discovery_source_id": "nist-ammt-relevant-publications-index",
+    "required_candidate_rank": 1,
+    "required_candidate_host": "www.nist.gov",
+    "candidate_path_prefix": "/publications/",
+    "caller_authored_candidate_urls_allowed": false,
+    "candidate_may_self_authorize": false,
+    "discovery_report_and_manifest_binding_required": true
+  },
+  "network": {
+    "scheme": "https",
+    "candidate_page_allowed_hosts": [
+      "www.nist.gov"
+    ],
+    "full_text_allowed_hosts": [
+      "tsapps.nist.gov"
+    ],
+    "max_requests": 2,
+    "max_candidate_page_bytes": 2097152,
+    "max_full_text_bytes": 16777216,
+    "max_total_bytes": 18874368,
+    "timeout_seconds": 90,
+    "unrestricted_search_allowed": false,
+    "caller_authored_urls_allowed": false,
+    "candidate_page_same_host_redirects_only": true,
+    "full_text_link_must_be_derived_from_candidate_page": true
+  },
+  "full_text": {
+    "required_link_label": "Local Download",
+    "allowed_path_prefix": "/publication/get_pdf.cfm",
+    "required_query_parameter": "pub_id",
+    "pdf_magic_required": true,
+    "full_text_may_be_row_level_measurement_authority": false
+  },
+  "authority": {
+    "acquisition_success_establishes_calibration_bridge": false,
+    "literature_may_be_row_level_measurement_authority": false,
+    "scientific_status_change_authorized_by_acquisition": false,
+    "global_evidence_unavailability_may_be_claimed_from_failure": false
+  }
+}

@@ -16,7 +16,7 @@ from materials_data_analyzer.research_loop import (
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
-from materials_data_analyzer.research_loop.autonomous_production_recursive_capability_extension import (
+from materials_data_analyzer.research_loop.autonomous_production_candidate_acquisition_extension import (
     run_autonomous_production,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import (
@@ -33,7 +33,7 @@ _AUTONOMOUS_PRODUCTION_MISSION = Path(
     "configs/research/autonomous_in625_production_mission.v1.json"
 )
 _AUTONOMOUS_PRODUCTION_MISSION_SHA256 = (
-    "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
+    "12cef407f27e6ff84bbee612c3fdf67c33b4a64ff326e84a76e70ece6441678d"
 )
 _AUTONOMOUS_PRODUCTION_OUTPUT = Path("outputs/autonomous-in625-production")
 
@@ -97,8 +97,9 @@ def build_parser() -> argparse.ArgumentParser:
             "result-to-graph transitions, run a finite policy-authorized local execute-record-regate "
             "loop, or run the exact audited autonomous IN625 production profile. Only run-autonomous "
             "may initiate narrowly mission-pinned Zenodo, NIST mds2-2923, reviewed official/paper "
-            "condition-evidence acquisition, and mission-pinned NIST AMMT publication-index discovery; "
-            "no command grants unrestricted-web, physical-experiment, or arbitrary-command authority."
+            "condition evidence, NIST AMMT publication-index discovery, and provenance-derived NIST "
+            "calibration-candidate acquisition; no command grants unrestricted-web, physical-experiment, "
+            "caller-authored URL, or arbitrary-command authority."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -125,10 +126,12 @@ def build_parser() -> argparse.ArgumentParser:
             "SHA: acquire Zenodo 20503603, execute the typed row-level intake and physical "
             "comparability gate, acquire and scientifically intake exact NIST mds2-2923 geometry "
             "evidence, acquire mission-pinned NIST official pages and primary papers, run reviewed "
-            "geometry-condition mapping, expand and independently verify a missing bridge capability, "
-            "resume it, then repeat capability expansion for mission-pinned NIST AMMT source discovery. "
-            "Literature and discovered links retain their original authority and never become row-level "
-            "measurements or automatic acquisition authority."
+            "geometry-condition mapping, expand/verify/resume the missing bridge capability, repeat "
+            "capability expansion for mission-pinned NIST AMMT source discovery, then derive and "
+            "independently verify a candidate-acquisition capability from the exact discovery report "
+            "and predecessor manifest before acquiring the NIST publication page/full text and running "
+            "a conservative experiment-specific bridge assessment. Literature retains its original "
+            "authority and never becomes row-level measurement evidence."
         ),
     )
     autonomous.add_argument(
@@ -149,8 +152,8 @@ def build_parser() -> argparse.ArgumentParser:
     autonomous.add_argument(
         "--max-cycles",
         type=int,
-        default=8,
-        help="Maximum audited production cycles (1-8). Defaults to 8.",
+        default=10,
+        help="Maximum audited production cycles (1-10). Defaults to 10.",
     )
 
     show = subparsers.add_parser(
