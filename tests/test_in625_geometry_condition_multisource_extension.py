@@ -19,7 +19,7 @@ POLICY = ROOT / "configs/research/in625_geometry_condition_multisource_acquisiti
 REGISTRY = ROOT / "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
 TARGET_PROCESS = ROOT / "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
 TARGET_RESPONSE = ROOT / "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
-EXPECTED_MISSION_SHA = "414db2c30a229691078b4ede280221a2fbe47b003ce3455ba4af52027ee1afdb"
+EXPECTED_MISSION_SHA = "0698af600f40aef88469f20e8d380851fae2a130a556fd512640493b30e2cf04"
 EXPECTED_POLICY_SHA = "a2b70b96096650811671db445bd27897795f028a508608c2eb7c4a0226658652"
 EXPECTED_REGISTRY_BLOB = "d117162543a8e0c01328d65acadbe482172b16dd"
 
