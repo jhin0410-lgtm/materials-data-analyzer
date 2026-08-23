@@ -221,8 +221,12 @@ def run_autonomous_production(
         output / "capability-specification-3.json",
         "third capability specification",
     )
-    cycles = manifest.get("cycles")
-    _require(isinstance(cycles, list) and len(cycles) == 8, "recursive cycle history drifted")
+    predecessor_cycles = manifest.get("cycles")
+    _require(
+        isinstance(predecessor_cycles, list) and len(predecessor_cycles) == 8,
+        "recursive cycle history drifted",
+    )
+    cycles = list(predecessor_cycles)
     _require(
         manifest.get("generated_next_action_class") == candidate_acquisition.ACTION_CLASS
         and manifest.get("third_capability_gap_emitted") is True
