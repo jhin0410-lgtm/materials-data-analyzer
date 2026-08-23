@@ -21,6 +21,8 @@
       "url": "https://www.nist.gov/ambench/amb2018-02-description",
       "media_type": "html",
       "authority": "National Institute of Standards and Technology",
+      "source_owner": "NIST Additive Manufacturing Benchmark Test Series",
+      "document_date_status": "living_official_web_document",
       "title": "AMB2018-02 Description",
       "claims_under_review": [
         {
@@ -41,6 +43,8 @@
       "url": "https://www.nist.gov/ambench/benchmark-test-data",
       "media_type": "html",
       "authority": "National Institute of Standards and Technology",
+      "source_owner": "NIST Additive Manufacturing Benchmark Test Series",
+      "document_date_status": "living_official_web_document",
       "title": "Benchmark Test Data",
       "claims_under_review": [
         {
@@ -56,6 +60,8 @@
       "url": "https://www.nist.gov/ambench/challenges-and-descriptions",
       "media_type": "html",
       "authority": "National Institute of Standards and Technology",
+      "source_owner": "NIST Additive Manufacturing Benchmark Test Series",
+      "document_date_status": "living_official_web_document",
       "title": "Challenges and Descriptions",
       "claims_under_review": [
         {
@@ -72,6 +78,14 @@
       "media_type": "pdf",
       "authority": "NIST-hosted primary paper",
       "title": "Topographic Measurement of Individual Laser Tracks in Alloy 625 Bare Plates",
+      "authors": [
+        "Richard E. Ricker",
+        "Jarred C. Heigel",
+        "Brandon M. Lane",
+        "Ivan Zhirnov",
+        "Lyle E. Levine"
+      ],
+      "publication_date": "2019-10-10",
       "doi": "10.1007/s40192-019-00157-0",
       "claims_under_review": [
         {
@@ -88,6 +102,19 @@
       "media_type": "pdf",
       "authority": "NIST-hosted primary paper",
       "title": "Measurements of Melt Pool Geometry and Cooling Rates of Individual Laser Traces on IN625 Bare Plates",
+      "authors": [
+        "Brandon M. Lane",
+        "Jarred C. Heigel",
+        "Richard E. Ricker",
+        "Ivan Zhirnov",
+        "Vladimir Khromchenko",
+        "Jordan S. Weaver",
+        "Thien Q. Phan",
+        "Mark R. Stoudt",
+        "Sergey Mekhontsev",
+        "Lyle E. Levine"
+      ],
+      "publication_date": "2020-02-05",
       "doi": "10.1007/s40192-020-00169-1",
       "claims_under_review": [
         {
@@ -124,6 +151,12 @@
       "media_type": "html",
       "authority": "NIST official publication record",
       "title": "Laser spot size and scaling laws for laser beam additive manufacturing",
+      "authors": [
+        "Jordan Weaver",
+        "Jarred C. Heigel",
+        "Brandon Lane"
+      ],
+      "publication_date": "2021-11-03",
       "doi": "10.1016/j.jmapro.2021.10.053",
       "claims_under_review": [
         {
@@ -141,6 +174,14 @@
       "media_type": "pdf",
       "authority": "NIST-hosted primary paper",
       "title": "On the Fidelity of the Scaling Laws for Melt Pool Depth Analysis During Laser Powder Bed Fusion",
+      "authors": [
+        "Mehdi Naderi",
+        "Jordan Weaver",
+        "David Deisenroth",
+        "Nagaraja Iyyer",
+        "Raymond McCauley"
+      ],
+      "publication_date": "2022-12-27",
       "doi": "10.1007/s40192-022-00289-w",
       "claims_under_review": [
         {
@@ -167,6 +208,16 @@
       "media_type": "pdf",
       "authority": "NIST-hosted conference paper",
       "title": "ENABLING MODELERS TO TEST THEIR SIMULATIONS AGAINST RIGOROUS, HIGHLY CONTROLLED ADDITIVE MANUFACTURING BENCHMARK (AM BENCH) MEASUREMENT DATA",
+      "authors": [
+        "Jordan Weaver",
+        "David Deisenroth",
+        "Timothy Redford",
+        "Sergey Mekhontsev",
+        "Sandra Young",
+        "Brandon Lane",
+        "Lyle Levine"
+      ],
+      "publication_date": "2026-07-06",
       "claims_under_review": [
         {
           "claim_id": "nist-2026-machine-parameter-uncertainty",
