@@ -135,6 +135,7 @@ jobs:
           acquisition3 = load("nist-ammt-calibration-candidate-acquisition.json")
           assessment3 = load("nist-ammt-calibration-candidate-bridge-assessment.json")
           gap4 = load("capability-gap-4.json")
+          spec4 = load("capability-specification-4.json")
           predecessor_resolution4 = load("capability-resolution-4.json")
           derived_resolution4 = load("capability-resolution-4-derived.json")
           candidate4 = load("capability-candidate-4.json")
@@ -246,8 +247,13 @@ jobs:
           assert assessment3["next_action"]["action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
 
           assert gap4["gap_class"] == "missing_analysis_executor"
-          assert predecessor_resolution4["resolution_status"] == "no_bounded_candidate_available"
+          assert predecessor_resolution4["resolution_status"] == "bounded_candidate_discovered"
           assert derived_resolution4["resolution_status"] == "bounded_candidate_discovered"
+          predecessor_candidate4 = predecessor_resolution4["candidate"]
+          derived_candidate4 = derived_resolution4["candidate"]
+          assert predecessor_candidate4["capability_specification_sha256"] == spec4["capability_specification_sha256_without_self_field"]
+          assert predecessor_candidate4["capability_candidate_sha256_without_self_field"] == derived_candidate4["capability_candidate_sha256_without_self_field"]
+          assert predecessor_candidate4["capability_candidate_sha256_without_self_field"] == candidate4["capability_candidate_sha256_without_self_field"]
           assert candidate4["state"] == "candidate"
           assert candidate4["implementation_id"] == "mds2-2923-experiment-identity-reference-chain-v1"
           assert candidate4["network_authority_granted"] is False
