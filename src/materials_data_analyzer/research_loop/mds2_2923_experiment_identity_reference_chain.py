@@ -45,13 +45,32 @@ def _canonical_sha(value: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _validate_hash(report: Mapping[str, Any], field: str = "report_sha256_without_self_field") -> str:
+def _validate_hash(
+    report: Mapping[str, Any],
+    field: str = "report_sha256_without_self_field",
+) -> str:
     digest = report.get(field)
     _require(isinstance(digest, str) and len(digest) == 64, f"{field} is missing")
     unsigned = dict(report)
     unsigned.pop(field, None)
     _require(_canonical_sha(unsigned) == digest, f"{field} is invalid")
     return digest
+
+
+def _metadata_description_text(metadata: Mapping[str, Any]) -> str:
+    """Accept only the historical string fixture or exact one-element NERDm list shape."""
+    description = metadata.get("description")
+    if isinstance(description, str):
+        _require(bool(description), "NERDm description is missing")
+        return description
+    _require(
+        isinstance(description, list)
+        and len(description) == 1
+        and isinstance(description[0], str)
+        and bool(description[0]),
+        "NERDm description must be text or one non-empty text item",
+    )
+    return description[0]
 
 
 def _metadata_associations(nerdm_metadata_bytes: bytes) -> tuple[str, list[str]]:
@@ -64,11 +83,13 @@ def _metadata_associations(nerdm_metadata_bytes: bytes) -> tuple[str, list[str]]
     _require(isinstance(metadata, dict), "NERDm metadata root must be an object")
     identifiers = [metadata.get(key) for key in ("@id", "ediid", "doi")]
     _require(
-        any(isinstance(value, str) and "mds2-2923" in value.lower() for value in identifiers),
+        any(
+            isinstance(value, str) and "mds2-2923" in value.lower()
+            for value in identifiers
+        ),
         "NERDm metadata does not identify mds2-2923",
     )
-    description = metadata.get("description")
-    _require(isinstance(description, str) and description, "NERDm description is missing")
+    description = _metadata_description_text(metadata)
     normalized = re.sub(r"\s+", " ", description)
     associations = [
         doi
@@ -89,21 +110,36 @@ def _claim_map(report: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     for item in raw:
         _require(isinstance(item, Mapping), "reference claim must be an object")
         claim_id = item.get("claim_id")
-        _require(isinstance(claim_id, str) and claim_id, "reference claim identity missing")
+        _require(
+            isinstance(claim_id, str) and claim_id,
+            "reference claim identity missing",
+        )
         _require(claim_id not in result, "reference claim identity repeated")
         result[claim_id] = item
     return result
 
 
-def _find_multisource_source(report: Mapping[str, Any], source_id: str) -> Mapping[str, Any]:
+def _find_multisource_source(
+    report: Mapping[str, Any],
+    source_id: str,
+) -> Mapping[str, Any]:
     sources = report.get("sources")
     _require(isinstance(sources, list), "multisource evidence sources are missing")
-    matches = [item for item in sources if isinstance(item, Mapping) and item.get("source_id") == source_id]
+    matches = [
+        item
+        for item in sources
+        if isinstance(item, Mapping) and item.get("source_id") == source_id
+    ]
     _require(len(matches) == 1, f"multisource source {source_id} is not unique")
     return matches[0]
 
 
-def _find_discovery_candidate(report: Mapping[str, Any], *, doi: str | None = None, title_token: str | None = None) -> Mapping[str, Any]:
+def _find_discovery_candidate(
+    report: Mapping[str, Any],
+    *,
+    doi: str | None = None,
+    title_token: str | None = None,
+) -> Mapping[str, Any]:
     candidates = report.get("candidates")
     _require(isinstance(candidates, list), "source discovery candidates are missing")
     matches: list[Mapping[str, Any]] = []
@@ -114,7 +150,9 @@ def _find_discovery_candidate(report: Mapping[str, Any], *, doi: str | None = No
         label = str(item.get("link_label", ""))
         if doi is not None and doi in url:
             matches.append(item)
-        elif title_token is not None and title_token.lower() in (url + " " + label).lower():
+        elif title_token is not None and title_token.lower() in (
+            url + " " + label
+        ).lower():
             matches.append(item)
     _require(len(matches) == 1, "required official-index candidate is not unique")
     return matches[0]
@@ -138,7 +176,10 @@ def build_mds2_2923_experiment_identity_reference_chain(
 
     source = nist_intake.get("source")
     _require(isinstance(source, Mapping), "mds2 scientific-intake source is missing")
-    _require(source.get("product_id") == "mds2-2923", "scientific intake product drifted")
+    _require(
+        source.get("product_id") == "mds2-2923",
+        "scientific intake product drifted",
+    )
     metadata_sha, associations = _metadata_associations(nerdm_metadata_bytes)
     _require(
         metadata_sha == source.get("nerdm_metadata_sha256"),
@@ -162,20 +203,25 @@ def build_mds2_2923_experiment_identity_reference_chain(
     support = nist_intake.get("machine_power_speed_support")
     _require(isinstance(support, list), "mds2 support table is missing")
     support195 = [
-        item for item in support
+        item
+        for item in support
         if isinstance(item, Mapping)
         and item.get("machine") == "AMMT"
         and item.get("laser_power_w_machine_setting") == 195.0
         and item.get("scan_speed_mm_s_machine_setting") == 800.0
     ]
     support180 = [
-        item for item in support
+        item
+        for item in support
         if isinstance(item, Mapping)
         and item.get("machine") == "AMMT"
         and item.get("laser_power_w_machine_setting") == 180.0
         and item.get("scan_speed_mm_s_machine_setting") == 800.0
     ]
-    _require(len(support195) == 1 and len(support180) == 1, "mds2 AMMT 180/195 support drifted")
+    _require(
+        len(support195) == 1 and len(support180) == 1,
+        "mds2 AMMT 180/195 support drifted",
+    )
     _require(
         support195[0].get("measurement_count") == 18
         and support195[0].get("independent_physical_track_count") == 18
@@ -219,8 +265,14 @@ def build_mds2_2923_experiment_identity_reference_chain(
         "Naderi reference-chain claims are incomplete",
     )
 
-    weaver_meta = _find_multisource_source(multisource_evidence, "weaver-2021-spot-size-scaling-metadata")
-    lane = _find_multisource_source(multisource_evidence, "lane-2020-melt-pool-geometry")
+    weaver_meta = _find_multisource_source(
+        multisource_evidence,
+        "weaver-2021-spot-size-scaling-metadata",
+    )
+    lane = _find_multisource_source(
+        multisource_evidence,
+        "lane-2020-melt-pool-geometry",
+    )
     _require(
         weaver_meta.get("source_class") == "primary_paper_metadata"
         and weaver_meta.get("doi") == WEAVER_DOI,
@@ -231,10 +283,16 @@ def build_mds2_2923_experiment_identity_reference_chain(
         and lane.get("doi") == LANE_DOI,
         "Lane 2020 protocol evidence identity drifted",
     )
-    weaver_candidate = _find_discovery_candidate(source_discovery_report, doi=WEAVER_DOI)
+    weaver_candidate = _find_discovery_candidate(
+        source_discovery_report,
+        doi=WEAVER_DOI,
+    )
     design_candidate = _find_discovery_candidate(
         source_discovery_report,
-        title_token="design-developments-and-results-nist-additive-manufacturing-metrology-testbed-ammt",
+        title_token=(
+            "design-developments-and-results-nist-additive-manufacturing-"
+            "metrology-testbed-ammt"
+        ),
     )
     _require(
         weaver_candidate.get("acquisition_authorized") is False
@@ -242,21 +300,55 @@ def build_mds2_2923_experiment_identity_reference_chain(
         "reference identifiers already gained acquisition authority",
     )
     _require(
-        calibration_candidate_assessment.get("experiment_specific_bridge", {}).get("bridge_established") is False
+        calibration_candidate_assessment.get("experiment_specific_bridge", {}).get(
+            "bridge_established"
+        )
+        is False
         and calibration_candidate_assessment.get("evidence_scope", {}).get(
             "digital_camera_in_situ_calibration_methodology_established"
-        ) is True,
+        )
+        is True,
         "calibration predecessor boundary drifted",
     )
 
     nodes = [
-        {"node_id": "dataset:mds2-2923", "node_type": "authoritative_dataset", "authority": "row_level_only_for_workbook_measurements"},
-        {"node_id": f"paper:{WEAVER_DOI}", "node_type": "primary_paper", "full_text_acquired": False},
-        {"node_id": f"paper:{NADERI_DOI}", "node_type": "primary_paper", "full_text_acquired": True},
-        {"node_id": f"paper:{LANE_DOI}", "node_type": "primary_paper", "full_text_acquired": True},
-        {"node_id": "paper:nist-ammt-design-2016", "node_type": "primary_paper", "full_text_acquired_in_reference_chain": False},
-        {"node_id": "paper:nist-laser-calibration-2022", "node_type": "primary_paper", "full_text_acquired": True},
-        {"node_id": "condition:mds2-ammt-195w-800", "node_type": "dataset_condition_subset", "measurement_rows": 18, "physical_tracks": 18, "spot_levels_um": spots195},
+        {
+            "node_id": "dataset:mds2-2923",
+            "node_type": "authoritative_dataset",
+            "authority": "row_level_only_for_workbook_measurements",
+        },
+        {
+            "node_id": f"paper:{WEAVER_DOI}",
+            "node_type": "primary_paper",
+            "full_text_acquired": False,
+        },
+        {
+            "node_id": f"paper:{NADERI_DOI}",
+            "node_type": "primary_paper",
+            "full_text_acquired": True,
+        },
+        {
+            "node_id": f"paper:{LANE_DOI}",
+            "node_type": "primary_paper",
+            "full_text_acquired": True,
+        },
+        {
+            "node_id": "paper:nist-ammt-design-2016",
+            "node_type": "primary_paper",
+            "full_text_acquired_in_reference_chain": False,
+        },
+        {
+            "node_id": "paper:nist-laser-calibration-2022",
+            "node_type": "primary_paper",
+            "full_text_acquired": True,
+        },
+        {
+            "node_id": "condition:mds2-ammt-195w-800",
+            "node_type": "dataset_condition_subset",
+            "measurement_rows": 18,
+            "physical_tracks": 18,
+            "spot_levels_um": spots195,
+        },
     ]
     edges = [
         {
@@ -319,14 +411,26 @@ def build_mds2_2923_experiment_identity_reference_chain(
     report: dict[str, Any] = {
         "schema_version": "1.0",
         "action_class": ACTION_CLASS,
-        "assessment_status": "reference_chain_built_and_missing_full_text_frontier_identified",
+        "assessment_status": (
+            "reference_chain_built_and_missing_full_text_frontier_identified"
+        ),
         "input_bindings": {
             "nerdm_metadata_sha256": metadata_sha,
-            "nist_intake_sha256": nist_intake["report_sha256_without_self_field"],
-            "naderi_reference_evidence_sha256": naderi_reference_evidence["report_sha256_without_self_field"],
-            "multisource_evidence_sha256": multisource_evidence["report_sha256_without_self_field"],
-            "source_discovery_sha256": source_discovery_report["report_sha256_without_self_field"],
-            "calibration_candidate_assessment_sha256": calibration_candidate_assessment["report_sha256_without_self_field"],
+            "nist_intake_sha256": nist_intake[
+                "report_sha256_without_self_field"
+            ],
+            "naderi_reference_evidence_sha256": naderi_reference_evidence[
+                "report_sha256_without_self_field"
+            ],
+            "multisource_evidence_sha256": multisource_evidence[
+                "report_sha256_without_self_field"
+            ],
+            "source_discovery_sha256": source_discovery_report[
+                "report_sha256_without_self_field"
+            ],
+            "calibration_candidate_assessment_sha256": calibration_candidate_assessment[
+                "report_sha256_without_self_field"
+            ],
         },
         "dataset_publication_associations": associations,
         "reference_graph": {
@@ -370,7 +474,11 @@ def build_mds2_2923_experiment_identity_reference_chain(
                 "code": "weaver_primary_full_text_not_acquired",
                 "doi": WEAVER_DOI,
                 "title": WEAVER_TITLE,
-                "reason": "Both official mds2 metadata and Naderi reference 7 point to Weaver, but the current authenticated evidence package contains only NIST metadata/abstract authority for this paper.",
+                "reason": (
+                    "Both official mds2 metadata and Naderi reference 7 point to "
+                    "Weaver, but the current authenticated evidence package contains "
+                    "only NIST metadata/abstract authority for this paper."
+                ),
             }
         ],
         "new_verified_information": True,
@@ -379,7 +487,13 @@ def build_mds2_2923_experiment_identity_reference_chain(
         "global_evidence_unavailability_claimed": False,
         "next_action": {
             "action_class": NEXT_ACTION_CLASS,
-            "objective": "Acquire the exact Weaver/Heigel/Lane primary full text only under separately derived provenance authority, then test whether it explicitly maps the mds2-2923 AMMT 195 W / 800 mm/s rows, laser-power calibration semantics, spot-size calibration, and cross-section protocol.",
+            "objective": (
+                "Acquire the exact Weaver/Heigel/Lane primary full text only under "
+                "separately derived provenance authority, then test whether it "
+                "explicitly maps the mds2-2923 AMMT 195 W / 800 mm/s rows, "
+                "laser-power calibration semantics, spot-size calibration, and "
+                "cross-section protocol."
+            ),
             "candidate": {
                 "doi": WEAVER_DOI,
                 "title": WEAVER_TITLE,
