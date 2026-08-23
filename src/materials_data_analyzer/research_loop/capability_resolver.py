@@ -4,13 +4,14 @@ from __future__ import annotations
 from typing import Any, Mapping, Sequence
 
 from . import calibration_protocol_bridge_capability as bridge
+from . import nist_ammt_calibration_source_discovery as discovery
 from .capability_registry import (
     build_capability_candidate,
     resolve_verified_capability,
 )
 
-CAPABILITY_RESOLVER_SCHEMA_VERSION = "1.0"
-CAPABILITY_RESOLVER_POLICY_VERSION = "1.0"
+CAPABILITY_RESOLVER_SCHEMA_VERSION = "1.1"
+CAPABILITY_RESOLVER_POLICY_VERSION = "1.1"
 
 
 class CapabilityResolverError(ValueError):
@@ -20,6 +21,21 @@ class CapabilityResolverError(ValueError):
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise CapabilityResolverError(message)
+
+
+def _bounded_factory(
+    action_class: str,
+    primitives: set[str],
+) -> tuple[object, str] | None:
+    if action_class == bridge.ACTION_CLASS and set(
+        bridge.REQUIRED_VERIFIED_PRIMITIVES
+    ).issubset(primitives):
+        return bridge, "compose_verified_primitives"
+    if action_class == discovery.ACTION_CLASS and set(
+        discovery.REQUIRED_VERIFIED_PRIMITIVES
+    ).issubset(primitives):
+        return discovery, "generate_declarative_adapter_instance"
+    return None
 
 
 def resolve_or_discover_capability(
@@ -49,15 +65,18 @@ def resolve_or_discover_capability(
         }
 
     primitives = set(available_verified_primitives)
-    if action_class == bridge.ACTION_CLASS and set(
-        bridge.REQUIRED_VERIFIED_PRIMITIVES
-    ).issubset(primitives):
+    factory = _bounded_factory(action_class, primitives)
+    if factory is not None:
+        module, mechanism = factory
+        required = getattr(module, "REQUIRED_VERIFIED_PRIMITIVES")
+        factory_id = getattr(module, "FACTORY_ID")
+        implementation_id = getattr(module, "IMPLEMENTATION_ID")
         candidate = build_capability_candidate(
             capability_specification=capability_specification,
-            factory_id=bridge.FACTORY_ID,
-            implementation_id=bridge.IMPLEMENTATION_ID,
-            mechanism="compose_verified_primitives",
-            required_verified_primitives=bridge.REQUIRED_VERIFIED_PRIMITIVES,
+            factory_id=factory_id,
+            implementation_id=implementation_id,
+            mechanism=mechanism,
+            required_verified_primitives=required,
         )
         return {
             "schema_version": CAPABILITY_RESOLVER_SCHEMA_VERSION,
@@ -67,7 +86,8 @@ def resolve_or_discover_capability(
             "registry_sha256": resolution["registry_sha256"],
             "implementation_id": None,
             "candidate": candidate,
-            "factory_id": bridge.FACTORY_ID,
+            "factory_id": factory_id,
+            "factory_catalogue_size": 2,
             "unrestricted_discovery_performed": False,
             "arbitrary_code_generation_performed": False,
         }
@@ -80,6 +100,7 @@ def resolve_or_discover_capability(
         "registry_sha256": resolution["registry_sha256"],
         "implementation_id": None,
         "candidate": None,
+        "factory_catalogue_size": 2,
         "unrestricted_discovery_performed": False,
         "arbitrary_code_generation_performed": False,
     }
