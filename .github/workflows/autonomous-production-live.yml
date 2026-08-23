@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - main
-      - feature/autonomous-capability-expansion-222
+      - feature/provenance-derived-calibration-candidate-acquisition-224
     paths:
       - ".github/workflows/autonomous-production-live.yml"
       - "configs/research/autonomous_in625_production_mission.v1.json"
       - "configs/research/in625_geometry_condition_multisource_acquisition_policy.v1.json"
       - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "configs/research/nist_ammt_publication_index_source_discovery_policy.v1.json"
+      - "configs/research/nist_ammt_calibration_candidate_derived_acquisition_policy.v1.json"
       - "configs/research/in625_external_evidence_request_delegation_policy.v1.json"
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
@@ -31,7 +32,7 @@ on:
       - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "tests/test_autonomous_production_driver.py"
       - "tests/test_capability_*.py"
-      - "tests/test_nist_ammt_calibration_source_discovery.py"
+      - "tests/test_nist_ammt_calibration_*.py"
       - "tests/test_in625_geometry_condition_multisource_extension.py"
       - "tests/test_in625_physical_comparability_assessment.py"
       - "tests/test_nist_mds2_2923_production_extension.py"
@@ -43,6 +44,7 @@ on:
       - "configs/research/in625_geometry_condition_multisource_acquisition_policy.v1.json"
       - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
       - "configs/research/nist_ammt_publication_index_source_discovery_policy.v1.json"
+      - "configs/research/nist_ammt_calibration_candidate_derived_acquisition_policy.v1.json"
       - "configs/research/in625_external_evidence_request_delegation_policy.v1.json"
       - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
       - "configs/research/nist_mds2_2923_network_acquisition_policy.v1.json"
@@ -63,7 +65,7 @@ on:
       - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "tests/test_autonomous_production_driver.py"
       - "tests/test_capability_*.py"
-      - "tests/test_nist_ammt_calibration_source_discovery.py"
+      - "tests/test_nist_ammt_calibration_*.py"
       - "tests/test_in625_geometry_condition_multisource_extension.py"
       - "tests/test_in625_physical_comparability_assessment.py"
       - "tests/test_nist_mds2_2923_production_extension.py"
@@ -76,7 +78,7 @@ permissions:
 jobs:
   literal-one-command-live-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 70
     env:
       PYTHONPATH: src
     steps:
@@ -95,11 +97,12 @@ jobs:
           tests/test_capability_registry.py
           tests/test_capability_resolver_verifier.py
           tests/test_nist_ammt_calibration_source_discovery.py
+          tests/test_nist_ammt_calibration_candidate_acquisition.py
           tests/test_in625_physical_comparability_assessment.py
           tests/test_nist_mds2_2923_production_extension.py
           tests/test_nist_mds2_2923_scientific_intake.py
           tests/test_in625_geometry_condition_multisource_extension.py
-      - name: Run literal public autonomous command against live Zenodo NIST papers and AMMT index
+      - name: Run literal public autonomous command through derived NIST calibration candidate acquisition
         run: mda-research-program run-autonomous
       - name: Verify live autonomous production result
         shell: python
@@ -114,22 +117,21 @@ jobs:
           nist = load("nist-scientific-intake.json")
           sources = load("multisource-source-acquisition.json")
           mapping = load("geometry-condition-mapping-assessment.json")
-          gap1 = load("capability-gap.json")
-          candidate1 = load("capability-candidate.json")
-          verification1 = load("capability-verification.json")
-          registry1 = load("capability-registry-promoted.json")
           bridge = load("calibration-protocol-bridge-capability-result.json")
-          gap2 = load("capability-gap-2.json")
-          candidate2 = load("capability-candidate-2.json")
-          verification2 = load("capability-verification-2.json")
-          registry2 = load("capability-registry-promoted-2.json")
-          discovery_policy = load("nist-ammt-source-discovery-policy-qualification.json")
           discovery = load("calibration-record-source-discovery.json")
           gap3 = load("capability-gap-3.json")
-          resolution3 = load("capability-resolution-3.json")
+          candidate3 = load("capability-candidate-3.json")
+          verification3 = load("capability-verification-3.json")
+          registry3 = load("capability-registry-promoted-3.json")
+          policy3 = load("nist-ammt-candidate-acquisition-policy-qualification.json")
+          authorization3 = load("nist-ammt-derived-candidate-authorization.json")
+          acquisition3 = load("nist-ammt-calibration-candidate-acquisition.json")
+          assessment3 = load("nist-ammt-calibration-candidate-bridge-assessment.json")
+          gap4 = load("capability-gap-4.json")
+          resolution4 = load("capability-resolution-4.json")
 
-          assert manifest["schema_version"] == "1.6"
-          assert manifest["policy_version"] == "1.6"
+          assert manifest["schema_version"] == "1.7"
+          assert manifest["policy_version"] == "1.7"
           assert manifest["measurement_row_count"] == 200289
           assert manifest["complete_numeric_measurement_row_count"] == 200288
           assert manifest["incomplete_numeric_measurement_row_count"] == 1
@@ -145,106 +147,120 @@ jobs:
           assert nist["in625_inventory"]["machine_measurement_counts"] == {"AMMT": 34, "EOS M270": 144}
           assert nist["measurement_semantics"]["calibration_conversion_performed"] is False
           assert nist["issue_76"]["exact_target_cells_satisfied"] == 0
-
           assert sources["source_count"] == 8
           assert sources["network_requests_performed"] == 8
           assert sources["all_claim_anchors_matched"] is True
           assert sources["paper_claims_promoted_to_row_level_authority"] is False
-          decision = mapping["gate_decision"]
-          assert decision["eos_rows_excluded_from_direct_mapping"] == 144
-          assert decision["directly_comparable_mds2_rows"] == 0
-          assert decision["direct_numerical_validation_authorized"] is False
-          assert decision["issue_76_exact_target_cells_satisfied"] == 0
-
-          assert gap1["gap_class"] == "missing_source_adapter"
-          assert gap1["evidence_absence_claimed"] is False
-          assert gap1["execution_authority_granted"] is False
-          assert candidate1["state"] == "candidate"
-          assert candidate1["self_promotion_requested"] is False
-          assert candidate1["network_authority_granted"] is False
-          assert verification1["promotion_eligible"] is True
-          assert verification1["all_required_checks_passed"] is True
-          assert registry1["candidate_self_promotion_allowed"] is False
-          assert any(
-              r["action_class"] == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
-              and r["state"] == "verified"
-              for r in registry1["records"]
-          )
+          assert mapping["gate_decision"]["eos_rows_excluded_from_direct_mapping"] == 144
+          assert mapping["gate_decision"]["directly_comparable_mds2_rows"] == 0
+          assert mapping["gate_decision"]["direct_numerical_validation_authorized"] is False
           assert bridge["bridge_established"] is False
           assert bridge["directly_comparable_mds2_rows"] == 0
           assert bridge["issue_76_exact_target_cells_satisfied"] == 0
-          assert bridge["next_action"]["action_class"] == "experiment_specific_calibration_record_source_discovery"
 
-          assert gap2["gap_class"] == "missing_source_adapter"
-          assert gap2["global_evidence_unavailability_claimed"] is False
-          assert candidate2["implementation_id"] == "nist-ammt-curated-publication-index-discovery-v1"
-          assert candidate2["mechanism"] == "generate_declarative_adapter_instance"
-          assert candidate2["network_authority_granted"] is False
-          assert verification2["promotion_eligible"] is True
-          assert verification2["all_required_checks_passed"] is True
-          assert any(
-              r["action_class"] == "experiment_specific_calibration_record_source_discovery"
-              and r["state"] == "verified"
-              for r in registry2["records"]
-          )
-
-          assert discovery_policy["qualification_status"] == "exact_nist_ammt_source_discovery_policy_authenticated"
-          assert discovery_policy["source_url"] == "https://www.nist.gov/el/ammt/relevant-publications"
-          assert discovery_policy["max_requests"] == 1
-          assert discovery_policy["candidate_urls_gain_acquisition_authority"] is False
           assert discovery["discovery_status"] == "official_nist_ammt_publication_index_reviewed"
-          assert discovery["network_requests_performed"] == 1
           assert discovery["candidate_count"] > 0
           assert discovery["candidate_links_followed"] == 0
           assert discovery["candidate_urls_gain_acquisition_authority"] is False
-          assert discovery["discovered_candidates_are_scientific_evidence"] is False
-          assert discovery["global_evidence_unavailability_claimed"] is False
-          assert any(
-              "laser-calibration-powder-bed-fusion-additive-manufacturing-process" in item["url"]
-              or "laser calibration" in item["link_label"].lower()
-              for item in discovery["candidates"]
-          )
           assert discovery["next_action"]["action_class"] == "experiment_specific_calibration_record_candidate_acquisition"
-          assert discovery["next_action"]["automatic_acquisition_authorized"] is False
-
-          assert len(manifest["cycles"]) == 8
-          cycle5, cycle6, cycle7, cycle8 = manifest["cycles"][4:8]
-          assert cycle5["selected_action_class"] == "ammt_mds2_2923_calibration_protocol_bridge_evidence_acquisition"
-          assert cycle5["bounded_candidate_discovered"] is True
-          assert cycle6["capability_available"] is True
-          assert cycle6["research_action_resumed"] is True
-          assert cycle6["bridge_established"] is False
-          assert cycle6["output_next_action_class"] == "experiment_specific_calibration_record_source_discovery"
-          assert cycle7["selected_action_class"] == "experiment_specific_calibration_record_source_discovery"
-          assert cycle7["bounded_candidate_discovered"] is True
-          assert cycle8["capability_available"] is True
-          assert cycle8["research_action_resumed"] is True
-          assert cycle8["discovery_candidate_count"] > 0
-          assert cycle8["candidate_links_followed"] == 0
-          assert cycle8["candidate_urls_gain_acquisition_authority"] is False
-          assert cycle8["output_next_action_class"] == "experiment_specific_calibration_record_candidate_acquisition"
+          rank1 = next(item for item in discovery["candidates"] if item["rank"] == 1)
+          assert rank1["link_host"] == "www.nist.gov"
+          assert rank1["candidate_url_followed"] is False
+          assert rank1["acquisition_authorized"] is False
 
           assert gap3["gap_class"] == "missing_source_adapter"
-          assert gap3["global_evidence_unavailability_claimed"] is False
-          assert resolution3["resolution_status"] == "no_bounded_candidate_available"
-          assert manifest["second_capability_candidate_promoted"] is True
-          assert manifest["second_research_action_resumed"] is True
-          assert manifest["nist_ammt_source_discovery_executed"] is True
-          assert manifest["nist_ammt_source_discovery_candidate_count"] > 0
-          assert manifest["candidate_urls_gain_acquisition_authority"] is False
+          assert candidate3["state"] == "candidate"
+          assert candidate3["implementation_id"] == "nist-ammt-derived-calibration-candidate-acquisition-v1"
+          assert candidate3["network_authority_granted"] is False
+          assert candidate3["execution_authority_granted"] is False
+          assert candidate3["self_promotion_requested"] is False
+          assert verification3["promotion_eligible"] is True
+          assert verification3["all_required_checks_passed"] is True
+          assert any(
+              item["action_class"] == "experiment_specific_calibration_record_candidate_acquisition"
+              and item["state"] == "verified"
+              for item in registry3["records"]
+          )
+
+          assert policy3["qualification_status"] == "exact_nist_ammt_candidate_acquisition_policy_authenticated"
+          assert policy3["required_candidate_rank"] == 1
+          assert policy3["candidate_page_allowed_hosts"] == ["www.nist.gov"]
+          assert policy3["full_text_allowed_hosts"] == ["tsapps.nist.gov"]
+          assert policy3["max_requests"] == 2
+          assert policy3["network_access_performed"] is False
+
+          assert authorization3["authorization_type"] == "provenance_derived_nist_candidate_acquisition"
+          assert authorization3["candidate_rank"] == 1
+          assert authorization3["candidate_id"] == rank1["candidate_id"]
+          assert authorization3["candidate_url"] == rank1["url"]
+          assert authorization3["candidate_url_derived_from_discovery"] is True
+          assert authorization3["full_text_url_derived_from_candidate_page"] is False
+          assert authorization3["caller_authored_url_used"] is False
+          assert authorization3["scientific_status_change_authorized"] is False
+
+          assert acquisition3["acquisition_status"] == "derived_nist_calibration_candidate_and_full_text_acquired"
+          assert acquisition3["network_requests_performed"] == 2
+          assert acquisition3["candidate_url_derived_from_discovery"] is True
+          assert acquisition3["full_text_url_derived_from_candidate_page"] is True
+          assert acquisition3["caller_authored_url_used"] is False
+          assert acquisition3["unrestricted_search_performed"] is False
+          assert acquisition3["literature_promoted_to_row_level_measurement_authority"] is False
+          assert acquisition3["acquisition_success_establishes_calibration_bridge"] is False
+          assert acquisition3["full_text"]["final_url"].startswith("https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=")
+          assert acquisition3["full_text"]["page_count"] > 0
+          assert acquisition3["full_text"]["extractor"] == "pypdf"
+          assert acquisition3["full_text"]["raw_bytes_persisted"] is False
+          claims = {item["claim_id"]: item for item in acquisition3["claim_receipts"]}
+          assert claims["digital_camera_in_situ_calibration_methodology"]["matched"] is True
+          assert claims["open_platform_testbed_experiment_scope"]["matched"] is True
+          assert claims["spot_calibration_200w_pulsed_condition"]["matched"] is True
+          assert claims["d4sigma_spot_definition"]["matched"] is True
+          assert claims["explicit_mds2_2923_identity"]["matched"] is False
+          assert claims["explicit_machine_setting_actual_power_bridge"]["matched"] is False
+
+          assert assessment3["evidence_scope"]["digital_camera_in_situ_calibration_methodology_established"] is True
+          assert assessment3["evidence_scope"]["d4sigma_spot_definition_established"] is True
+          assert assessment3["experiment_specific_bridge"]["exact_mds2_2923_experiment_identity_established"] is False
+          assert assessment3["experiment_specific_bridge"]["exact_machine_setting_to_calibrated_power_relation_established"] is False
+          assert assessment3["experiment_specific_bridge"]["bridge_established"] is False
+          assert assessment3["gate_decision"]["directly_comparable_mds2_rows"] == 0
+          assert assessment3["gate_decision"]["direct_numerical_validation_authorized"] is False
+          assert assessment3["gate_decision"]["issue_76_exact_target_cells_satisfied"] == 0
+          assert assessment3["next_action"]["action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
+
+          assert len(manifest["cycles"]) == 10
+          cycle9, cycle10 = manifest["cycles"][8:10]
+          assert cycle9["selected_action_class"] == "experiment_specific_calibration_record_candidate_acquisition"
+          assert cycle9["bounded_candidate_discovered"] is True
+          assert cycle10["capability_available"] is True
+          assert cycle10["research_action_resumed"] is True
+          assert cycle10["network_requests_performed"] == 2
+          assert cycle10["candidate_url_derived_from_discovery"] is True
+          assert cycle10["full_text_url_derived_from_candidate_page"] is True
+          assert cycle10["bridge_established"] is False
+          assert cycle10["output_next_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
+
+          assert gap4["gap_class"] == "missing_analysis_executor"
+          assert resolution4["resolution_status"] == "no_bounded_candidate_available"
+          assert manifest["third_capability_candidate_promoted"] is True
+          assert manifest["third_research_action_resumed"] is True
+          assert manifest["derived_candidate_acquisition_executed"] is True
+          assert manifest["calibration_methodology_established"] is True
+          assert manifest["exact_mds2_experiment_identity_established"] is False
+          assert manifest["exact_machine_setting_to_calibrated_power_relation_established"] is False
           assert manifest["bridge_established"] is False
           assert manifest["directly_comparable_mds2_rows"] == 0
           assert manifest["issue_76_exact_target_cells_satisfied"] == 0
-          assert manifest["third_capability_gap_emitted"] is True
-          assert manifest["third_capability_candidate_discovered"] is False
-          assert manifest["generated_next_action_class"] == "experiment_specific_calibration_record_candidate_acquisition"
-          assert manifest["final_blocker"] == "candidate_acquisition_capability_not_established"
+          assert manifest["fourth_capability_gap_emitted"] is True
+          assert manifest["fourth_capability_candidate_discovered"] is False
+          assert manifest["generated_next_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
+          assert manifest["final_blocker"] == "experiment_identity_reference_chain_capability_not_established"
           assert manifest["scientific_status_changed"] is False
           assert manifest["positive_scientific_closeout_established"] is False
           assert manifest["global_evidence_unavailability_claimed"] is False
 
           assert stop["reason_code"] == "capability_expansion_required"
-          assert stop["requested_action_class"] == "experiment_specific_calibration_record_candidate_acquisition"
+          assert stop["requested_action_class"] == "mds2_2923_experiment_identity_reference_chain_assessment"
           assert stop["bounded_candidate_discovered"] is False
           assert stop["global_evidence_unavailability_claimed"] is False
       - name: Upload bounded autonomous provenance
@@ -269,5 +285,9 @@ jobs:
             outputs/autonomous-in625-production/calibration-protocol-bridge-capability-result.json
             outputs/autonomous-in625-production/nist-ammt-source-discovery-policy-qualification.json
             outputs/autonomous-in625-production/calibration-record-source-discovery.json
+            outputs/autonomous-in625-production/nist-ammt-candidate-acquisition-policy-qualification.json
+            outputs/autonomous-in625-production/nist-ammt-derived-candidate-authorization.json
+            outputs/autonomous-in625-production/nist-ammt-calibration-candidate-acquisition.json
+            outputs/autonomous-in625-production/nist-ammt-calibration-candidate-bridge-assessment.json
           if-no-files-found: warn
           retention-days: 14
