@@ -16,12 +16,16 @@ from . import capability_verifier as _this_module
 from . import nist_ammt_calibration_candidate_acquisition as candidate_acquisition
 from . import nist_ammt_calibration_source_discovery as discovery
 from .capability_registry import build_capability_verification_receipt
+from .nist_ammt_candidate_acquisition_policy import (
+    authenticate_nist_ammt_candidate_acquisition_policy,
+)
+from .nist_ammt_candidate_discovery_lineage import verify_discovery_lineage
 from .nist_ammt_source_discovery_policy import (
     authenticate_nist_ammt_source_discovery_policy,
 )
 
-CAPABILITY_VERIFIER_SCHEMA_VERSION = "1.2"
-CAPABILITY_VERIFIER_POLICY_VERSION = "1.2"
+CAPABILITY_VERIFIER_SCHEMA_VERSION = "1.3"
+CAPABILITY_VERIFIER_POLICY_VERSION = "1.3"
 
 
 class CapabilityVerifierError(ValueError):
@@ -142,26 +146,36 @@ def _verify_discovery_fixture() -> tuple[bool, bool]:
 
 
 def _verify_candidate_acquisition_fixture() -> tuple[bool, bool]:
+    candidate_url = (
+        "https://www.nist.gov/publications/"
+        "laser-calibration-powder-bed-fusion-additive-manufacturing-process"
+    )
+    candidate_id = "nist-ammt-index-" + hashlib.sha256(
+        candidate_url.encode("utf-8")
+    ).hexdigest()[:16]
     discovery_report: dict[str, Any] = {
         "schema_version": "1.0",
         "action_class": discovery.ACTION_CLASS,
         "discovery_status": "official_nist_ammt_publication_index_reviewed",
         "policy_id": "nist-ammt-publication-index-source-discovery-v1",
+        "policy_sha256": (
+            "e053faca2a28adae1d299d5771b6df4a99e1e15400b536e1f7502f34051a9324"
+        ),
         "source_index": {
             "source_id": "nist-ammt-relevant-publications-index",
+            "requested_url": "https://www.nist.gov/el/ammt/relevant-publications",
+            "final_url": "https://www.nist.gov/el/ammt/relevant-publications",
             "source_sha256": "a" * 64,
         },
         "candidate_links_followed": 0,
         "caller_authored_url_used": False,
+        "unrestricted_search_performed": False,
         "candidate_urls_gain_acquisition_authority": False,
         "candidates": [
             {
-                "candidate_id": "fixture-rank1",
+                "candidate_id": candidate_id,
                 "rank": 1,
-                "url": (
-                    "https://www.nist.gov/publications/"
-                    "laser-calibration-powder-bed-fusion-additive-manufacturing-process"
-                ),
+                "url": candidate_url,
                 "link_host": "www.nist.gov",
                 "discovered_from_source_id": "nist-ammt-relevant-publications-index",
                 "candidate_url_followed": False,
@@ -171,7 +185,7 @@ def _verify_candidate_acquisition_fixture() -> tuple[bool, bool]:
         ],
         "next_action": {
             "action_class": candidate_acquisition.ACTION_CLASS,
-            "candidate_ids": ["fixture-rank1"],
+            "candidate_ids": [candidate_id],
             "automatic_acquisition_authorized": False,
             "caller_authored_arbitrary_urls_authorized": False,
         },
@@ -316,6 +330,15 @@ def _real_source_smoke(
         and isinstance(predecessor_manifest, Mapping),
         "derived candidate acquisition verification context is incomplete",
     )
+    qualification = authenticate_nist_ammt_candidate_acquisition_policy(
+        repository_root=repository_root,
+        mission_path=mission_path,
+        expected_mission_sha256=expected_mission_sha256,
+    )
+    lineage = verify_discovery_lineage(
+        qualification=qualification,
+        discovery_report=discovery_report,
+    )
     receipt = candidate_acquisition.smoke_derived_candidate_acquisition(
         repository_root=str(repository_root),
         mission_path=str(mission_path),
@@ -324,7 +347,9 @@ def _real_source_smoke(
         predecessor_manifest=predecessor_manifest,
     )
     ok = (
-        receipt.get("acquisition_status")
+        lineage.get("verification_status")
+        == "exact_discovery_policy_source_and_rank1_lineage_verified"
+        and receipt.get("acquisition_status")
         == "derived_nist_calibration_candidate_and_full_text_acquired"
         and receipt.get("network_requests_performed") == 2
         and receipt.get("candidate_url_derived_from_discovery") is True
@@ -335,7 +360,16 @@ def _real_source_smoke(
         and receipt.get("acquisition_success_establishes_calibration_bridge") is False
         and receipt.get("scientific_status_changed") is False
     )
-    return ok, receipt
+    combined: dict[str, Any] = {
+        "schema_version": "1.0",
+        "smoke_status": "derived_candidate_lineage_and_acquisition_verified",
+        "lineage_verification": lineage,
+        "acquisition_receipt": receipt,
+        "network_requests_performed": receipt.get("network_requests_performed"),
+        "scientific_status_changed": False,
+    }
+    combined["report_sha256_without_self_field"] = _canonical_sha(combined)
+    return ok, combined
 
 
 def verify_bounded_capability_candidate(
