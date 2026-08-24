@@ -19,6 +19,7 @@ on:
       - "src/materials_data_analyzer/research_loop/capability_resolver.py"
       - "src/materials_data_analyzer/research_loop/weaver_2021_*.py"
       - "tests/test_autonomous_production_transport_recovery.py"
+      - "tests/test_autonomous_weaver_transport_integration.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_resolver_verifier.py"
       - "tests/test_weaver_2021_*.py"
@@ -37,6 +38,7 @@ on:
       - "src/materials_data_analyzer/research_loop/capability_resolver.py"
       - "src/materials_data_analyzer/research_loop/weaver_2021_*.py"
       - "tests/test_autonomous_production_transport_recovery.py"
+      - "tests/test_autonomous_weaver_transport_integration.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_resolver_verifier.py"
       - "tests/test_weaver_2021_*.py"
@@ -63,6 +65,7 @@ jobs:
         run: >-
           python -m pytest -q
           tests/test_autonomous_production_transport_recovery.py
+          tests/test_autonomous_weaver_transport_integration.py
           tests/test_research_program_cli_transport_recovery_wiring.py
           tests/test_capability_resolver_verifier.py
           tests/test_weaver_2021_authority_chain.py
