@@ -2,8 +2,8 @@
 
 The full twelve-cycle success verifier remains in the sibling implementation module. This
 wrapper hardens only the temporary NIST transport-stop branch. A transport outage is accepted
-only when the report, policy qualification, authorization, bounded stop, predecessor scientific
-artifacts, cycle chain, and manifest all authenticate the same exact mission-pinned request.
+only when the report, finite network authority, bounded stop, predecessor scientific artifacts,
+cycle chain, and manifest all authenticate the same exact mission-pinned request.
 """
 from __future__ import annotations
 
@@ -13,9 +13,19 @@ from typing import Any
 from . import autonomous_production_live_verifier_impl as _impl
 from .nist_mds2_2923_network_policy import (
     ACTION_CLASS as NIST_ACTION_CLASS,
+    ARTIFACT_ALLOWED_HOSTS,
     CANDIDATE_ID as NIST_CANDIDATE_ID,
+    EXPECTED_FILES,
+    EXPECTED_METADATA_SHA256,
+    MAX_ARTIFACT_BYTES,
+    MAX_METADATA_BYTES,
+    MAX_NETWORK_REQUESTS,
+    MAX_TOTAL_ARTIFACT_BYTES,
+    METADATA_ALLOWED_HOSTS,
+    METADATA_ENDPOINT,
     POLICY_ID as NIST_POLICY_ID,
     PRODUCT_ID as NIST_PRODUCT_ID,
+    TIMEOUT_SECONDS,
 )
 from .nist_mds2_2923_production_acquisition import (
     NistMds22923ProductionTransportError,
@@ -25,9 +35,6 @@ AutonomousProductionLiveVerificationError = (
     _impl.AutonomousProductionLiveVerificationError
 )
 
-# These are production-profile trust anchors, not values learned from the output being checked.
-# They are already pinned by the immutable mission and are repeated here so a consistently
-# re-hashed forged qualification/report/manifest cannot create its own root of trust.
 _EXPECTED_MISSION_SHA256 = (
     "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea"
 )
@@ -39,8 +46,60 @@ _EXPECTED_TRANSPORT_EXCEPTION_TYPE = NistMds22923ProductionTransportError.__name
 _EXPECTED_COMPARABILITY_DECISION = (
     "direct_nist_numerical_validation_blocked_by_response_and_protocol_incompatibility"
 )
+_EXPECTED_ZENODO_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
+_EXPECTED_ZENODO_ARCHIVE_SHA256 = (
+    "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+)
+_EXPECTED_NIST_FILES = {
+    path: {"path": path, **rule} for path, rule in EXPECTED_FILES.items()
+}
 
 _original_verify_transport_stop = _impl._verify_transport_stop
+
+
+def _verify_finite_network_contract(value: dict[str, Any], *, label: str) -> None:
+    exact = (
+        (value.get("metadata_endpoint"), METADATA_ENDPOINT, "metadata endpoint"),
+        (
+            value.get("expected_nerdm_metadata_sha256"),
+            EXPECTED_METADATA_SHA256,
+            "metadata SHA",
+        ),
+        (value.get("expected_files"), _EXPECTED_NIST_FILES, "exact file set"),
+        (
+            value.get("metadata_allowed_hosts"),
+            list(METADATA_ALLOWED_HOSTS),
+            "metadata hosts",
+        ),
+        (
+            value.get("artifact_allowed_hosts"),
+            list(ARTIFACT_ALLOWED_HOSTS),
+            "artifact hosts",
+        ),
+        (
+            value.get("maximum_network_requests"),
+            MAX_NETWORK_REQUESTS,
+            "request budget",
+        ),
+        (
+            value.get("maximum_metadata_bytes"),
+            MAX_METADATA_BYTES,
+            "metadata byte budget",
+        ),
+        (
+            value.get("maximum_artifact_bytes"),
+            MAX_ARTIFACT_BYTES,
+            "artifact byte budget",
+        ),
+        (
+            value.get("maximum_total_artifact_bytes"),
+            MAX_TOTAL_ARTIFACT_BYTES,
+            "total artifact byte budget",
+        ),
+        (value.get("timeout_seconds"), TIMEOUT_SECONDS, "timeout"),
+    )
+    for observed, expected, field in exact:
+        _impl._require(observed == expected, f"{label} {field} drifted")
 
 
 def _verify_transport_authority(
@@ -72,6 +131,7 @@ def _verify_transport_authority(
         (qualification.get("product_id"), NIST_PRODUCT_ID, "product id"),
     ):
         _impl._require(value == expected, f"NIST transport qualification {label} drifted")
+    _verify_finite_network_contract(qualification, label="NIST transport qualification")
     _impl._require(
         qualification.get("network_access_performed") is False
         and qualification.get("unrestricted_search_authorized") is False
@@ -94,6 +154,7 @@ def _verify_transport_authority(
         (authorization.get("product_id"), NIST_PRODUCT_ID, "product id"),
     ):
         _impl._require(value == expected, f"NIST transport authorization {label} drifted")
+    _verify_finite_network_contract(authorization, label="NIST transport authorization")
     _impl._require(
         authorization.get("network_access_performed") is False
         and authorization.get("unrestricted_search_authorized") is False
@@ -131,6 +192,87 @@ def _verify_transport_authority(
         ),
     ):
         _impl._require(observed == expected, f"NIST transport {label} binding mismatch")
+
+
+def _verify_cycle1_evidence_artifacts(root: Path, cycle1: dict[str, Any]) -> None:
+    receipt = _impl._load(root, "network-acquisition-receipt.json")
+    quality = _impl._load(root, "tensile-quality-verification.json")
+    rediagnosis = _impl._load(root, "quality-aware-rediagnosis.json")
+
+    receipt_sha = _impl._verify_self_hash(
+        receipt, "receipt_sha256", label="cycle-1 network acquisition receipt"
+    )
+    quality_sha = _impl._verify_self_hash(
+        quality, "verification_sha256", label="cycle-1 tensile quality verification"
+    )
+    rediagnosis_sha = _impl._verify_self_hash(
+        rediagnosis, "rediagnosis_sha256", label="cycle-1 quality-aware rediagnosis"
+    )
+    for observed, expected, label in (
+        (cycle1.get("network_receipt_sha256"), receipt_sha, "network receipt"),
+        (cycle1.get("quality_verification_sha256"), quality_sha, "quality verification"),
+        (cycle1.get("rediagnosis_sha256"), rediagnosis_sha, "rediagnosis"),
+    ):
+        _impl._require(observed == expected, f"cycle-1 {label} binding mismatch")
+
+    archive = receipt.get("archive")
+    receipt_boundary = receipt.get("scientific_boundary")
+    _impl._require(isinstance(archive, dict), "cycle-1 network receipt archive is invalid")
+    _impl._require(
+        isinstance(receipt_boundary, dict),
+        "cycle-1 network receipt scientific boundary is invalid",
+    )
+    _impl._require(
+        receipt.get("source_id") == _EXPECTED_ZENODO_SOURCE_ID
+        and str(receipt.get("zenodo_record_id")) == "20503603"
+        and archive.get("sha256") == _EXPECTED_ZENODO_ARCHIVE_SHA256
+        and receipt.get("network_access_performed") is True
+        and receipt.get("network_execution_authorized") is True
+        and receipt.get("provider_checksum_verified") is True
+        and receipt.get("project_sha256_verified") is True
+        and receipt.get("byte_count_verified") is True
+        and receipt.get("exact_host_restriction_enforced") is True,
+        "cycle-1 network receipt provenance drifted",
+    )
+    _impl._require(
+        receipt_boundary.get("automatic_scientific_promotion") is False
+        and receipt_boundary.get("direct_nist_condition_comparability_established") is False
+        and receipt_boundary.get("empirical_model_validation_established") is False
+        and receipt_boundary.get("hypothesis_truth_established") is False
+        and receipt_boundary.get("positive_scientific_closeout_established") is False,
+        "cycle-1 network receipt scientific authority drifted",
+    )
+
+    _impl._require(
+        quality.get("quality_status") == "verified_observed_source_quality"
+        and quality.get("source_id") == _EXPECTED_ZENODO_SOURCE_ID
+        and quality.get("source_archive_sha256") == _EXPECTED_ZENODO_ARCHIVE_SHA256
+        and quality.get("measurement_row_count") == 200289
+        and quality.get("complete_numeric_measurement_row_count") == 200288
+        and quality.get("incomplete_numeric_measurement_row_count") == 1
+        and quality.get("missing_value_imputation_authorized") is False
+        and quality.get("row_exclusion_authorized") is False
+        and quality.get("direct_nist_condition_comparability_established") is False
+        and quality.get("empirical_model_validation_established") is False
+        and quality.get("hypothesis_truth_established") is False
+        and quality.get("positive_scientific_closeout_established") is False
+        and quality.get("scientific_status_changed") is False,
+        "cycle-1 quality evidence scientific state drifted",
+    )
+
+    blocker = rediagnosis.get("current_blocker")
+    next_action = rediagnosis.get("next_action")
+    stop_state = rediagnosis.get("stop_state")
+    _impl._require(isinstance(blocker, dict), "cycle-1 rediagnosis blocker is invalid")
+    _impl._require(isinstance(next_action, dict), "cycle-1 rediagnosis next action is invalid")
+    _impl._require(isinstance(stop_state, dict), "cycle-1 rediagnosis stop state is invalid")
+    _impl._require(
+        blocker.get("code") == "cross_source_physical_comparability_not_established"
+        and next_action.get("action_class") == "reviewed_physical_comparability_assessment"
+        and stop_state.get("positive_scientific_closeout") is False
+        and rediagnosis.get("scientific_status_changed") is False,
+        "cycle-1 rediagnosis scientific state drifted",
+    )
 
 
 def _verify_comparability_artifact(
@@ -178,6 +320,7 @@ def _verify_comparability_artifact(
     _impl._require(
         next_action.get("action_class") == NIST_ACTION_CLASS
         and next_action.get("candidate_id") == NIST_CANDIDATE_ID
+        and next_action.get("direct_comparability_preestablished") is False
         and next_action.get("network_access_performed") is False
         and next_action.get("automatic_execution_authorized") is False,
         "physical comparability next-action authority drifted",
@@ -187,6 +330,8 @@ def _verify_comparability_artifact(
         and boundary.get("model_fit_performed") is False
         and boundary.get("empirical_model_validation_established") is False
         and boundary.get("hypothesis_truth_established") is False
+        and boundary.get("positive_scientific_closeout_established") is False
+        and boundary.get("global_evidence_unavailability_claimed") is False
         and boundary.get("automatic_scientific_promotion") is False
         and boundary.get("scientific_status_changed") is False,
         "physical comparability scientific boundary drifted",
@@ -211,12 +356,15 @@ def _verify_pretransport_scientific_state(
     )
     _impl._require(
         cycle1.get("selected_action_class") == "external_evidence_search"
+        and cycle1.get("output_blocker")
+        == "cross_source_physical_comparability_not_established"
         and cycle1.get("output_next_action_class")
         == "reviewed_physical_comparability_assessment"
         and cycle1.get("new_verified_information") is True
         and cycle1.get("scientific_status_changed") is False,
         "transport cycle 1 scientific state drifted",
     )
+    _verify_cycle1_evidence_artifacts(root, cycle1)
     _impl._require(
         cycle2.get("selected_action_class")
         == "reviewed_physical_comparability_assessment"
@@ -264,8 +412,6 @@ def _verify_pretransport_scientific_state(
             f"transport predecessor scientific field drifted: {key}",
         )
 
-    # These stronger claims are not necessarily present before NIST intake. If present they
-    # must retain the fail-closed value; a transport outage may never introduce them as true.
     _impl._require(
         manifest.get("direct_numerical_cross_source_validation_authorized") in (None, False),
         "transport predecessor authorized direct numerical cross-source validation",
@@ -281,6 +427,30 @@ def _verify_pretransport_scientific_state(
     _impl._require(
         manifest.get("issue_76_exact_target_cells_satisfied") in (None, 0),
         "transport predecessor promoted Issue #76 cells",
+    )
+
+
+def _verify_transport_cycle3(cycle3: dict[str, Any], report_sha: str) -> None:
+    _impl._verify_self_hash(cycle3, "cycle_sha256", label="transport cycle 3")
+    _impl._require(
+        cycle3.get("cycle_index") == 3
+        and cycle3.get("input_blocker")
+        == "response_compatible_geometry_evidence_not_acquired"
+        and cycle3.get("selected_action_class") == NIST_ACTION_CLASS
+        and cycle3.get("candidate_id") == NIST_CANDIDATE_ID
+        and cycle3.get("transport_unavailability_sha256") == report_sha
+        and cycle3.get("acquisition_completed") is False
+        and cycle3.get("scientific_intake_performed") is False
+        and cycle3.get("retry_performed") is False
+        and cycle3.get("partial_output_reuse_authorized") is False
+        and cycle3.get("network_failure_interpreted_as_negative_scientific_evidence") is False
+        and cycle3.get("output_blocker")
+        == "response_compatible_geometry_evidence_not_acquired"
+        and cycle3.get("output_next_action_class") == NIST_ACTION_CLASS
+        and cycle3.get("new_verified_operational_information") is True
+        and cycle3.get("new_verified_scientific_information") is False
+        and cycle3.get("scientific_status_changed") is False,
+        "transport cycle 3 scientific/operational contract drifted",
     )
 
 
@@ -316,10 +486,7 @@ def _verify_transport_stop(
         cycle3.get("predecessor_cycle_sha256") == cycles[1].get("cycle_sha256"),
         "transport cycle 3 predecessor binding mismatch",
     )
-    _impl._require(
-        cycle3.get("transport_unavailability_sha256") == report_sha,
-        "transport report cycle binding mismatch",
-    )
+    _verify_transport_cycle3(cycle3, report_sha)
     _impl._require(
         manifest.get("nist_mds2_2923_transport_unavailability_sha256") == report_sha,
         "transport report manifest binding mismatch",
@@ -335,8 +502,6 @@ def _verify_transport_stop(
     return result
 
 
-# The delegated verifier resolves this global at runtime. Replace only the transport-stop
-# branch so normal twelve-cycle success remains delegated to the existing implementation.
 _impl._verify_transport_stop = _verify_transport_stop
 
 
