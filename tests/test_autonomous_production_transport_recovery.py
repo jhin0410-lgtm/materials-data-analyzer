@@ -15,6 +15,9 @@ from materials_data_analyzer.research_loop.nist_mds2_2923_production_acquisition
 
 MISSION_SHA = "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea"
 NIST_POLICY_SHA = "4b19c64f4f2c764f5315971c5afba16000763a4d307929ec5e463f42ee1cbebf"
+COMPARABILITY_DECISION = (
+    "direct_nist_numerical_validation_blocked_by_response_and_protocol_incompatibility"
+)
 
 
 def _write_json(path: Path, value: object) -> None:
@@ -31,6 +34,41 @@ def _hashed(value: dict[str, Any], field: str) -> dict[str, Any]:
     return result
 
 
+def _comparability_fixture() -> dict[str, Any]:
+    return _hashed(
+        {
+            "schema_version": "1.0",
+            "policy_version": "1.0",
+            "action_class": "reviewed_physical_comparability_assessment",
+            "assessment_status": "reviewed_comparability_assessed_direct_validation_blocked",
+            "gate_decision": {
+                "decision_code": COMPARABILITY_DECISION,
+                "direct_nist_condition_comparability_established": False,
+                "numerical_cross_source_validation_authorized": False,
+                "scalar_residual_comparison_authorized": False,
+                "empirical_model_validation_established": False,
+                "hypothesis_truth_established": False,
+                "scientific_status_changed": False,
+            },
+            "next_action": {
+                "action_class": recovery.NIST_ACTION_CLASS,
+                "candidate_id": recovery.NIST_CANDIDATE_ID,
+                "network_access_performed": False,
+                "automatic_execution_authorized": False,
+            },
+            "scientific_boundary": {
+                "numerical_cross_source_comparison_performed": False,
+                "model_fit_performed": False,
+                "empirical_model_validation_established": False,
+                "hypothesis_truth_established": False,
+                "automatic_scientific_promotion": False,
+                "scientific_status_changed": False,
+            },
+        },
+        "assessment_sha256",
+    )
+
+
 def _prepare_pretransport_state(
     root: Path,
     output_root: str | Path,
@@ -41,6 +79,9 @@ def _prepare_pretransport_state(
     if not output.is_absolute():
         output = root / output
     output.mkdir(parents=True)
+
+    comparability = _comparability_fixture()
+    _write_json(output / "physical-comparability-assessment.json", comparability)
 
     cycle1 = _hashed(
         {
@@ -58,6 +99,7 @@ def _prepare_pretransport_state(
             "cycle_index": 2,
             "predecessor_cycle_sha256": cycle1["cycle_sha256"],
             "selected_action_class": "reviewed_physical_comparability_assessment",
+            "comparability_assessment_sha256": comparability["assessment_sha256"],
             "direct_nist_condition_comparability_established": False,
             "numerical_cross_source_validation_authorized": False,
             "output_blocker": "response_compatible_geometry_evidence_not_acquired",
@@ -78,6 +120,8 @@ def _prepare_pretransport_state(
             "complete_numeric_measurement_row_count": 200288,
             "incomplete_numeric_measurement_row_count": 1,
             "parallel_test_block_count": 19,
+            "comparability_assessment_sha256": comparability["assessment_sha256"],
+            "comparability_decision_code": COMPARABILITY_DECISION,
             "caller_authored_request_queue_used": False,
             "machine_authored_typed_request_used": True,
             "unrestricted_network_search_performed": False,
@@ -153,28 +197,6 @@ def _prepare_pretransport_state(
     return output
 
 
-def test_success_path_is_exact_pass_through(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    root.mkdir()
-    expected = {"status": "full-reference-chain-success"}
-
-    monkeypatch.setattr(
-        recovery,
-        "run_reference_chain_production",
-        lambda **_: expected,
-    )
-
-    result = recovery.run_autonomous_production(
-        repository_root=root,
-        mission_path=root / "unused-mission.json",
-        expected_mission_sha256="0" * 64,
-        output_root="outputs/run",
-        max_cycles=12,
-    )
-
-    assert result is expected
-
-
 def _run_transport_stop(
     monkeypatch: pytest.MonkeyPatch,
     *,
@@ -227,6 +249,57 @@ def _rehash_report_cycle_manifest(
 
     _write_json(report_path, report)
     _write_json(manifest_path, manifest)
+
+
+def _rehash_comparability_chain(output: Path, mutate_assessment: Any) -> None:
+    assessment_path = output / "physical-comparability-assessment.json"
+    manifest_path = output / "autonomous-production-manifest.json"
+    assessment = json.loads(assessment_path.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assessment.pop("assessment_sha256")
+    mutate_assessment(assessment)
+    assessment_sha = recovery._canonical_sha(assessment)
+    assessment["assessment_sha256"] = assessment_sha
+
+    cycle2 = dict(manifest["cycles"][1])
+    cycle2.pop("cycle_sha256")
+    cycle2["comparability_assessment_sha256"] = assessment_sha
+    cycle2["cycle_sha256"] = recovery._canonical_sha(cycle2)
+    manifest["cycles"][1] = cycle2
+
+    cycle3 = dict(manifest["cycles"][2])
+    cycle3.pop("cycle_sha256")
+    cycle3["predecessor_cycle_sha256"] = cycle2["cycle_sha256"]
+    cycle3["cycle_sha256"] = recovery._canonical_sha(cycle3)
+    manifest["cycles"][2] = cycle3
+
+    manifest["comparability_assessment_sha256"] = assessment_sha
+    manifest.pop("manifest_sha256")
+    manifest["manifest_sha256"] = recovery._canonical_sha(manifest)
+
+    _write_json(assessment_path, assessment)
+    _write_json(manifest_path, manifest)
+
+
+def test_success_path_is_exact_pass_through(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    expected = {"status": "full-reference-chain-success"}
+    monkeypatch.setattr(recovery, "run_reference_chain_production", lambda **_: expected)
+
+    result = recovery.run_autonomous_production(
+        repository_root=root,
+        mission_path=root / "unused-mission.json",
+        expected_mission_sha256="0" * 64,
+        output_root="outputs/run",
+        max_cycles=12,
+    )
+
+    assert result is expected
 
 
 def test_typed_nist_transport_failure_becomes_self_hashed_bounded_stop(
@@ -301,10 +374,10 @@ def test_empty_nist_output_directory_is_not_reported_as_partial_output(
     )
 
     result = _run_transport_stop(monkeypatch, root=root)
-
     report = json.loads(
         (output / "nist-transport-unavailability.json").read_text(encoding="utf-8")
     )
+
     assert report["partial_output_present"] is False
     assert report["partial_output_reuse_authorized"] is False
     assert result["nist_mds2_2923_acquisition_completed"] is False
@@ -409,6 +482,42 @@ def test_live_verifier_rejects_consistently_rehashed_nontransport_exception_type
     with pytest.raises(
         live_verifier.AutonomousProductionLiveVerificationError,
         match="typed transient exception",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_live_verifier_rejects_missing_comparability_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = _prepare_pretransport_state(root, "outputs/run")
+    _run_transport_stop(monkeypatch, root=root)
+
+    (output / "physical-comparability-assessment.json").unlink()
+
+    with pytest.raises(live_verifier.AutonomousProductionLiveVerificationError):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_live_verifier_rejects_rehashed_comparability_authority_promotion(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = _prepare_pretransport_state(root, "outputs/run")
+    _run_transport_stop(monkeypatch, root=root)
+
+    def promote(assessment: dict[str, Any]) -> None:
+        assessment["gate_decision"]["numerical_cross_source_validation_authorized"] = True
+
+    _rehash_comparability_chain(output, promote)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="comparability gate scientific authority drifted",
     ):
         live_verifier.verify_live_autonomous_output(output)
 
