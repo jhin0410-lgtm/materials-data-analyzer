@@ -14,12 +14,15 @@ fail-closed into a review/block queue instead of being bypassed.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import re
 import socket
+import ssl
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from http.client import HTTPException, InvalidURL
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -74,10 +77,40 @@ _ACCESS_KEYS = {
     "rights_status",
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_PROXY_TUNNEL_STATUS_RE = re.compile(r"Tunnel connection failed:\s*(\d{3})\b")
+_TRANSIENT_HTTP_STATUS_CODES = frozenset(
+    {
+        408,
+        425,
+        429,
+        500,
+        502,
+        503,
+        504,
+        520,
+        521,
+        522,
+        523,
+        524,
+    }
+)
+_PERMISSION_ERRNOS = frozenset({errno.EACCES, errno.EPERM})
+_WINDOWS_WSAEACCES = 10013
 
 
 class PublicAcquisitionError(ResearchLoopError):
     """Raised when automatic public-data acquisition violates its trust boundary."""
+
+
+class PublicAcquisitionTransportError(PublicAcquisitionError):
+    """Raised when a bounded network acquisition cannot complete at transport time.
+
+    This subtype is intentionally reserved for transient network/HTTP delivery failures.
+    Content, checksum, size, redirect-host, provenance, policy, TLS trust/authentication,
+    permanent DNS, and permanent HTTP failures remain the parent ``PublicAcquisitionError``
+    so callers may recover from transient delivery failures without swallowing integrity or
+    access-policy failures.
+    """
 
 
 @dataclass(frozen=True)
@@ -409,6 +442,16 @@ class _RestrictedRedirectHandler(HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+def _is_permission_denial(error: object) -> bool:
+    if isinstance(error, PermissionError):
+        return True
+    if not isinstance(error, OSError):
+        return False
+    if error.errno in _PERMISSION_ERRNOS:
+        return True
+    return getattr(error, "winerror", None) == _WINDOWS_WSAEACCES
+
+
 def fetch_https_bytes(
     url: str,
     *,
@@ -450,6 +493,10 @@ def fetch_https_bytes(
             )
             status = int(getattr(response, "status", response.getcode()))
             if status < 200 or status >= 300:
+                if status in _TRANSIENT_HTTP_STATUS_CODES:
+                    raise PublicAcquisitionTransportError(
+                        f"HTTP acquisition returned non-success status {status}"
+                    )
                 raise PublicAcquisitionError(
                     f"HTTP acquisition returned non-success status {status}"
                 )
@@ -487,8 +534,76 @@ def fetch_https_bytes(
             )
     except PublicAcquisitionError:
         raise
-    except (HTTPError, URLError, TimeoutError, socket.timeout, OSError) as exc:
-        raise PublicAcquisitionError(f"HTTP acquisition failed: {exc}") from exc
+    except HTTPError as exc:
+        status = int(exc.code)
+        error_type = (
+            PublicAcquisitionTransportError
+            if status in _TRANSIENT_HTTP_STATUS_CODES
+            else PublicAcquisitionError
+        )
+        raise error_type(f"HTTP acquisition failed: {status} {exc.reason}") from exc
+    except InvalidURL as exc:
+        raise PublicAcquisitionError(f"HTTP acquisition invalid URL: {exc}") from exc
+    except HTTPException as exc:
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
+    except URLError as exc:
+        reason = exc.reason
+        if isinstance(reason, ssl.SSLError):
+            raise PublicAcquisitionError(
+                f"HTTP acquisition TLS/trust failure: {reason}"
+            ) from exc
+        if isinstance(reason, socket.gaierror):
+            if reason.errno == socket.EAI_AGAIN:
+                raise PublicAcquisitionTransportError(
+                    f"HTTP acquisition failed: temporary DNS resolution failure: {reason}"
+                ) from exc
+            raise PublicAcquisitionError(
+                f"HTTP acquisition non-transient DNS resolution failure: {reason}"
+            ) from exc
+        tunnel_match = _PROXY_TUNNEL_STATUS_RE.search(str(reason))
+        if tunnel_match is not None:
+            status = int(tunnel_match.group(1))
+            error_type = (
+                PublicAcquisitionTransportError
+                if status in _TRANSIENT_HTTP_STATUS_CODES
+                else PublicAcquisitionError
+            )
+            raise error_type(
+                f"HTTP acquisition failed: proxy tunnel status {status}"
+            ) from exc
+        if _is_permission_denial(reason):
+            raise PublicAcquisitionError(
+                f"HTTP acquisition permission/access-control failure: {reason}"
+            ) from exc
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
+    except ssl.SSLError as exc:
+        raise PublicAcquisitionError(
+            f"HTTP acquisition TLS/trust failure: {exc}"
+        ) from exc
+    except socket.gaierror as exc:
+        if exc.errno == socket.EAI_AGAIN:
+            raise PublicAcquisitionTransportError(
+                f"HTTP acquisition failed: temporary DNS resolution failure: {exc}"
+            ) from exc
+        raise PublicAcquisitionError(
+            f"HTTP acquisition non-transient DNS resolution failure: {exc}"
+        ) from exc
+    except (TimeoutError, socket.timeout) as exc:
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
+    except OSError as exc:
+        if _is_permission_denial(exc):
+            raise PublicAcquisitionError(
+                f"HTTP acquisition permission/access-control failure: {exc}"
+            ) from exc
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
 
 
 def _canonical_json_bytes(value: Mapping[str, Any]) -> bytes:
@@ -695,6 +810,7 @@ __all__ = [
     "PUBLIC_ACQUISITION_CANDIDATE_SCHEMA_VERSION",
     "PUBLIC_ACQUISITION_RECEIPT_SCHEMA_VERSION",
     "PublicAcquisitionError",
+    "PublicAcquisitionTransportError",
     "acquire_public_artifact",
     "assess_public_acquisition_candidate",
     "fetch_https_bytes",
