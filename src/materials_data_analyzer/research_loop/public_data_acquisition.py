@@ -20,6 +20,7 @@ import re
 import socket
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from http.client import HTTPException
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -74,6 +75,22 @@ _ACCESS_KEYS = {
     "rights_status",
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_TRANSIENT_HTTP_STATUS_CODES = frozenset(
+    {
+        408,
+        425,
+        429,
+        500,
+        502,
+        503,
+        504,
+        520,
+        521,
+        522,
+        523,
+        524,
+    }
+)
 
 
 class PublicAcquisitionError(ResearchLoopError):
@@ -83,10 +100,10 @@ class PublicAcquisitionError(ResearchLoopError):
 class PublicAcquisitionTransportError(PublicAcquisitionError):
     """Raised when a bounded network acquisition cannot complete at transport time.
 
-    This subtype is intentionally reserved for network/HTTP delivery failures. Content,
-    checksum, size, redirect-host, provenance, and policy violations remain the parent
-    ``PublicAcquisitionError`` so callers may recover from transient delivery failures
-    without swallowing integrity failures.
+    This subtype is intentionally reserved for transient network/HTTP delivery failures.
+    Content, checksum, size, redirect-host, provenance, policy, and permanent HTTP failures
+    remain the parent ``PublicAcquisitionError`` so callers may recover from transient
+    delivery failures without swallowing integrity or access-policy failures.
     """
 
 
@@ -460,7 +477,11 @@ def fetch_https_bytes(
             )
             status = int(getattr(response, "status", response.getcode()))
             if status < 200 or status >= 300:
-                raise PublicAcquisitionTransportError(
+                if status in _TRANSIENT_HTTP_STATUS_CODES:
+                    raise PublicAcquisitionTransportError(
+                        f"HTTP acquisition returned non-success status {status}"
+                    )
+                raise PublicAcquisitionError(
                     f"HTTP acquisition returned non-success status {status}"
                 )
             content_length = response.headers.get("Content-Length")
@@ -497,7 +518,19 @@ def fetch_https_bytes(
             )
     except PublicAcquisitionError:
         raise
-    except (HTTPError, URLError, TimeoutError, socket.timeout, OSError) as exc:
+    except HTTPError as exc:
+        status = int(exc.code)
+        error_type = (
+            PublicAcquisitionTransportError
+            if status in _TRANSIENT_HTTP_STATUS_CODES
+            else PublicAcquisitionError
+        )
+        raise error_type(f"HTTP acquisition failed: {status} {exc.reason}") from exc
+    except HTTPException as exc:
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
+    except (URLError, TimeoutError, socket.timeout, OSError) as exc:
         raise PublicAcquisitionTransportError(
             f"HTTP acquisition failed: {exc}"
         ) from exc
