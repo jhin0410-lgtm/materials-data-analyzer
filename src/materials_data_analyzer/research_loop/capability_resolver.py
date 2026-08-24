@@ -7,14 +7,15 @@ from . import calibration_protocol_bridge_capability as bridge
 from . import mds2_2923_reference_chain_capability as reference_chain
 from . import nist_ammt_calibration_candidate_acquisition as candidate_acquisition
 from . import nist_ammt_calibration_source_discovery as discovery
+from . import weaver_2021_full_text_capability as weaver_full_text
 from .capability_registry import (
     build_capability_candidate,
     resolve_verified_capability,
 )
 
-CAPABILITY_RESOLVER_SCHEMA_VERSION = "1.3"
-CAPABILITY_RESOLVER_POLICY_VERSION = "1.3"
-_FACTORY_CATALOGUE_SIZE = 4
+CAPABILITY_RESOLVER_SCHEMA_VERSION = "1.4"
+CAPABILITY_RESOLVER_POLICY_VERSION = "1.4"
+_FACTORY_CATALOGUE_SIZE = 5
 
 
 class CapabilityResolverError(ValueError):
@@ -46,6 +47,10 @@ def _bounded_factory(
         reference_chain.REQUIRED_VERIFIED_PRIMITIVES
     ).issubset(primitives):
         return reference_chain, reference_chain.MECHANISM
+    if action_class == weaver_full_text.ACTION_CLASS and set(
+        weaver_full_text.REQUIRED_VERIFIED_PRIMITIVES
+    ).issubset(primitives):
+        return weaver_full_text, weaver_full_text.MECHANISM
     return None
 
 
