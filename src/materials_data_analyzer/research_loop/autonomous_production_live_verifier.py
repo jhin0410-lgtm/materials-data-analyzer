@@ -1,9 +1,9 @@
 """Live autonomous-production verifier with explicit transport-stop provenance binding.
 
-The full twelve-cycle success verifier remains in the sibling implementation module.  This
-wrapper hardens only the temporary NIST transport-stop branch.  A transport outage is accepted
+The full twelve-cycle success verifier remains in the sibling implementation module. This
+wrapper hardens only the temporary NIST transport-stop branch. A transport outage is accepted
 only when the report, policy qualification, authorization, bounded stop, predecessor scientific
-state, cycle chain, and manifest all authenticate the same exact mission-pinned request.
+artifacts, cycle chain, and manifest all authenticate the same exact mission-pinned request.
 """
 from __future__ import annotations
 
@@ -36,6 +36,9 @@ _EXPECTED_NIST_POLICY_SHA256 = (
 )
 _EXPECTED_PRODUCTION_PROFILE = "in625_zenodo_20503603_first_real_closed_loop"
 _EXPECTED_TRANSPORT_EXCEPTION_TYPE = NistMds22923ProductionTransportError.__name__
+_EXPECTED_COMPARABILITY_DECISION = (
+    "direct_nist_numerical_validation_blocked_by_response_and_protocol_incompatibility"
+)
 
 _original_verify_transport_stop = _impl._verify_transport_stop
 
@@ -130,8 +133,70 @@ def _verify_transport_authority(
         _impl._require(observed == expected, f"NIST transport {label} binding mismatch")
 
 
+def _verify_comparability_artifact(
+    root: Path,
+    *,
+    manifest: dict[str, Any],
+    cycle2: dict[str, Any],
+) -> None:
+    assessment = _impl._load(root, "physical-comparability-assessment.json")
+    assessment_sha = _impl._verify_self_hash(
+        assessment,
+        "assessment_sha256",
+        label="physical comparability assessment",
+    )
+    _impl._require(
+        cycle2.get("comparability_assessment_sha256") == assessment_sha,
+        "physical comparability assessment cycle binding mismatch",
+    )
+    _impl._require(
+        manifest.get("comparability_assessment_sha256") == assessment_sha,
+        "physical comparability assessment manifest binding mismatch",
+    )
+    _impl._require(
+        assessment.get("action_class") == "reviewed_physical_comparability_assessment"
+        and assessment.get("assessment_status")
+        == "reviewed_comparability_assessed_direct_validation_blocked",
+        "physical comparability assessment identity/status drifted",
+    )
+    gate = assessment.get("gate_decision")
+    next_action = assessment.get("next_action")
+    boundary = assessment.get("scientific_boundary")
+    _impl._require(isinstance(gate, dict), "comparability gate decision is invalid")
+    _impl._require(isinstance(next_action, dict), "comparability next action is invalid")
+    _impl._require(isinstance(boundary, dict), "comparability scientific boundary is invalid")
+    _impl._require(
+        gate.get("decision_code") == _EXPECTED_COMPARABILITY_DECISION
+        and gate.get("direct_nist_condition_comparability_established") is False
+        and gate.get("numerical_cross_source_validation_authorized") is False
+        and gate.get("scalar_residual_comparison_authorized") is False
+        and gate.get("empirical_model_validation_established") is False
+        and gate.get("hypothesis_truth_established") is False
+        and gate.get("scientific_status_changed") is False,
+        "physical comparability gate scientific authority drifted",
+    )
+    _impl._require(
+        next_action.get("action_class") == NIST_ACTION_CLASS
+        and next_action.get("candidate_id") == NIST_CANDIDATE_ID
+        and next_action.get("network_access_performed") is False
+        and next_action.get("automatic_execution_authorized") is False,
+        "physical comparability next-action authority drifted",
+    )
+    _impl._require(
+        boundary.get("numerical_cross_source_comparison_performed") is False
+        and boundary.get("model_fit_performed") is False
+        and boundary.get("empirical_model_validation_established") is False
+        and boundary.get("hypothesis_truth_established") is False
+        and boundary.get("automatic_scientific_promotion") is False
+        and boundary.get("scientific_status_changed") is False,
+        "physical comparability scientific boundary drifted",
+    )
+
+
 def _verify_pretransport_scientific_state(
-    manifest: dict[str, Any], cycles: list[Any]
+    root: Path,
+    manifest: dict[str, Any],
+    cycles: list[Any],
 ) -> None:
     cycle1, cycle2 = cycles[0], cycles[1]
     _impl._require(isinstance(cycle1, dict), "transport predecessor cycle 1 is invalid")
@@ -164,6 +229,7 @@ def _verify_pretransport_scientific_state(
         and cycle2.get("scientific_status_changed") is False,
         "transport cycle 2 scientific state drifted",
     )
+    _verify_comparability_artifact(root, manifest=manifest, cycle2=cycle2)
 
     exact_manifest_values = {
         "mission_id": "autonomous-in625-production-v1",
@@ -173,6 +239,7 @@ def _verify_pretransport_scientific_state(
         "complete_numeric_measurement_row_count": 200288,
         "incomplete_numeric_measurement_row_count": 1,
         "parallel_test_block_count": 19,
+        "comparability_decision_code": _EXPECTED_COMPARABILITY_DECISION,
         "caller_authored_request_queue_used": False,
         "machine_authored_typed_request_used": True,
         "unrestricted_network_search_performed": False,
@@ -197,7 +264,7 @@ def _verify_pretransport_scientific_state(
             f"transport predecessor scientific field drifted: {key}",
         )
 
-    # These stronger claims are not necessarily present before NIST intake.  If present they
+    # These stronger claims are not necessarily present before NIST intake. If present they
     # must retain the fail-closed value; a transport outage may never introduce them as true.
     _impl._require(
         manifest.get("direct_numerical_cross_source_validation_authorized") in (None, False),
@@ -264,7 +331,7 @@ def _verify_transport_stop(
         report=report,
         cycle3=cycle3,
     )
-    _verify_pretransport_scientific_state(manifest, cycles)
+    _verify_pretransport_scientific_state(root, manifest, cycles)
     return result
 
 
