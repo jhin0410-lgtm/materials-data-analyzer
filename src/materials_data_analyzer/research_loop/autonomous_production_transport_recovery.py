@@ -17,10 +17,11 @@ from .autonomous_production_weaver_extension import (
     run_autonomous_production as run_weaver_production,
 )
 
-# Preserve the reviewed recovery implementation and its compatibility seams while replacing
-# only the underlying scientific production function. `_impl.run_autonomous_production()`
-# resolves this global at runtime.
-_impl.run_reference_chain_production = run_weaver_production
+# Historical tests and callers monkeypatch this module-level seam. Keep that surface while
+# changing its production default from the 12-cycle reference-chain implementation to the
+# Weaver-capable implementation. Each invocation copies the current seam into the reviewed
+# implementation so monkeypatches remain effective and deterministic.
+run_reference_chain_production = run_weaver_production
 
 AutonomousProductionTransportRecoveryError = _impl.AutonomousProductionTransportRecoveryError
 TRANSPORT_STOP_CONTRACT_VERSION = _impl.TRANSPORT_STOP_CONTRACT_VERSION
@@ -43,6 +44,7 @@ def run_autonomous_production(
 ) -> dict[str, Any]:
     """Run Weaver-capable production behind the reviewed narrow transport recovery boundary."""
 
+    _impl.run_reference_chain_production = run_reference_chain_production
     return _impl.run_autonomous_production(
         repository_root=repository_root,
         mission_path=mission_path,
