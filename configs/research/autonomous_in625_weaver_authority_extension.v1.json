@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "extension_id": "autonomous-in625-production-weaver-authority-extension-v1",
   "base_mission_id": "autonomous-in625-production-v1",
-  "base_mission_sha256": "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea",
+  "base_mission_sha256": "7de1c78d1411805623a4687a6d1956517edc009abe5790a0870e89ab6ccb4e88",
   "authorized_action_class": "weaver_2021_spot_size_full_text_derived_acquisition",
   "predecessor_action_class": "mds2_2923_experiment_identity_reference_chain_assessment",
   "source_trust_policy_pin": {
