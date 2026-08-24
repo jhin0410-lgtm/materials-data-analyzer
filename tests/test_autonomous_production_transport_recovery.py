@@ -262,6 +262,35 @@ def test_live_verifier_rejects_rehashed_report_with_stale_manifest_cycle_binding
         live_verifier.verify_live_autonomous_output(output)
 
 
+@pytest.mark.parametrize("status", [404, 410])
+def test_permanent_http_resource_failure_remains_hard_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    status: int,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+
+    def fail_permanent_http(**_: object) -> dict[str, Any]:
+        raise NistMds22923ProductionAcquisitionError(
+            f"NIST exact artifact acquisition failed: HTTP acquisition failed: {status}"
+        )
+
+    monkeypatch.setattr(recovery, "run_reference_chain_production", fail_permanent_http)
+
+    with pytest.raises(
+        NistMds22923ProductionAcquisitionError,
+        match=rf"HTTP acquisition failed: {status}",
+    ):
+        recovery.run_autonomous_production(
+            repository_root=root,
+            mission_path=root / "unused-mission.json",
+            expected_mission_sha256="0" * 64,
+            output_root="outputs/run",
+            max_cycles=12,
+        )
+
+
 def test_non_transport_nist_acquisition_error_remains_hard_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
