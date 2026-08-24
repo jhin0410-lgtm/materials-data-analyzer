@@ -7,7 +7,7 @@ rewritten; compatibility projections may reconstruct the canonical view without 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, NamedTuple
 
 from .scientific_control_plane import (
     CANONICAL_RESEARCH_STATE_ENTITIES,
@@ -15,8 +15,8 @@ from .scientific_control_plane import (
     GOVERNANCE_RUN_STOP_REASONS,
 )
 
-RESEARCH_RUN_SCHEMA_VERSION = "1.1"
-RESEARCH_RUN_POLICY_VERSION = "1.1"
+RESEARCH_RUN_SCHEMA_VERSION = "1.2"
+RESEARCH_RUN_POLICY_VERSION = "1.2"
 
 RESEARCH_RUN_SECTIONS = (
     "identity",
@@ -63,26 +63,66 @@ DERIVED_PROJECTIONS = (
     "release_readiness",
 )
 
-# A research run must be representable before any EvidencePacket exists. Science may author the
-# question/mission/hypothesis/action/decision scaffolding, but empirical or derived content cannot
-# enter by that route. Evidence-derived meaning requires validated packets and, where semantic
-# promotion occurs, an authority-bearing epistemic update.
-SCIENTIFIC_ENTITY_AUTHORITY_SOURCES = {
-    "research_question": "science_plane_authored_initialization_or_authenticated_compatibility_projection",
-    "scientific_mission": "science_plane_authored_scientific_projection_or_authenticated_compatibility_projection",
-    "hypothesis": "science_plane_authored_hypothesis_or_authority_bearing_epistemic_update",
-    "observation": "validated_evidence_packet",
-    "derived_result": "validated_evidence_packet_with_authenticated_derivation_lineage",
-    "evidence": "validated_evidence_packet",
-    "claim": "authority_bearing_epistemic_update_over_validated_evidence_packets",
-    "inference": "authority_bearing_epistemic_update_over_validated_evidence_packets",
-    "contradiction": "science_plane_assessment_over_authoritative_scientific_state",
-    "comparability_assessment": "science_plane_comparability_assessment_over_validated_evidence_packets",
-    "uncertainty_state": "science_plane_uncertainty_assessment_or_explicit_unknown_over_authoritative_state",
-    "evidence_gap": "science_plane_diagnosis_over_current_authoritative_scientific_state",
-    "candidate_action": "science_plane_planner_generation_from_current_authoritative_state",
-    "decision": "science_plane_decision_record_from_current_authoritative_state",
-}
+
+class ScientificEntityAuthoritySource(NamedTuple):
+    entity: str
+    authority_source: str
+
+
+# Immutable source representation. A builder may project this tuple into a dictionary, but
+# importers cannot mutate the source of truth and make validation accept authority drift.
+SCIENTIFIC_ENTITY_AUTHORITY_SOURCES = (
+    ScientificEntityAuthoritySource(
+        "research_question",
+        "science_plane_authored_initialization_or_classified_legacy_projection",
+    ),
+    ScientificEntityAuthoritySource(
+        "scientific_mission",
+        "science_plane_authored_scientific_projection_or_classified_legacy_projection",
+    ),
+    ScientificEntityAuthoritySource(
+        "hypothesis",
+        "science_plane_authored_hypothesis_or_authority_bearing_epistemic_update",
+    ),
+    ScientificEntityAuthoritySource("observation", "validated_evidence_packet"),
+    ScientificEntityAuthoritySource(
+        "derived_result",
+        "validated_evidence_packet_with_authenticated_derivation_lineage",
+    ),
+    ScientificEntityAuthoritySource("evidence", "validated_evidence_packet"),
+    ScientificEntityAuthoritySource(
+        "claim",
+        "authority_bearing_epistemic_update_over_validated_evidence_packets",
+    ),
+    ScientificEntityAuthoritySource(
+        "inference",
+        "authority_bearing_epistemic_update_over_validated_evidence_packets",
+    ),
+    ScientificEntityAuthoritySource(
+        "contradiction",
+        "science_plane_assessment_over_authoritative_scientific_state",
+    ),
+    ScientificEntityAuthoritySource(
+        "comparability_assessment",
+        "science_plane_comparability_assessment_over_validated_evidence_packets",
+    ),
+    ScientificEntityAuthoritySource(
+        "uncertainty_state",
+        "science_plane_uncertainty_assessment_or_explicit_unknown_over_authoritative_state",
+    ),
+    ScientificEntityAuthoritySource(
+        "evidence_gap",
+        "science_plane_diagnosis_over_current_authoritative_scientific_state",
+    ),
+    ScientificEntityAuthoritySource(
+        "candidate_action",
+        "science_plane_planner_generation_from_current_authoritative_state",
+    ),
+    ScientificEntityAuthoritySource(
+        "decision",
+        "science_plane_decision_record_from_current_authoritative_state",
+    ),
+)
 
 _REQUIRED_KEYS = frozenset(
     {
@@ -107,6 +147,10 @@ class CanonicalResearchRunError(ValueError):
     """Raised when the canonical ResearchRun architecture contract drifts."""
 
 
+def _scientific_entity_authority_dict() -> dict[str, str]:
+    return {record.entity: record.authority_source for record in SCIENTIFIC_ENTITY_AUTHORITY_SOURCES}
+
+
 def build_canonical_research_run_contract() -> dict[str, Any]:
     """Return the immutable semantic contract for product-level ResearchRun state."""
 
@@ -115,7 +159,7 @@ def build_canonical_research_run_contract() -> dict[str, Any]:
         "policy_version": RESEARCH_RUN_POLICY_VERSION,
         "sections": list(RESEARCH_RUN_SECTIONS),
         "scientific_state_collections": list(SCIENTIFIC_STATE_COLLECTIONS),
-        "scientific_entity_authority_sources": dict(SCIENTIFIC_ENTITY_AUTHORITY_SOURCES),
+        "scientific_entity_authority_sources": _scientific_entity_authority_dict(),
         "governance_state_collections": list(GOVERNANCE_STATE_COLLECTIONS),
         "governance_run_stop_reasons": list(GOVERNANCE_RUN_STOP_REASONS),
         "run_lifecycle_states": list(RUN_LIFECYCLE_STATES),
@@ -123,7 +167,7 @@ def build_canonical_research_run_contract() -> dict[str, Any]:
         "derived_projections": list(DERIVED_PROJECTIONS),
         "section_authority_sources": {
             "identity": "authenticated_run_identity_and_ancestry",
-            "scientific_state": "entity_specific_science_plane_initialization_and_validated_evidence_epistemic_update_rules",
+            "scientific_state": "entity_specific_science_plane_initialization_classified_legacy_projection_and_validated_evidence_epistemic_update_rules",
             "governance_state": "authenticated_policy_authorization_execution_and_audit_records",
             "run_lifecycle": "authenticated_operational_lifecycle_events",
             "scientific_stop_disposition": "science_plane_assessment_over_authoritative_scientific_state",
@@ -131,6 +175,8 @@ def build_canonical_research_run_contract() -> dict[str, Any]:
         },
         "authority_invariants": {
             "science_plane_may_initialize_non_empirical_scientific_scaffolding": True,
+            "legacy_composite_mission_authentication_alone_enters_scientific_state": False,
+            "legacy_mission_scientific_projection_requires_deterministic_classification": True,
             "empirical_observation_enters_without_validated_evidence_packet": False,
             "derived_result_enters_without_validated_evidence_packet": False,
             "claim_or_inference_promoted_without_authority_bearing_update": False,
@@ -185,6 +231,7 @@ __all__ = [
     "SCIENTIFIC_ENTITY_AUTHORITY_SOURCES",
     "SCIENTIFIC_STATE_COLLECTIONS",
     "SCIENTIFIC_STOP_DISPOSITIONS",
+    "ScientificEntityAuthoritySource",
     "build_canonical_research_run_contract",
     "validate_canonical_research_run_contract",
 ]
