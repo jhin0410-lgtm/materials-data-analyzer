@@ -9,6 +9,7 @@ from materials_data_analyzer.research_loop.scientific_control_plane import (
     CANONICAL_TERMINAL_CLASSES,
     CONTROLLER_INVENTORY,
     GOVERNANCE_PLANE_RESPONSIBILITIES,
+    GOVERNANCE_RUN_STOP_REASONS,
     LEGACY_STOP_STATUS_COMPATIBILITY,
     PROVIDER_TO_EVIDENCE_FLOW,
     SCIENCE_PLANE_RESPONSIBILITIES,
@@ -73,6 +74,14 @@ def test_provider_flow_requires_validation_and_authority_bearing_update_before_k
     )
 
 
+def test_governance_stops_are_not_scientific_terminal_dispositions() -> None:
+    assert "resource_budget_exhausted" in GOVERNANCE_RUN_STOP_REASONS
+    assert "authorization_or_safety_blocked" in GOVERNANCE_RUN_STOP_REASONS
+    assert "resource_budget_exhausted" not in CANONICAL_TERMINAL_CLASSES
+    assert "authorization_or_safety_blocked" not in CANONICAL_TERMINAL_CLASSES
+    assert set(GOVERNANCE_RUN_STOP_REASONS).isdisjoint(CANONICAL_TERMINAL_CLASSES)
+
+
 def test_architecture_metadata_authentication_and_readiness_grant_no_scientific_authority() -> None:
     contract = build_scientific_control_plane_contract()
 
@@ -83,6 +92,9 @@ def test_architecture_metadata_authentication_and_readiness_grant_no_scientific_
     assert contract["authority_boundary"][
         "diagnostic_transition_creates_authoritative_epistemic_update"
     ] is False
+    assert contract["authority_boundary"][
+        "governance_stop_reason_is_scientific_terminal_disposition"
+    ] is False
     assert contract["readiness_projection_semantics"] == {
         "readiness_projection_is_canonical_research_state": False,
         "characterization_l0_l8_is_readiness_projection": True,
@@ -91,11 +103,24 @@ def test_architecture_metadata_authentication_and_readiness_grant_no_scientific_
     }
 
 
-def test_legacy_mission_projects_science_and_governance_without_cross_authority() -> None:
+def test_legacy_mission_requires_item_level_science_governance_projection() -> None:
     mission = build_scientific_control_plane_contract()["mission_projection_semantics"]
     assert mission["legacy_bounded_mission_is_composite"] is True
-    assert mission["science_projection_contains_objective_scope_and_success_criteria"] is True
-    assert mission["governance_projection_contains_autonomy_access_and_delegation_policy"] is True
+    assert mission["field_level_science_projection"] == [
+        "research_question",
+        "scientific_objective",
+        "scientific_scope",
+    ]
+    assert "autonomy_policy" in mission["field_level_governance_projection"]
+    assert "resource_budget" in mission["field_level_governance_projection"]
+    assert mission["item_level_projection_required_for"] == [
+        "success_criteria",
+        "constraints",
+        "stop_rules",
+    ]
+    assert "scientific_success_criterion" in mission["science_item_semantics"]
+    assert "policy_or_authorization_criterion" in mission["governance_item_semantics"]
+    assert mission["unclassified_composite_item_projection"] == "unresolved_no_authority"
     assert mission["science_projection_may_modify_execution_policy"] is False
 
 
@@ -138,7 +163,16 @@ def test_all_installed_looping_research_surfaces_are_classified() -> None:
     assert evidence_loop["classification"] == "domain_implementation"
     assert evidence_loop["automatic_looping"] is True
 
-    assert inventory["persistent_research_episode"]["automatic_looping"] is False
+    checkpoint = inventory["persistent_research_episode_checkpoint"]
+    assert checkpoint["classification"] == "canonical_primitive"
+    assert checkpoint["automatic_looping"] is False
+    assert checkpoint["maximum_actions_per_call"] == 0
+
+    runner = inventory["persistent_research_episode"]
+    assert runner["classification"] == "compatibility_facade"
+    assert runner["automatic_looping"] is True
+    assert runner["maximum_actions_per_call"] is None
+
     assert inventory["planning_adapter_facade"]["classification"] == "compatibility_facade"
     assert inventory["autonomous_production_extensions"]["classification"] == "domain_implementation"
 
@@ -151,14 +185,16 @@ def test_terminal_vocabulary_contains_scientific_dispositions_not_runtime_failur
     assert "marginal_information_value_too_low" in CANONICAL_TERMINAL_CLASSES
     assert "execution_failed" not in CANONICAL_TERMINAL_CLASSES
     assert "interrupted" not in CANONICAL_TERMINAL_CLASSES
+    assert "resource_budget_exhausted" not in CANONICAL_TERMINAL_CLASSES
+    assert "authorization_or_safety_blocked" not in CANONICAL_TERMINAL_CLASSES
 
 
-def test_unambiguous_legacy_review_gate_projects_without_rewriting_history() -> None:
+def test_manual_review_gate_requires_semantic_refinement_before_science_projection() -> None:
     projection = project_legacy_stop_status("manual_review_gate")
 
     assert projection["automatic_progress_stopped"] is True
-    assert projection["canonical_terminal_class"] == "review_required"
-    assert projection["semantic_refinement_required"] is False
+    assert projection["canonical_terminal_class"] is None
+    assert projection["semantic_refinement_required"] is True
     assert projection["historical_artifact_rewritten"] is False
     assert projection["scientific_status_promoted"] is False
 
@@ -200,6 +236,14 @@ def test_contract_rejects_unknown_fields_and_authority_promotion() -> None:
     promoted["authority_boundary"]["governance_plane_grants_scientific_authority"] = True
     with pytest.raises(ScientificControlPlaneError, match="authority_boundary drifted"):
         validate_scientific_control_plane_contract(promoted)
+
+
+def test_contract_rejects_governance_stop_as_scientific_terminal() -> None:
+    contract = copy.deepcopy(build_scientific_control_plane_contract())
+    contract["canonical_terminal_classes"].append("resource_budget_exhausted")
+
+    with pytest.raises(ScientificControlPlaneError):
+        validate_scientific_control_plane_contract(contract)
 
 
 def test_contract_rejects_science_governance_conflation_even_if_otherwise_well_formed() -> None:
