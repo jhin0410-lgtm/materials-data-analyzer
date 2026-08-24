@@ -54,7 +54,8 @@ CANONICAL_RESEARCH_STAGES = (
     "classify_scientific_stop_or_continue",
 )
 
-# These are scientific stopping dispositions. They are deliberately not run lifecycle states.
+# These are scientific stopping dispositions. Governance-only inability to execute is kept out
+# of this vocabulary so a budget or authorization event cannot masquerade as scientific meaning.
 CANONICAL_TERMINAL_CLASSES = (
     "converged",
     "decision_threshold_reached",
@@ -62,14 +63,20 @@ CANONICAL_TERMINAL_CLASSES = (
     "contradictory_evidence",
     "blocked_external_evidence",
     "review_required",
-    "resource_budget_exhausted",
     "marginal_information_value_too_low",
+)
+
+GOVERNANCE_RUN_STOP_REASONS = (
+    "resource_budget_exhausted",
     "authorization_or_safety_blocked",
+    "execution_failed",
+    "interrupted",
+    "operator_stop",
 )
 
 SCIENCE_PLANE_RESPONSIBILITIES = (
     "research_questions",
-    "scientific_mission_objective_scope_and_success_criteria",
+    "scientific_mission_objective_scope_and_scientific_criteria",
     "hypotheses",
     "observations_derived_results_evidence_and_claims",
     "inference_formation_and_assessment",
@@ -171,11 +178,19 @@ CONTROLLER_INVENTORY = (
         None,
     ),
     ControllerRecord(
-        "persistent_research_episode",
+        "persistent_research_episode_checkpoint",
         "canonical_primitive",
-        "persistent_operational_episode_and_iteration_checkpointing",
+        "persistent_operational_episode_checkpoint_open_resume_and_single_step_commit",
         0,
         False,
+        None,
+    ),
+    ControllerRecord(
+        "persistent_research_episode",
+        "compatibility_facade",
+        "caller_budget_bounded_automatic_step_handler_loop_with_checkpointing",
+        None,
+        True,
         None,
     ),
     ControllerRecord(
@@ -221,7 +236,9 @@ class LegacyStopProjection(NamedTuple):
 
 LEGACY_STOP_STATUS_COMPATIBILITY = (
     ("continue", LegacyStopProjection(False, None, False)),
-    ("manual_review_gate", LegacyStopProjection(True, "review_required", False)),
+    # Historical manual_review_gate is not semantically uniform: it can be emitted after failed
+    # audit/execution recovery as well as human-review needs. Do not infer scientific review.
+    ("manual_review_gate", LegacyStopProjection(True, None, True)),
     ("operationally_blocked", LegacyStopProjection(True, None, True)),
     ("terminal_for_current_scope", LegacyStopProjection(True, None, True)),
 )
@@ -233,6 +250,7 @@ _REQUIRED_CONTRACT_KEYS = frozenset(
         "canonical_research_state_entities",
         "canonical_research_stages",
         "canonical_terminal_classes",
+        "governance_run_stop_reasons",
         "science_plane_responsibilities",
         "governance_plane_responsibilities",
         "provider_to_evidence_flow",
@@ -298,7 +316,11 @@ def _legacy_stop_dict() -> dict[str, dict[str, Any]]:
 def project_legacy_stop_status(stop_status: str) -> dict[str, Any]:
     """Project one historical planning stop status without inventing scientific convergence."""
 
-    if not isinstance(stop_status, str) or not stop_status.strip() or stop_status != stop_status.strip():
+    if (
+        not isinstance(stop_status, str)
+        or not stop_status.strip()
+        or stop_status != stop_status.strip()
+    ):
         raise ScientificControlPlaneError("legacy stop status must be exact non-empty text")
     compatibility = _legacy_stop_dict()
     if stop_status not in compatibility:
@@ -320,6 +342,7 @@ def build_scientific_control_plane_contract() -> dict[str, Any]:
         "canonical_research_state_entities": list(CANONICAL_RESEARCH_STATE_ENTITIES),
         "canonical_research_stages": list(CANONICAL_RESEARCH_STAGES),
         "canonical_terminal_classes": list(CANONICAL_TERMINAL_CLASSES),
+        "governance_run_stop_reasons": list(GOVERNANCE_RUN_STOP_REASONS),
         "science_plane_responsibilities": list(SCIENCE_PLANE_RESPONSIBILITIES),
         "governance_plane_responsibilities": list(GOVERNANCE_PLANE_RESPONSIBILITIES),
         "provider_to_evidence_flow": list(PROVIDER_TO_EVIDENCE_FLOW),
@@ -328,8 +351,35 @@ def build_scientific_control_plane_contract() -> dict[str, Any]:
         "legacy_stop_status_compatibility": _legacy_stop_dict(),
         "mission_projection_semantics": {
             "legacy_bounded_mission_is_composite": True,
-            "science_projection_contains_objective_scope_and_success_criteria": True,
-            "governance_projection_contains_autonomy_access_and_delegation_policy": True,
+            "field_level_science_projection": [
+                "research_question",
+                "scientific_objective",
+                "scientific_scope",
+            ],
+            "field_level_governance_projection": [
+                "autonomy_policy",
+                "source_and_access_policy_pins",
+                "request_delegation_policy_pins",
+                "resource_budget",
+                "execution_limits",
+            ],
+            "item_level_projection_required_for": [
+                "success_criteria",
+                "constraints",
+                "stop_rules",
+            ],
+            "science_item_semantics": [
+                "scientific_success_criterion",
+                "scientific_scope_constraint",
+                "scientific_stop_rule",
+            ],
+            "governance_item_semantics": [
+                "policy_or_authorization_criterion",
+                "source_or_access_constraint",
+                "resource_or_execution_constraint",
+                "integrity_or_recovery_stop_rule",
+            ],
+            "unclassified_composite_item_projection": "unresolved_no_authority",
             "science_projection_may_modify_execution_policy": False,
         },
         "diagnostic_transition_semantics": {
@@ -354,6 +404,8 @@ def build_scientific_control_plane_contract() -> dict[str, Any]:
             "provider_self_validates_scientific_truth": False,
             "successful_transport_establishes_scientific_validity": False,
             "diagnostic_transition_creates_authoritative_epistemic_update": False,
+            "governance_stop_reason_is_scientific_terminal_disposition": False,
+            "unclassified_legacy_mission_item_grants_authority": False,
         },
     }
 
@@ -375,6 +427,7 @@ def validate_scientific_control_plane_contract(value: object) -> dict[str, Any]:
         "canonical_research_state_entities",
         "canonical_research_stages",
         "canonical_terminal_classes",
+        "governance_run_stop_reasons",
         "science_plane_responsibilities",
         "governance_plane_responsibilities",
         "provider_to_evidence_flow",
@@ -388,7 +441,14 @@ def validate_scientific_control_plane_contract(value: object) -> dict[str, Any]:
     science = set(value["science_plane_responsibilities"])
     governance = set(value["governance_plane_responsibilities"])
     if science & governance:
-        raise ScientificControlPlaneError("science and governance responsibilities must be disjoint")
+        raise ScientificControlPlaneError(
+            "science and governance responsibilities must be disjoint"
+        )
+
+    if set(value["canonical_terminal_classes"]) & set(value["governance_run_stop_reasons"]):
+        raise ScientificControlPlaneError(
+            "scientific terminal classes and governance stop reasons must be disjoint"
+        )
 
     for field in (
         "controller_inventory",
@@ -414,6 +474,7 @@ __all__ = [
     "CONTROLLER_INVENTORY",
     "ControllerRecord",
     "GOVERNANCE_PLANE_RESPONSIBILITIES",
+    "GOVERNANCE_RUN_STOP_REASONS",
     "LEGACY_STOP_STATUS_COMPATIBILITY",
     "LegacyStopProjection",
     "PROVIDER_TO_EVIDENCE_FLOW",
