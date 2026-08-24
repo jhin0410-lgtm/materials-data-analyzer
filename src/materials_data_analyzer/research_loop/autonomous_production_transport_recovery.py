@@ -188,6 +188,7 @@ def _finalize_transport_stop(
     )
 
     nist_output = output / "nist-mds2-2923"
+    partial_output_present = nist_output.is_dir() and any(nist_output.iterdir())
     transport_report: dict[str, Any] = {
         "schema_version": TRANSPORT_STOP_CONTRACT_VERSION,
         "artifact_type": "temporary_source_transport_unavailability",
@@ -201,7 +202,7 @@ def _finalize_transport_stop(
         "authorization_sha256": authorization_sha,
         "transport_exception_type": type(transport_error).__name__,
         "transport_exception_message": str(transport_error),
-        "partial_output_present": nist_output.exists(),
+        "partial_output_present": partial_output_present,
         "partial_output_reuse_authorized": False,
         "acquisition_completed": False,
         "scientific_intake_performed": False,
