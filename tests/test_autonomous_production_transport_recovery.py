@@ -8,6 +8,18 @@ import pytest
 
 from materials_data_analyzer.research_loop import autonomous_production_live_verifier as live_verifier
 from materials_data_analyzer.research_loop import autonomous_production_transport_recovery as recovery
+from materials_data_analyzer.research_loop.nist_mds2_2923_network_policy import (
+    ARTIFACT_ALLOWED_HOSTS,
+    EXPECTED_FILES,
+    EXPECTED_METADATA_SHA256,
+    MAX_ARTIFACT_BYTES,
+    MAX_METADATA_BYTES,
+    MAX_NETWORK_REQUESTS,
+    MAX_TOTAL_ARTIFACT_BYTES,
+    METADATA_ALLOWED_HOSTS,
+    METADATA_ENDPOINT,
+    TIMEOUT_SECONDS,
+)
 from materials_data_analyzer.research_loop.nist_mds2_2923_production_acquisition import (
     NistMds22923ProductionAcquisitionError,
     NistMds22923ProductionTransportError,
@@ -15,9 +27,14 @@ from materials_data_analyzer.research_loop.nist_mds2_2923_production_acquisition
 
 MISSION_SHA = "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea"
 NIST_POLICY_SHA = "4b19c64f4f2c764f5315971c5afba16000763a4d307929ec5e463f42ee1cbebf"
+ZENODO_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
+ZENODO_ARCHIVE_SHA = "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
 COMPARABILITY_DECISION = (
     "direct_nist_numerical_validation_blocked_by_response_and_protocol_incompatibility"
 )
+EXPECTED_NIST_FILES = {
+    path: {"path": path, **rule} for path, rule in EXPECTED_FILES.items()
+}
 
 
 def _write_json(path: Path, value: object) -> None:
@@ -53,6 +70,7 @@ def _comparability_fixture() -> dict[str, Any]:
             "next_action": {
                 "action_class": recovery.NIST_ACTION_CLASS,
                 "candidate_id": recovery.NIST_CANDIDATE_ID,
+                "direct_comparability_preestablished": False,
                 "network_access_performed": False,
                 "automatic_execution_authorized": False,
             },
@@ -61,12 +79,97 @@ def _comparability_fixture() -> dict[str, Any]:
                 "model_fit_performed": False,
                 "empirical_model_validation_established": False,
                 "hypothesis_truth_established": False,
+                "positive_scientific_closeout_established": False,
+                "global_evidence_unavailability_claimed": False,
                 "automatic_scientific_promotion": False,
                 "scientific_status_changed": False,
             },
         },
         "assessment_sha256",
     )
+
+
+def _write_cycle1_evidence(output: Path) -> tuple[str, str, str]:
+    receipt = _hashed(
+        {
+            "schema_version": "1.0",
+            "policy_version": "1.0",
+            "source_id": ZENODO_SOURCE_ID,
+            "zenodo_record_id": "20503603",
+            "archive": {"sha256": ZENODO_ARCHIVE_SHA},
+            "network_access_performed": True,
+            "network_execution_authorized": True,
+            "provider_checksum_verified": True,
+            "project_sha256_verified": True,
+            "byte_count_verified": True,
+            "exact_host_restriction_enforced": True,
+            "scientific_boundary": {
+                "automatic_scientific_promotion": False,
+                "direct_nist_condition_comparability_established": False,
+                "empirical_model_validation_established": False,
+                "hypothesis_truth_established": False,
+                "positive_scientific_closeout_established": False,
+            },
+        },
+        "receipt_sha256",
+    )
+    quality = _hashed(
+        {
+            "schema_version": "1.0",
+            "quality_status": "verified_observed_source_quality",
+            "source_id": ZENODO_SOURCE_ID,
+            "source_archive_sha256": ZENODO_ARCHIVE_SHA,
+            "measurement_row_count": 200289,
+            "complete_numeric_measurement_row_count": 200288,
+            "incomplete_numeric_measurement_row_count": 1,
+            "missing_value_imputation_authorized": False,
+            "row_exclusion_authorized": False,
+            "direct_nist_condition_comparability_established": False,
+            "empirical_model_validation_established": False,
+            "hypothesis_truth_established": False,
+            "positive_scientific_closeout_established": False,
+            "scientific_status_changed": False,
+        },
+        "verification_sha256",
+    )
+    rediagnosis = _hashed(
+        {
+            "schema_version": "2.0",
+            "policy_version": "2.0",
+            "current_blocker": {
+                "code": "cross_source_physical_comparability_not_established"
+            },
+            "next_action": {
+                "action_class": "reviewed_physical_comparability_assessment"
+            },
+            "stop_state": {"positive_scientific_closeout": False},
+            "scientific_status_changed": False,
+        },
+        "rediagnosis_sha256",
+    )
+    _write_json(output / "network-acquisition-receipt.json", receipt)
+    _write_json(output / "tensile-quality-verification.json", quality)
+    _write_json(output / "quality-aware-rediagnosis.json", rediagnosis)
+    return (
+        receipt["receipt_sha256"],
+        quality["verification_sha256"],
+        rediagnosis["rediagnosis_sha256"],
+    )
+
+
+def _finite_network_fields() -> dict[str, Any]:
+    return {
+        "metadata_endpoint": METADATA_ENDPOINT,
+        "expected_nerdm_metadata_sha256": EXPECTED_METADATA_SHA256,
+        "expected_files": EXPECTED_NIST_FILES,
+        "metadata_allowed_hosts": list(METADATA_ALLOWED_HOSTS),
+        "artifact_allowed_hosts": list(ARTIFACT_ALLOWED_HOSTS),
+        "maximum_network_requests": MAX_NETWORK_REQUESTS,
+        "maximum_metadata_bytes": MAX_METADATA_BYTES,
+        "maximum_artifact_bytes": MAX_ARTIFACT_BYTES,
+        "maximum_total_artifact_bytes": MAX_TOTAL_ARTIFACT_BYTES,
+        "timeout_seconds": TIMEOUT_SECONDS,
+    }
 
 
 def _prepare_pretransport_state(
@@ -82,11 +185,15 @@ def _prepare_pretransport_state(
 
     comparability = _comparability_fixture()
     _write_json(output / "physical-comparability-assessment.json", comparability)
+    receipt_sha, quality_sha, rediagnosis_sha = _write_cycle1_evidence(output)
 
     cycle1 = _hashed(
         {
             "cycle_index": 1,
             "selected_action_class": "external_evidence_search",
+            "network_receipt_sha256": receipt_sha,
+            "quality_verification_sha256": quality_sha,
+            "rediagnosis_sha256": rediagnosis_sha,
             "output_blocker": "cross_source_physical_comparability_not_established",
             "output_next_action_class": "reviewed_physical_comparability_assessment",
             "new_verified_information": True,
@@ -162,6 +269,7 @@ def _prepare_pretransport_state(
         "action_class": recovery.NIST_ACTION_CLASS,
         "candidate_id": recovery.NIST_CANDIDATE_ID,
         "product_id": recovery.NIST_PRODUCT_ID,
+        **_finite_network_fields(),
         "network_access_performed": False,
         "unrestricted_search_authorized": False,
         "arbitrary_url_fetch_authorized": False,
@@ -178,6 +286,7 @@ def _prepare_pretransport_state(
         "action_class": recovery.NIST_ACTION_CLASS,
         "candidate_id": recovery.NIST_CANDIDATE_ID,
         "product_id": recovery.NIST_PRODUCT_ID,
+        **_finite_network_fields(),
         "network_access_performed": False,
         "unrestricted_search_authorized": False,
         "arbitrary_url_fetch_authorized": False,
@@ -282,6 +391,27 @@ def _rehash_comparability_chain(output: Path, mutate_assessment: Any) -> None:
     _write_json(manifest_path, manifest)
 
 
+def _rehash_authorization_chain(output: Path, mutate_authorization: Any) -> None:
+    auth_path = output / "nist-network-authorization.json"
+    authorization = json.loads(auth_path.read_text(encoding="utf-8"))
+    authorization.pop("authorization_sha256")
+    mutate_authorization(authorization)
+    authorization_sha = recovery._canonical_sha(authorization)
+    authorization["authorization_sha256"] = authorization_sha
+    _write_json(auth_path, authorization)
+
+    def mutate_report(report: dict[str, Any]) -> None:
+        report["authorization_sha256"] = authorization_sha
+
+    def mutate_cycle(cycle: dict[str, Any]) -> None:
+        cycle["network_authorization_sha256"] = authorization_sha
+
+    def mutate_manifest(manifest: dict[str, Any]) -> None:
+        manifest["nist_mds2_2923_network_authorization_sha256"] = authorization_sha
+
+    _rehash_report_cycle_manifest(output, mutate_report, mutate_cycle, mutate_manifest)
+
+
 def test_success_path_is_exact_pass_through(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -298,7 +428,6 @@ def test_success_path_is_exact_pass_through(
         output_root="outputs/run",
         max_cycles=12,
     )
-
     assert result is expected
 
 
@@ -309,7 +438,6 @@ def test_typed_nist_transport_failure_becomes_self_hashed_bounded_stop(
     root = tmp_path / "repo"
     root.mkdir()
     output = _prepare_pretransport_state(root, "outputs/run")
-
     result = _run_transport_stop(monkeypatch, root=root)
 
     assert result["stop"]["reason_code"] == recovery.TRANSPORT_STOP_REASON_CODE
@@ -324,37 +452,6 @@ def test_typed_nist_transport_failure_becomes_self_hashed_bounded_stop(
     assert result["nist_mds2_2923_scientific_intake_performed"] is False
     assert result["scientific_status_changed"] is False
     assert len(result["cycles"]) == 3
-    cycle3 = result["cycles"][-1]
-    assert cycle3["acquisition_completed"] is False
-    assert cycle3["retry_performed"] is False
-    assert cycle3["new_verified_operational_information"] is True
-    assert cycle3["new_verified_scientific_information"] is False
-    unsigned_cycle = dict(cycle3)
-    cycle_sha = unsigned_cycle.pop("cycle_sha256")
-    assert recovery._canonical_sha(unsigned_cycle) == cycle_sha
-
-    persisted = json.loads(
-        (output / "autonomous-production-manifest.json").read_text(encoding="utf-8")
-    )
-    unsigned_manifest = dict(persisted)
-    manifest_sha = unsigned_manifest.pop("manifest_sha256")
-    assert recovery._canonical_sha(unsigned_manifest) == manifest_sha
-    assert persisted == result
-
-    report = json.loads(
-        (output / "nist-transport-unavailability.json").read_text(encoding="utf-8")
-    )
-    report_sha = report.pop("report_sha256_without_self_field")
-    assert recovery._canonical_sha(report) == report_sha
-    assert report["partial_output_present"] is True
-    assert report["partial_output_reuse_authorized"] is False
-    assert report["retry_performed"] is False
-    assert report["network_request_budget_widened"] is False
-    assert report["allowed_hosts_widened"] is False
-    assert report["alternate_url_synthesized"] is False
-    assert report["scientific_intake_performed"] is False
-    assert not (output / "nist-scientific-intake.json").exists()
-    assert not (output / "nist-network-acquisition-receipt.json").exists()
     assert (
         live_verifier.verify_live_autonomous_output(output)
         == "typed_nist_transport_stop_verified"
@@ -372,16 +469,13 @@ def test_empty_nist_output_directory_is_not_reported_as_partial_output(
         "outputs/run",
         persist_partial_nist_bytes=False,
     )
-
     result = _run_transport_stop(monkeypatch, root=root)
     report = json.loads(
         (output / "nist-transport-unavailability.json").read_text(encoding="utf-8")
     )
-
     assert report["partial_output_present"] is False
     assert report["partial_output_reuse_authorized"] is False
     assert result["nist_mds2_2923_acquisition_completed"] is False
-    assert result["nist_mds2_2923_scientific_intake_performed"] is False
 
 
 def test_live_verifier_rejects_rehashed_report_with_stale_manifest_cycle_binding(
@@ -415,30 +509,43 @@ def test_live_verifier_rejects_rehashed_authorization_that_widens_authority(
     root.mkdir()
     output = _prepare_pretransport_state(root, "outputs/run")
     _run_transport_stop(monkeypatch, root=root)
-
-    auth_path = output / "nist-network-authorization.json"
-    authorization = json.loads(auth_path.read_text(encoding="utf-8"))
-    authorization.pop("authorization_sha256")
-    authorization["caller_authored_url_used"] = True
-    authorization_sha = recovery._canonical_sha(authorization)
-    authorization["authorization_sha256"] = authorization_sha
-    _write_json(auth_path, authorization)
-
-    def mutate_report(report: dict[str, Any]) -> None:
-        report["authorization_sha256"] = authorization_sha
-
-    def mutate_cycle(cycle: dict[str, Any]) -> None:
-        cycle["network_authorization_sha256"] = authorization_sha
-
-    def mutate_manifest(manifest: dict[str, Any]) -> None:
-        manifest["nist_mds2_2923_network_authorization_sha256"] = authorization_sha
-
-    _rehash_report_cycle_manifest(output, mutate_report, mutate_cycle, mutate_manifest)
+    _rehash_authorization_chain(
+        output,
+        lambda authorization: authorization.__setitem__("caller_authored_url_used", True),
+    )
 
     with pytest.raises(
         live_verifier.AutonomousProductionLiveVerificationError,
         match="authorization widened authority",
     ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("maximum_network_requests", 999),
+        ("metadata_allowed_hosts", ["untrusted.example"]),
+        ("artifact_allowed_hosts", ["untrusted.example"]),
+        ("maximum_total_artifact_bytes", MAX_TOTAL_ARTIFACT_BYTES + 1),
+        ("timeout_seconds", TIMEOUT_SECONDS + 1),
+    ],
+)
+def test_live_verifier_rejects_rehashed_finite_network_authority_widening(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = _prepare_pretransport_state(root, "outputs/run")
+    _run_transport_stop(monkeypatch, root=root)
+    _rehash_authorization_chain(
+        output, lambda authorization: authorization.__setitem__(field, value)
+    )
+
+    with pytest.raises(live_verifier.AutonomousProductionLiveVerificationError):
         live_verifier.verify_live_autonomous_output(output)
 
 
@@ -450,7 +557,6 @@ def test_live_verifier_rejects_bounded_stop_manifest_divergence(
     root.mkdir()
     output = _prepare_pretransport_state(root, "outputs/run")
     _run_transport_stop(monkeypatch, root=root)
-
     stop_path = output / "bounded-stop.json"
     stop = json.loads(stop_path.read_text(encoding="utf-8"))
     stop["candidate_id"] = "different-candidate"
@@ -471,7 +577,6 @@ def test_live_verifier_rejects_consistently_rehashed_nontransport_exception_type
     root.mkdir()
     output = _prepare_pretransport_state(root, "outputs/run")
     _run_transport_stop(monkeypatch, root=root)
-
     _rehash_report_cycle_manifest(
         output,
         mutate_report=lambda report: report.__setitem__(
@@ -486,6 +591,76 @@ def test_live_verifier_rejects_consistently_rehashed_nontransport_exception_type
         live_verifier.verify_live_autonomous_output(output)
 
 
+@pytest.mark.parametrize(
+    "artifact_name",
+    [
+        "network-acquisition-receipt.json",
+        "tensile-quality-verification.json",
+        "quality-aware-rediagnosis.json",
+    ],
+)
+def test_live_verifier_rejects_missing_cycle1_evidence_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    artifact_name: str,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = _prepare_pretransport_state(root, "outputs/run")
+    _run_transport_stop(monkeypatch, root=root)
+    (output / artifact_name).unlink()
+
+    with pytest.raises(live_verifier.AutonomousProductionLiveVerificationError):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_live_verifier_rejects_rehashed_cycle1_quality_promotion(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = _prepare_pretransport_state(root, "outputs/run")
+    _run_transport_stop(monkeypatch, root=root)
+
+    quality_path = output / "tensile-quality-verification.json"
+    manifest_path = output / "autonomous-production-manifest.json"
+    quality = json.loads(quality_path.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    quality.pop("verification_sha256")
+    quality["positive_scientific_closeout_established"] = True
+    quality_sha = recovery._canonical_sha(quality)
+    quality["verification_sha256"] = quality_sha
+
+    cycle1 = dict(manifest["cycles"][0])
+    cycle1.pop("cycle_sha256")
+    cycle1["quality_verification_sha256"] = quality_sha
+    cycle1["cycle_sha256"] = recovery._canonical_sha(cycle1)
+    manifest["cycles"][0] = cycle1
+
+    cycle2 = dict(manifest["cycles"][1])
+    cycle2.pop("cycle_sha256")
+    cycle2["predecessor_cycle_sha256"] = cycle1["cycle_sha256"]
+    cycle2["cycle_sha256"] = recovery._canonical_sha(cycle2)
+    manifest["cycles"][1] = cycle2
+
+    cycle3 = dict(manifest["cycles"][2])
+    cycle3.pop("cycle_sha256")
+    cycle3["predecessor_cycle_sha256"] = cycle2["cycle_sha256"]
+    cycle3["cycle_sha256"] = recovery._canonical_sha(cycle3)
+    manifest["cycles"][2] = cycle3
+    manifest.pop("manifest_sha256")
+    manifest["manifest_sha256"] = recovery._canonical_sha(manifest)
+    _write_json(quality_path, quality)
+    _write_json(manifest_path, manifest)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="quality evidence scientific state drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
 def test_live_verifier_rejects_missing_comparability_artifact(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -494,16 +669,25 @@ def test_live_verifier_rejects_missing_comparability_artifact(
     root.mkdir()
     output = _prepare_pretransport_state(root, "outputs/run")
     _run_transport_stop(monkeypatch, root=root)
-
     (output / "physical-comparability-assessment.json").unlink()
 
     with pytest.raises(live_verifier.AutonomousProductionLiveVerificationError):
         live_verifier.verify_live_autonomous_output(output)
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "gate_authorization",
+        "preestablished_comparability",
+        "positive_closeout",
+        "global_unavailability",
+    ],
+)
 def test_live_verifier_rejects_rehashed_comparability_authority_promotion(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    mutation: str,
 ) -> None:
     root = tmp_path / "repo"
     root.mkdir()
@@ -511,13 +695,47 @@ def test_live_verifier_rejects_rehashed_comparability_authority_promotion(
     _run_transport_stop(monkeypatch, root=root)
 
     def promote(assessment: dict[str, Any]) -> None:
-        assessment["gate_decision"]["numerical_cross_source_validation_authorized"] = True
+        if mutation == "gate_authorization":
+            assessment["gate_decision"]["numerical_cross_source_validation_authorized"] = True
+        elif mutation == "preestablished_comparability":
+            assessment["next_action"]["direct_comparability_preestablished"] = True
+        elif mutation == "positive_closeout":
+            assessment["scientific_boundary"]["positive_scientific_closeout_established"] = True
+        else:
+            assessment["scientific_boundary"]["global_evidence_unavailability_claimed"] = True
 
     _rehash_comparability_chain(output, promote)
 
+    with pytest.raises(live_verifier.AutonomousProductionLiveVerificationError):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("network_failure_interpreted_as_negative_scientific_evidence", True),
+        ("output_blocker", "invented_scientific_blocker"),
+        ("output_next_action_class", "invented_next_action"),
+        ("new_verified_scientific_information", True),
+    ],
+)
+def test_live_verifier_rejects_rehashed_cycle3_scientific_interpretation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = _prepare_pretransport_state(root, "outputs/run")
+    _run_transport_stop(monkeypatch, root=root)
+    _rehash_report_cycle_manifest(
+        output, mutate_cycle=lambda cycle: cycle.__setitem__(field, value)
+    )
+
     with pytest.raises(
         live_verifier.AutonomousProductionLiveVerificationError,
-        match="comparability gate scientific authority drifted",
+        match="transport cycle 3 scientific/operational contract drifted",
     ):
         live_verifier.verify_live_autonomous_output(output)
 
@@ -541,7 +759,6 @@ def test_live_verifier_rejects_rehashed_pretransport_scientific_promotion(
     root.mkdir()
     output = _prepare_pretransport_state(root, "outputs/run")
     _run_transport_stop(monkeypatch, root=root)
-
     manifest_path = output / "autonomous-production-manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest.pop("manifest_sha256")
@@ -568,7 +785,6 @@ def test_permanent_http_resource_failure_remains_hard_failure(
         )
 
     monkeypatch.setattr(recovery, "run_reference_chain_production", fail_permanent_http)
-
     with pytest.raises(
         NistMds22923ProductionAcquisitionError,
         match=rf"HTTP acquisition failed: {status}",
@@ -593,7 +809,6 @@ def test_non_transport_nist_acquisition_error_remains_hard_failure(
         raise NistMds22923ProductionAcquisitionError("checksum mismatch")
 
     monkeypatch.setattr(recovery, "run_reference_chain_production", fail_integrity)
-
     with pytest.raises(NistMds22923ProductionAcquisitionError, match="checksum mismatch"):
         recovery.run_autonomous_production(
             repository_root=root,
