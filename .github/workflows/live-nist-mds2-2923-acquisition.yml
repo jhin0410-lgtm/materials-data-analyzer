@@ -12,14 +12,18 @@ on:
       - "scripts/verify_live_nist_mds2_2923_micrographs.py"
       - "src/materials_data_analyzer/public_acquisition_cli.py"
       - "src/materials_data_analyzer/research_loop/frontier_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/nist_mds2_2923_production_acquisition.py"
       - "src/materials_data_analyzer/research_loop/nist_mds2_2923_scientific_intake.py"
       - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
       - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
       - "tests/test_in625_mds2_2923_acquisition_frontier.py"
       - "tests/test_nist_mds2_2923_scientific_intake.py"
+      - "tests/test_nist_mds2_2923_transport_errors.py"
       - "tests/test_nist_pdr_acquisition.py"
       - "tests/test_nist_pdr_nerdm_compatibility.py"
       - "tests/test_public_data_acquisition.py"
+      - "tests/test_public_data_acquisition_permission_denials.py"
+      - "tests/test_public_data_acquisition_transport_errors.py"
 
 permissions:
   contents: read
@@ -79,9 +83,12 @@ jobs:
           python -m pytest -q \
             tests/test_in625_mds2_2923_acquisition_frontier.py \
             tests/test_nist_mds2_2923_scientific_intake.py \
+            tests/test_nist_mds2_2923_transport_errors.py \
             tests/test_nist_pdr_acquisition.py \
             tests/test_nist_pdr_nerdm_compatibility.py \
-            tests/test_public_data_acquisition.py
+            tests/test_public_data_acquisition.py \
+            tests/test_public_data_acquisition_permission_denials.py \
+            tests/test_public_data_acquisition_transport_errors.py
 
       - name: Acquire authoritative README and workbook
         run: |
