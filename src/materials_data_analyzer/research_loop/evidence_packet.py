@@ -34,6 +34,7 @@ EVIDENCE_KINDS = frozenset(
 )
 CONTEXT_STATUSES = frozenset({"applicable", "not_applicable", "unknown"})
 VALUE_TYPES = frozenset({"number", "integer", "text", "boolean", "json", "null"})
+UNIT_STATES = frozenset({"specified", "not_applicable", "unknown"})
 RESULT_VALUE_STATES = frozenset(
     {"observed", "derived", "asserted_reference", "unknown", "not_applicable"}
 )
@@ -85,7 +86,7 @@ _IDENTITY_KEYS = frozenset({"namespace", "value", "role"})
 _CONTEXTS_KEYS = frozenset({"process", "sample", "method", "measurement"})
 _CONTEXT_BLOCK_KEYS = frozenset({"status", "attributes"})
 _ATTRIBUTE_KEYS = frozenset(
-    {"name", "value", "value_type", "unit", "source_binding_ids"}
+    {"name", "value", "value_type", "unit_state", "unit", "source_binding_ids"}
 )
 _RESULT_KEYS = frozenset(
     {
@@ -94,6 +95,7 @@ _RESULT_KEYS = frozenset(
         "value_state",
         "value",
         "value_type",
+        "unit_state",
         "unit",
         "source_binding_ids",
         "derivation_ids",
@@ -307,6 +309,16 @@ def _validate_typed_value(value: object, value_type: object, *, field: str) -> N
         _json_value(value, field=f"{field}.value")
 
 
+def _validate_unit(unit_state: object, unit: object, *, field: str) -> str | None:
+    _require(unit_state in UNIT_STATES, f"{field}.unit_state is unsupported")
+    if unit_state == "specified":
+        normalized = _text(unit, field=f"{field}.unit")
+        assert isinstance(normalized, str)
+        return normalized
+    _require(unit is None, f"{field}.unit must be null when unit_state is not specified")
+    return None
+
+
 def _validate_locator(value: object, *, field: str) -> str:
     locator = _text(value, field=field)
     assert isinstance(locator, str)
@@ -379,8 +391,11 @@ def _validate_contexts(value: object, binding_ids: set[str]) -> None:
                 attribute.get("value_type"),
                 field=f"contexts.{context_name}.attributes[{index}]",
             )
-            unit = attribute.get("unit")
-            _require(unit is None or isinstance(unit, str), "context attribute unit must be text or null")
+            _validate_unit(
+                attribute.get("unit_state"),
+                attribute.get("unit"),
+                field=f"contexts.{context_name}.attributes[{index}]",
+            )
             references = _text_list(
                 attribute.get("source_binding_ids"),
                 field=f"contexts.{context_name}.attributes[{index}].source_binding_ids",
@@ -448,8 +463,9 @@ def _validate_results(value: object, binding_ids: set[str]) -> tuple[set[str], d
         _validate_typed_value(result.get("value"), result.get("value_type"), field=f"results[{index}]")
         if result.get("value_state") in {"unknown", "not_applicable"}:
             _require(result.get("value") is None and result.get("value_type") == "null", f"results[{index}] unknown/not_applicable value must remain null")
-        unit = result.get("unit")
-        _require(unit is None or isinstance(unit, str), f"results[{index}].unit must be text or null")
+        unit = _validate_unit(
+            result.get("unit_state"), result.get("unit"), field=f"results[{index}]"
+        )
         references = _text_list(result.get("source_binding_ids"), field=f"results[{index}].source_binding_ids", allow_empty=False)
         _require(set(references) <= binding_ids, f"results[{index}] references unknown source binding")
         _text_list(result.get("derivation_ids"), field=f"results[{index}].derivation_ids")
@@ -564,8 +580,13 @@ def _validate_derivations(
 def _validate_result_references(value: Sequence[object], *, derivation_ids: set[str], uncertainty_ids: set[str]) -> None:
     for index, item in enumerate(value):
         assert isinstance(item, Mapping)
-        _require(set(item.get("derivation_ids", [])) <= derivation_ids, f"results[{index}] references unknown derivation")
+        referenced_derivations = set(item.get("derivation_ids", []))
+        _require(referenced_derivations <= derivation_ids, f"results[{index}] references unknown derivation")
         _require(set(item.get("uncertainty_ids", [])) <= uncertainty_ids, f"results[{index}] references unknown uncertainty")
+        if item.get("value_state") == "derived":
+            _require(bool(referenced_derivations), f"results[{index}] derived value requires derivation lineage")
+        else:
+            _require(not referenced_derivations, f"results[{index}] non-derived value may not claim derivation lineage")
 
 
 def _validate_independence(value: object) -> tuple[str | None, str]:
@@ -617,6 +638,20 @@ def _validate_authority(value: object, *, evidence_kind: str, validity: Mapping[
         _require(isinstance(authority.get(key), bool), f"authority.{key} must be boolean")
     authority_source = authority.get("authority_source")
     _require(authority_source in AUTHORITY_SOURCES, "authority.authority_source is unsupported")
+    planning_only = authority.get("planning_metadata_only") is True
+    _require(
+        planning_only == (evidence_kind == "planning_metadata"),
+        "planning_metadata_only must exactly match planning_metadata evidence_kind",
+    )
+    if planning_only:
+        _require(
+            authority.get("empirical_evidence_created") is False
+            and authority.get("scientific_status_promoted") is False
+            and authority.get("downstream_use_authorized") is False
+            and authority.get("row_level_measurement_authority") is False
+            and authority_source == "none",
+            "planning metadata may not gain scientific or downstream authority",
+        )
     if authority.get("scientific_status_promoted") is True:
         _require(
             authority_source == "authority_bearing_epistemic_update",
@@ -632,11 +667,6 @@ def _validate_authority(value: object, *, evidence_kind: str, validity: Mapping[
     if evidence_kind == "literature_claim":
         _require(authority.get("row_level_measurement_authority") is False, "literature claim may not become row-level measurement authority")
         _require(authority.get("empirical_evidence_created") is False, "literature claim may not create empirical measurement evidence")
-    if evidence_kind == "planning_metadata":
-        _require(authority.get("planning_metadata_only") is True, "planning metadata packet must remain planning-only")
-        _require(authority.get("empirical_evidence_created") is False, "planning metadata may not create empirical evidence")
-        _require(authority.get("scientific_status_promoted") is False, "planning metadata may not promote scientific status")
-        _require(authority.get("downstream_use_authorized") is False, "planning metadata may not authorize downstream use")
     if authority.get("empirical_evidence_created") is True:
         _require(
             evidence_kind in {"observation", "measurement", "characterization_result"},
@@ -647,6 +677,17 @@ def _validate_authority(value: object, *, evidence_kind: str, validity: Mapping[
             and validity.get("domain_verifier_id") is not None,
             "empirical evidence requires an identified domain verifier",
         )
+        _require(authority_source != "none", "empirical evidence requires explicit authority source")
+    if authority.get("row_level_measurement_authority") is True:
+        _require(
+            evidence_kind == "measurement"
+            and authority.get("empirical_evidence_created") is True
+            and validity.get("domain_verifier_id") is not None
+            and authority_source in {"domain_verifier", "preexisting_authenticated_scientific_record"},
+            "row-level measurement authority requires verified empirical measurement authority",
+        )
+    if authority.get("downstream_use_authorized") is True:
+        _require(authority_source != "none", "downstream-use authority requires explicit authority source")
     return authority
 
 
@@ -778,6 +819,7 @@ __all__ = [
     "INDEPENDENCE_CLAIM_STATUSES",
     "OVERLAP_STATUSES",
     "RESULT_VALUE_STATES",
+    "UNIT_STATES",
     "UNCERTAINTY_STATUSES",
     "VERIFICATION_STATUSES",
     "canonical_json_bytes",
