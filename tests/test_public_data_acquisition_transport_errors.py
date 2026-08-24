@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import ssl
 from collections.abc import Callable
-from http.client import BadStatusLine, IncompleteRead
+from http.client import BadStatusLine, IncompleteRead, InvalidURL
 from urllib.error import HTTPError, URLError
 
 import pytest
@@ -204,6 +205,92 @@ def test_http_error_policy_or_resource_status_remains_hard_failure(
     assert not isinstance(caught.value, PublicAcquisitionTransportError)
     assert isinstance(caught.value.__cause__, HTTPError)
     assert f"HTTP acquisition failed: {status}" in str(caught.value)
+
+
+@pytest.mark.parametrize("status", [403, 407, 418])
+def test_proxy_tunnel_policy_or_nontransient_status_remains_hard_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+) -> None:
+    error = URLError(OSError(f"Tunnel connection failed: {status} proxy response"))
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionError) as caught:
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+    assert not isinstance(caught.value, PublicAcquisitionTransportError)
+    assert isinstance(caught.value.__cause__, URLError)
+    assert f"proxy tunnel status {status}" in str(caught.value)
+
+
+def test_proxy_tunnel_transient_status_uses_transport_subtype(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    error = URLError(OSError("Tunnel connection failed: 503 Service Unavailable"))
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionTransportError, match="proxy tunnel status 503"):
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+
+def test_invalid_url_remains_hard_integrity_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    error = InvalidURL("URL can't contain control characters")
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionError) as caught:
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+    assert not isinstance(caught.value, PublicAcquisitionTransportError)
+    assert isinstance(caught.value.__cause__, InvalidURL)
+
+
+def test_tls_certificate_verification_failure_remains_hard_trust_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    certificate_error = ssl.SSLCertVerificationError(1, "certificate verify failed")
+    error = URLError(certificate_error)
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionError) as caught:
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+    assert not isinstance(caught.value, PublicAcquisitionTransportError)
+    assert isinstance(caught.value.__cause__, URLError)
+    assert "certificate verification failed" in str(caught.value)
 
 
 def test_untrusted_endpoint_remains_hard_integrity_failure() -> None:
