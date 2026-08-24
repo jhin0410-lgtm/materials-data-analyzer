@@ -14,6 +14,7 @@ fail-closed into a review/block queue instead of being bypassed.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import re
@@ -93,6 +94,8 @@ _TRANSIENT_HTTP_STATUS_CODES = frozenset(
         524,
     }
 )
+_PERMISSION_ERRNOS = frozenset({errno.EACCES, errno.EPERM})
+_WINDOWS_WSAEACCES = 10013
 
 
 class PublicAcquisitionError(ResearchLoopError):
@@ -439,6 +442,16 @@ class _RestrictedRedirectHandler(HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+def _is_permission_denial(error: object) -> bool:
+    if isinstance(error, PermissionError):
+        return True
+    if not isinstance(error, OSError):
+        return False
+    if error.errno in _PERMISSION_ERRNOS:
+        return True
+    return getattr(error, "winerror", None) == _WINDOWS_WSAEACCES
+
+
 def fetch_https_bytes(
     url: str,
     *,
@@ -560,6 +573,10 @@ def fetch_https_bytes(
             raise error_type(
                 f"HTTP acquisition failed: proxy tunnel status {status}"
             ) from exc
+        if _is_permission_denial(reason):
+            raise PublicAcquisitionError(
+                f"HTTP acquisition permission/access-control failure: {reason}"
+            ) from exc
         raise PublicAcquisitionTransportError(
             f"HTTP acquisition failed: {exc}"
         ) from exc
@@ -575,7 +592,15 @@ def fetch_https_bytes(
         raise PublicAcquisitionError(
             f"HTTP acquisition non-transient DNS resolution failure: {exc}"
         ) from exc
-    except (TimeoutError, socket.timeout, OSError) as exc:
+    except (TimeoutError, socket.timeout) as exc:
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
+    except OSError as exc:
+        if _is_permission_denial(exc):
+            raise PublicAcquisitionError(
+                f"HTTP acquisition permission/access-control failure: {exc}"
+            ) from exc
         raise PublicAcquisitionTransportError(
             f"HTTP acquisition failed: {exc}"
         ) from exc
