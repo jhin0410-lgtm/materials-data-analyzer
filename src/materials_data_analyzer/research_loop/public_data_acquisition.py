@@ -18,9 +18,10 @@ import hashlib
 import json
 import re
 import socket
+import ssl
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from http.client import HTTPException
+from http.client import HTTPException, InvalidURL
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -75,6 +76,7 @@ _ACCESS_KEYS = {
     "rights_status",
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_PROXY_TUNNEL_STATUS_RE = re.compile(r"Tunnel connection failed:\s*(\d{3})\b")
 _TRANSIENT_HTTP_STATUS_CODES = frozenset(
     {
         408,
@@ -526,11 +528,33 @@ def fetch_https_bytes(
             else PublicAcquisitionError
         )
         raise error_type(f"HTTP acquisition failed: {status} {exc.reason}") from exc
+    except InvalidURL as exc:
+        raise PublicAcquisitionError(f"HTTP acquisition invalid URL: {exc}") from exc
     except HTTPException as exc:
         raise PublicAcquisitionTransportError(
             f"HTTP acquisition failed: {exc}"
         ) from exc
-    except (URLError, TimeoutError, socket.timeout, OSError) as exc:
+    except URLError as exc:
+        reason = exc.reason
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            raise PublicAcquisitionError(
+                f"HTTP acquisition certificate verification failed: {reason}"
+            ) from exc
+        tunnel_match = _PROXY_TUNNEL_STATUS_RE.search(str(reason))
+        if tunnel_match is not None:
+            status = int(tunnel_match.group(1))
+            error_type = (
+                PublicAcquisitionTransportError
+                if status in _TRANSIENT_HTTP_STATUS_CODES
+                else PublicAcquisitionError
+            )
+            raise error_type(
+                f"HTTP acquisition failed: proxy tunnel status {status}"
+            ) from exc
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
+    except (TimeoutError, socket.timeout, OSError) as exc:
         raise PublicAcquisitionTransportError(
             f"HTTP acquisition failed: {exc}"
         ) from exc
