@@ -33,6 +33,7 @@ from .nist_pdr_acquisition import discover_nist_pdr_candidates
 from .public_data_acquisition import (
     FetchResult,
     PublicAcquisitionError,
+    PublicAcquisitionTransportError,
     acquire_public_artifact,
     fetch_https_bytes,
 )
@@ -43,6 +44,10 @@ RECEIPT_SCHEMA_VERSION = "1.0"
 
 class NistMds22923ProductionAcquisitionError(ValueError):
     """Raised when exact NIST production acquisition violates its finite authority."""
+
+
+class NistMds22923ProductionTransportError(NistMds22923ProductionAcquisitionError):
+    """Raised when exact NIST acquisition is blocked only by network delivery."""
 
 
 def _canonical_sha(value: object) -> str:
@@ -249,13 +254,22 @@ def execute_authorized_nist_mds2_2923_acquisition(
             "NIST production acquisition output must be empty"
         )
 
-    metadata_result = fetcher(
-        METADATA_ENDPOINT,
-        allowed_hosts=list(METADATA_ALLOWED_HOSTS),
-        max_bytes=MAX_METADATA_BYTES,
-        timeout_seconds=TIMEOUT_SECONDS,
-        headers={"Accept": "application/json"},
-    )
+    try:
+        metadata_result = fetcher(
+            METADATA_ENDPOINT,
+            allowed_hosts=list(METADATA_ALLOWED_HOSTS),
+            max_bytes=MAX_METADATA_BYTES,
+            timeout_seconds=TIMEOUT_SECONDS,
+            headers={"Accept": "application/json"},
+        )
+    except PublicAcquisitionTransportError as exc:
+        raise NistMds22923ProductionTransportError(
+            f"NIST metadata transport failed: {exc}"
+        ) from exc
+    except PublicAcquisitionError as exc:
+        raise NistMds22923ProductionAcquisitionError(
+            f"NIST metadata acquisition integrity failed: {exc}"
+        ) from exc
     if not isinstance(metadata_result, FetchResult):
         raise NistMds22923ProductionAcquisitionError(
             "NIST metadata fetcher must return FetchResult"
@@ -326,6 +340,10 @@ def execute_authorized_nist_mds2_2923_acquisition(
                 timeout_seconds=TIMEOUT_SECONDS,
                 max_auto_bytes=MAX_ARTIFACT_BYTES,
             )
+        except PublicAcquisitionTransportError as exc:
+            raise NistMds22923ProductionTransportError(
+                f"NIST exact artifact transport failed for {path}: {exc}"
+            ) from exc
         except PublicAcquisitionError as exc:
             raise NistMds22923ProductionAcquisitionError(
                 f"NIST exact artifact acquisition failed for {path}: {exc}"
@@ -383,6 +401,7 @@ def execute_authorized_nist_mds2_2923_acquisition(
 
 __all__ = [
     "NistMds22923ProductionAcquisitionError",
+    "NistMds22923ProductionTransportError",
     "build_nist_mds2_2923_network_authorization",
     "execute_authorized_nist_mds2_2923_acquisition",
 ]
