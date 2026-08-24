@@ -103,9 +103,10 @@ class PublicAcquisitionTransportError(PublicAcquisitionError):
     """Raised when a bounded network acquisition cannot complete at transport time.
 
     This subtype is intentionally reserved for transient network/HTTP delivery failures.
-    Content, checksum, size, redirect-host, provenance, policy, and permanent HTTP failures
-    remain the parent ``PublicAcquisitionError`` so callers may recover from transient
-    delivery failures without swallowing integrity or access-policy failures.
+    Content, checksum, size, redirect-host, provenance, policy, TLS trust/authentication,
+    permanent DNS, and permanent HTTP failures remain the parent ``PublicAcquisitionError``
+    so callers may recover from transient delivery failures without swallowing integrity or
+    access-policy failures.
     """
 
 
@@ -536,9 +537,17 @@ def fetch_https_bytes(
         ) from exc
     except URLError as exc:
         reason = exc.reason
-        if isinstance(reason, ssl.SSLCertVerificationError):
+        if isinstance(reason, ssl.SSLError):
             raise PublicAcquisitionError(
-                f"HTTP acquisition certificate verification failed: {reason}"
+                f"HTTP acquisition TLS/trust failure: {reason}"
+            ) from exc
+        if isinstance(reason, socket.gaierror):
+            if reason.errno == socket.EAI_AGAIN:
+                raise PublicAcquisitionTransportError(
+                    f"HTTP acquisition failed: temporary DNS resolution failure: {reason}"
+                ) from exc
+            raise PublicAcquisitionError(
+                f"HTTP acquisition non-transient DNS resolution failure: {reason}"
             ) from exc
         tunnel_match = _PROXY_TUNNEL_STATUS_RE.search(str(reason))
         if tunnel_match is not None:
@@ -553,6 +562,18 @@ def fetch_https_bytes(
             ) from exc
         raise PublicAcquisitionTransportError(
             f"HTTP acquisition failed: {exc}"
+        ) from exc
+    except ssl.SSLError as exc:
+        raise PublicAcquisitionError(
+            f"HTTP acquisition TLS/trust failure: {exc}"
+        ) from exc
+    except socket.gaierror as exc:
+        if exc.errno == socket.EAI_AGAIN:
+            raise PublicAcquisitionTransportError(
+                f"HTTP acquisition failed: temporary DNS resolution failure: {exc}"
+            ) from exc
+        raise PublicAcquisitionError(
+            f"HTTP acquisition non-transient DNS resolution failure: {exc}"
         ) from exc
     except (TimeoutError, socket.timeout, OSError) as exc:
         raise PublicAcquisitionTransportError(
