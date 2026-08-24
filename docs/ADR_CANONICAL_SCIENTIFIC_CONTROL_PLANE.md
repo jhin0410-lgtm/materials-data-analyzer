@@ -8,7 +8,9 @@ Status: proposed for Issue #234
 
 The canonical scientific state is multidimensional. It distinguishes research questions, a scientific mission, hypotheses, observations, derived results, evidence, claims, inferences, contradictions, comparability assessments, uncertainty state, evidence gaps, candidate actions, and decisions. Operational run lifecycle and scientific stopping disposition are deliberately separate state dimensions rather than scientific-state nodes.
 
-The current historical `bounded mission` artifact is a composite compatibility contract: its objective/scope/success criteria project into the Science Plane, while autonomy policy, source/access trust pins, and request-delegation policy project into Governance. Preserving the legacy bytes does not make those policy fields Science-owned.
+A new run must exist before any `EvidencePacket` exists. Therefore Science may author the non-empirical scaffolding needed to start research: the research question, scientific mission, hypotheses, candidate actions, and decisions. This initialization authority cannot create observations, empirical evidence, derived results, validated claims, or validated inferences. Those evidence-derived entities require independently validated evidence and, where scientific meaning is promoted, an authority-bearing epistemic update.
+
+The current historical `bounded mission` artifact is a composite compatibility contract. Some scalar fields are scientific, some are governance, and `success_criteria`, `constraints`, and `stop_rules` can contain both. Those composite collections must therefore be classified item by item. Preserving legacy bytes never makes a policy, authorization, access, budget, execution, integrity, or recovery item Science-owned.
 
 ## Canonical state machine
 
@@ -28,17 +30,17 @@ DEFINE / LOAD SCIENTIFIC MISSION
 -> CLASSIFY SCIENTIFIC STOP OR CONTINUE
 ```
 
-Operational lifecycle events such as interruption, execution failure, operator stop, or checkpoint blocking are recorded orthogonally. They may stop automation without implying scientific convergence, irreducible uncertainty, or any other scientific stopping disposition.
+Operational lifecycle events such as interruption, execution failure, operator stop, authorization denial, safety denial, or budget exhaustion are recorded orthogonally. They may stop automation without implying scientific convergence, irreducible uncertainty, review necessity, or any other scientific stopping disposition.
 
 This ADR does not claim every current implementation already performs every stage generically. It freezes target semantics so future work does not add another competing controller or authority path.
 
 ## Science Plane
 
-The Science Plane owns research questions; scientific mission objective, scope, and success criteria; hypotheses; observations and derived results; evidence and claims; **inference formation and assessment**; contradictions and alternative hypotheses; comparability; uncertainty; evidence-gap diagnosis; scientific action value; and scientific stopping semantics.
+The Science Plane owns research questions; scientific mission objective and scope; scientifically classified success criteria, constraints, and stop rules; hypotheses; observations and derived results after valid evidence admission; evidence and claims; inference formation and assessment; contradictions and alternative hypotheses; comparability; uncertainty; evidence-gap diagnosis; scientific action value; and scientific stopping semantics.
 
 Its central question is:
 
-> Given the independently validated scientific state, what research action should be attempted next and what scientific meaning is justified?
+> Given the authoritative scientific state, what research action should be attempted next and what scientific meaning is justified?
 
 The Science Plane does **not** grant network, filesystem, execution, budget, source-access, request-delegation, or physical-experiment authority.
 
@@ -52,22 +54,31 @@ Its central question is:
 
 The Governance Plane does **not** decide that an action is scientifically valuable merely because it is authorized. Authentication or successful execution cannot promote an artifact into scientific truth.
 
+Budget exhaustion, authorization/safety denial, execution failure, interruption, and operator stop are Governance/run-lifecycle reasons. If one occurs while the scientific state has not independently reached a terminal disposition, the scientific disposition remains `continue` or `undetermined`.
+
 ## Legacy mission projection
 
-Current mission files intentionally remain byte-for-byte replayable. Their compatibility projection is split semantically:
+Current mission files intentionally remain byte-for-byte replayable. Their compatibility projection is semantic rather than a rewrite:
 
 ```text
 Legacy bounded mission
-├─ Science projection
-│  ├─ research objective
-│  ├─ scientific scope
-│  └─ scientific success criteria
-└─ Governance projection
-   ├─ autonomy policy
-   ├─ source/access trust policy pins
-   ├─ request-delegation policy
-   └─ execution constraints
+├─ Field-level Science projection
+│  ├─ research question
+│  ├─ scientific objective
+│  └─ scientific scope
+├─ Field-level Governance projection
+│  ├─ autonomy policy
+│  ├─ source/access trust policy pins
+│  ├─ request-delegation policy pins
+│  ├─ resource budget
+│  └─ execution limits
+└─ Item-level classification required
+   ├─ success_criteria[]
+   ├─ constraints[]
+   └─ stop_rules[]
 ```
+
+Within a composite collection, a scientific success criterion/scope constraint/scientific stop rule can project to Science. A policy/authorization criterion, source/access constraint, resource/execution constraint, or integrity/recovery stop rule projects to Governance. An item whose meaning has not been classified projects to `unresolved_no_authority`; it grants neither scientific nor execution authority.
 
 The Science projection cannot modify an execution-policy input. A future canonical mission schema may encode the separation directly, but this ADR does not rewrite historical mission artifacts.
 
@@ -86,7 +97,16 @@ Provider / Executor
 
 A provider may produce data and domain-specific verification artifacts. It may not make its own execution success sufficient proof of scientific validity. A checksum, authenticated provenance record, successful transport, successful parser run, readiness projection, reasoning proposal, or simulation result does not automatically become validated scientific evidence.
 
-Scientific-state reconstruction therefore requires **validated EvidencePackets and an authority-bearing epistemic update**. Authentication is necessary provenance/governance evidence, not sufficient scientific validation.
+Scientific-state authority is entity-specific:
+
+- `research_question` and the scientific portion of `scientific_mission` may be Science-authored at initialization;
+- `hypothesis`, `candidate_action`, and `decision` may be authored by the Science Plane from current authoritative state;
+- `observation` and `evidence` require a validated `EvidencePacket`;
+- `derived_result` additionally requires authenticated derivation lineage;
+- authoritative `claim` and `inference` promotion requires an authority-bearing epistemic update over validated evidence;
+- contradictions, comparability, uncertainty, and evidence gaps are Science-Plane assessments over authoritative state and must not invent missing evidence.
+
+Authentication is necessary provenance/governance evidence, not sufficient scientific validation.
 
 The canonical `EvidencePacket` is intentionally deferred to Issue #235. The Comparability Engine is intentionally deferred to Issue #236. This ADR prevents those contracts from inheriting provider-specific or transport-specific authority by accident.
 
@@ -98,7 +118,7 @@ Accordingly:
 
 - diagnostic transition != authority-bearing epistemic update;
 - authentication != scientific validation;
-- a future authority-bearing update must consume validated EvidencePackets and satisfy a separate scientific authority contract.
+- a future authority-bearing update must consume validated `EvidencePacket`s and satisfy a separate scientific authority contract.
 
 This distinction prevents a diagnostic edge from becoming scientific state merely because its bytes and lineage are authentic.
 
@@ -117,13 +137,13 @@ derived_projections
 
 Authority sources are explicit:
 
-- `scientific_state`: validated EvidencePackets + authority-bearing epistemic updates;
+- `scientific_state`: entity-specific rules combining Science-authored non-empirical initialization with validated evidence and authority-bearing epistemic updates;
 - `governance_state`: authenticated policy, authorization, execution, resource, transaction, and audit records;
 - `run_lifecycle`: authenticated operational lifecycle events;
-- `scientific_stop_disposition`: Science Plane assessment over validated scientific state;
+- `scientific_stop_disposition`: Science Plane assessment over authoritative scientific state;
 - `derived_projections`: non-authoritative views of canonical state.
 
-A run may therefore be operationally `blocked`, `interrupted`, or `execution_failed` while its scientific stop disposition remains `continue` or `undetermined`. Conversely, `converged` is a scientific disposition, not an operational lifecycle code.
+A run may therefore be operationally `blocked`, `interrupted`, or `execution_failed`, or may stop because authorization or budget is unavailable, while its scientific stop disposition remains `continue` or `undetermined`. Conversely, `converged` is a scientific disposition, not an operational lifecycle code.
 
 ## Readiness projections
 
@@ -145,7 +165,8 @@ Therefore:
 | `mda-research-multicycle` / `run_bounded_multicycle()` | compatibility facade | finite predeclared-request controller over the one-action primitive; hard cap 32 |
 | `mda-research-epistemic-multicycle` / `run_epistemically_bounded_multicycle()` | compatibility facade | finite epistemic-graph-gated controller over the one-action primitive; hard cap 32 |
 | `mda-autonomous-evidence-loop` mission-authorized evidence loop | domain implementation | bounded trusted-source external-evidence loop |
-| persistent research episode | canonical primitive | operational lifecycle/iteration checkpoint persistence; not an execution loop by itself |
+| persistent episode checkpoint primitives | canonical primitive | open/resume/checkpoint and commit one validated step; no automatic loop |
+| `run_persistent_episode()` | compatibility facade | caller-budget-bounded automatic `step_handler` loop with checkpoint after each completed step |
 | policy-authorized closed loop | compatibility facade | bounded controller over historical planning/authorization contracts |
 | autonomous-production extensions | domain implementation | mission-pinned real-evidence production extensions |
 | planning-adapter facade | compatibility facade | historical plus typed domain planning projection |
@@ -155,7 +176,7 @@ This classification is architectural, not a deprecation notice. Historical publi
 
 ### `run_research_cycle()` is not a second product controller
 
-`run_research_cycle()` intentionally executes at most one explicit typed action, does not create an execution request for the caller, does not loop automatically, and replans once. Installed multicycle surfaces are classified explicitly as bounded compatibility controllers built over that primitive rather than silently omitted from the architecture inventory.
+`run_research_cycle()` intentionally executes at most one explicit typed action, does not create an execution request for the caller, does not loop automatically, and replans once. Installed multicycle surfaces and `run_persistent_episode()` are classified explicitly as bounded looping compatibility surfaces rather than silently omitted from the architecture inventory.
 
 ## Run lifecycle vs scientific stopping vocabulary
 
@@ -168,7 +189,15 @@ Operational run lifecycle may include:
 - `interrupted`
 - `execution_failed`
 
-These values report what happened to the execution/research process. They are not scientific conclusions.
+Governance/run stop reasons additionally include:
+
+- `resource_budget_exhausted`
+- `authorization_or_safety_blocked`
+- `execution_failed`
+- `interrupted`
+- `operator_stop`
+
+These values report what happened to execution or the research process. They are not scientific conclusions.
 
 Scientific stopping dispositions include:
 
@@ -180,11 +209,9 @@ Scientific stopping dispositions include:
 - `contradictory_evidence`
 - `blocked_external_evidence`
 - `review_required`
-- `resource_budget_exhausted`
 - `marginal_information_value_too_low`
-- `authorization_or_safety_blocked`
 
-Historical planning statuses are not rewritten. `manual_review_gate` maps unambiguously to the scientific disposition `review_required`. `operationally_blocked` and `terminal_for_current_scope` remain semantically unresolved until their historical reason/blocker provides enough scientific evidence to choose a stronger disposition. An execution failure or caller stop does not become `converged` merely because automation terminated.
+Historical planning statuses are not rewritten. `manual_review_gate` is deliberately **not** mapped directly to scientific `review_required`: current historical producers can emit it after audit or post-audit execution failures, so its scientific meaning remains unresolved until a refined reason proves a genuinely scientific review requirement. `operationally_blocked` and `terminal_for_current_scope` likewise remain semantically unresolved until their historical reason/blocker provides enough scientific evidence to choose a stronger disposition. An execution failure, budget stop, authorization stop, or caller stop does not become `converged` merely because automation terminated.
 
 ## Frozen machine-readable contract
 
@@ -201,20 +228,22 @@ Future work may project current state into this vocabulary, but the projection m
 1. Science decides **should**; Governance decides **may**.
 2. Science does not grant execution authority.
 3. Governance does not grant scientific authority.
-4. Inference formation and assessment is Science-owned.
-5. Legacy mission execution-policy fields remain Governance-owned even when stored in one historical mission artifact.
-6. Provider execution does not self-validate scientific truth.
-7. Authenticated artifact != validated scientific evidence.
-8. Diagnostic authenticated transition != authority-bearing epistemic update.
-9. Scientific state requires validated EvidencePackets and authority-bearing epistemic updates.
-10. Operational lifecycle != scientific stopping disposition.
-11. Architecture metadata creates no empirical evidence.
-12. Successful transport creates no scientific validity.
-13. Readiness projections do not become canonical state.
-14. Ambiguous historical stops do not receive invented convergence semantics.
-15. Installed looping controllers must be classified explicitly rather than hidden from the canonical inventory.
-16. Mission-specific autonomous-production code remains a domain implementation, not the generic epistemic model.
-17. New providers must eventually enter through the generic contracts in #235, #236, and #207 instead of adding new core planner branches.
+4. Science may initialize non-empirical research scaffolding before evidence exists.
+5. Science-authored initialization cannot create observations, empirical evidence, derived results, validated claims, or validated inferences.
+6. Inference formation and assessment is Science-owned, but authoritative inference promotion remains evidence-bound.
+7. Legacy mission execution-policy fields and policy-bearing composite items remain Governance-owned even when stored in one historical mission artifact.
+8. Unclassified composite mission items grant no authority.
+9. Provider execution does not self-validate scientific truth.
+10. Authenticated artifact != validated scientific evidence.
+11. Diagnostic authenticated transition != authority-bearing epistemic update.
+12. Operational lifecycle and Governance stop reasons != scientific stopping disposition.
+13. Architecture metadata creates no empirical evidence.
+14. Successful transport creates no scientific validity.
+15. Readiness projections do not become canonical state.
+16. Ambiguous historical stops, including `manual_review_gate`, do not receive invented scientific semantics.
+17. Installed looping controllers must be classified explicitly rather than hidden from the canonical inventory.
+18. Mission-specific autonomous-production code remains a domain implementation, not the generic epistemic model.
+19. New providers must eventually enter through the generic contracts in #235, #236, and #207 instead of adding new core planner branches.
 
 ## Consequences
 
