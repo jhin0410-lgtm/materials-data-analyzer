@@ -27,7 +27,12 @@ def _hashed(value: dict[str, Any], field: str) -> dict[str, Any]:
     return result
 
 
-def _prepare_pretransport_state(root: Path, output_root: str | Path) -> Path:
+def _prepare_pretransport_state(
+    root: Path,
+    output_root: str | Path,
+    *,
+    persist_partial_nist_bytes: bool = True,
+) -> Path:
     output = Path(output_root)
     if not output.is_absolute():
         output = root / output
@@ -101,7 +106,10 @@ def _prepare_pretransport_state(root: Path, output_root: str | Path) -> Path:
 
     partial = output / "nist-mds2-2923"
     partial.mkdir()
-    (partial / "nerdm-metadata.json").write_bytes(b"partial authenticated metadata fixture")
+    if persist_partial_nist_bytes:
+        (partial / "nerdm-metadata.json").write_bytes(
+            b"partial authenticated metadata fixture"
+        )
     return output
 
 
@@ -127,6 +135,26 @@ def test_success_path_is_exact_pass_through(monkeypatch: pytest.MonkeyPatch, tmp
     assert result is expected
 
 
+def _run_transport_stop(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    root: Path,
+) -> dict[str, Any]:
+    def fail_transport(**_: object) -> dict[str, Any]:
+        raise NistMds22923ProductionTransportError(
+            "NIST exact artifact transport failed for 2923_README.txt: HTTP acquisition failed: 524"
+        )
+
+    monkeypatch.setattr(recovery, "run_reference_chain_production", fail_transport)
+    return recovery.run_autonomous_production(
+        repository_root=root,
+        mission_path=root / "unused-mission.json",
+        expected_mission_sha256="0" * 64,
+        output_root="outputs/run",
+        max_cycles=12,
+    )
+
+
 def test_typed_nist_transport_failure_becomes_self_hashed_bounded_stop(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -135,20 +163,7 @@ def test_typed_nist_transport_failure_becomes_self_hashed_bounded_stop(
     root.mkdir()
     output = _prepare_pretransport_state(root, "outputs/run")
 
-    def fail_transport(**_: object) -> dict[str, Any]:
-        raise NistMds22923ProductionTransportError(
-            "NIST exact artifact transport failed for 2923_README.txt: HTTP acquisition failed: 524"
-        )
-
-    monkeypatch.setattr(recovery, "run_reference_chain_production", fail_transport)
-
-    result = recovery.run_autonomous_production(
-        repository_root=root,
-        mission_path=root / "unused-mission.json",
-        expected_mission_sha256="0" * 64,
-        output_root="outputs/run",
-        max_cycles=12,
-    )
+    result = _run_transport_stop(monkeypatch, root=root)
 
     assert result["stop"]["reason_code"] == recovery.TRANSPORT_STOP_REASON_CODE
     assert result["stop"]["retry_performed"] is False
@@ -193,6 +208,29 @@ def test_typed_nist_transport_failure_becomes_self_hashed_bounded_stop(
     assert report["scientific_intake_performed"] is False
     assert not (output / "nist-scientific-intake.json").exists()
     assert not (output / "nist-network-acquisition-receipt.json").exists()
+
+
+def test_empty_nist_output_directory_is_not_reported_as_partial_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = _prepare_pretransport_state(
+        root,
+        "outputs/run",
+        persist_partial_nist_bytes=False,
+    )
+
+    result = _run_transport_stop(monkeypatch, root=root)
+
+    report = json.loads(
+        (output / "nist-transport-unavailability.json").read_text(encoding="utf-8")
+    )
+    assert report["partial_output_present"] is False
+    assert report["partial_output_reuse_authorized"] is False
+    assert result["nist_mds2_2923_acquisition_completed"] is False
+    assert result["nist_mds2_2923_scientific_intake_performed"] is False
 
 
 def test_non_transport_nist_acquisition_error_remains_hard_failure(
