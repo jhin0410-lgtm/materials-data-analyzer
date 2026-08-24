@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 import ssl
 from collections.abc import Callable
 from http.client import BadStatusLine, IncompleteRead, InvalidURL
@@ -290,7 +291,77 @@ def test_tls_certificate_verification_failure_remains_hard_trust_failure(
 
     assert not isinstance(caught.value, PublicAcquisitionTransportError)
     assert isinstance(caught.value.__cause__, URLError)
-    assert "certificate verification failed" in str(caught.value)
+    assert "TLS/trust failure" in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "TLSV13_ALERT_CERTIFICATE_REQUIRED",
+        "TLSV1_ALERT_ACCESS_DENIED",
+    ],
+)
+def test_tls_authentication_or_policy_alert_remains_hard_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+) -> None:
+    error = URLError(ssl.SSLError(1, reason))
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionError) as caught:
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+    assert not isinstance(caught.value, PublicAcquisitionTransportError)
+    assert isinstance(caught.value.__cause__, URLError)
+    assert "TLS/trust failure" in str(caught.value)
+
+
+def test_temporary_dns_resolution_failure_uses_transport_subtype(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    error = URLError(socket.gaierror(socket.EAI_AGAIN, "temporary failure in name resolution"))
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionTransportError, match="temporary DNS resolution failure"):
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+
+def test_permanent_dns_resolution_failure_remains_hard_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    error = URLError(socket.gaierror(socket.EAI_NONAME, "name or service not known"))
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionError) as caught:
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+    assert not isinstance(caught.value, PublicAcquisitionTransportError)
+    assert isinstance(caught.value.__cause__, URLError)
+    assert "non-transient DNS resolution failure" in str(caught.value)
 
 
 def test_untrusted_endpoint_remains_hard_integrity_failure() -> None:
