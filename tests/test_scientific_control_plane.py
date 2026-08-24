@@ -1,20 +1,27 @@
 from __future__ import annotations
 
 import copy
+import json
+from pathlib import Path
 
 import pytest
 
 from materials_data_analyzer.research_loop.scientific_control_plane import (
+    CANONICAL_RESEARCH_STAGES,
     CANONICAL_RESEARCH_STATE_ENTITIES,
     CANONICAL_TERMINAL_CLASSES,
     CONTROLLER_INVENTORY,
     GOVERNANCE_PLANE_RESPONSIBILITIES,
     GOVERNANCE_RUN_STOP_REASONS,
+    LEGACY_MISSION_FIELD_PROJECTIONS,
+    LEGACY_MISSION_ITEM_PROJECTIONS,
     LEGACY_STOP_STATUS_COMPATIBILITY,
     PROVIDER_TO_EVIDENCE_FLOW,
     SCIENCE_PLANE_RESPONSIBILITIES,
     ScientificControlPlaneError,
     build_scientific_control_plane_contract,
+    project_legacy_mission_field,
+    project_legacy_mission_item,
     project_legacy_stop_status,
     validate_scientific_control_plane_contract,
 )
@@ -63,6 +70,14 @@ def test_science_and_governance_ownership_is_disjoint_and_inference_is_science_o
     assert "run_lifecycle_recording" in GOVERNANCE_PLANE_RESPONSIBILITIES
 
 
+def test_evidence_gap_mapping_requires_validated_packets_not_generic_verified_artifacts() -> None:
+    assert "map_validated_evidence_packets_and_gaps" in CANONICAL_RESEARCH_STAGES
+    assert "map_verified_evidence_and_gaps" not in CANONICAL_RESEARCH_STAGES
+    assert CANONICAL_RESEARCH_STAGES.index("independently_verify_result") < (
+        CANONICAL_RESEARCH_STAGES.index("ingest_validated_evidence_packet")
+    )
+
+
 def test_provider_flow_requires_validation_and_authority_bearing_update_before_kernel() -> None:
     assert PROVIDER_TO_EVIDENCE_FLOW == (
         "provider_or_executor",
@@ -103,25 +118,94 @@ def test_architecture_metadata_authentication_and_readiness_grant_no_scientific_
     }
 
 
-def test_legacy_mission_requires_item_level_science_governance_projection() -> None:
-    mission = build_scientific_control_plane_contract()["mission_projection_semantics"]
-    assert mission["legacy_bounded_mission_is_composite"] is True
-    assert mission["field_level_science_projection"] == [
-        "research_question",
-        "scientific_objective",
-        "scientific_scope",
+def _production_mission() -> dict[str, object]:
+    root = Path(__file__).resolve().parents[1]
+    return json.loads(
+        (root / "configs/research/autonomous_in625_production_mission.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+
+def test_real_legacy_mission_field_requires_exact_classified_projection() -> None:
+    mission = _production_mission()
+    mission_id = mission["mission_id"]
+    mission_text = mission["mission"]
+    assert isinstance(mission_id, str)
+    assert isinstance(mission_text, str)
+
+    projected = project_legacy_mission_field(
+        mission_id=mission_id,
+        mission_text=mission_text,
+    )
+    assert projected["source_field"] == "mission"
+    assert projected["science_projection"]
+    assert projected["governance_projection"]
+    assert projected["scientific_status_promoted"] is False
+    assert projected["execution_authority_granted"] is False
+
+    with pytest.raises(ScientificControlPlaneError, match="no exact deterministic"):
+        project_legacy_mission_field(
+            mission_id=mission_id,
+            mission_text=mission_text + " widened",
+        )
+
+
+def test_every_real_legacy_mission_item_has_one_exact_projection() -> None:
+    mission = _production_mission()
+    mission_id = mission["mission_id"]
+    assert isinstance(mission_id, str)
+
+    observed = []
+    for collection in ("success_criteria", "constraints", "stop_rules"):
+        items = mission[collection]
+        assert isinstance(items, list)
+        for index, item in enumerate(items):
+            assert isinstance(item, str)
+            projection = project_legacy_mission_item(
+                mission_id=mission_id,
+                collection=collection,
+                item_index=index,
+                item_text=item,
+            )
+            assert projection["science_semantic"] or projection["governance_semantic"]
+            assert projection["scientific_status_promoted"] is False
+            assert projection["execution_authority_granted"] is False
+            observed.append((collection, index, item))
+
+    frozen = [
+        (record.collection, record.item_index, record.item_text)
+        for record in LEGACY_MISSION_ITEM_PROJECTIONS
+        if record.mission_id == mission_id
     ]
-    assert "autonomy_policy" in mission["field_level_governance_projection"]
-    assert "resource_budget" in mission["field_level_governance_projection"]
-    assert mission["item_level_projection_required_for"] == [
+    assert observed == frozen
+
+    first = mission["success_criteria"][0]
+    assert isinstance(first, str)
+    with pytest.raises(ScientificControlPlaneError, match="no exact deterministic"):
+        project_legacy_mission_item(
+            mission_id=mission_id,
+            collection="success_criteria",
+            item_index=0,
+            item_text=first + " widened",
+        )
+
+
+def test_legacy_mission_contract_exposes_exact_not_heuristic_projections() -> None:
+    semantics = build_scientific_control_plane_contract()["mission_projection_semantics"]
+    assert semantics["legacy_bounded_mission_is_composite"] is True
+    assert semantics["real_legacy_mission_field_requires_classified_projection"] is True
+    assert semantics["item_level_projection_required_for"] == [
         "success_criteria",
         "constraints",
         "stop_rules",
     ]
-    assert "scientific_success_criterion" in mission["science_item_semantics"]
-    assert "policy_or_authorization_criterion" in mission["governance_item_semantics"]
-    assert mission["unclassified_composite_item_projection"] == "unresolved_no_authority"
-    assert mission["science_projection_may_modify_execution_policy"] is False
+    assert semantics["unknown_mission_field_or_item_projection"] == "unresolved_no_authority"
+    assert semantics["science_projection_may_modify_execution_policy"] is False
+    assert "autonomous-in625-production-v1" in semantics["legacy_mission_field_projections"]
+    assert len(semantics["legacy_mission_item_projections"]) == len(
+        LEGACY_MISSION_ITEM_PROJECTIONS
+    )
 
 
 def test_authenticated_epistemic_transition_is_diagnostic_only() -> None:
@@ -132,19 +216,15 @@ def test_authenticated_epistemic_transition_is_diagnostic_only() -> None:
     assert diagnostic["reauthentication_grants_scientific_authority"] is False
     assert diagnostic["future_authority_bearing_update_requires_validated_evidence_packet"] is True
 
-    inventory = {
-        item["surface_id"]: item for item in contract["controller_inventory"]
-    }
+    inventory = {item["surface_id"]: item for item in contract["controller_inventory"]}
     transition = inventory["authenticated_epistemic_transition"]
     assert transition["role"] == "authenticated_diagnostic_transition_bundle_producer_only"
     assert transition["scientific_authority_applied"] is False
 
 
-def test_all_installed_looping_research_surfaces_are_classified() -> None:
+def test_all_installed_looping_and_public_recursive_surfaces_are_classified() -> None:
     contract = build_scientific_control_plane_contract()
-    inventory = {
-        item["surface_id"]: item for item in contract["controller_inventory"]
-    }
+    inventory = {item["surface_id"]: item for item in contract["controller_inventory"]}
 
     assert inventory["research_cycle"]["maximum_actions_per_call"] == 1
     assert inventory["research_cycle"]["automatic_looping"] is False
@@ -172,6 +252,12 @@ def test_all_installed_looping_research_surfaces_are_classified() -> None:
     assert runner["classification"] == "compatibility_facade"
     assert runner["automatic_looping"] is True
     assert runner["maximum_actions_per_call"] is None
+
+    public_recursive = inventory["public_recursive_api"]
+    assert public_recursive["classification"] == "compatibility_facade"
+    assert public_recursive["automatic_looping"] is False
+    assert public_recursive["maximum_actions_per_call"] == 1
+    assert "bounded_replay" in public_recursive["role"]
 
     assert inventory["planning_adapter_facade"]["classification"] == "compatibility_facade"
     assert inventory["autonomous_production_extensions"]["classification"] == "domain_implementation"
@@ -218,12 +304,24 @@ def test_frozen_tables_are_immutable_in_place() -> None:
         CONTROLLER_INVENTORY[0][0] = "mutated"  # type: ignore[index]
     with pytest.raises(TypeError):
         LEGACY_STOP_STATUS_COMPATIBILITY[0][1][0] = True  # type: ignore[index]
+    with pytest.raises(TypeError):
+        LEGACY_MISSION_FIELD_PROJECTIONS[0][2] = "mutated"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        LEGACY_MISSION_ITEM_PROJECTIONS[0][3] = "mutated"  # type: ignore[index]
 
     before = build_scientific_control_plane_contract()
-    local_copy = before["controller_inventory"]
-    local_copy[0]["role"] = "caller-mutated-copy"
+    before["controller_inventory"][0]["role"] = "caller-mutated-copy"
+    before["mission_projection_semantics"]["legacy_mission_item_projections"][0][
+        "science_semantic"
+    ] = "caller-mutated-copy"
     after = build_scientific_control_plane_contract()
     assert after["controller_inventory"][0]["role"] != "caller-mutated-copy"
+    assert (
+        after["mission_projection_semantics"]["legacy_mission_item_projections"][0][
+            "science_semantic"
+        ]
+        != "caller-mutated-copy"
+    )
 
 
 def test_contract_rejects_unknown_fields_and_authority_promotion() -> None:
