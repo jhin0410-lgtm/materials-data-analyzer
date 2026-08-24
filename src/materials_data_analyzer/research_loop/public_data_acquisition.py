@@ -80,6 +80,16 @@ class PublicAcquisitionError(ResearchLoopError):
     """Raised when automatic public-data acquisition violates its trust boundary."""
 
 
+class PublicAcquisitionTransportError(PublicAcquisitionError):
+    """Raised when a bounded network acquisition cannot complete at transport time.
+
+    This subtype is intentionally reserved for network/HTTP delivery failures. Content,
+    checksum, size, redirect-host, provenance, and policy violations remain the parent
+    ``PublicAcquisitionError`` so callers may recover from transient delivery failures
+    without swallowing integrity failures.
+    """
+
+
 @dataclass(frozen=True)
 class FetchResult:
     """Exact bytes returned by a bounded HTTP fetch."""
@@ -450,7 +460,7 @@ def fetch_https_bytes(
             )
             status = int(getattr(response, "status", response.getcode()))
             if status < 200 or status >= 300:
-                raise PublicAcquisitionError(
+                raise PublicAcquisitionTransportError(
                     f"HTTP acquisition returned non-success status {status}"
                 )
             content_length = response.headers.get("Content-Length")
@@ -488,7 +498,9 @@ def fetch_https_bytes(
     except PublicAcquisitionError:
         raise
     except (HTTPError, URLError, TimeoutError, socket.timeout, OSError) as exc:
-        raise PublicAcquisitionError(f"HTTP acquisition failed: {exc}") from exc
+        raise PublicAcquisitionTransportError(
+            f"HTTP acquisition failed: {exc}"
+        ) from exc
 
 
 def _canonical_json_bytes(value: Mapping[str, Any]) -> bytes:
@@ -695,6 +707,7 @@ __all__ = [
     "PUBLIC_ACQUISITION_CANDIDATE_SCHEMA_VERSION",
     "PUBLIC_ACQUISITION_RECEIPT_SCHEMA_VERSION",
     "PublicAcquisitionError",
+    "PublicAcquisitionTransportError",
     "acquire_public_artifact",
     "assess_public_acquisition_candidate",
     "fetch_https_bytes",
