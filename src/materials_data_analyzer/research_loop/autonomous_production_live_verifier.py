@@ -16,7 +16,7 @@ from .autonomous_production_authority_binding_hardening import (
     AutonomousProductionAuthorityBindingError,
     verify_exact_authority_bindings,
 )
-from .autonomous_production_merge_gate_hardening import (
+from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
 )
