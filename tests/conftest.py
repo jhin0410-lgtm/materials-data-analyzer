@@ -297,6 +297,9 @@ def _synthetic_live_verifier_trusted_root(
         return
     tmp_root = Path(request.getfixturevalue("tmp_path")).resolve(strict=True)
     from materials_data_analyzer.research_loop import (
+        autonomous_production_live_verifier_base as live_verifier_base,
+    )
+    from materials_data_analyzer.research_loop import (
         autonomous_production_merge_gate_hardening as merge_gate_hardening,
     )
 
@@ -312,6 +315,11 @@ def _synthetic_live_verifier_trusted_root(
                 return candidate.resolve(strict=True)
         raise AssertionError("synthetic trusted repository root was not materialized")
 
+    monkeypatch.setattr(
+        live_verifier_base,
+        "_EXPECTED_ZENODO_ARCHIVE_SHA256",
+        _SYNTHETIC_ZENODO_ARCHIVE_SHA256,
+    )
     monkeypatch.setattr(
         merge_gate_hardening,
         "_trusted_repository_root",
