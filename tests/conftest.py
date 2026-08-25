@@ -28,8 +28,14 @@ _SYNTHETIC_LIVE_VERIFIER_MODULES = {
 }
 _EXPECTED_NIST_IDENTIFIER = "10.18434/mds2-2923"
 _EXPECTED_ZENODO_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
-_EXPECTED_ZENODO_ARCHIVE_SHA256 = (
-    "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+_SYNTHETIC_ZENODO_ARCHIVE_BYTES = b"synthetic zenodo archive fixture\n"
+_SYNTHETIC_ZENODO_ARCHIVE_SHA256 = (
+    "b8016f3d9cdcae76fdfbf506cddb23db9ddad45a26658f7cf1f071b7a66eaf50"
+)
+_SYNTHETIC_ZENODO_ARCHIVE_MD5 = "5df57d13599d673c400b82af644b4c41"
+_SYNTHETIC_ZENODO_AUTHORIZATION_SHA256 = "1" * 64
+_EXPECTED_ZENODO_ARCHIVE_URL = (
+    "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
 )
 _EXPECTED_BINDING_PATHS = {
     "nist_planning_readiness": (
@@ -107,25 +113,54 @@ def _harden_cycle1_receipt(
     output: Path,
     canonical_sha: Any,
 ) -> str:
-    """Augment the legacy synthetic receipt with the production provenance aliases."""
+    """Make the synthetic receipt match the real producer schema exactly enough to replay."""
     path = output / "network-acquisition-receipt.json"
     receipt = _read_json(path)
+    archive_path = output / "Dataset.zip"
+    archive_path.write_bytes(_SYNTHETIC_ZENODO_ARCHIVE_BYTES)
+
+    receipt["schema_version"] = "1.0"
+    receipt["policy_version"] = "1.0"
     receipt["source_id"] = _EXPECTED_ZENODO_SOURCE_ID
-    receipt["zenodo_record_id"] = 20503603
-    receipt["archive_sha256"] = _EXPECTED_ZENODO_ARCHIVE_SHA256
+    receipt["zenodo_record_id"] = "20503603"
+    receipt["authorization_sha256"] = _SYNTHETIC_ZENODO_AUTHORIZATION_SHA256
+    receipt["archive"] = {
+        "content_type": "application/octet-stream",
+        "file_name": "Dataset.zip",
+        "final_url": _EXPECTED_ZENODO_ARCHIVE_URL,
+        "path": str(archive_path.resolve(strict=True)),
+        "provider_md5": _SYNTHETIC_ZENODO_ARCHIVE_MD5,
+        "requested_url": _EXPECTED_ZENODO_ARCHIVE_URL,
+        "sha256": _SYNTHETIC_ZENODO_ARCHIVE_SHA256,
+        "size_bytes": len(_SYNTHETIC_ZENODO_ARCHIVE_BYTES),
+    }
     receipt["network_access_performed"] = True
-    receipt["download_executed"] = True
-    receipt["archive_checksum_verified"] = True
-    receipt["archive_size_verified"] = True
-    receipt["exact_host_authority_preserved"] = True
+    receipt["network_execution_authorized"] = True
+    receipt["provider_checksum_verified"] = True
+    receipt["project_sha256_verified"] = True
+    receipt["byte_count_verified"] = True
+    receipt["exact_host_restriction_enforced"] = True
+    for legacy_key in (
+        "archive_sha256",
+        "download_executed",
+        "archive_checksum_verified",
+        "archive_size_verified",
+        "exact_host_authority_preserved",
+    ):
+        receipt.pop(legacy_key, None)
+
     boundary = receipt.setdefault("scientific_boundary", {})
     assert isinstance(boundary, dict)
+    boundary.pop("direct_nist_comparability_established", None)
     boundary["automatic_scientific_promotion"] = False
-    boundary["direct_nist_comparability_established"] = False
     boundary["direct_nist_condition_comparability_established"] = False
     boundary["empirical_model_validation_established"] = False
     boundary["hypothesis_truth_established"] = False
+    boundary["measurement_semantics_interpreted"] = False
     boundary["positive_scientific_closeout_established"] = False
+    boundary["replicate_independence_established"] = False
+    boundary["sample_identity_established"] = False
+    boundary["source_provenance_established_by_successful_download"] = True
     _rehash(receipt, "receipt_sha256", canonical_sha)
     _write_json(path, receipt)
     return str(receipt["receipt_sha256"])
@@ -180,6 +215,7 @@ def _harden_transport_fixture(
     cycles = [dict(item) for item in manifest["cycles"]]
     cycle1 = cycles[0]
     cycle1["network_receipt_sha256"] = receipt_sha
+    cycle1["network_authorization_sha256"] = _SYNTHETIC_ZENODO_AUTHORIZATION_SHA256
     cycle1["rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
     _rehash(cycle1, "cycle_sha256", canonical_sha)
     cycle2 = cycles[1]
@@ -280,6 +316,21 @@ def _synthetic_live_verifier_trusted_root(
         merge_gate_hardening,
         "_trusted_repository_root",
         synthetic_trusted_root,
+    )
+    monkeypatch.setattr(
+        merge_gate_hardening,
+        "_EXPECTED_ZENODO_ARCHIVE_SHA256",
+        _SYNTHETIC_ZENODO_ARCHIVE_SHA256,
+    )
+    monkeypatch.setattr(
+        merge_gate_hardening,
+        "_EXPECTED_ZENODO_ARCHIVE_MD5",
+        _SYNTHETIC_ZENODO_ARCHIVE_MD5,
+    )
+    monkeypatch.setattr(
+        merge_gate_hardening,
+        "_EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES",
+        len(_SYNTHETIC_ZENODO_ARCHIVE_BYTES),
     )
 
 
