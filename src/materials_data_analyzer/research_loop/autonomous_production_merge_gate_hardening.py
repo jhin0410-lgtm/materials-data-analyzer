@@ -24,8 +24,14 @@ from .public_data_acquisition import AUTO
 
 TRANSPORT_STOP_REASON_CODE = "source_transport_temporarily_unavailable"
 _EXPECTED_ZENODO_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
+_EXPECTED_ZENODO_RECORD_ID = "20503603"
 _EXPECTED_ZENODO_ARCHIVE_SHA256 = (
     "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+)
+_EXPECTED_ZENODO_ARCHIVE_MD5 = "54601f974a9590be104cf1e3090b68bd"
+_EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES = 180726708
+_EXPECTED_ZENODO_ARCHIVE_URL = (
+    "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
 )
 _EXPECTED_QUALITY_CONTRACT = "configs/research/in625_tensile_observed_quality.v1.json"
 _EXPECTED_BINDINGS = {
@@ -136,26 +142,66 @@ def _verify_cycle1_network_receipt(root: Path, cycle1: Mapping[str, Any]) -> Non
         "cycle 1 network receipt binding mismatch",
     )
     _require(
-        receipt.get("source_id") == _EXPECTED_ZENODO_SOURCE_ID
-        and receipt.get("zenodo_record_id") == 20503603
-        and receipt.get("archive_sha256") == _EXPECTED_ZENODO_ARCHIVE_SHA256,
+        cycle1.get("network_authorization_sha256") == receipt.get("authorization_sha256"),
+        "cycle 1 network authorization binding mismatch",
+    )
+
+    archive = _mapping(receipt.get("archive"), "cycle-1 Zenodo archive")
+    raw_archive_path = archive.get("path")
+    _require(
+        isinstance(raw_archive_path, str) and raw_archive_path,
+        "cycle-1 Zenodo archive path is invalid",
+    )
+    archive_path = Path(raw_archive_path).expanduser().resolve(strict=True)
+    expected_archive_path = (root / "Dataset.zip").resolve(strict=True)
+    _require(
+        archive_path == expected_archive_path,
+        "cycle-1 Zenodo archive path drifted",
+    )
+    _inside(archive_path, root, label="cycle-1 Zenodo archive")
+    _require(
+        receipt.get("schema_version") == "1.0"
+        and receipt.get("policy_version") == "1.0"
+        and receipt.get("source_id") == _EXPECTED_ZENODO_SOURCE_ID
+        and receipt.get("zenodo_record_id") == _EXPECTED_ZENODO_RECORD_ID
+        and archive.get("file_name") == "Dataset.zip"
+        and archive.get("requested_url") == _EXPECTED_ZENODO_ARCHIVE_URL
+        and archive.get("final_url") == _EXPECTED_ZENODO_ARCHIVE_URL
+        and archive.get("content_type") == "application/octet-stream"
+        and archive.get("provider_md5") == _EXPECTED_ZENODO_ARCHIVE_MD5
+        and archive.get("sha256") == _EXPECTED_ZENODO_ARCHIVE_SHA256
+        and archive.get("size_bytes") == _EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES,
         "cycle-1 Zenodo source identity drifted",
     )
     _require(
+        archive_path.stat().st_size == _EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES,
+        "cycle-1 persisted Zenodo archive byte count drifted",
+    )
+    _require(
+        hashlib.sha256(archive_path.read_bytes()).hexdigest()
+        == _EXPECTED_ZENODO_ARCHIVE_SHA256,
+        "cycle-1 persisted Zenodo archive SHA-256 drifted",
+    )
+    _require(
         receipt.get("network_access_performed") is True
-        and receipt.get("download_executed") is True
-        and receipt.get("archive_checksum_verified") is True
-        and receipt.get("archive_size_verified") is True
-        and receipt.get("exact_host_authority_preserved") is True,
+        and receipt.get("network_execution_authorized") is True
+        and receipt.get("provider_checksum_verified") is True
+        and receipt.get("project_sha256_verified") is True
+        and receipt.get("byte_count_verified") is True
+        and receipt.get("exact_host_restriction_enforced") is True,
         "cycle-1 acquisition provenance was not fully authenticated",
     )
     boundary = _mapping(receipt.get("scientific_boundary"), "cycle-1 acquisition scientific boundary")
     _require(
         boundary.get("automatic_scientific_promotion") is False
-        and boundary.get("direct_nist_comparability_established") is False
+        and boundary.get("direct_nist_condition_comparability_established") is False
         and boundary.get("empirical_model_validation_established") is False
         and boundary.get("hypothesis_truth_established") is False
-        and boundary.get("positive_scientific_closeout_established") is False,
+        and boundary.get("measurement_semantics_interpreted") is False
+        and boundary.get("positive_scientific_closeout_established") is False
+        and boundary.get("replicate_independence_established") is False
+        and boundary.get("sample_identity_established") is False
+        and boundary.get("source_provenance_established_by_successful_download") is True,
         "cycle-1 acquisition receipt widened scientific authority",
     )
 
