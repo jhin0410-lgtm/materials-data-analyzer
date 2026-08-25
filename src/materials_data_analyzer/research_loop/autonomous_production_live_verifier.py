@@ -24,6 +24,11 @@ from .autonomous_production_exact_head_p2_round2 import (
     install_exact_head_round2_closures,
     verify_exact_head_round2_boundaries,
 )
+from .autonomous_production_exact_head_p2_round3 import (
+    install_exact_head_round3_closures,
+    verify_exact_head_round3_boundaries,
+    verify_exact_head_round3_preflight,
+)
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
@@ -47,15 +52,20 @@ _original_impl_verify_live_autonomous_output = (
 
 install_exact_head_p2_closures()
 install_exact_head_round2_closures()
+install_exact_head_round3_closures()
 
 
 def _verify_with_semantic_hardening(output_root: str | Path) -> str:
     try:
+        # Reject ambiguous persisted JSON bytes before any legacy verifier parses them.
+        verify_exact_head_round3_preflight(output_root)
         verify_exact_authority_bindings(output_root)
         verify_persisted_semantic_boundaries(output_root)
         verify_exact_head_round2_boundaries(output_root)
         verify_final_merge_gate_boundaries(output_root)
         verify_source_replay_boundaries(output_root)
+        # These checks rely on the source replay above, so they run after canonical replay.
+        verify_exact_head_round3_boundaries(output_root)
     except (
         AutonomousProductionAuthorityBindingError,
         AutonomousProductionSemanticHardeningError,
