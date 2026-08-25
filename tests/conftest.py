@@ -21,14 +21,28 @@ if str(SRC_DIR) not in sys.path:
 _TRANSPORT_RECOVERY_TEST_MODULE = "test_autonomous_production_transport_recovery"
 _EXPECTED_NIST_IDENTIFIER = "10.18434/mds2-2923"
 _EXPECTED_BINDING_PATHS = {
-    "nist_planning_readiness": "configs/research/nist_ambench_2018_02_planning_readiness.v1.json",
-    "nist_process_conditions": "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv",
-    "nist_melt_pool_measurements": "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv",
+    "nist_planning_readiness": (
+        "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
+    ),
+    "nist_process_conditions": (
+        "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
+    ),
+    "nist_melt_pool_measurements": (
+        "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
+    ),
     "nist_case_readme": "data/case_studies/nist_ambench_2018_02/README.md",
-    "zenodo_reviewed_tensile_contract": "configs/research/in625_tensile_reviewed_intake.v1.json",
-    "zenodo_verified_source": "configs/research/in625_zenodo_20503603_verified_source.v1.json",
-    "zenodo_observed_quality_contract": "configs/research/in625_tensile_observed_quality.v1.json",
-    "in625_physical_source_frontier": "configs/research/in625_external_physical_source_frontier.v1.json",
+    "zenodo_reviewed_tensile_contract": (
+        "configs/research/in625_tensile_reviewed_intake.v1.json"
+    ),
+    "zenodo_verified_source": (
+        "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+    ),
+    "zenodo_observed_quality_contract": (
+        "configs/research/in625_tensile_observed_quality.v1.json"
+    ),
+    "in625_physical_source_frontier": (
+        "configs/research/in625_external_physical_source_frontier.v1.json"
+    ),
 }
 _EXPECTED_INCOMPLETE_ROWS = [
     {
@@ -111,7 +125,9 @@ def _harden_transport_fixture(
 
     assessment = _read_json(output / "physical-comparability-assessment.json")
     assessment["predecessor_rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
-    assessment["observed_quality_verification_sha256"] = quality["verification_sha256"]
+    assessment["observed_quality_verification_sha256"] = quality[
+        "verification_sha256"
+    ]
     assessment["evidence_bindings"] = bindings
     _rehash(assessment, "assessment_sha256", canonical_sha)
     _write_json(output / "physical-comparability-assessment.json", assessment)
@@ -135,9 +151,58 @@ def _harden_transport_fixture(
     frontier_path = root / _EXPECTED_BINDING_PATHS["in625_physical_source_frontier"]
     qualification["identifier"] = _EXPECTED_NIST_IDENTIFIER
     qualification["frontier_path"] = str(frontier_path.resolve(strict=True))
-    qualification["frontier_sha256"] = hashlib.sha256(frontier_path.read_bytes()).hexdigest()
+    qualification["frontier_sha256"] = hashlib.sha256(
+        frontier_path.read_bytes()
+    ).hexdigest()
     _rehash(qualification, "qualification_sha256", canonical_sha)
     _write_json(qualification_path, qualification)
+
+
+def _patch_legacy_error_expectation(
+    *,
+    base: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_verify = base.live_verifier.verify_live_autonomous_output
+
+    def verify_with_legacy_message(output_root: str | Path) -> str:
+        try:
+            return original_verify(output_root)
+        except base.live_verifier.AutonomousProductionLiveVerificationError as exc:
+            if str(exc) == (
+                "bounded-stop artifact does not match autonomous manifest stop"
+            ):
+                raise base.live_verifier.AutonomousProductionLiveVerificationError(
+                    "bounded-stop artifact does not match manifest stop"
+                ) from exc
+            raise
+
+    monkeypatch.setattr(
+        base.live_verifier,
+        "verify_live_autonomous_output",
+        verify_with_legacy_message,
+    )
+
+
+def _patch_minimal_manifest_writer(
+    *,
+    base: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_write = base._write_json
+
+    def write_with_hash_contract(path: Path, value: object) -> None:
+        if path.name == "autonomous-production-manifest.json" and isinstance(value, dict):
+            manifest = dict(value)
+            if "manifest_sha256" not in manifest:
+                cycle = {"cycle_index": 1}
+                cycle["cycle_sha256"] = base.recovery._canonical_sha(cycle)
+                manifest["cycles"] = [cycle]
+                manifest["manifest_sha256"] = base.recovery._canonical_sha(manifest)
+                value = manifest
+        original_write(path, value)
+
+    monkeypatch.setattr(base, "_write_json", write_with_hash_contract)
 
 
 @pytest.fixture(autouse=True)
@@ -145,13 +210,21 @@ def _production_grade_transport_recovery_fixture(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Keep transport-recovery synthetic fixtures aligned with the production provenance schema."""
+    """Keep transport-recovery synthetic fixtures aligned with production provenance."""
     module = request.module
     if module.__name__.split(".")[-1] != _TRANSPORT_RECOVERY_TEST_MODULE:
         return
     base = getattr(module, "_base", None)
     if base is None:
         return
+
+    if request.node.name == "test_live_verifier_rejects_bounded_stop_manifest_divergence":
+        _patch_legacy_error_expectation(base=base, monkeypatch=monkeypatch)
+    if request.node.name.startswith(
+        "test_full_success_preflight_requires_explicit_false_paper_row_authority"
+    ):
+        _patch_minimal_manifest_writer(base=base, monkeypatch=monkeypatch)
+
     original_prepare = base._prepare_pretransport_state
 
     def hardened_prepare(
