@@ -39,6 +39,7 @@ on:
       - "tests/test_autonomous_production_transport_recovery.py"
       - "tests/test_autonomous_production_transport_provenance_hardening.py"
       - "tests/test_autonomous_production_authority_binding_hardening.py"
+      - "tests/test_autonomous_production_source_replay_hardening.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
       - "tests/test_mds2_2923_reference_chain.py"
@@ -85,6 +86,7 @@ on:
       - "tests/test_autonomous_production_transport_recovery.py"
       - "tests/test_autonomous_production_transport_provenance_hardening.py"
       - "tests/test_autonomous_production_authority_binding_hardening.py"
+      - "tests/test_autonomous_production_source_replay_hardening.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
       - "tests/test_mds2_2923_reference_chain.py"
@@ -122,6 +124,7 @@ jobs:
           tests/test_autonomous_production_transport_recovery.py
           tests/test_autonomous_production_transport_provenance_hardening.py
           tests/test_autonomous_production_authority_binding_hardening.py
+          tests/test_autonomous_production_source_replay_hardening.py
           tests/test_research_program_cli_transport_recovery_wiring.py
           tests/test_public_data_acquisition_transport_errors.py
           tests/test_nist_mds2_2923_transport_errors.py
@@ -202,6 +205,7 @@ jobs:
             outputs/autonomous-in625-production/nist-network-policy-qualification.json
             outputs/autonomous-in625-production/nist-network-authorization.json
             outputs/autonomous-in625-production/nist-network-acquisition-receipt.json
+            outputs/autonomous-in625-production/nist-mds2-2923/**
             outputs/autonomous-in625-production/nist-transport-unavailability.json
             outputs/autonomous-in625-production/nist-scientific-intake.json
             outputs/autonomous-in625-production/nist-post-acquisition-rediagnosis.json
