@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,9 @@ assert _SPEC is not None and _SPEC.loader is not None
 _base = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_base)
 
+_EXPECTED_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
+_EXPECTED_ARCHIVE_SHA = "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+_EXPECTED_WORKBOOK_SHA = "c889e4e6cd1b86d6efb603f53ce9eda64137f6898b3e6f2b490c70a0db73140c"
 _EXPECTED_INCOMPLETE_ROWS = [
     {
         "sheet_name": "AM-AB-H",
@@ -32,6 +38,14 @@ _EXPECTED_INCOMPLETE_ROWS = [
 _original_prepare = _base._prepare_pretransport_state
 
 
+def _write_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _read(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
@@ -41,6 +55,42 @@ def _read(path: Path) -> dict[str, Any]:
 def _rehash(value: dict[str, Any], field: str) -> None:
     value.pop(field, None)
     value[field] = _base.recovery._canonical_sha(value)
+
+
+def _quality_contract_fixture(root: Path) -> Path:
+    contract = {
+        "schema_version": "1.0",
+        "source_id": _EXPECTED_SOURCE_ID,
+        "source_archive_sha256": _EXPECTED_ARCHIVE_SHA,
+        "workbook_sha256": _EXPECTED_WORKBOOK_SHA,
+        "reviewed_intake_schema_version": "2.0",
+        "measurement_row_count": 200289,
+        "complete_numeric_measurement_row_count": 200288,
+        "incomplete_numeric_measurement_row_count": 1,
+        "known_incomplete_rows": _EXPECTED_INCOMPLETE_ROWS,
+        "interpretation": {
+            "missing_value_imputation_authorized": False,
+            "inverse_reconstruction_from_tensile_stress_authorized": False,
+            "row_exclusion_authorized": False,
+            "statistical_independence_established": False,
+            "direct_nist_condition_comparability_established": False,
+            "empirical_model_validation_established": False,
+            "hypothesis_truth_established": False,
+            "positive_scientific_closeout_established": False,
+        },
+    }
+    path = root / "configs/research/in625_tensile_observed_quality.v1.json"
+    _write_json(path, contract)
+    return path.resolve(strict=True)
+
+
+def _contract_record(path: Path) -> dict[str, Any]:
+    raw = path.read_bytes()
+    return {
+        "path": str(path),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "bytes": len(raw),
+    }
 
 
 def _prepare_pretransport_state(
@@ -54,10 +104,13 @@ def _prepare_pretransport_state(
         output_root,
         persist_partial_nist_bytes=persist_partial_nist_bytes,
     )
+    contract_path = _quality_contract_fixture(root)
+
     quality_path = output / "tensile-quality-verification.json"
     quality = _read(quality_path)
     quality.update(
         {
+            "quality_contract": _contract_record(contract_path),
             "known_incomplete_rows": _EXPECTED_INCOMPLETE_ROWS,
             "isolated_source_missingness_observed": True,
             "missingness_mechanism_established": False,
@@ -124,6 +177,7 @@ def _prepare_pretransport_state(
     _rehash(cycle2, "cycle_sha256")
     manifest["cycles"] = [cycle1, cycle2]
     manifest["comparability_assessment_sha256"] = assessment["assessment_sha256"]
+    manifest["known_incomplete_rows"] = _EXPECTED_INCOMPLETE_ROWS
     _rehash(manifest, "manifest_sha256")
     _base._write_json(manifest_path, manifest)
 
@@ -146,6 +200,7 @@ for _name in dir(_base):
 def _rehash_predecessor_chain(
     output: Path,
     *,
+    mutate_quality: Any | None = None,
     mutate_rediagnosis: Any | None = None,
     mutate_assessment: Any | None = None,
 ) -> None:
@@ -154,7 +209,14 @@ def _rehash_predecessor_chain(
     assessment = _read(output / "physical-comparability-assessment.json")
     manifest = _read(output / "autonomous-production-manifest.json")
 
+    quality.pop("verification_sha256", None)
+    if mutate_quality is not None:
+        mutate_quality(quality)
+    quality["verification_sha256"] = _base.recovery._canonical_sha(quality)
+
     rediagnosis.pop("rediagnosis_sha256", None)
+    rediagnosis["observed_quality_verification_sha256"] = quality["verification_sha256"]
+    rediagnosis["observed_quality_verification"] = quality
     if mutate_rediagnosis is not None:
         mutate_rediagnosis(rediagnosis)
     rediagnosis["rediagnosis_sha256"] = _base.recovery._canonical_sha(rediagnosis)
@@ -192,9 +254,25 @@ def _rehash_predecessor_chain(
     manifest["comparability_assessment_sha256"] = assessment["assessment_sha256"]
     manifest["manifest_sha256"] = _base.recovery._canonical_sha(manifest)
 
+    _base._write_json(output / "tensile-quality-verification.json", quality)
     _base._write_json(output / "quality-aware-rediagnosis.json", rediagnosis)
     _base._write_json(output / "physical-comparability-assessment.json", assessment)
     _base._write_json(output / "autonomous-production-manifest.json", manifest)
+
+
+def _set_nontransport_stop(output: Path) -> None:
+    manifest_path = output / "autonomous-production-manifest.json"
+    manifest = _read(manifest_path)
+    stop = {
+        "status": "stopped",
+        "reason_code": "registered_capability_unavailable_for_current_next_action",
+        "requested_action_class": "full-success-predecessor-fixture",
+        "scientific_status_changed": False,
+    }
+    manifest["stop"] = stop
+    _rehash(manifest, "manifest_sha256")
+    _base._write_json(manifest_path, manifest)
+    _base._write_json(output / "bounded-stop.json", stop)
 
 
 def test_rehashed_rediagnosis_cannot_promote_model_authority(
@@ -275,6 +353,112 @@ def test_qualification_self_hash_tamper_is_rejected(
         live_verifier.verify_live_autonomous_output(output)
 
 
+def test_full_success_semantic_preflight_rechecks_predecessor_science(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    _set_nontransport_stop(output)
+
+    def promote(value: dict[str, Any]) -> None:
+        value["evidence_state"]["direct_nist_condition_comparability_established"] = True
+
+    _rehash_predecessor_chain(output, mutate_rediagnosis=promote)
+    with pytest.raises(
+        semantic_hardening.AutonomousProductionSemanticHardeningError,
+        match="rediagnosis evidence_state improperly promoted scientific authority",
+    ):
+        semantic_hardening.verify_persisted_semantic_boundaries(output)
+
+
+def test_nested_quality_contract_cannot_authorize_inverse_reconstruction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    quality = _read(output / "tensile-quality-verification.json")
+    contract_path = Path(quality["quality_contract"]["path"])
+    contract = _read(contract_path)
+    contract["interpretation"]["inverse_reconstruction_from_tensile_stress_authorized"] = True
+    _write_json(contract_path, contract)
+
+    def bind_modified_contract(value: dict[str, Any]) -> None:
+        value["quality_contract"] = _contract_record(contract_path)
+
+    _rehash_predecessor_chain(output, mutate_quality=bind_modified_contract)
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="inverse_reconstruction_from_tensile_stress_authorized",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_full_success_embedded_stop_must_equal_standalone_bounded_stop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    manifest_path = output / "autonomous-production-manifest.json"
+    manifest = _read(manifest_path)
+    manifest["stop"] = {
+        "status": "completed",
+        "reason_code": "contradictory-full-success-stop",
+    }
+    _rehash(manifest, "manifest_sha256")
+    _base._write_json(manifest_path, manifest)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="bounded-stop artifact does not match autonomous manifest stop",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_manifest_incomplete_row_identity_must_match_verified_quality(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    manifest_path = output / "autonomous-production-manifest.json"
+    manifest = _read(manifest_path)
+    manifest["known_incomplete_rows"] = [
+        {
+            **_EXPECTED_INCOMPLETE_ROWS[0],
+            "excel_row_number": 80,
+        }
+    ]
+    _rehash(manifest, "manifest_sha256")
+    _base._write_json(manifest_path, manifest)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="manifest incomplete-row identity disagrees",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+@pytest.mark.parametrize(
+    "module_name",
+    [
+        "materials_data_analyzer.research_loop.autonomous_production_live_verifier_base",
+        "materials_data_analyzer.research_loop.autonomous_production_live_verifier_impl",
+    ],
+)
+def test_compatibility_verifier_modules_are_not_executable_bypasses(module_name: str) -> None:
+    completed = subprocess.run(
+        [sys.executable, "-m", module_name, "unused-output"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 2
+    assert "is not an executable verifier" in completed.stderr
+
+
 @pytest.mark.parametrize("authority", [True, None])
 def test_full_success_preflight_requires_explicit_false_paper_row_authority(
     tmp_path: Path,
@@ -288,6 +472,10 @@ def test_full_success_preflight_requires_explicit_false_paper_row_authority(
     if authority is not None:
         manifest["paper_evidence_promoted_to_row_level_authority"] = authority
     _base._write_json(output / "autonomous-production-manifest.json", manifest)
+    _base._write_json(
+        output / "bounded-stop.json",
+        {"status": "completed", "reason_code": "completed"},
+    )
 
     with pytest.raises(
         semantic_hardening.AutonomousProductionSemanticHardeningError,
