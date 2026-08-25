@@ -1,10 +1,10 @@
 """Public autonomous-production live verifier with cross-artifact semantic hardening.
 
 The previously reviewed verifier is retained byte-for-byte in
-``autonomous_production_live_verifier_base``.  This entrypoint adds semantic checks that a
+``autonomous_production_live_verifier_base``. This entrypoint adds semantic checks that a
 self-consistently re-hashed artifact set cannot bypass, anchors execution authority to the
-exact mission/policy pins, then delegates to every pre-existing transport/full-success
-provenance check.
+exact mission/policy pins and checkout-root evidence, then delegates to every pre-existing
+transport/full-success provenance check.
 """
 from __future__ import annotations
 
@@ -15,6 +15,10 @@ from . import autonomous_production_live_verifier_base as _base
 from .autonomous_production_authority_binding_hardening import (
     AutonomousProductionAuthorityBindingError,
     verify_exact_authority_bindings,
+)
+from .autonomous_production_merge_gate_hardening import (
+    AutonomousProductionMergeGateHardeningError,
+    verify_final_merge_gate_boundaries,
 )
 from .autonomous_production_semantic_hardening import (
     AutonomousProductionSemanticHardeningError,
@@ -34,16 +38,18 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
     try:
         verify_exact_authority_bindings(output_root)
         verify_persisted_semantic_boundaries(output_root)
+        verify_final_merge_gate_boundaries(output_root)
     except (
         AutonomousProductionAuthorityBindingError,
         AutonomousProductionSemanticHardeningError,
+        AutonomousProductionMergeGateHardeningError,
     ) as exc:
         raise AutonomousProductionLiveVerificationError(str(exc)) from exc
     return _original_impl_verify_live_autonomous_output(output_root)
 
 
 # ``_base.main`` delegates through the implementation module, so patch the single dispatch
-# point as well as the public function.  The underlying reviewed verifier remains otherwise
+# point as well as the public function. The underlying reviewed verifier remains otherwise
 # unchanged.
 _base._impl.verify_live_autonomous_output = _verify_with_semantic_hardening
 
