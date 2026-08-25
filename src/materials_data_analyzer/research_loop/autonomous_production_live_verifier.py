@@ -17,6 +17,9 @@ from .autonomous_production_authority_binding_hardening import (
     AutonomousProductionAuthorityBindingError,
     verify_exact_authority_bindings,
 )
+from .autonomous_production_exact_head_p2_closure import (
+    install_exact_head_p2_closures,
+)
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
@@ -37,6 +40,8 @@ AutonomousProductionLiveVerificationError = (
 _original_impl_verify_live_autonomous_output = (
     _base._impl.verify_live_autonomous_output
 )
+
+install_exact_head_p2_closures()
 
 
 def _verify_with_semantic_hardening(output_root: str | Path) -> str:
