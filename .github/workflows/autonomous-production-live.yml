@@ -40,6 +40,7 @@ on:
       - "tests/test_autonomous_production_transport_provenance_hardening.py"
       - "tests/test_autonomous_production_authority_binding_hardening.py"
       - "tests/test_autonomous_production_source_replay_hardening.py"
+      - "tests/test_autonomous_production_exact_head_p2_closure.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
       - "tests/test_mds2_2923_reference_chain.py"
@@ -87,6 +88,7 @@ on:
       - "tests/test_autonomous_production_transport_provenance_hardening.py"
       - "tests/test_autonomous_production_authority_binding_hardening.py"
       - "tests/test_autonomous_production_source_replay_hardening.py"
+      - "tests/test_autonomous_production_exact_head_p2_closure.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
       - "tests/test_mds2_2923_reference_chain.py"
@@ -125,6 +127,7 @@ jobs:
           tests/test_autonomous_production_transport_provenance_hardening.py
           tests/test_autonomous_production_authority_binding_hardening.py
           tests/test_autonomous_production_source_replay_hardening.py
+          tests/test_autonomous_production_exact_head_p2_closure.py
           tests/test_research_program_cli_transport_recovery_wiring.py
           tests/test_public_data_acquisition_transport_errors.py
           tests/test_nist_mds2_2923_transport_errors.py
