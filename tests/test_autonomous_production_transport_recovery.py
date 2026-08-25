@@ -5,6 +5,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+from materials_data_analyzer.research_loop import autonomous_production_live_verifier as live_verifier
+from materials_data_analyzer.research_loop import autonomous_production_semantic_hardening as semantic_hardening
+
 _BASE_PATH = Path(__file__).with_name("autonomous_production_transport_recovery_regression_base.py")
 _SPEC = importlib.util.spec_from_file_location(
     "_autonomous_production_transport_recovery_regression_base",
@@ -136,3 +141,156 @@ _base._prepare_pretransport_state = _prepare_pretransport_state
 for _name in dir(_base):
     if _name.startswith("test_"):
         globals()[_name] = getattr(_base, _name)
+
+
+def _rehash_predecessor_chain(
+    output: Path,
+    *,
+    mutate_rediagnosis: Any | None = None,
+    mutate_assessment: Any | None = None,
+) -> None:
+    quality = _read(output / "tensile-quality-verification.json")
+    rediagnosis = _read(output / "quality-aware-rediagnosis.json")
+    assessment = _read(output / "physical-comparability-assessment.json")
+    manifest = _read(output / "autonomous-production-manifest.json")
+
+    rediagnosis.pop("rediagnosis_sha256", None)
+    if mutate_rediagnosis is not None:
+        mutate_rediagnosis(rediagnosis)
+    rediagnosis["rediagnosis_sha256"] = _base.recovery._canonical_sha(rediagnosis)
+
+    assessment.pop("assessment_sha256", None)
+    assessment["predecessor_rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
+    assessment["observed_quality_verification_sha256"] = quality["verification_sha256"]
+    if mutate_assessment is not None:
+        mutate_assessment(assessment)
+    assessment["assessment_sha256"] = _base.recovery._canonical_sha(assessment)
+
+    cycles = [dict(item) for item in manifest["cycles"]]
+    cycle1 = cycles[0]
+    cycle1.pop("cycle_sha256", None)
+    cycle1["quality_verification_sha256"] = quality["verification_sha256"]
+    cycle1["rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
+    cycle1["cycle_sha256"] = _base.recovery._canonical_sha(cycle1)
+
+    cycle2 = cycles[1]
+    cycle2.pop("cycle_sha256", None)
+    cycle2["predecessor_cycle_sha256"] = cycle1["cycle_sha256"]
+    cycle2["comparability_assessment_sha256"] = assessment["assessment_sha256"]
+    cycle2["cycle_sha256"] = _base.recovery._canonical_sha(cycle2)
+
+    rebuilt = [cycle1, cycle2]
+    if len(cycles) == 3:
+        cycle3 = cycles[2]
+        cycle3.pop("cycle_sha256", None)
+        cycle3["predecessor_cycle_sha256"] = cycle2["cycle_sha256"]
+        cycle3["cycle_sha256"] = _base.recovery._canonical_sha(cycle3)
+        rebuilt.append(cycle3)
+
+    manifest.pop("manifest_sha256", None)
+    manifest["cycles"] = rebuilt
+    manifest["comparability_assessment_sha256"] = assessment["assessment_sha256"]
+    manifest["manifest_sha256"] = _base.recovery._canonical_sha(manifest)
+
+    _base._write_json(output / "quality-aware-rediagnosis.json", rediagnosis)
+    _base._write_json(output / "physical-comparability-assessment.json", assessment)
+    _base._write_json(output / "autonomous-production-manifest.json", manifest)
+
+
+def test_rehashed_rediagnosis_cannot_promote_model_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    assert live_verifier.verify_live_autonomous_output(output) == "typed_nist_transport_stop_verified"
+
+    def promote(value: dict[str, Any]) -> None:
+        value["evidence_state"]["empirical_model_validation_established"] = True
+
+    _rehash_predecessor_chain(output, mutate_rediagnosis=promote)
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="rediagnosis evidence_state improperly promoted scientific authority",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_rehashed_comparability_cannot_authorize_data_alteration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+
+    def widen(value: dict[str, Any]) -> None:
+        constraint = value["source_quality_constraint"]
+        constraint["missing_value_imputation_authorized"] = True
+        constraint["inverse_reconstruction_authorized"] = True
+        constraint["row_exclusion_authorized"] = True
+
+    _rehash_predecessor_chain(output, mutate_assessment=widen)
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="physical comparability source-quality constraint drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_rehashed_qualification_cannot_promote_issue_76_or_close_other_lanes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    qualification_path = output / "nist-network-policy-qualification.json"
+    qualification = _read(qualification_path)
+    qualification["issue_76_automatic_promotion_authorized"] = True
+    qualification["paper_and_other_source_lanes_remain_allowed"] = False
+    _rehash(qualification, "qualification_sha256")
+    _base._write_json(qualification_path, qualification)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="Issue #76 automatic promotion",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_qualification_self_hash_tamper_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _base._prepare_pretransport_state(tmp_path, "outputs/run")
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    qualification_path = output / "nist-network-policy-qualification.json"
+    qualification = _read(qualification_path)
+    qualification["qualification_sha256"] = "0" * 64
+    _base._write_json(qualification_path, qualification)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="qualification self-hash mismatch",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+@pytest.mark.parametrize("authority", [True, None])
+def test_full_success_preflight_requires_explicit_false_paper_row_authority(
+    tmp_path: Path,
+    authority: object,
+) -> None:
+    output = tmp_path / "full-success"
+    output.mkdir()
+    manifest: dict[str, Any] = {
+        "stop": {"status": "completed", "reason_code": "completed"},
+    }
+    if authority is not None:
+        manifest["paper_evidence_promoted_to_row_level_authority"] = authority
+    _base._write_json(output / "autonomous-production-manifest.json", manifest)
+
+    with pytest.raises(
+        semantic_hardening.AutonomousProductionSemanticHardeningError,
+        match="must explicitly deny paper evidence row-level authority",
+    ):
+        semantic_hardening.verify_persisted_semantic_boundaries(output)
