@@ -21,6 +21,11 @@ os.environ.setdefault("PYTHONPATH", str(SRC_DIR))
 
 
 _TRANSPORT_RECOVERY_TEST_MODULE = "test_autonomous_production_transport_recovery"
+_SYNTHETIC_LIVE_VERIFIER_MODULES = {
+    "test_autonomous_production_transport_recovery",
+    "test_autonomous_production_transport_provenance_hardening",
+    "test_research_program_cli_transport_recovery_wiring",
+}
 _EXPECTED_NIST_IDENTIFIER = "10.18434/mds2-2923"
 _EXPECTED_BINDING_PATHS = {
     "nist_planning_readiness": (
@@ -205,6 +210,27 @@ def _patch_minimal_manifest_writer(
         original_write(path, value)
 
     monkeypatch.setattr(base, "_write_json", write_with_hash_contract)
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_live_verifier_trusted_root(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Inject a test-only trusted root without weakening the production verifier."""
+    module_name = request.module.__name__.split(".")[-1]
+    if module_name not in _SYNTHETIC_LIVE_VERIFIER_MODULES:
+        return
+    synthetic_root = Path(request.getfixturevalue("tmp_path")).resolve(strict=True)
+    from materials_data_analyzer.research_loop import (
+        autonomous_production_merge_gate_hardening as merge_gate_hardening,
+    )
+
+    monkeypatch.setattr(
+        merge_gate_hardening,
+        "_trusted_repository_root",
+        lambda: synthetic_root,
+    )
 
 
 @pytest.fixture(autouse=True)
