@@ -28,11 +28,15 @@ _SYNTHETIC_LIVE_VERIFIER_MODULES = {
 }
 _EXPECTED_NIST_IDENTIFIER = "10.18434/mds2-2923"
 _EXPECTED_ZENODO_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
+_EXPECTED_ZENODO_ARCHIVE_SHA256 = (
+    "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+)
+_EXPECTED_ZENODO_ARCHIVE_MD5 = "54601f974a9590be104cf1e3090b68bd"
+_EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES = 180726708
 _SYNTHETIC_ZENODO_ARCHIVE_BYTES = b"synthetic zenodo archive fixture\n"
 _SYNTHETIC_ZENODO_ARCHIVE_SHA256 = (
     "b8016f3d9cdcae76fdfbf506cddb23db9ddad45a26658f7cf1f071b7a66eaf50"
 )
-_SYNTHETIC_ZENODO_ARCHIVE_MD5 = "5df57d13599d673c400b82af644b4c41"
 _SYNTHETIC_ZENODO_AUTHORIZATION_SHA256 = "1" * 64
 _EXPECTED_ZENODO_ARCHIVE_URL = (
     "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
@@ -113,7 +117,7 @@ def _harden_cycle1_receipt(
     output: Path,
     canonical_sha: Any,
 ) -> str:
-    """Make the synthetic receipt match the real producer schema exactly enough to replay."""
+    """Make synthetic persisted bytes replay the real producer identity contract."""
     path = output / "network-acquisition-receipt.json"
     receipt = _read_json(path)
     archive_path = output / "Dataset.zip"
@@ -129,10 +133,10 @@ def _harden_cycle1_receipt(
         "file_name": "Dataset.zip",
         "final_url": _EXPECTED_ZENODO_ARCHIVE_URL,
         "path": str(archive_path.resolve(strict=True)),
-        "provider_md5": _SYNTHETIC_ZENODO_ARCHIVE_MD5,
+        "provider_md5": _EXPECTED_ZENODO_ARCHIVE_MD5,
         "requested_url": _EXPECTED_ZENODO_ARCHIVE_URL,
-        "sha256": _SYNTHETIC_ZENODO_ARCHIVE_SHA256,
-        "size_bytes": len(_SYNTHETIC_ZENODO_ARCHIVE_BYTES),
+        "sha256": _EXPECTED_ZENODO_ARCHIVE_SHA256,
+        "size_bytes": _EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES,
     }
     receipt["network_access_performed"] = True
     receipt["network_execution_authorized"] = True
@@ -291,14 +295,11 @@ def _synthetic_live_verifier_trusted_root(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Inject the actual synthetic repository root without weakening production code."""
+    """Inject test-only repository/file bytes without changing production source identity."""
     module_name = request.module.__name__.split(".")[-1]
     if module_name not in _SYNTHETIC_LIVE_VERIFIER_MODULES:
         return
     tmp_root = Path(request.getfixturevalue("tmp_path")).resolve(strict=True)
-    from materials_data_analyzer.research_loop import (
-        autonomous_production_live_verifier_base as live_verifier_base,
-    )
     from materials_data_analyzer.research_loop import (
         autonomous_production_merge_gate_hardening as merge_gate_hardening,
     )
@@ -316,28 +317,18 @@ def _synthetic_live_verifier_trusted_root(
         raise AssertionError("synthetic trusted repository root was not materialized")
 
     monkeypatch.setattr(
-        live_verifier_base,
-        "_EXPECTED_ZENODO_ARCHIVE_SHA256",
-        _SYNTHETIC_ZENODO_ARCHIVE_SHA256,
-    )
-    monkeypatch.setattr(
         merge_gate_hardening,
         "_trusted_repository_root",
         synthetic_trusted_root,
     )
     monkeypatch.setattr(
         merge_gate_hardening,
-        "_EXPECTED_ZENODO_ARCHIVE_SHA256",
+        "_EXPECTED_ZENODO_PERSISTED_ARCHIVE_SHA256",
         _SYNTHETIC_ZENODO_ARCHIVE_SHA256,
     )
     monkeypatch.setattr(
         merge_gate_hardening,
-        "_EXPECTED_ZENODO_ARCHIVE_MD5",
-        _SYNTHETIC_ZENODO_ARCHIVE_MD5,
-    )
-    monkeypatch.setattr(
-        merge_gate_hardening,
-        "_EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES",
+        "_EXPECTED_ZENODO_PERSISTED_ARCHIVE_SIZE_BYTES",
         len(_SYNTHETIC_ZENODO_ARCHIVE_BYTES),
     )
 
