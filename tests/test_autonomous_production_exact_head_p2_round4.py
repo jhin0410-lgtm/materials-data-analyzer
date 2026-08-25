@@ -181,7 +181,7 @@ def _naderi_report(policy: dict[str, Any], policy_sha: str) -> dict[str, Any]:
                 "match_count": 1,
                 "match_mode": claim["match_mode"],
                 "matched": True,
-                "matches": receipt["matches"],
+                "matches": [dict(item) for item in receipt["matches"]],
                 "max_span_utf8_bytes": claim["max_span_utf8_bytes"],
                 "required_fragment_count": len(claim["required_fragments"]),
                 "required_fragments_sha256": round4._canonical_sha256(
