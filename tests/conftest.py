@@ -212,6 +212,13 @@ def _harden_transport_fixture(
         "verification_sha256"
     ]
     assessment["evidence_bindings"] = bindings
+    gate = assessment.setdefault("gate_decision", {})
+    assert isinstance(gate, dict)
+    gate["material_identity_established"] = True
+    gate["protocol_compatibility_established"] = False
+    gate["response_compatibility_established"] = False
+    gate["source_globally_unusable_claimed"] = False
+    gate["source_remains_usable_for_mechanical_property_questions"] = True
     _rehash(assessment, "assessment_sha256", canonical_sha)
     _write_json(output / "physical-comparability-assessment.json", assessment)
 
