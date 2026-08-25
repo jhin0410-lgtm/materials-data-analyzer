@@ -30,6 +30,8 @@ _EXPECTED_ZENODO_ARCHIVE_SHA256 = (
 )
 _EXPECTED_ZENODO_ARCHIVE_MD5 = "54601f974a9590be104cf1e3090b68bd"
 _EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES = 180726708
+_EXPECTED_ZENODO_PERSISTED_ARCHIVE_SHA256 = _EXPECTED_ZENODO_ARCHIVE_SHA256
+_EXPECTED_ZENODO_PERSISTED_ARCHIVE_SIZE_BYTES = _EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES
 _EXPECTED_ZENODO_ARCHIVE_URL = (
     "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
 )
@@ -174,12 +176,12 @@ def _verify_cycle1_network_receipt(root: Path, cycle1: Mapping[str, Any]) -> Non
         "cycle-1 Zenodo source identity drifted",
     )
     _require(
-        archive_path.stat().st_size == _EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES,
+        archive_path.stat().st_size == _EXPECTED_ZENODO_PERSISTED_ARCHIVE_SIZE_BYTES,
         "cycle-1 persisted Zenodo archive byte count drifted",
     )
     _require(
         hashlib.sha256(archive_path.read_bytes()).hexdigest()
-        == _EXPECTED_ZENODO_ARCHIVE_SHA256,
+        == _EXPECTED_ZENODO_PERSISTED_ARCHIVE_SHA256,
         "cycle-1 persisted Zenodo archive SHA-256 drifted",
     )
     _require(
