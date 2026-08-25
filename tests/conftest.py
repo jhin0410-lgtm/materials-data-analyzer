@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
+os.environ.setdefault("PYTHONPATH", str(SRC_DIR))
 
 
 _TRANSPORT_RECOVERY_TEST_MODULE = "test_autonomous_production_transport_recovery"
