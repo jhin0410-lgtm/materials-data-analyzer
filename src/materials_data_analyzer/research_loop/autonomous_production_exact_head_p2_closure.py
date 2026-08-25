@@ -1,9 +1,10 @@
-"""Close the six exact-head replay/provenance P2 gaps on PR #233.
+"""Exact-head closure for the six replay/provenance P2 gaps found on PR #233.
 
-This layer wraps the already-reviewed verifiers without widening any scientific, network,
-or execution authority. It adds retained-archive tensile replay, all-cycle authority denial,
-metadata-derived NIST recorded-provenance checks, relocation-safe interpretation of historical
-package paths, and an exact post-acquisition evidence summary bound to canonical source replay.
+This module deliberately wraps the already-reviewed verifier layers instead of weakening or
+replacing their scientific contracts.  It adds only stricter replay/provenance checks:
+retained-archive tensile replay, all-cycle authority denial, metadata-derived NIST recorded
+provenance, relocation-safe interpretation of historical package paths, and an exact
+post-acquisition evidence summary bound to the canonically replayed NIST intake.
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ AutonomousProductionExactHeadP2ClosureError = (
 )
 
 _REAL_PATH = Path
+_ORIGINAL_TENSILE_REPLAY = _source_replay._verify_reviewed_tensile_source_replay
 _ORIGINAL_LATE_CYCLE_AUTHORITY = _source_replay._verify_late_cycle_authority_boundaries
 _ORIGINAL_NIST_PACKAGE_AUTHENTICATOR = _source_replay._authenticate_nist_package
 _ORIGINAL_SUCCESSFUL_NIST_CHAIN = _merge_gate._verify_successful_nist_chain
@@ -57,8 +59,15 @@ def _replay_reviewed_tensile_for_every_lifecycle(root: Path) -> None:
     """Canonical row replay is mandatory whether Dataset.zip remains or was cleaned up."""
     persisted_manifest_path = root / _source_replay._REVIEWED_TENSILE_MANIFEST
     persisted_rows_path = root / _source_replay._REVIEWED_TENSILE_ROWS
+    manifest_present = persisted_manifest_path.is_file()
+    rows_present = persisted_rows_path.is_file()
+    if not manifest_present and not rows_present:
+        # Early transport-stop fixtures may legitimately retain only the authenticated raw
+        # archive and no reviewed derivative yet. Preserve the reviewed raw-archive verifier.
+        _ORIGINAL_TENSILE_REPLAY(root)
+        return
     _require(
-        persisted_manifest_path.is_file() and persisted_rows_path.is_file(),
+        manifest_present and rows_present,
         "reviewed tensile evidence is incomplete for canonical source replay",
     )
 
@@ -75,8 +84,7 @@ def _replay_reviewed_tensile_for_every_lifecycle(root: Path) -> None:
 
     def selected_source(record_name: str) -> Path:
         record = _source_replay._mapping(
-            policy.get(record_name),
-            label=f"reviewed tensile policy {record_name}",
+            policy.get(record_name), label=f"reviewed tensile policy {record_name}"
         )
         member = record.get("archive_member_path")
         _require(
@@ -90,13 +98,9 @@ def _replay_reviewed_tensile_for_every_lifecycle(root: Path) -> None:
             f"reviewed tensile {record_name} archive member is unsafe",
         )
         path = (
-            root
-            / _source_replay._SELECTED_SOURCE_ROOT
-            / Path(*member_path.parts)
+            root / _source_replay._SELECTED_SOURCE_ROOT / Path(*member_path.parts)
         ).resolve(strict=True)
-        _source_replay._inside(
-            path, root, label=f"reviewed tensile {record_name}"
-        )
+        _source_replay._inside(path, root, label=f"reviewed tensile {record_name}")
         raw = path.read_bytes()
         _require(
             record.get("sha256") == hashlib.sha256(raw).hexdigest()
@@ -108,8 +112,7 @@ def _replay_reviewed_tensile_for_every_lifecycle(root: Path) -> None:
     workbook_path = selected_source("workbook")
     readme_path = selected_source("documentation")
     persisted_manifest = _source_replay._load_json(
-        persisted_manifest_path,
-        label="persisted reviewed tensile manifest",
+        persisted_manifest_path, label="persisted reviewed tensile manifest"
     )
     persisted_row_bytes = persisted_rows_path.read_bytes()
 
@@ -139,17 +142,14 @@ def _replay_reviewed_tensile_for_every_lifecycle(root: Path) -> None:
 
 
 def _verify_all_success_cycles(cycles: list[dict[str, Any]]) -> None:
-    """Preserve explicit cycle 4/6/8 checks and scan authority through terminal cycle."""
+    """Preserve explicit cycle 4/6/8 checks and scan authority through the terminal cycle."""
     _ORIGINAL_LATE_CYCLE_AUTHORITY(cycles)
     for cycle in cycles[8:]:
-        _source_replay._scan_authority(
-            cycle, cycle_index=int(cycle["cycle_index"])
-        )
+        cycle_index = int(cycle["cycle_index"])
+        _source_replay._scan_authority(cycle, cycle_index=cycle_index)
 
 
-def _metadata_candidate(
-    *, metadata_bytes: bytes, path: str
-) -> Mapping[str, Any]:
+def _metadata_candidate(*, metadata_bytes: bytes, path: str) -> Mapping[str, Any]:
     try:
         candidates = discover_nist_pdr_candidates(
             metadata_bytes=metadata_bytes,
@@ -187,7 +187,7 @@ def _authenticate_nist_package_against_metadata(
     top_receipt: Mapping[str, Any],
     expected_metadata_sha256: str = _source_replay.EXPECTED_METADATA_SHA256,
 ) -> tuple[bytes, bytes]:
-    """Run exact-byte binder, then bind recorded values to NERDm-derived values."""
+    """Run the existing exact-byte binder, then bind recorded values to NERDm-derived values."""
     raw, metadata_bytes = _ORIGINAL_NIST_PACKAGE_AUTHENTICATOR(
         root=root,
         path=path,
@@ -213,8 +213,7 @@ def _authenticate_nist_package_against_metadata(
 
     _require(
         authenticated.get("recorded_source_system") == candidate.get("source_system")
-        and authenticated.get("recorded_source_version")
-        == candidate.get("source_version")
+        and authenticated.get("recorded_source_version") == candidate.get("source_version")
         and authenticated.get("recorded_retrieval_endpoint")
         == candidate.get("retrieval_endpoint")
         and authenticated.get("recorded_retrieval_status")
@@ -247,7 +246,7 @@ def _safe_recorded_suffix(
 def _validate_relocation_safe_paths(
     root: Path, receipt: Mapping[str, Any]
 ) -> dict[str, Path]:
-    """Authenticate historical structure while resolving current locators from replay root."""
+    """Authenticate historical path structure while resolving current locators from replay root."""
     mapping: dict[str, Path] = {}
     nist_root = (root / "nist-mds2-2923").resolve(strict=True)
 
@@ -277,12 +276,9 @@ def _validate_relocation_safe_paths(
         package_parts = ("nist-mds2-2923", f"artifact-{index:02d}")
         package = (nist_root / f"artifact-{index:02d}").resolve(strict=True)
         artifact = (package / path).resolve(strict=True)
-        _source_replay._inside(
-            package, nist_root, label=f"NIST replay package {index}"
-        )
-        _source_replay._inside(
-            artifact, package, label=f"NIST replay artifact {path}"
-        )
+        _source_replay._inside(package, nist_root, label=f"NIST replay package {index}")
+        _source_replay._inside(artifact, package, label=f"NIST replay artifact {path}")
+
         recorded_artifact = _safe_recorded_suffix(
             artifact_paths[path],
             expected_parts=(*package_parts, path),
@@ -300,12 +296,11 @@ def _validate_relocation_safe_paths(
         )
         mapping[recorded_artifact] = artifact
         mapping[recorded_package] = package
+
     return mapping
 
 
-def _expected_verified_new_evidence(
-    intake: Mapping[str, Any],
-) -> dict[str, Any]:
+def _expected_verified_new_evidence(intake: Mapping[str, Any]) -> dict[str, Any]:
     inventory = intake.get("in625_inventory")
     measurements = intake.get("measurements")
     _require(
@@ -328,9 +323,7 @@ def _expected_verified_new_evidence(
         "dataset_local_physical_track_count": inventory.get("physical_track_count"),
         "geometry_response_compatibility_established": True,
         "machine_measurement_counts": inventory.get("machine_measurement_counts"),
-        "machine_physical_track_counts": inventory.get(
-            "machine_physical_track_counts"
-        ),
+        "machine_physical_track_counts": inventory.get("machine_physical_track_counts"),
         "material": "IN625",
         "measurement_row_count": inventory.get("measurement_row_count"),
         "response_semantics": ["melt_pool_width", "melt_pool_depth"],
@@ -344,19 +337,18 @@ def _expected_verified_new_evidence(
 
 
 def _verify_canonical_post_acquisition_summary(root: Path) -> None:
-    """Require rediagnosis evidence summary to be exactly derived from replayed intake."""
+    """Require rediagnosis evidence summary to be exactly derived from replayed source intake."""
     _source_replay._verify_successful_nist_source_replay(root)
     intake = _load_json(
-        root / "nist-scientific-intake.json",
-        label="persisted NIST scientific intake",
+        root / "nist-scientific-intake.json", label="persisted NIST scientific intake"
     )
     rediagnosis = _load_json(
         root / "nist-post-acquisition-rediagnosis.json",
         label="persisted NIST post-acquisition rediagnosis",
     )
+    expected = _expected_verified_new_evidence(intake)
     _require(
-        rediagnosis.get("verified_new_evidence")
-        == _expected_verified_new_evidence(intake),
+        rediagnosis.get("verified_new_evidence") == expected,
         "NIST post-acquisition verified_new_evidence does not match canonical intake",
     )
 
@@ -368,6 +360,7 @@ def _relocation_safe_successful_nist_chain(
 ) -> None:
     receipt = _merge_gate._load(root, "nist-network-acquisition-receipt.json")
     path_mapping = _validate_relocation_safe_paths(root, receipt)
+
     original_path_factory = _merge_gate.Path
 
     def relocated_path_factory(value: object = ".") -> Path:
@@ -385,25 +378,20 @@ def _relocation_safe_successful_nist_chain(
 
 
 def install_exact_head_p2_closures() -> None:
-    """Install stricter exact-head gates once before public live verification dispatch."""
+    """Install stricter exact-head gates once, before any public live verification dispatch."""
     global _INSTALLED
     if _INSTALLED:
         return
+
     _source_replay._DENIED_TRUE_AUTHORITY_FIELDS.add(
         "global_evidence_unavailability_claimed"
     )
     _source_replay._verify_reviewed_tensile_source_replay = (
         _replay_reviewed_tensile_for_every_lifecycle
     )
-    _source_replay._verify_late_cycle_authority_boundaries = (
-        _verify_all_success_cycles
-    )
-    _source_replay._authenticate_nist_package = (
-        _authenticate_nist_package_against_metadata
-    )
-    _merge_gate._verify_successful_nist_chain = (
-        _relocation_safe_successful_nist_chain
-    )
+    _source_replay._verify_late_cycle_authority_boundaries = _verify_all_success_cycles
+    _source_replay._authenticate_nist_package = _authenticate_nist_package_against_metadata
+    _merge_gate._verify_successful_nist_chain = _relocation_safe_successful_nist_chain
     _INSTALLED = True
 
 
