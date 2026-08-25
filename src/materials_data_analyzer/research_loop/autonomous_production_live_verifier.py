@@ -3,8 +3,9 @@
 The previously reviewed verifier is retained byte-for-byte in
 ``autonomous_production_live_verifier_base``. This entrypoint adds semantic checks that a
 self-consistently re-hashed artifact set cannot bypass, anchors execution authority to the
-exact mission/policy pins and checkout-root evidence, then delegates to every pre-existing
-transport/full-success provenance check.
+exact mission/policy pins and checkout-root evidence, independently replays source-derived
+artifacts from exact retained bytes, then delegates to every pre-existing transport/full-
+success provenance check.
 """
 from __future__ import annotations
 
@@ -24,6 +25,10 @@ from .autonomous_production_semantic_hardening import (
     AutonomousProductionSemanticHardeningError,
     verify_persisted_semantic_boundaries,
 )
+from .autonomous_production_source_replay_hardening import (
+    AutonomousProductionSourceReplayHardeningError,
+    verify_source_replay_boundaries,
+)
 
 AutonomousProductionLiveVerificationError = (
     _base.AutonomousProductionLiveVerificationError
@@ -39,10 +44,12 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         verify_exact_authority_bindings(output_root)
         verify_persisted_semantic_boundaries(output_root)
         verify_final_merge_gate_boundaries(output_root)
+        verify_source_replay_boundaries(output_root)
     except (
         AutonomousProductionAuthorityBindingError,
         AutonomousProductionSemanticHardeningError,
         AutonomousProductionMergeGateHardeningError,
+        AutonomousProductionSourceReplayHardeningError,
     ) as exc:
         raise AutonomousProductionLiveVerificationError(str(exc)) from exc
     return _original_impl_verify_live_autonomous_output(output_root)
