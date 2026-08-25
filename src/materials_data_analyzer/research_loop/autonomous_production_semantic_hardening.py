@@ -142,7 +142,7 @@ def _verify_pretransport_science(root: Path) -> None:
         and quality.get("hypothesis_truth_established") is False
         and quality.get("positive_scientific_closeout_established") is False
         and quality.get("scientific_status_changed") is False,
-        "tensile quality scientific authority drifted",
+        "quality evidence scientific state drifted: tensile quality authority",
     )
 
     _require(
