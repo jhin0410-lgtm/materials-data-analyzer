@@ -27,11 +27,13 @@ from .autonomous_production_exact_head_p2_round2 import (
 from .autonomous_production_exact_head_p2_round3 import (
     install_exact_head_round3_closures,
     verify_exact_head_round3_boundaries,
-    verify_exact_head_round3_preflight,
 )
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
+)
+from .autonomous_production_round3_preflight_scope import (
+    verify_round3_duplicate_key_preflight,
 )
 from .autonomous_production_semantic_hardening import (
     AutonomousProductionSemanticHardeningError,
@@ -57,8 +59,9 @@ install_exact_head_round3_closures()
 
 def _verify_with_semantic_hardening(output_root: str | Path) -> str:
     try:
-        # Reject ambiguous persisted JSON bytes before any legacy verifier parses them.
-        verify_exact_head_round3_preflight(output_root)
+        # Reject duplicate keys before legacy parsing, while allowing lifecycle-specific
+        # handling of bounded partial source metadata that is not yet a complete JSON object.
+        verify_round3_duplicate_key_preflight(output_root)
         verify_exact_authority_bindings(output_root)
         verify_persisted_semantic_boundaries(output_root)
         verify_exact_head_round2_boundaries(output_root)
