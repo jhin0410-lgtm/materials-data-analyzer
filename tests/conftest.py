@@ -27,6 +27,10 @@ _SYNTHETIC_LIVE_VERIFIER_MODULES = {
     "test_research_program_cli_transport_recovery_wiring",
 }
 _EXPECTED_NIST_IDENTIFIER = "10.18434/mds2-2923"
+_EXPECTED_ZENODO_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
+_EXPECTED_ZENODO_ARCHIVE_SHA256 = (
+    "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+)
 _EXPECTED_BINDING_PATHS = {
     "nist_planning_readiness": (
         "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
@@ -98,6 +102,35 @@ def _rehash(value: dict[str, Any], field: str, canonical_sha: Any) -> None:
     value[field] = canonical_sha(value)
 
 
+def _harden_cycle1_receipt(
+    *,
+    output: Path,
+    canonical_sha: Any,
+) -> str:
+    """Augment the legacy synthetic receipt with the production provenance aliases."""
+    path = output / "network-acquisition-receipt.json"
+    receipt = _read_json(path)
+    receipt["source_id"] = _EXPECTED_ZENODO_SOURCE_ID
+    receipt["zenodo_record_id"] = 20503603
+    receipt["archive_sha256"] = _EXPECTED_ZENODO_ARCHIVE_SHA256
+    receipt["network_access_performed"] = True
+    receipt["download_executed"] = True
+    receipt["archive_checksum_verified"] = True
+    receipt["archive_size_verified"] = True
+    receipt["exact_host_authority_preserved"] = True
+    boundary = receipt.setdefault("scientific_boundary", {})
+    assert isinstance(boundary, dict)
+    boundary["automatic_scientific_promotion"] = False
+    boundary["direct_nist_comparability_established"] = False
+    boundary["direct_nist_condition_comparability_established"] = False
+    boundary["empirical_model_validation_established"] = False
+    boundary["hypothesis_truth_established"] = False
+    boundary["positive_scientific_closeout_established"] = False
+    _rehash(receipt, "receipt_sha256", canonical_sha)
+    _write_json(path, receipt)
+    return str(receipt["receipt_sha256"])
+
+
 def _harden_transport_fixture(
     *,
     root: Path,
@@ -109,6 +142,10 @@ def _harden_transport_fixture(
         for name, relative in _EXPECTED_BINDING_PATHS.items()
     }
 
+    receipt_sha = _harden_cycle1_receipt(
+        output=output,
+        canonical_sha=canonical_sha,
+    )
     quality = _read_json(output / "tensile-quality-verification.json")
     rediagnosis = _read_json(output / "quality-aware-rediagnosis.json")
     rediagnosis["secondary_blockers"] = [
@@ -142,6 +179,7 @@ def _harden_transport_fixture(
     manifest = _read_json(output / "autonomous-production-manifest.json")
     cycles = [dict(item) for item in manifest["cycles"]]
     cycle1 = cycles[0]
+    cycle1["network_receipt_sha256"] = receipt_sha
     cycle1["rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
     _rehash(cycle1, "cycle_sha256", canonical_sha)
     cycle2 = cycles[1]
@@ -217,19 +255,31 @@ def _synthetic_live_verifier_trusted_root(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Inject a test-only trusted root without weakening the production verifier."""
+    """Inject the actual synthetic repository root without weakening production code."""
     module_name = request.module.__name__.split(".")[-1]
     if module_name not in _SYNTHETIC_LIVE_VERIFIER_MODULES:
         return
-    synthetic_root = Path(request.getfixturevalue("tmp_path")).resolve(strict=True)
+    tmp_root = Path(request.getfixturevalue("tmp_path")).resolve(strict=True)
     from materials_data_analyzer.research_loop import (
         autonomous_production_merge_gate_hardening as merge_gate_hardening,
     )
 
+    quality_relative = Path(_EXPECTED_BINDING_PATHS["zenodo_observed_quality_contract"])
+    frontier_relative = Path(_EXPECTED_BINDING_PATHS["in625_physical_source_frontier"])
+
+    def synthetic_trusted_root() -> Path:
+        for candidate in (tmp_root / "repo", tmp_root):
+            if (
+                (candidate / quality_relative).is_file()
+                and (candidate / frontier_relative).is_file()
+            ):
+                return candidate.resolve(strict=True)
+        raise AssertionError("synthetic trusted repository root was not materialized")
+
     monkeypatch.setattr(
         merge_gate_hardening,
         "_trusted_repository_root",
-        lambda: synthetic_root,
+        synthetic_trusted_root,
     )
 
 
