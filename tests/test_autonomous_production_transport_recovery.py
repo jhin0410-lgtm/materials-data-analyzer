@@ -139,6 +139,7 @@ def _prepare_pretransport_state(
         "missing_value_imputation_authorized": False,
     }
     next_action = dict(rediagnosis["next_action"])
+    next_action["automatic_execution_authorized"] = False
     next_action["source_quality_constraint"] = {
         "quality_contract_verified": True,
         "affected_field": "load_n",
