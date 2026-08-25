@@ -191,6 +191,11 @@ jobs:
             outputs/autonomous-in625-production/autonomous-production-manifest.json
             outputs/autonomous-in625-production/bounded-stop.json
             outputs/autonomous-in625-production/network-acquisition-receipt.json
+            outputs/autonomous-in625-production/archive-manifest.json
+            outputs/autonomous-in625-production/reviewed-tensile/reviewed_tensile_manifest.v2.json
+            outputs/autonomous-in625-production/reviewed-tensile/reviewed_tensile_rows.v2.jsonl
+            outputs/autonomous-in625-production/selected-source-files/Dataset/Mechanical testing/Tensile tests/Tensile tests.xlsx
+            outputs/autonomous-in625-production/selected-source-files/Dataset/Mechanical testing/Tensile tests/README-Tensile tests.txt
             outputs/autonomous-in625-production/tensile-quality-verification.json
             outputs/autonomous-in625-production/quality-aware-rediagnosis.json
             outputs/autonomous-in625-production/physical-comparability-assessment.json
