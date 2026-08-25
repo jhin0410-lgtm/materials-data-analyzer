@@ -37,6 +37,7 @@ on:
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake_v2.py"
       - "src/materials_data_analyzer/research_loop/acquisition_record_binding.py"
       - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/xlsx_structural_intake.py"
       - "tests/conftest.py"
       - "tests/test_autonomous_production_driver.py"
       - "tests/test_autonomous_production_transport_recovery.py"
@@ -45,6 +46,7 @@ on:
       - "tests/test_autonomous_production_source_replay_hardening.py"
       - "tests/test_autonomous_production_exact_head_p2_closure.py"
       - "tests/test_autonomous_production_exact_head_p2_round2.py"
+      - "tests/test_autonomous_production_exact_head_p2_round3.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
       - "tests/test_mds2_2923_reference_chain.py"
@@ -89,6 +91,7 @@ on:
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake_v2.py"
       - "src/materials_data_analyzer/research_loop/acquisition_record_binding.py"
       - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/xlsx_structural_intake.py"
       - "tests/conftest.py"
       - "tests/test_autonomous_production_driver.py"
       - "tests/test_autonomous_production_transport_recovery.py"
@@ -97,6 +100,7 @@ on:
       - "tests/test_autonomous_production_source_replay_hardening.py"
       - "tests/test_autonomous_production_exact_head_p2_closure.py"
       - "tests/test_autonomous_production_exact_head_p2_round2.py"
+      - "tests/test_autonomous_production_exact_head_p2_round3.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
       - "tests/test_mds2_2923_reference_chain.py"
@@ -137,6 +141,7 @@ jobs:
           tests/test_autonomous_production_source_replay_hardening.py
           tests/test_autonomous_production_exact_head_p2_closure.py
           tests/test_autonomous_production_exact_head_p2_round2.py
+          tests/test_autonomous_production_exact_head_p2_round3.py
           tests/test_research_program_cli_transport_recovery_wiring.py
           tests/test_public_data_acquisition_transport_errors.py
           tests/test_nist_mds2_2923_transport_errors.py
