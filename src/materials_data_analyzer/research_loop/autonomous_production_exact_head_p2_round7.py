@@ -111,11 +111,7 @@ def _replay_trusted_candidate_and_verification(
             expected_mission_sha256=mission_sha,
             perform_real_source_smoke=True,
         )
-    except (
-        CapabilityRegistryError,
-        _capability_verifier.CapabilityVerifierError,
-        OSError,
-    ) as exc:
+    except (ValueError, OSError) as exc:
         raise AutonomousProductionExactHeadRound7Error(
             f"capability promotion {step} authoritative verifier replay failed: {exc}"
         ) from exc
