@@ -528,15 +528,18 @@ def run_autonomous_production(
     _write_json(output / "capability-gap-5.json", fifth_gap)
     _write_json(output / "capability-specification-5.json", fifth_spec)
     _write_json(output / "capability-resolution-5.json", fifth_resolution)
+    fifth_candidate = fifth_resolution.get("candidate")
     _require(
-        fifth_resolution.get("resolution_status") == "no_bounded_candidate_available",
-        "Weaver acquisition unexpectedly gained unaudited capability",
+        fifth_resolution.get("resolution_status") == "bounded_candidate_discovered"
+        and isinstance(fifth_candidate, Mapping),
+        "Weaver acquisition bounded capability candidate was not discovered",
     )
+    _write_json(output / "capability-candidate-5.json", fifth_candidate)
     stop = _stop(
         "capability_expansion_required",
         str(next_action["action_class"]),
         capability_gap_class=fifth_gap["gap_class"],
-        bounded_candidate_discovered=False,
+        bounded_candidate_discovered=True,
         caller_authored_url_used=False,
         arbitrary_code_generation_performed=False,
     )
@@ -568,8 +571,11 @@ def run_autonomous_production(
             "direct_numerical_cross_source_validation_authorized": False,
             "issue_76_exact_target_cells_satisfied": 0,
             "fifth_capability_gap_emitted": True,
+            "fifth_capability_candidate_discovered": True,
+            "fifth_capability_candidate_promoted": False,
+            "fifth_research_action_resumed": False,
             "generated_next_action_class": next_action["action_class"],
-            "final_blocker": "weaver_primary_full_text_acquisition_capability_not_established",
+            "final_blocker": "weaver_primary_full_text_acquisition_candidate_unverified",
         },
     )
 

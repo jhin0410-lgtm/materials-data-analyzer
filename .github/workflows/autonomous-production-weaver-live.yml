@@ -1,0 +1,98 @@
+name: Autonomous Weaver production live replay
+
+on:
+  push:
+    branches:
+      - main
+      - feature/weaver-full-text-derived-acquisition-228
+    paths:
+      - ".github/workflows/autonomous-production-weaver-live.yml"
+      - "configs/research/autonomous_in625_production_mission.v1.json"
+      - "configs/research/autonomous_in625_weaver_authority_extension.v1.json"
+      - "configs/research/weaver_2021_full_text_derived_acquisition_policy.v1.json"
+      - "src/materials_data_analyzer/research_program_cli.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_transport_recovery.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_transport_recovery_impl.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_reference_chain_extension.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_weaver_extension.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_weaver_live_verifier.py"
+      - "src/materials_data_analyzer/research_loop/capability_resolver.py"
+      - "src/materials_data_analyzer/research_loop/weaver_2021_*.py"
+      - "tests/test_autonomous_production_transport_recovery.py"
+      - "tests/test_autonomous_weaver_transport_integration.py"
+      - "tests/test_research_program_cli_transport_recovery_wiring.py"
+      - "tests/test_capability_resolver_verifier.py"
+      - "tests/test_weaver_2021_*.py"
+  pull_request:
+    paths:
+      - ".github/workflows/autonomous-production-weaver-live.yml"
+      - "configs/research/autonomous_in625_production_mission.v1.json"
+      - "configs/research/autonomous_in625_weaver_authority_extension.v1.json"
+      - "configs/research/weaver_2021_full_text_derived_acquisition_policy.v1.json"
+      - "src/materials_data_analyzer/research_program_cli.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_transport_recovery.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_transport_recovery_impl.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_reference_chain_extension.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_weaver_extension.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_weaver_live_verifier.py"
+      - "src/materials_data_analyzer/research_loop/capability_resolver.py"
+      - "src/materials_data_analyzer/research_loop/weaver_2021_*.py"
+      - "tests/test_autonomous_production_transport_recovery.py"
+      - "tests/test_autonomous_weaver_transport_integration.py"
+      - "tests/test_research_program_cli_transport_recovery_wiring.py"
+      - "tests/test_capability_resolver_verifier.py"
+      - "tests/test_weaver_2021_*.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  literal-fourteen-cycle-live-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install repository development environment
+        run: python -m pip install -e ".[dev]"
+      - name: Run Weaver and transport adversarial regressions
+        run: >-
+          python -m pytest -q
+          tests/test_autonomous_production_transport_recovery.py
+          tests/test_autonomous_weaver_transport_integration.py
+          tests/test_research_program_cli_transport_recovery_wiring.py
+          tests/test_capability_resolver_verifier.py
+          tests/test_weaver_2021_authority_chain.py
+          tests/test_weaver_2021_full_text_acquisition.py
+      - name: Run literal public autonomous command through Weaver frontier
+        run: mda-research-program run-autonomous --max-cycles 14
+      - name: Verify Weaver success or typed NIST transport stop
+        run: >-
+          python -m materials_data_analyzer.research_loop.autonomous_production_weaver_live_verifier
+          outputs/autonomous-in625-production
+      - name: Upload bounded Weaver autonomous provenance
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: autonomous-production-weaver-live-replay
+          path: |
+            outputs/autonomous-in625-production/autonomous-production-manifest.json
+            outputs/autonomous-in625-production/bounded-stop.json
+            outputs/autonomous-in625-production/nist-transport-unavailability.json
+            outputs/autonomous-in625-production/mds2-2923-experiment-identity-reference-chain.json
+            outputs/autonomous-in625-production/capability-candidate-5.json
+            outputs/autonomous-in625-production/capability-verification-5.json
+            outputs/autonomous-in625-production/capability-registry-promoted-5.json
+            outputs/autonomous-in625-production/weaver-full-text-policy-qualification.json
+            outputs/autonomous-in625-production/weaver-derived-full-text-authorization.json
+            outputs/autonomous-in625-production/weaver-2021-full-text-acquisition.json
+            outputs/autonomous-in625-production/capability-gap-6.json
+            outputs/autonomous-in625-production/capability-resolution-6.json
+          if-no-files-found: warn
+          retention-days: 14
