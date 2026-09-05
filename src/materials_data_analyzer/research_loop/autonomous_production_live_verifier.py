@@ -37,6 +37,9 @@ from .autonomous_production_exact_head_p2_round5 import (
 from .autonomous_production_exact_head_p2_round6 import (
     verify_exact_head_round6_boundaries,
 )
+from .autonomous_production_exact_head_p2_round7 import (
+    verify_exact_head_round7_boundaries,
+)
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
@@ -79,6 +82,8 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         # These checks rely on the source replay above, so they run after canonical replay.
         verify_exact_head_round3_boundaries(output_root)
         verify_exact_head_round4_boundaries(output_root)
+        # Authenticate candidate/verifier producers before replaying registry successors.
+        verify_exact_head_round7_boundaries(output_root)
         verify_exact_head_round6_boundaries(output_root)
         verify_exact_head_round5_boundaries(output_root)
     except (
