@@ -50,6 +50,7 @@ on:
       - "tests/test_autonomous_production_exact_head_p2_round4.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
+      - "tests/test_capability_trusted_replay.py"
       - "tests/test_mds2_2923_reference_chain.py"
       - "tests/test_nist_ammt_calibration_*.py"
       - "tests/test_in625_geometry_condition_multisource_extension.py"
@@ -105,6 +106,7 @@ on:
       - "tests/test_autonomous_production_exact_head_p2_round4.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
+      - "tests/test_capability_trusted_replay.py"
       - "tests/test_mds2_2923_reference_chain.py"
       - "tests/test_nist_ammt_calibration_*.py"
       - "tests/test_in625_geometry_condition_multisource_extension.py"
@@ -151,6 +153,7 @@ jobs:
           tests/test_capability_expansion.py
           tests/test_capability_registry.py
           tests/test_capability_resolver_verifier.py
+          tests/test_capability_trusted_replay.py
           tests/test_mds2_2923_reference_chain.py
           tests/test_nist_ammt_calibration_source_discovery.py
           tests/test_nist_ammt_calibration_candidate_acquisition.py
