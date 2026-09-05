@@ -16,7 +16,7 @@ from materials_data_analyzer.research_loop import (
     build_scientific_critic_report,
     validate_reasoning_proposal_file,
 )
-from materials_data_analyzer.research_loop.autonomous_production_reference_chain_extension import (
+from materials_data_analyzer.research_loop.autonomous_production_transport_recovery import (
     run_autonomous_production,
 )
 from materials_data_analyzer.research_loop.epistemic_graph import (

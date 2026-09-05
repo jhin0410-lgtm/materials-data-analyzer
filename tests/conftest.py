@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import sys
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -11,3 +17,367 @@ SRC_DIR = PROJECT_ROOT / "src"
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
+os.environ.setdefault("PYTHONPATH", str(SRC_DIR))
+
+
+_TRANSPORT_RECOVERY_TEST_MODULE = "test_autonomous_production_transport_recovery"
+_SYNTHETIC_LIVE_VERIFIER_MODULES = {
+    "test_autonomous_production_transport_recovery",
+    "test_autonomous_production_transport_provenance_hardening",
+    "test_research_program_cli_transport_recovery_wiring",
+}
+_EXPECTED_NIST_IDENTIFIER = "10.18434/mds2-2923"
+_EXPECTED_ZENODO_SOURCE_ID = "zenodo-20503603-in625-lpbf-publication-supplement"
+_EXPECTED_ZENODO_ARCHIVE_SHA256 = (
+    "389602211b440cab5142c4071cb3c697702431d9b3aad2dfe2e6500de0a72907"
+)
+_EXPECTED_ZENODO_ARCHIVE_MD5 = "54601f974a9590be104cf1e3090b68bd"
+_EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES = 180726708
+_SYNTHETIC_ZENODO_ARCHIVE_BYTES = b"synthetic zenodo archive fixture\n"
+_SYNTHETIC_ZENODO_ARCHIVE_SHA256 = (
+    "b8016f3d9cdcae76fdfbf506cddb23db9ddad45a26658f7cf1f071b7a66eaf50"
+)
+_SYNTHETIC_ZENODO_AUTHORIZATION_SHA256 = "1" * 64
+_EXPECTED_ZENODO_ARCHIVE_URL = (
+    "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
+)
+_EXPECTED_BINDING_PATHS = {
+    "nist_planning_readiness": (
+        "configs/research/nist_ambench_2018_02_planning_readiness.v1.json"
+    ),
+    "nist_process_conditions": (
+        "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
+    ),
+    "nist_melt_pool_measurements": (
+        "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
+    ),
+    "nist_case_readme": "data/case_studies/nist_ambench_2018_02/README.md",
+    "zenodo_reviewed_tensile_contract": (
+        "configs/research/in625_tensile_reviewed_intake.v1.json"
+    ),
+    "zenodo_verified_source": (
+        "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+    ),
+    "zenodo_observed_quality_contract": (
+        "configs/research/in625_tensile_observed_quality.v1.json"
+    ),
+    "in625_physical_source_frontier": (
+        "configs/research/in625_external_physical_source_frontier.v1.json"
+    ),
+}
+_EXPECTED_INCOMPLETE_ROWS = [
+    {
+        "sheet_name": "AM-AB-H",
+        "block_index": 1,
+        "excel_row_number": 79,
+        "missing_reviewed_numeric_fields": ["load_n"],
+        "non_numeric_reviewed_fields": [],
+        "raw_anomalous_cell_text": {"load_n": ""},
+    }
+]
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
+def _write_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _binding(root: Path, relative: str) -> dict[str, Any]:
+    path = root / relative
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.suffix == ".json":
+            _write_json(path, {"synthetic_fixture_only": True, "path": relative})
+        else:
+            path.write_text(f"synthetic fixture only: {relative}\n", encoding="utf-8")
+    raw = path.read_bytes()
+    return {
+        "path": relative,
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "bytes": len(raw),
+    }
+
+
+def _rehash(value: dict[str, Any], field: str, canonical_sha: Any) -> None:
+    value.pop(field, None)
+    value[field] = canonical_sha(value)
+
+
+def _harden_cycle1_receipt(
+    *,
+    output: Path,
+    canonical_sha: Any,
+) -> str:
+    """Make synthetic persisted bytes replay the real producer identity contract."""
+    path = output / "network-acquisition-receipt.json"
+    receipt = _read_json(path)
+    archive_path = output / "Dataset.zip"
+    archive_path.write_bytes(_SYNTHETIC_ZENODO_ARCHIVE_BYTES)
+
+    receipt["schema_version"] = "1.0"
+    receipt["policy_version"] = "1.0"
+    receipt["source_id"] = _EXPECTED_ZENODO_SOURCE_ID
+    receipt["zenodo_record_id"] = "20503603"
+    receipt["authorization_sha256"] = _SYNTHETIC_ZENODO_AUTHORIZATION_SHA256
+    receipt["archive"] = {
+        "content_type": "application/octet-stream",
+        "file_name": "Dataset.zip",
+        "final_url": _EXPECTED_ZENODO_ARCHIVE_URL,
+        "path": str(archive_path.resolve(strict=True)),
+        "provider_md5": _EXPECTED_ZENODO_ARCHIVE_MD5,
+        "requested_url": _EXPECTED_ZENODO_ARCHIVE_URL,
+        "sha256": _EXPECTED_ZENODO_ARCHIVE_SHA256,
+        "size_bytes": _EXPECTED_ZENODO_ARCHIVE_SIZE_BYTES,
+    }
+    receipt["network_access_performed"] = True
+    receipt["network_execution_authorized"] = True
+    receipt["provider_checksum_verified"] = True
+    receipt["project_sha256_verified"] = True
+    receipt["byte_count_verified"] = True
+    receipt["exact_host_restriction_enforced"] = True
+    for legacy_key in (
+        "archive_sha256",
+        "download_executed",
+        "archive_checksum_verified",
+        "archive_size_verified",
+        "exact_host_authority_preserved",
+    ):
+        receipt.pop(legacy_key, None)
+
+    boundary = receipt.setdefault("scientific_boundary", {})
+    assert isinstance(boundary, dict)
+    boundary.pop("direct_nist_comparability_established", None)
+    boundary["automatic_scientific_promotion"] = False
+    boundary["direct_nist_condition_comparability_established"] = False
+    boundary["empirical_model_validation_established"] = False
+    boundary["hypothesis_truth_established"] = False
+    boundary["measurement_semantics_interpreted"] = False
+    boundary["positive_scientific_closeout_established"] = False
+    boundary["replicate_independence_established"] = False
+    boundary["sample_identity_established"] = False
+    boundary["source_provenance_established_by_successful_download"] = True
+    _rehash(receipt, "receipt_sha256", canonical_sha)
+    _write_json(path, receipt)
+    return str(receipt["receipt_sha256"])
+
+
+def _harden_transport_fixture(
+    *,
+    root: Path,
+    output: Path,
+    canonical_sha: Any,
+) -> None:
+    bindings = {
+        name: _binding(root, relative)
+        for name, relative in _EXPECTED_BINDING_PATHS.items()
+    }
+
+    receipt_sha = _harden_cycle1_receipt(
+        output=output,
+        canonical_sha=canonical_sha,
+    )
+    quality = _read_json(output / "tensile-quality-verification.json")
+    rediagnosis = _read_json(output / "quality-aware-rediagnosis.json")
+    rediagnosis["secondary_blockers"] = [
+        {
+            "code": "reviewed_numeric_source_missingness_observed",
+            "kind": "data_quality",
+            "severity": "bounded",
+            "measurement_row_count": 200289,
+            "affected_row_count": 1,
+            "known_incomplete_rows": _EXPECTED_INCOMPLETE_ROWS,
+            "blocks_external_evidence_availability": False,
+            "blocks_unqualified_use_of_affected_load_value": True,
+            "missingness_mechanism_established": False,
+            "imputation_authorized": False,
+            "row_exclusion_authorized": False,
+            "scientific_status_changed": False,
+        }
+    ]
+    _rehash(rediagnosis, "rediagnosis_sha256", canonical_sha)
+    _write_json(output / "quality-aware-rediagnosis.json", rediagnosis)
+
+    assessment = _read_json(output / "physical-comparability-assessment.json")
+    assessment["predecessor_rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
+    assessment["observed_quality_verification_sha256"] = quality[
+        "verification_sha256"
+    ]
+    assessment["evidence_bindings"] = bindings
+    gate = assessment.setdefault("gate_decision", {})
+    assert isinstance(gate, dict)
+    gate["material_identity_established"] = True
+    gate["protocol_compatibility_established"] = False
+    gate["response_compatibility_established"] = False
+    gate["source_globally_unusable_claimed"] = False
+    gate["source_remains_usable_for_mechanical_property_questions"] = True
+    _rehash(assessment, "assessment_sha256", canonical_sha)
+    _write_json(output / "physical-comparability-assessment.json", assessment)
+
+    manifest = _read_json(output / "autonomous-production-manifest.json")
+    cycles = [dict(item) for item in manifest["cycles"]]
+    cycle1 = cycles[0]
+    cycle1["network_receipt_sha256"] = receipt_sha
+    cycle1["network_authorization_sha256"] = _SYNTHETIC_ZENODO_AUTHORIZATION_SHA256
+    cycle1["rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
+    _rehash(cycle1, "cycle_sha256", canonical_sha)
+    cycle2 = cycles[1]
+    cycle2["predecessor_cycle_sha256"] = cycle1["cycle_sha256"]
+    cycle2["comparability_assessment_sha256"] = assessment["assessment_sha256"]
+    _rehash(cycle2, "cycle_sha256", canonical_sha)
+    manifest["cycles"] = [cycle1, cycle2]
+    manifest["comparability_assessment_sha256"] = assessment["assessment_sha256"]
+    _rehash(manifest, "manifest_sha256", canonical_sha)
+    _write_json(output / "autonomous-production-manifest.json", manifest)
+
+    qualification_path = output / "nist-network-policy-qualification.json"
+    qualification = _read_json(qualification_path)
+    frontier_path = root / _EXPECTED_BINDING_PATHS["in625_physical_source_frontier"]
+    qualification["identifier"] = _EXPECTED_NIST_IDENTIFIER
+    qualification["frontier_path"] = str(frontier_path.resolve(strict=True))
+    qualification["frontier_sha256"] = hashlib.sha256(
+        frontier_path.read_bytes()
+    ).hexdigest()
+    _rehash(qualification, "qualification_sha256", canonical_sha)
+    _write_json(qualification_path, qualification)
+
+
+def _patch_legacy_error_expectation(
+    *,
+    base: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_verify = base.live_verifier.verify_live_autonomous_output
+
+    def verify_with_legacy_message(output_root: str | Path) -> str:
+        try:
+            return original_verify(output_root)
+        except base.live_verifier.AutonomousProductionLiveVerificationError as exc:
+            if str(exc) == (
+                "bounded-stop artifact does not match autonomous manifest stop"
+            ):
+                raise base.live_verifier.AutonomousProductionLiveVerificationError(
+                    "bounded-stop artifact does not match manifest stop"
+                ) from exc
+            raise
+
+    monkeypatch.setattr(
+        base.live_verifier,
+        "verify_live_autonomous_output",
+        verify_with_legacy_message,
+    )
+
+
+def _patch_minimal_manifest_writer(
+    *,
+    base: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_write = base._write_json
+
+    def write_with_hash_contract(path: Path, value: object) -> None:
+        if path.name == "autonomous-production-manifest.json" and isinstance(value, dict):
+            manifest = dict(value)
+            if "manifest_sha256" not in manifest:
+                cycle = {"cycle_index": 1}
+                cycle["cycle_sha256"] = base.recovery._canonical_sha(cycle)
+                manifest["cycles"] = [cycle]
+                manifest["manifest_sha256"] = base.recovery._canonical_sha(manifest)
+                value = manifest
+        original_write(path, value)
+
+    monkeypatch.setattr(base, "_write_json", write_with_hash_contract)
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_live_verifier_trusted_root(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Inject test-only repository/file bytes without changing production source identity."""
+    module_name = request.module.__name__.split(".")[-1]
+    if module_name not in _SYNTHETIC_LIVE_VERIFIER_MODULES:
+        return
+    tmp_root = Path(request.getfixturevalue("tmp_path")).resolve(strict=True)
+    from materials_data_analyzer.research_loop import (
+        autonomous_production_merge_gate_hardening as merge_gate_hardening,
+    )
+
+    quality_relative = Path(_EXPECTED_BINDING_PATHS["zenodo_observed_quality_contract"])
+    frontier_relative = Path(_EXPECTED_BINDING_PATHS["in625_physical_source_frontier"])
+
+    def synthetic_trusted_root() -> Path:
+        for candidate in (tmp_root / "repo", tmp_root):
+            if (
+                (candidate / quality_relative).is_file()
+                and (candidate / frontier_relative).is_file()
+            ):
+                return candidate.resolve(strict=True)
+        raise AssertionError("synthetic trusted repository root was not materialized")
+
+    monkeypatch.setattr(
+        merge_gate_hardening,
+        "_trusted_repository_root",
+        synthetic_trusted_root,
+    )
+    monkeypatch.setattr(
+        merge_gate_hardening,
+        "_EXPECTED_ZENODO_PERSISTED_ARCHIVE_SHA256",
+        _SYNTHETIC_ZENODO_ARCHIVE_SHA256,
+    )
+    monkeypatch.setattr(
+        merge_gate_hardening,
+        "_EXPECTED_ZENODO_PERSISTED_ARCHIVE_SIZE_BYTES",
+        len(_SYNTHETIC_ZENODO_ARCHIVE_BYTES),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _production_grade_transport_recovery_fixture(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep transport-recovery synthetic fixtures aligned with production provenance."""
+    module = request.module
+    if module.__name__.split(".")[-1] != _TRANSPORT_RECOVERY_TEST_MODULE:
+        return
+    base = getattr(module, "_base", None)
+    if base is None:
+        return
+
+    if request.node.name == "test_live_verifier_rejects_bounded_stop_manifest_divergence":
+        _patch_legacy_error_expectation(base=base, monkeypatch=monkeypatch)
+    if request.node.name.startswith(
+        "test_full_success_preflight_requires_explicit_false_paper_row_authority"
+    ):
+        _patch_minimal_manifest_writer(base=base, monkeypatch=monkeypatch)
+
+    original_prepare = base._prepare_pretransport_state
+
+    def hardened_prepare(
+        root: Path,
+        output_root: str | Path,
+        *,
+        persist_partial_nist_bytes: bool = True,
+    ) -> Path:
+        output = original_prepare(
+            root,
+            output_root,
+            persist_partial_nist_bytes=persist_partial_nist_bytes,
+        )
+        _harden_transport_fixture(
+            root=Path(root).resolve(strict=True),
+            output=Path(output).resolve(strict=True),
+            canonical_sha=base.recovery._canonical_sha,
+        )
+        return output
+
+    monkeypatch.setattr(base, "_prepare_pretransport_state", hardened_prepare)

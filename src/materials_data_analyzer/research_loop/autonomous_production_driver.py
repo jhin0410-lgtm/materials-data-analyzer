@@ -774,6 +774,7 @@ def run_autonomous_production(
         "numerical_cross_source_validation_authorized": False,
         "empirical_model_validation_established": False,
         "hypothesis_truth_established": False,
+        "paper_evidence_promoted_to_row_level_authority": False,
         "positive_scientific_closeout_established": False,
         "global_evidence_unavailability_claimed": False,
         "scientific_status_changed": False,
