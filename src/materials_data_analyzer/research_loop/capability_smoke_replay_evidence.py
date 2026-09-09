@@ -3,8 +3,9 @@
 A self-hashed verification receipt is not sufficient historical authority when its real-source
 smoke is rerun against mutable remote state.  This module records the exact bounded fetch request
 contract and response bytes used by the original verifier, then provides a strict single-use
-fetcher that can replay only those retained calls.  The retained packet is provenance evidence;
-it does not grant new network, execution, or scientific authority.
+fetcher that can replay only those retained calls.  The retained packet binds the exact replay
+helper bytes as well as the source evidence; it does not grant new network, execution, or
+scientific authority.
 """
 from __future__ import annotations
 
@@ -13,12 +14,13 @@ import hashlib
 import json
 import zlib
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
 from .in625_geometry_condition_source_acquisition import FetchResult
 
-SMOKE_REPLAY_EVIDENCE_SCHEMA_VERSION = "1.0"
+SMOKE_REPLAY_EVIDENCE_SCHEMA_VERSION = "1.1"
 _BYTES_MARKER = "__mda_exact_bytes_zlib_base64__"
 
 
@@ -40,6 +42,10 @@ def _canonical_sha(value: object) -> str:
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
+
+
+def _replay_module_sha256() -> str:
+    return hashlib.sha256(Path(__file__).resolve(strict=True).read_bytes()).hexdigest()
 
 
 def _encode_bytes(raw: bytes) -> dict[str, Any]:
@@ -329,6 +335,7 @@ def build_smoke_replay_evidence(
         "capability_specification_sha256": capability_specification_sha256,
         "capability_candidate_sha256": capability_candidate_sha256,
         "mission_sha256": mission_sha256,
+        "replay_module_sha256": _replay_module_sha256(),
         "verification_context": encode_context(verification_context),
         "fetch_records": [dict(record) for record in fetch_records],
         "network_requests_replayed_during_historical_verification": 0,
@@ -369,6 +376,10 @@ def authenticate_smoke_replay_evidence(
         "smoke replay candidate binding drifted",
     )
     _require(evidence.get("mission_sha256") == mission_sha256, "smoke replay mission binding drifted")
+    _require(
+        evidence.get("replay_module_sha256") == _replay_module_sha256(),
+        "smoke replay helper byte binding drifted",
+    )
     _require(
         evidence.get("network_requests_replayed_during_historical_verification") == 0
         and evidence.get("scientific_status_changed") is False,
