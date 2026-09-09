@@ -73,6 +73,25 @@ def _packet() -> tuple[dict[str, Any], list[str]]:
     return packet, live_calls
 
 
+def _rehash_fetch_packet(packet: dict[str, Any], *, index: int = 0) -> None:
+    record = packet["fetch_records"][index]
+    record.pop("fetch_record_sha256_without_self_field", None)
+    record["fetch_record_sha256_without_self_field"] = _canonical_sha(record)
+    packet.pop("smoke_replay_evidence_sha256_without_self_field", None)
+    packet["smoke_replay_evidence_sha256_without_self_field"] = _canonical_sha(packet)
+
+
+def _authenticated_fetcher(packet: dict[str, Any]) -> replay.ReplayFetcher:
+    fetcher, _context = replay.authenticate_smoke_replay_evidence(
+        packet,
+        action_class="bounded_test_acquisition",
+        capability_specification_sha256="a" * 64,
+        capability_candidate_sha256="b" * 64,
+        mission_sha256="c" * 64,
+    )
+    return fetcher
+
+
 def test_retained_smoke_bytes_replay_without_calling_live_delegate() -> None:
     packet, live_calls = _packet()
     assert len(live_calls) == 2
@@ -129,18 +148,9 @@ def test_self_consistently_rehashed_request_substitution_cannot_change_replay_co
     forged = copy.deepcopy(packet)
     first = forged["fetch_records"][0]
     first["request"]["url"] = "https://example.test/substituted"
-    first.pop("fetch_record_sha256_without_self_field")
-    first["fetch_record_sha256_without_self_field"] = _canonical_sha(first)
-    forged.pop("smoke_replay_evidence_sha256_without_self_field")
-    forged["smoke_replay_evidence_sha256_without_self_field"] = _canonical_sha(forged)
+    _rehash_fetch_packet(forged)
 
-    fetcher, _context = replay.authenticate_smoke_replay_evidence(
-        forged,
-        action_class="bounded_test_acquisition",
-        capability_specification_sha256="a" * 64,
-        capability_candidate_sha256="b" * 64,
-        mission_sha256="c" * 64,
-    )
+    fetcher = _authenticated_fetcher(forged)
     with pytest.raises(
         replay.CapabilitySmokeReplayEvidenceError,
         match="historical smoke replay URL drifted",
@@ -151,6 +161,89 @@ def test_self_consistently_rehashed_request_substitution_cannot_change_replay_co
             max_bytes=4096,
             timeout_seconds=17,
         )
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_error"),
+    [
+        (
+            lambda record: record["response"].__setitem__(
+                "final_url", "https://evil.test/redirected"
+            ),
+            "final URL left exact HTTPS source authority",
+        ),
+        (
+            lambda record: record["response"].__setitem__("status_code", 503),
+            "HTTP status was not successful",
+        ),
+        (
+            lambda record: record["response"].__setitem__(
+                "body", replay.encode_context(b"")
+            ),
+            "returned empty bytes",
+        ),
+        (
+            lambda record: record["response"].__setitem__(
+                "body", replay.encode_context(b"x" * 4097)
+            ),
+            "exceeds replay byte budget",
+        ),
+    ],
+)
+def test_self_consistently_rehashed_response_substitution_cannot_bypass_fetch_contract(
+    mutator: Any,
+    expected_error: str,
+) -> None:
+    packet, _ = _packet()
+    forged = copy.deepcopy(packet)
+    mutator(forged["fetch_records"][0])
+    _rehash_fetch_packet(forged)
+
+    fetcher = _authenticated_fetcher(forged)
+    with pytest.raises(replay.CapabilitySmokeReplayEvidenceError, match=expected_error):
+        fetcher(
+            "https://example.test/one",
+            allowed_hosts=("example.test",),
+            max_bytes=4096,
+            timeout_seconds=17,
+        )
+
+
+@pytest.mark.parametrize(
+    "bad_result",
+    [
+        FetchResult(
+            body=b"valid-looking bytes",
+            final_url="https://evil.test/redirected",
+            status_code=200,
+            content_type="application/octet-stream",
+        ),
+        FetchResult(
+            body=b"valid-looking bytes",
+            final_url="https://example.test/one",
+            status_code=500,
+            content_type="application/octet-stream",
+        ),
+        FetchResult(
+            body=b"",
+            final_url="https://example.test/one",
+            status_code=200,
+            content_type="application/octet-stream",
+        ),
+    ],
+)
+def test_recording_fetcher_refuses_to_retain_delegate_results_outside_fetch_contract(
+    bad_result: FetchResult,
+) -> None:
+    recorder = replay.RecordingFetcher(lambda *_args, **_kwargs: bad_result)
+    with pytest.raises(replay.CapabilitySmokeReplayEvidenceError):
+        recorder(
+            "https://example.test/one",
+            allowed_hosts=("example.test",),
+            max_bytes=4096,
+            timeout_seconds=17,
+        )
+    assert recorder.records == []
 
 
 def test_extra_or_unconsumed_replay_requests_fail_closed() -> None:
