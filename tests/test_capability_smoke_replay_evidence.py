@@ -73,12 +73,16 @@ def _packet() -> tuple[dict[str, Any], list[str]]:
     return packet, live_calls
 
 
+def _rehash_packet(packet: dict[str, Any]) -> None:
+    packet.pop("smoke_replay_evidence_sha256_without_self_field", None)
+    packet["smoke_replay_evidence_sha256_without_self_field"] = _canonical_sha(packet)
+
+
 def _rehash_fetch_packet(packet: dict[str, Any], *, index: int = 0) -> None:
     record = packet["fetch_records"][index]
     record.pop("fetch_record_sha256_without_self_field", None)
     record["fetch_record_sha256_without_self_field"] = _canonical_sha(record)
-    packet.pop("smoke_replay_evidence_sha256_without_self_field", None)
-    packet["smoke_replay_evidence_sha256_without_self_field"] = _canonical_sha(packet)
+    _rehash_packet(packet)
 
 
 def _authenticated_fetcher(packet: dict[str, Any]) -> replay.ReplayFetcher:
@@ -136,6 +140,25 @@ def test_retained_smoke_packet_corruption_fails_closed() -> None:
     ):
         replay.authenticate_smoke_replay_evidence(
             corrupted,
+            action_class="bounded_test_acquisition",
+            capability_specification_sha256="a" * 64,
+            capability_candidate_sha256="b" * 64,
+            mission_sha256="c" * 64,
+        )
+
+
+def test_self_consistently_rehashed_replay_helper_substitution_fails_closed() -> None:
+    packet, _ = _packet()
+    forged = copy.deepcopy(packet)
+    forged["replay_module_sha256"] = "f" * 64
+    _rehash_packet(forged)
+
+    with pytest.raises(
+        replay.CapabilitySmokeReplayEvidenceError,
+        match="smoke replay helper byte binding drifted",
+    ):
+        replay.authenticate_smoke_replay_evidence(
+            forged,
             action_class="bounded_test_acquisition",
             capability_specification_sha256="a" * 64,
             capability_candidate_sha256="b" * 64,
