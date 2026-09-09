@@ -14,6 +14,7 @@ import json
 import zlib
 from collections.abc import Mapping, Sequence
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 from .in625_geometry_condition_source_acquisition import FetchResult
 
@@ -51,16 +52,43 @@ def _encode_bytes(raw: bytes) -> dict[str, Any]:
     }
 
 
-def _decode_bytes(value: Mapping[str, Any], *, label: str) -> bytes:
+def _decode_bytes(
+    value: Mapping[str, Any],
+    *,
+    label: str,
+    max_bytes: int | None = None,
+) -> bytes:
     encoded = value.get(_BYTES_MARKER)
     _require(isinstance(encoded, str) and encoded, f"{label} encoded bytes are missing")
     _require(value.get("compression") == "zlib-9", f"{label} compression drifted")
+    declared_size = value.get("size_bytes")
+    _require(
+        isinstance(declared_size, int)
+        and not isinstance(declared_size, bool)
+        and declared_size >= 0,
+        f"{label} byte size is invalid",
+    )
+    if max_bytes is not None:
+        _require(
+            isinstance(max_bytes, int)
+            and not isinstance(max_bytes, bool)
+            and max_bytes > 0,
+            f"{label} replay byte budget is invalid",
+        )
+        _require(declared_size <= max_bytes, f"{label} exceeds replay byte budget")
     try:
         compressed = base64.b64decode(encoded.encode("ascii"), validate=True)
-        raw = zlib.decompress(compressed)
-    except (ValueError, zlib.error) as exc:
+        decompressor = zlib.decompressobj()
+        raw = decompressor.decompress(compressed, declared_size + 1)
+    except (UnicodeEncodeError, ValueError, zlib.error) as exc:
         raise CapabilitySmokeReplayEvidenceError(f"{label} bytes could not be decoded") from exc
-    _require(value.get("size_bytes") == len(raw), f"{label} byte size drifted")
+    _require(len(raw) == declared_size, f"{label} byte size drifted")
+    _require(
+        decompressor.eof
+        and not decompressor.unconsumed_tail
+        and not decompressor.unused_data,
+        f"{label} compressed stream is not exact",
+    )
     _require(
         value.get("sha256") == hashlib.sha256(raw).hexdigest(),
         f"{label} byte SHA-256 drifted",
@@ -104,6 +132,46 @@ def decode_context(value: object, *, label: str = "verification context") -> obj
     raise CapabilitySmokeReplayEvidenceError(f"{label} contains unsupported JSON value")
 
 
+def _validate_https_url(url: object, allowed_hosts: Sequence[str], *, label: str) -> str:
+    _require(isinstance(url, str) and url, f"{label} is invalid")
+    parsed = urlparse(url)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise CapabilitySmokeReplayEvidenceError(f"{label} has invalid port") from exc
+    host = (parsed.hostname or "").lower()
+    _require(
+        parsed.scheme.lower() == "https"
+        and host in set(allowed_hosts)
+        and port in (None, 443)
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.fragment,
+        f"{label} left exact HTTPS source authority: {url}",
+    )
+    return url
+
+
+def _validate_fetch_result(
+    result: object,
+    *,
+    allowed_hosts: Sequence[str],
+    max_bytes: int,
+    label: str,
+) -> FetchResult:
+    _require(isinstance(result, FetchResult), f"{label} returned invalid result")
+    _validate_https_url(result.final_url, allowed_hosts, label=f"{label} final URL")
+    _require(
+        isinstance(result.status_code, int)
+        and not isinstance(result.status_code, bool)
+        and 200 <= result.status_code < 300,
+        f"{label} HTTP status was not successful",
+    )
+    _require(bool(result.body), f"{label} returned empty bytes")
+    _require(len(result.body) <= max_bytes, f"{label} bytes exceeded current budget")
+    return result
+
+
 class RecordingFetcher:
     """Proxy one audited fetcher while retaining exact request/response replay evidence."""
 
@@ -119,13 +187,23 @@ class RecordingFetcher:
         max_bytes: int,
         timeout_seconds: int,
     ) -> FetchResult:
-        result = self._delegate(
-            url,
+        _validate_https_url(url, allowed_hosts, label="live smoke source URL")
+        _require(
+            isinstance(max_bytes, int) and not isinstance(max_bytes, bool) and max_bytes > 0,
+            "live smoke max_bytes must be positive",
+        )
+        _require(timeout_seconds > 0, "live smoke timeout_seconds must be positive")
+        result = _validate_fetch_result(
+            self._delegate(
+                url,
+                allowed_hosts=allowed_hosts,
+                max_bytes=max_bytes,
+                timeout_seconds=timeout_seconds,
+            ),
             allowed_hosts=allowed_hosts,
             max_bytes=max_bytes,
-            timeout_seconds=timeout_seconds,
+            label="recording fetcher delegate",
         )
-        _require(isinstance(result, FetchResult), "recording fetcher delegate returned invalid result")
         record: dict[str, Any] = {
             "request": {
                 "url": url,
@@ -161,6 +239,12 @@ class ReplayFetcher:
         timeout_seconds: int,
     ) -> FetchResult:
         _require(self._index < len(self._records), "historical smoke replay requested extra fetch")
+        _validate_https_url(url, allowed_hosts, label="historical smoke source URL")
+        _require(
+            isinstance(max_bytes, int) and not isinstance(max_bytes, bool) and max_bytes > 0,
+            "historical smoke max_bytes must be positive",
+        )
+        _require(timeout_seconds > 0, "historical smoke timeout_seconds must be positive")
         record = self._records[self._index]
         self._index += 1
         supplied_sha = record.get("fetch_record_sha256_without_self_field")
@@ -186,12 +270,25 @@ class ReplayFetcher:
         )
         body_record = response.get("body")
         _require(isinstance(body_record, Mapping), "retained fetch response bytes are missing")
-        body = _decode_bytes(body_record, label=f"retained fetch {self._index} response")
-        final_url = response.get("final_url")
+        body = _decode_bytes(
+            body_record,
+            label=f"retained fetch {self._index} response",
+            max_bytes=max_bytes,
+        )
+        final_url = _validate_https_url(
+            response.get("final_url"),
+            allowed_hosts,
+            label=f"historical smoke response {self._index} final URL",
+        )
         status_code = response.get("status_code")
         content_type = response.get("content_type")
-        _require(isinstance(final_url, str) and final_url, "retained final URL is invalid")
-        _require(isinstance(status_code, int) and not isinstance(status_code, bool), "retained status code is invalid")
+        _require(
+            isinstance(status_code, int)
+            and not isinstance(status_code, bool)
+            and 200 <= status_code < 300,
+            f"historical smoke response {self._index} HTTP status was not successful",
+        )
+        _require(bool(body), f"historical smoke response {self._index} returned empty bytes")
         _require(content_type is None or isinstance(content_type, str), "retained content type is invalid")
         return FetchResult(
             body=body,
