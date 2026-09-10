@@ -14,6 +14,9 @@ from materials_data_analyzer.research_loop import (
     nist_ammt_calibration_candidate_acquisition as candidate_acquisition,
 )
 from materials_data_analyzer.research_loop import (
+    nist_ammt_candidate_acquisition_policy as candidate_policy,
+)
+from materials_data_analyzer.research_loop import (
     nist_ammt_calibration_source_discovery as source_discovery,
 )
 from materials_data_analyzer.research_loop.in625_geometry_condition_source_acquisition import (
@@ -95,7 +98,7 @@ def _candidate_fixture(script_token: str) -> bytes:
     return (
         "<html><body>Published Author(s) "
         '<a href="https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935350">'
-        "Download Paper</a>"
+        f"{candidate_policy.FULL_TEXT_LINK_LABEL}</a>"
         f"<script>volatile_runtime_token={script_token}</script>"
         "</body></html>"
     ).encode()
