@@ -16,17 +16,20 @@ import hashlib
 import json
 import os
 import re
-import socket
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .in625_zenodo_live_evidence import build_verified_in625_zenodo_readme_manifest
 from .kernel import ResearchLoopError
+from .public_data_acquisition import (
+    FetchResult,
+    PublicAcquisitionError,
+    PublicAcquisitionTransportError,
+    fetch_https_bytes,
+)
 
 NETWORK_ACQUISITION_AUTHORIZATION_SCHEMA_VERSION = "1.0"
 NETWORK_ACQUISITION_AUTHORIZATION_POLICY_VERSION = "1.0"
@@ -43,6 +46,10 @@ _MD5_RE = re.compile(r"^[0-9a-f]{32}$")
 
 class In625ArchiveNetworkAcquisitionError(ResearchLoopError):
     """Raised when pre-download authorization or exact network acquisition drifts."""
+
+
+class In625ArchiveNetworkTransportError(In625ArchiveNetworkAcquisitionError):
+    """Raised only for transient delivery failure under exact archive authority."""
 
 
 @dataclass(frozen=True)
@@ -279,80 +286,47 @@ def validate_in625_archive_network_authorization(
     return rebuilt
 
 
-class _RestrictedZenodoRedirectHandler(HTTPRedirectHandler):
-    def redirect_request(
-        self,
-        req: Request,
-        fp: Any,
-        code: int,
-        msg: str,
-        headers: Any,
-        newurl: str,
-    ) -> Request | None:
-        _validate_endpoint(newurl, field="redirect endpoint")
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
 def fetch_authorized_zenodo_bytes(
     url: str,
     *,
     max_bytes: int,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
 ) -> NetworkFetchResult:
-    """Fetch exact Zenodo HTTPS bytes under an explicit maximum byte ceiling."""
+    """Fetch exact Zenodo HTTPS bytes while preserving transient transport taxonomy."""
     endpoint = _validate_endpoint(url, field="network acquisition endpoint")
     if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
         raise In625ArchiveNetworkAcquisitionError("max_bytes must be a positive integer")
     if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
         raise In625ArchiveNetworkAcquisitionError("timeout_seconds must be positive")
-    opener = build_opener(_RestrictedZenodoRedirectHandler())
-    request = Request(
-        endpoint,
-        headers={"User-Agent": "materials-data-analyzer/in625-authorized-acquisition", "Accept": "*/*"},
-        method="GET",
-    )
     try:
-        with opener.open(request, timeout=float(timeout_seconds)) as response:
-            final_url = _validate_endpoint(response.geturl(), field="final response endpoint")
-            status = int(getattr(response, "status", response.getcode()))
-            if status < 200 or status >= 300:
-                raise In625ArchiveNetworkAcquisitionError(
-                    f"archive acquisition returned non-success HTTP status {status}"
-                )
-            declared = response.headers.get("Content-Length")
-            if declared is not None:
-                try:
-                    declared_size = int(declared)
-                except ValueError as exc:
-                    raise In625ArchiveNetworkAcquisitionError(
-                        "archive Content-Length is not an integer"
-                    ) from exc
-                if declared_size < 0 or declared_size > max_bytes:
-                    raise In625ArchiveNetworkAcquisitionError(
-                        "archive Content-Length exceeds authorization byte ceiling"
-                    )
-            chunks: list[bytes] = []
-            observed = 0
-            while True:
-                chunk = response.read(min(1024 * 1024, max_bytes - observed + 1))
-                if not chunk:
-                    break
-                observed += len(chunk)
-                if observed > max_bytes:
-                    raise In625ArchiveNetworkAcquisitionError(
-                        "archive response exceeded authorization byte ceiling"
-                    )
-                chunks.append(chunk)
-            return NetworkFetchResult(
-                body=b"".join(chunks),
-                status_code=status,
-                final_url=final_url,
-                content_type=response.headers.get("Content-Type"),
-            )
-    except In625ArchiveNetworkAcquisitionError:
-        raise
-    except (HTTPError, URLError, TimeoutError, socket.timeout, OSError) as exc:
-        raise In625ArchiveNetworkAcquisitionError(f"authorized archive acquisition failed: {exc}") from exc
+        fetched = fetch_https_bytes(
+            endpoint,
+            allowed_hosts=[EXPECTED_HOST],
+            max_bytes=max_bytes,
+            timeout_seconds=float(timeout_seconds),
+            headers={
+                "User-Agent": "materials-data-analyzer/in625-authorized-acquisition",
+                "Accept": "*/*",
+            },
+        )
+    except PublicAcquisitionTransportError as exc:
+        raise In625ArchiveNetworkTransportError(
+            f"authorized archive transport failed: {exc}"
+        ) from exc
+    except PublicAcquisitionError as exc:
+        raise In625ArchiveNetworkAcquisitionError(
+            f"authorized archive trust/integrity boundary failed: {exc}"
+        ) from exc
+    if not isinstance(fetched, FetchResult):
+        raise In625ArchiveNetworkAcquisitionError(
+            "shared bounded fetcher must return FetchResult"
+        )
+    return NetworkFetchResult(
+        body=fetched.body,
+        status_code=fetched.status_code,
+        final_url=fetched.final_url,
+        content_type=fetched.content_type,
+    )
 
 
 def _reject_html(body: bytes) -> None:
@@ -456,6 +430,7 @@ def execute_authorized_in625_archive_download(
 
 __all__ = [
     "In625ArchiveNetworkAcquisitionError",
+    "In625ArchiveNetworkTransportError",
     "NetworkFetchResult",
     "build_in625_archive_network_authorization",
     "execute_authorized_in625_archive_download",
