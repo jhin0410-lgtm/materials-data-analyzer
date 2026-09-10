@@ -154,6 +154,7 @@ jobs:
           tests/test_capability_registry.py
           tests/test_capability_resolver_verifier.py
           tests/test_capability_smoke_replay_evidence.py
+          tests/test_capability_bridge_smoke_source_binding.py
           tests/test_capability_trusted_replay.py
           tests/test_mds2_2923_reference_chain.py
           tests/test_nist_ammt_calibration_source_discovery.py
