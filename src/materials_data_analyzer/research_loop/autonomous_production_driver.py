@@ -15,12 +15,17 @@ import shutil
 import urllib.parse
 import urllib.request
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping
+from typing import Any, Mapping, NoReturn
 
 from .action_registry import load_action_registry
 from .authenticated_request_compiler import compile_authenticated_machine_request
 from .authorized_execution import execute_authorized_action
+from .autonomous_production_cycle1_transport_stop import (
+    authenticate_cycle1_transport_stop,
+    build_cycle1_transport_stop,
+)
 from .in625_archive_network_acquisition import (
+    In625ArchiveNetworkTransportError,
     build_in625_archive_network_authorization,
     execute_authorized_in625_archive_download,
 )
@@ -42,6 +47,12 @@ from .in625_zenodo_live_evidence import (
 )
 from .kernel import ResearchLoopError, initialize_research_loop, load_research_state
 from .planning_adapter import plan_research_next_action
+from .public_data_acquisition import (
+    FetchResult,
+    PublicAcquisitionError,
+    PublicAcquisitionTransportError,
+    fetch_https_bytes,
+)
 from .research_program import build_research_program
 
 AUTONOMOUS_PRODUCTION_SCHEMA_VERSION = "1.1"
@@ -53,6 +64,8 @@ IN625_DELEGATION_POLICY_ID = "in625-external-evidence-request-delegation-v1"
 IN625_INITIAL_ACTION = "external_evidence_search"
 IN625_SUCCESSOR_ACTION = IN625_COMPARABILITY_ACTION
 IN625_TERTIARY_ACTION = IN625_GEOMETRY_ACQUISITION_ACTION
+_ZENODO_CONTROL_PLANE_MAX_BYTES = 8 * 1024 * 1024
+_ZENODO_CONTROL_PLANE_TIMEOUT_SECONDS = 60.0
 
 # Finite audited handler map.  A missing entry is a bounded stop, never dynamic execution.
 _PRODUCTION_CAPABILITIES = {
@@ -63,6 +76,17 @@ _PRODUCTION_CAPABILITIES = {
 
 class AutonomousProductionDriverError(ResearchLoopError):
     """Raised when the autonomous production loop cannot preserve exact authority."""
+
+
+class AutonomousProductionTransportStop(AutonomousProductionDriverError):
+    """Raised after a transient cycle-1 request is persisted as an authenticated stop."""
+
+    def __init__(self, stop: Mapping[str, Any]) -> None:
+        self.stop = dict(stop)
+        super().__init__(
+            "cycle-1 autonomous production stopped on typed transient transport "
+            f"unavailability at {self.stop.get('stage')}"
+        )
 
 
 def _canonical_sha(value: object) -> str:
@@ -143,7 +167,12 @@ def _repo_output(root: Path, output: Path) -> Path:
     return path
 
 
-def _exact_zenodo_get(url: str, *, timeout: int = 60) -> bytes:
+def _exact_zenodo_get(
+    url: str,
+    *,
+    max_bytes: int = _ZENODO_CONTROL_PLANE_MAX_BYTES,
+    timeout: float = _ZENODO_CONTROL_PLANE_TIMEOUT_SECONDS,
+) -> bytes:
     parsed = urllib.parse.urlparse(url)
     if (
         parsed.scheme.lower() != "https"
@@ -158,29 +187,61 @@ def _exact_zenodo_get(url: str, *, timeout: int = 60) -> bytes:
         )
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "materials-data-analyzer/autonomous-in625-production"},
+        headers={
+            "User-Agent": "materials-data-analyzer/autonomous-in625-production",
+            "Accept": "*/*",
+        },
+        method="GET",
     )
     try:
-        response = urllib.request.urlopen(request, timeout=timeout)
-    except Exception as exc:  # operational failure; never scientific counterevidence
+        result = fetch_https_bytes(
+            request.full_url,
+            allowed_hosts=["zenodo.org"],
+            max_bytes=max_bytes,
+            timeout_seconds=timeout,
+            headers=dict(request.header_items()),
+        )
+    except PublicAcquisitionTransportError:
+        raise
+    except PublicAcquisitionError as exc:
         raise AutonomousProductionDriverError(
-            f"exact Zenodo network request failed operationally: {exc}"
+            f"exact Zenodo request violated the trust/integrity boundary: {exc}"
         ) from exc
-    with response:
-        final_url = response.geturl()
-        final = urllib.parse.urlparse(final_url)
-        if (
-            final.scheme.lower() != "https"
-            or (final.hostname or "").lower() != "zenodo.org"
-            or final.username is not None
-            or final.password is not None
-            or final.port not in (None, 443)
-            or final.fragment
-        ):
-            raise AutonomousProductionDriverError(
-                f"Zenodo redirect left exact authorized HTTPS authority: {final_url}"
-            )
-        return response.read()
+    if not isinstance(result, FetchResult):
+        raise AutonomousProductionDriverError(
+            "shared bounded Zenodo fetcher must return FetchResult"
+        )
+    return result.body
+
+
+def _raise_cycle1_transport_stop(
+    *,
+    output: Path,
+    observed_mission_sha: str,
+    network_policy: Mapping[str, Any],
+    source_config_sha256: str,
+    stage: str,
+    requested_url: str,
+    transport_error: ResearchLoopError,
+    observed_prior_evidence: Mapping[str, str] | None = None,
+) -> NoReturn:
+    stop = build_cycle1_transport_stop(
+        mission_sha256=observed_mission_sha,
+        network_policy_sha256=str(network_policy.get("policy_sha256")),
+        source_config_sha256=source_config_sha256,
+        maximum_network_requests_per_cycle=int(
+            network_policy.get("maximum_network_requests_per_cycle", 0)
+        ),
+        stage=stage,
+        requested_url=requested_url,
+        transport_error_class=type(transport_error).__name__,
+        transport_error_detail=str(transport_error),
+        observed_prior_evidence=observed_prior_evidence,
+    )
+    authenticated = authenticate_cycle1_transport_stop(stop)
+    _write_json(output / "cycle-1-transport-stop.json", authenticated)
+    _write_json(output / "bounded-stop.json", authenticated)
+    raise AutonomousProductionTransportStop(authenticated) from transport_error
 
 
 def _mission_metadata(program: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -438,12 +499,31 @@ def run_autonomous_production(
 
     # Cycle 1: current verified gap -> exact standing-policy acquisition -> typed registration.
     config_bytes = source_config_path.read_bytes()
+    source_config_sha256 = hashlib.sha256(config_bytes).hexdigest()
+    _require(
+        network_policy.get("source_config_sha256") == source_config_sha256,
+        "qualified network policy/source config binding drifted before cycle-1 transport",
+    )
     source_config = _read_json(
         source_config_path,
         "IN625 verified source config",
     )
     record_url = network_policy["record_api_url"]
-    metadata_bytes = _exact_zenodo_get(record_url)
+    try:
+        metadata_bytes = _exact_zenodo_get(
+            record_url,
+            max_bytes=_ZENODO_CONTROL_PLANE_MAX_BYTES,
+        )
+    except PublicAcquisitionTransportError as exc:
+        _raise_cycle1_transport_stop(
+            output=output,
+            observed_mission_sha=observed_mission_sha,
+            network_policy=network_policy,
+            source_config_sha256=source_config_sha256,
+            stage="zenodo_record_metadata",
+            requested_url=record_url,
+            transport_error=exc,
+        )
     try:
         metadata_json = json.loads(metadata_bytes.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -467,7 +547,30 @@ def run_autonomous_production(
     readme_url = files[readme_name].get("links", {}).get("self")
     if not isinstance(readme_url, str):
         raise AutonomousProductionDriverError("live Zenodo README link is missing")
-    readme_bytes = _exact_zenodo_get(readme_url)
+    readme_rule = source_config["zenodo"]["files"].get(readme_name)
+    if not isinstance(readme_rule, Mapping):
+        raise AutonomousProductionDriverError("source config lost exact README identity")
+    readme_size = readme_rule.get("size_bytes")
+    if isinstance(readme_size, bool) or not isinstance(readme_size, int) or readme_size <= 0:
+        raise AutonomousProductionDriverError("source config README size is invalid")
+    try:
+        readme_bytes = _exact_zenodo_get(
+            readme_url,
+            max_bytes=readme_size + 1,
+        )
+    except PublicAcquisitionTransportError as exc:
+        _raise_cycle1_transport_stop(
+            output=output,
+            observed_mission_sha=observed_mission_sha,
+            network_policy=network_policy,
+            source_config_sha256=source_config_sha256,
+            stage="zenodo_readme",
+            requested_url=readme_url,
+            transport_error=exc,
+            observed_prior_evidence={
+                "metadata_sha256": hashlib.sha256(metadata_bytes).hexdigest(),
+            },
+        )
     pre_manifest = build_verified_in625_zenodo_readme_manifest(
         config=source_config,
         metadata_bytes=metadata_bytes,
@@ -491,14 +594,39 @@ def run_autonomous_production(
 
     archive_name = source_config["zenodo"]["archive_file"]
     archive_path = output / archive_name
-    network_receipt = execute_authorized_in625_archive_download(
-        authorization=network_authorization,
-        config=source_config,
-        config_bytes=config_bytes,
-        metadata_bytes=metadata_bytes,
-        readme_bytes=readme_bytes,
-        output_path=archive_path,
-    )
+    try:
+        network_receipt = execute_authorized_in625_archive_download(
+            authorization=network_authorization,
+            config=source_config,
+            config_bytes=config_bytes,
+            metadata_bytes=metadata_bytes,
+            readme_bytes=readme_bytes,
+            output_path=archive_path,
+        )
+    except In625ArchiveNetworkTransportError as exc:
+        archive_binding = network_authorization.get("archive")
+        if not isinstance(archive_binding, Mapping) or not isinstance(
+            archive_binding.get("download_url"), str
+        ):
+            raise AutonomousProductionDriverError(
+                "archive transport failed without an authenticated requested URL"
+            ) from exc
+        _raise_cycle1_transport_stop(
+            output=output,
+            observed_mission_sha=observed_mission_sha,
+            network_policy=network_policy,
+            source_config_sha256=source_config_sha256,
+            stage="zenodo_archive",
+            requested_url=archive_binding["download_url"],
+            transport_error=exc,
+            observed_prior_evidence={
+                "metadata_sha256": hashlib.sha256(metadata_bytes).hexdigest(),
+                "readme_sha256": hashlib.sha256(readme_bytes).hexdigest(),
+                "network_authorization_sha256": network_authorization[
+                    "authorization_sha256"
+                ],
+            },
+        )
     _require(
         network_receipt["archive"]["sha256"]
         == source_config["zenodo"]["files"][archive_name]["verified_sha256"],
@@ -787,5 +915,6 @@ __all__ = [
     "AUTONOMOUS_PRODUCTION_POLICY_VERSION",
     "AUTONOMOUS_PRODUCTION_SCHEMA_VERSION",
     "AutonomousProductionDriverError",
+    "AutonomousProductionTransportStop",
     "run_autonomous_production",
 ]
