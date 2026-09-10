@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from . import capability_smoke_replay_evidence as smoke_replay
 from . import weaver_2021_full_text_acquisition as weaver_acquisition
 from . import weaver_2021_full_text_capability as weaver_capability
 from .autonomous_production_reference_chain_extension import (
@@ -19,8 +20,8 @@ from .weaver_2021_full_text_capability_verifier import (
 )
 from .weaver_2021_full_text_policy import authenticate_weaver_2021_full_text_policy
 
-AUTONOMOUS_PRODUCTION_SCHEMA_VERSION = "1.9"
-AUTONOMOUS_PRODUCTION_POLICY_VERSION = "1.9"
+AUTONOMOUS_PRODUCTION_SCHEMA_VERSION = "2.0"
+AUTONOMOUS_PRODUCTION_POLICY_VERSION = "2.0"
 _VERIFIED_PRIMITIVES = (
     "exact_multisource_policy_authentication",
     "exact_allowlisted_source_acquisition",
@@ -101,7 +102,7 @@ def _validate_execution_against_verification(
     evidence: Mapping[str, Any],
     verification: Mapping[str, Any],
 ) -> tuple[str, str]:
-    """Fail closed if execution bytes drift from independently verified Weaver bytes."""
+    """Fail closed unless execution replay reproduces the verifier's exact source evidence."""
     evidence_sha = _validate_self_hash(evidence, "report_sha256_without_self_field")
     source = evidence.get("source")
     _require(isinstance(source, Mapping), "Weaver execution source binding is missing")
@@ -111,11 +112,16 @@ def _validate_execution_against_verification(
         "Weaver execution source SHA-256 is missing",
     )
     smoke = verification.get("real_source_smoke_receipt")
-    _require(
-        isinstance(smoke, Mapping),
-        "Weaver verification smoke receipt is missing",
-    )
+    _require(isinstance(smoke, Mapping), "Weaver verification smoke receipt is missing")
     _validate_self_hash(smoke, "report_sha256_without_self_field")
+    replay = verification.get("real_source_smoke_replay_evidence")
+    _require(isinstance(replay, Mapping), "Weaver retained replay evidence is missing")
+    replay_sha = replay.get("smoke_replay_evidence_sha256_without_self_field")
+    _require(
+        isinstance(replay_sha, str)
+        and verification.get("real_source_smoke_replay_evidence_sha256") == replay_sha,
+        "Weaver retained replay evidence binding drifted",
+    )
     _require(
         evidence.get("core_claims_matched") is True
         and smoke.get("core_claims_matched") is True
@@ -123,9 +129,11 @@ def _validate_execution_against_verification(
         "Weaver execution core claims were not independently verified",
     )
     _require(
-        smoke.get("network_requests_performed") == 2
-        and smoke.get("execution_evidence_reuse_authorized") is False,
-        "Weaver verifier/execution independence contract drifted",
+        smoke.get("live_network_requests_performed") == 1
+        and smoke.get("deterministic_replay_fetch_invocations") == 1
+        and smoke.get("deterministic_replay_network_requests_performed") == 0
+        and smoke.get("execution_must_replay_retained_bytes") is True,
+        "Weaver verifier/execution replay contract drifted",
     )
     _require(
         smoke.get("weaver_evidence_sha256") == evidence_sha
@@ -254,7 +262,7 @@ def run_autonomous_production(
     output_root: str | Path,
     max_cycles: int = 14,
 ) -> dict[str, Any]:
-    """Verify/promote the fifth capability, acquire Weaver full text, and re-diagnose."""
+    """Verify/promote the fifth capability, replay Weaver bytes, and re-diagnose."""
     if (
         isinstance(max_cycles, bool)
         or not isinstance(max_cycles, int)
@@ -313,7 +321,10 @@ def run_autonomous_production(
         "predecessor scientific boundary drifted",
     )
     raw_cycles = predecessor.get("cycles")
-    _require(isinstance(raw_cycles, list) and len(raw_cycles) == 12, "predecessor cycles drifted")
+    _require(
+        isinstance(raw_cycles, list) and len(raw_cycles) == 12,
+        "predecessor cycles drifted",
+    )
     cycles = [dict(item) for item in raw_cycles if isinstance(item, Mapping)]
     _require(len(cycles) == 12, "predecessor cycle entries are invalid")
 
@@ -323,20 +334,30 @@ def run_autonomous_production(
     )
     fifth_gap = _read_json(output / "capability-gap-5.json", "fifth capability gap")
     fifth_spec = _read_json(
-        output / "capability-specification-5.json", "fifth capability specification"
+        output / "capability-specification-5.json",
+        "fifth capability specification",
     )
     fifth_resolution = _read_json(
-        output / "capability-resolution-5.json", "fifth capability resolution"
+        output / "capability-resolution-5.json",
+        "fifth capability resolution",
     )
     fifth_candidate = _read_json(
-        output / "capability-candidate-5.json", "fifth capability candidate"
+        output / "capability-candidate-5.json",
+        "fifth capability candidate",
     )
     reference_graph = _read_json(
         output / "mds2-2923-experiment-identity-reference-chain.json",
         "mds2 reference graph",
     )
     _validate_self_hash(fifth_gap, "capability_gap_sha256_without_self_field")
-    _validate_self_hash(fifth_spec, "capability_specification_sha256_without_self_field")
+    spec_sha = _validate_self_hash(
+        fifth_spec,
+        "capability_specification_sha256_without_self_field",
+    )
+    candidate_sha = _validate_self_hash(
+        fifth_candidate,
+        "capability_candidate_sha256_without_self_field",
+    )
     graph_sha = _validate_self_hash(reference_graph, "report_sha256_without_self_field")
     _require(
         fifth_gap.get("requested_action_class") == weaver_capability.ACTION_CLASS
@@ -365,9 +386,7 @@ def run_autonomous_production(
         "bounded_candidate_discovered": False,
         "predecessor_candidate_reauthenticated": True,
         "candidate_rediscovery_performed": False,
-        "capability_candidate_sha256": fifth_candidate[
-            "capability_candidate_sha256_without_self_field"
-        ],
+        "capability_candidate_sha256": candidate_sha,
         "predecessor_manifest_sha256": predecessor_sha,
         "caller_authored_url_used": False,
         "caller_authored_pmcid_used": False,
@@ -398,6 +417,10 @@ def run_autonomous_production(
             },
         )
 
+    verification_context = {
+        "reference_graph": reference_graph,
+        "predecessor_manifest": predecessor,
+    }
     verification = verify_weaver_2021_full_text_capability_candidate(
         capability_specification=fifth_spec,
         candidate=fifth_candidate,
@@ -405,10 +428,7 @@ def run_autonomous_production(
         repository_root=root,
         mission_path=mission,
         expected_mission_sha256=expected_mission_sha256,
-        verification_context={
-            "reference_graph": reference_graph,
-            "predecessor_manifest": predecessor,
-        },
+        verification_context=verification_context,
         perform_real_source_smoke=True,
     )
     _write_json(output / "capability-verification-5.json", verification)
@@ -416,6 +436,12 @@ def run_autonomous_production(
         verification.get("promotion_eligible") is True,
         "Weaver full-text capability failed independent verification",
     )
+    replay_evidence = verification.get("real_source_smoke_replay_evidence")
+    _require(
+        isinstance(replay_evidence, Mapping),
+        "Weaver verification did not retain exact source replay evidence",
+    )
+
     promoted_registry = promote_verified_capability(
         registry=registry,
         candidate=fifth_candidate,
@@ -446,14 +472,30 @@ def run_autonomous_production(
         predecessor_manifest=predecessor,
     )
     _write_json(output / "weaver-derived-full-text-authorization.json", authorization)
-    evidence = weaver_acquisition.execute_derived_weaver_acquisition(
-        authorization=authorization
+
+    replay_fetcher, retained_context = smoke_replay.authenticate_smoke_replay_evidence(
+        replay_evidence,
+        action_class=weaver_capability.ACTION_CLASS,
+        capability_specification_sha256=spec_sha,
+        capability_candidate_sha256=candidate_sha,
+        mission_sha256=expected_mission_sha256,
     )
+    _require(
+        isinstance(retained_context, Mapping)
+        and _canonical_sha(retained_context) == _canonical_sha(verification_context),
+        "Weaver execution replay context drifted from verifier context",
+    )
+    evidence = weaver_acquisition.execute_derived_weaver_acquisition(
+        authorization=authorization,
+        fetcher=replay_fetcher,
+    )
+    replay_fetcher.assert_consumed()
     evidence_sha, evidence_source_sha = _validate_execution_against_verification(
         evidence=evidence,
         verification=verification,
     )
     _write_json(output / "weaver-2021-full-text-acquisition.json", evidence)
+
     gate = evidence.get("gate_assessment")
     scope = evidence.get("evidence_scope")
     _require(
@@ -475,6 +517,8 @@ def run_autonomous_production(
         and next_action.get("action_class") == weaver_acquisition.NEXT_ACTION_CLASS,
         "Weaver next action drifted",
     )
+    smoke = verification.get("real_source_smoke_receipt")
+    _require(isinstance(smoke, Mapping), "Weaver smoke receipt disappeared after verification")
 
     cycle14: dict[str, Any] = {
         "cycle_index": 14,
@@ -490,10 +534,19 @@ def run_autonomous_production(
         ],
         "implementation_id": weaver_capability.IMPLEMENTATION_ID,
         "research_action_resumed": True,
-        "execution_network_requests_performed": evidence["network_requests_performed"],
-        "verifier_smoke_network_requests_performed": verification[
-            "real_source_smoke_receipt"
-        ]["network_requests_performed"],
+        "verifier_live_network_requests_performed": smoke[
+            "live_network_requests_performed"
+        ],
+        "verifier_deterministic_replay_fetch_invocations": smoke[
+            "deterministic_replay_fetch_invocations"
+        ],
+        "verifier_deterministic_replay_network_requests_performed": 0,
+        "execution_replay_fetch_invocations": 1,
+        "execution_network_requests_performed": 0,
+        "execution_source_bytes_from_authenticated_replay": True,
+        "weaver_replay_evidence_sha256": verification[
+            "real_source_smoke_replay_evidence_sha256"
+        ],
         "weaver_evidence_sha256": evidence_sha,
         "weaver_source_sha256": evidence_source_sha,
         "weaver_article_identity_established": True,
@@ -551,6 +604,11 @@ def run_autonomous_production(
             "weaver_authorization_sha256": authorization["authorization_sha256"],
             "weaver_full_text_acquisition_sha256": evidence_sha,
             "weaver_source_sha256": evidence_source_sha,
+            "weaver_replay_evidence_sha256": verification[
+                "real_source_smoke_replay_evidence_sha256"
+            ],
+            "weaver_verifier_live_network_requests_performed": 1,
+            "weaver_execution_network_requests_performed": 0,
             "weaver_full_text_acquired": True,
             "weaver_article_identity_established": True,
             "weaver_core_claims_matched": True,
