@@ -4,6 +4,9 @@ import copy
 
 import pytest
 
+from materials_data_analyzer.research_loop import (
+    autonomous_production_cycle1_transport_stop as stop_contract,
+)
 from materials_data_analyzer.research_loop.autonomous_production_cycle1_transport_stop import (
     Cycle1TransportStopError,
     authenticate_cycle1_transport_stop,
@@ -34,7 +37,11 @@ def _stop(stage: str) -> dict[str, object]:
             if stage == "zenodo_record_metadata"
             else "https://zenodo.org/api/files/example"
         ),
-        transport_error_class="PublicAcquisitionTransportError",
+        transport_error_class=(
+            "In625ArchiveNetworkTransportError"
+            if stage == "zenodo_archive"
+            else "PublicAcquisitionTransportError"
+        ),
         transport_error_detail="HTTP acquisition failed: 504 Gateway Time-out",
         observed_prior_evidence=prior,
     )
@@ -139,3 +146,28 @@ def test_transport_stop_rejects_request_budget_widening() -> None:
             transport_error_class="PublicAcquisitionTransportError",
             transport_error_detail="HTTP acquisition failed: 504",
         )
+
+
+def test_builder_rejects_hard_failure_class_as_transport_stop() -> None:
+    with pytest.raises(Cycle1TransportStopError, match="trusted transient type"):
+        build_cycle1_transport_stop(
+            mission_sha256="a" * 64,
+            network_policy_sha256="b" * 64,
+            source_config_sha256="c" * 64,
+            maximum_network_requests_per_cycle=3,
+            stage="zenodo_record_metadata",
+            requested_url="https://zenodo.org/api/records/20503603",
+            transport_error_class="PublicAcquisitionError",
+            transport_error_detail="HTTP acquisition failed: 404 Not Found",
+        )
+
+
+def test_authenticator_rejects_rehashed_forged_transport_class() -> None:
+    forged = copy.deepcopy(_stop("zenodo_record_metadata"))
+    forged["transport_error_class"] = "PublicAcquisitionError"
+    unsigned = dict(forged)
+    unsigned.pop("stop_sha256_without_self_field")
+    forged["stop_sha256_without_self_field"] = stop_contract._canonical_sha(unsigned)
+
+    with pytest.raises(Cycle1TransportStopError, match="trusted transient type"):
+        authenticate_cycle1_transport_stop(forged)
