@@ -1,9 +1,9 @@
 """Top-level fail-closed recovery for transient autonomous-production transport failures.
 
-The audited reference-chain production path remains the primary implementation.  This module
-only intercepts the narrow typed NIST mds2-2923 transport failure emitted after source policy
-and authorization have already authenticated.  It converts that operational outage into a
-self-hashed bounded stop while preserving the last verified scientific state.
+The audited reference-chain production path remains the primary implementation.  Weaver cycles
+13-14 are selected only when the caller explicitly raises the cycle bound beyond 12; the existing
+<=12 module-level seam remains unchanged.  This module intercepts only the narrow typed NIST
+mds2-2923 transport failure emitted after source policy and authorization have authenticated.
 
 Integrity, checksum, size, host, provenance, policy, parsing, and scientific-validation errors
 are deliberately not caught here.
@@ -109,8 +109,10 @@ def _validate_authorization_binding(
         "NIST transport qualification identity drifted",
     )
     policy_sha = qualification.get("policy_sha256")
-    _require(isinstance(policy_sha, str) and len(policy_sha) == 64, "NIST policy SHA is missing")
-
+    _require(
+        isinstance(policy_sha, str) and len(policy_sha) == 64,
+        "NIST policy SHA is missing",
+    )
     authorization_sha = authorization.get("authorization_sha256")
     _require(
         isinstance(authorization_sha, str) and len(authorization_sha) == 64,
@@ -186,7 +188,6 @@ def _finalize_transport_stop(
         qualification=qualification,
         authorization=authorization,
     )
-
     nist_output = output / "nist-mds2-2923"
     partial_output_present = nist_output.is_dir() and any(nist_output.iterdir())
     transport_report: dict[str, Any] = {
@@ -246,7 +247,6 @@ def _finalize_transport_stop(
     }
     cycle3["cycle_sha256"] = _canonical_sha(cycle3)
     cycles.append(cycle3)
-
     stop: dict[str, Any] = {
         "status": "stopped",
         "reason_code": TRANSPORT_STOP_REASON_CODE,
@@ -262,7 +262,6 @@ def _finalize_transport_stop(
         "positive_scientific_closeout": False,
         "scientific_status_changed": False,
     }
-
     result = dict(manifest)
     result.pop("manifest_sha256", None)
     result.update(
@@ -301,11 +300,18 @@ def run_autonomous_production(
     output_root: str | Path,
     max_cycles: int = 12,
 ) -> dict[str, Any]:
-    """Run the audited production path and fail closed on typed NIST transport outages."""
+    """Run the audited path and recover only the reviewed typed NIST transport outage."""
 
     root = Path(repository_root).expanduser().resolve(strict=True)
+    production_runner = run_reference_chain_production
+    if not isinstance(max_cycles, bool) and isinstance(max_cycles, int) and max_cycles > 12:
+        from .autonomous_production_weaver_extension import (
+            run_autonomous_production as run_weaver_production,
+        )
+
+        production_runner = run_weaver_production
     try:
-        return run_reference_chain_production(
+        return production_runner(
             repository_root=root,
             mission_path=mission_path,
             expected_mission_sha256=expected_mission_sha256,
