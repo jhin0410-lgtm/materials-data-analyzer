@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from materials_data_analyzer.research_loop import (
+    autonomous_production_cycle1_transport_stop_verifier as stop_verifier,
+)
 from materials_data_analyzer.research_loop.autonomous_production_cycle1_transport_stop import (
     build_cycle1_transport_stop,
 )
@@ -14,6 +17,9 @@ from materials_data_analyzer.research_loop.autonomous_production_cycle1_transpor
     Cycle1TransportStopVerificationError,
     EXPECTED_MISSION_SHA256,
     verify_cycle1_transport_stop,
+)
+from materials_data_analyzer.research_loop.in625_archive_network_acquisition import (
+    In625ArchiveNetworkAcquisitionError,
 )
 from materials_data_analyzer.research_loop.in625_network_policy import (
     authenticate_in625_network_policy,
@@ -136,10 +142,18 @@ def test_verifier_rejects_rehashed_policy_binding_forgery(tmp_path: Path) -> Non
         verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
 
 
-def test_archive_stop_verifier_replays_prior_completed_byte_bindings(tmp_path: Path) -> None:
+def test_archive_stop_verifier_replays_prior_completed_byte_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     output = tmp_path / "stop"
     _write_stop(output, stage="zenodo_archive")
 
+    monkeypatch.setattr(
+        stop_verifier,
+        "validate_in625_archive_network_authorization",
+        lambda authorization, **_kwargs: authorization,
+    )
     result = verify_cycle1_transport_stop(
         repository_root=REPOSITORY_ROOT,
         output_root=output,
@@ -149,4 +163,26 @@ def test_archive_stop_verifier_replays_prior_completed_byte_bindings(tmp_path: P
     record = output / "record.json"
     record.write_bytes(record.read_bytes() + b"tamper")
     with pytest.raises(Cycle1TransportStopVerificationError, match="prior metadata hash"):
+        verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+
+def test_archive_stop_verifier_rejects_authorization_reconstruction_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_archive")
+
+    def reject(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise In625ArchiveNetworkAcquisitionError("forged authorization")
+
+    monkeypatch.setattr(
+        stop_verifier,
+        "validate_in625_archive_network_authorization",
+        reject,
+    )
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="authoritative reconstruction",
+    ):
         verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
