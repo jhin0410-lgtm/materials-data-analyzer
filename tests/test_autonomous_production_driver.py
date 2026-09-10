@@ -170,6 +170,97 @@ def test_driver_rejects_non_zenodo_target_before_urlopen(
     assert urlopen_called is False
 
 
+def _zenodo_locator_fixture_bytes(
+    *,
+    content_url: str,
+    self_url: str,
+) -> bytes:
+    value = {
+        "id": 20503603,
+        "doi": "10.5281/zenodo.20503603",
+        "metadata": {
+            "title": "fixture",
+            "license": {"id": "cc-by-4.0"},
+            "access_right": "open",
+        },
+        "files": [
+            {
+                "key": "README - Dataset description.txt",
+                "size": 1408,
+                "checksum": "md5:00313a86d70bbb388a9ee84677f23c5f",
+                "links": {
+                    "content": content_url,
+                    "self": self_url,
+                },
+            }
+        ],
+    }
+    return json.dumps(value, sort_keys=True).encode("utf-8")
+
+
+def test_driver_prefers_canonical_metadata_content_locator_over_raw_self() -> None:
+    content_url = (
+        "https://zenodo.org/api/records/20503603/files/"
+        "README%20-%20Dataset%20description.txt/content"
+    )
+    self_url = (
+        "https://zenodo.org/api/records/20503603/files/"
+        "README%20-%20Dataset%20description.txt"
+    )
+    selected = autonomous_production_driver._canonical_zenodo_file_download_url(
+        metadata_bytes=_zenodo_locator_fixture_bytes(
+            content_url=content_url,
+            self_url=self_url,
+        ),
+        record_url="https://zenodo.org/api/records/20503603",
+        expected_record_id=20503603,
+        expected_doi="10.5281/zenodo.20503603",
+        file_name="README - Dataset description.txt",
+    )
+    assert selected == content_url
+
+
+def test_driver_rejects_metadata_content_locator_host_widening_without_fallback() -> None:
+    with pytest.raises(
+        autonomous_production_driver.AutonomousProductionDriverError,
+        match="failed canonical file-locator normalization",
+    ):
+        autonomous_production_driver._canonical_zenodo_file_download_url(
+            metadata_bytes=_zenodo_locator_fixture_bytes(
+                content_url="https://example.com/attacker-controlled-readme",
+                self_url=(
+                    "https://zenodo.org/api/records/20503603/files/"
+                    "README%20-%20Dataset%20description.txt/content"
+                ),
+            ),
+            record_url="https://zenodo.org/api/records/20503603",
+            expected_record_id=20503603,
+            expected_doi="10.5281/zenodo.20503603",
+            file_name="README - Dataset description.txt",
+        )
+
+
+def test_driver_transport_failure_identifies_exact_zenodo_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://zenodo.org/api/records/20503603"
+
+    def fail_urlopen(*args: object, **kwargs: object) -> object:
+        raise OSError("fixture gateway failure")
+
+    monkeypatch.setattr(
+        autonomous_production_driver.urllib.request,
+        "urlopen",
+        fail_urlopen,
+    )
+    with pytest.raises(
+        autonomous_production_driver.AutonomousProductionDriverError,
+    ) as exc_info:
+        autonomous_production_driver._exact_zenodo_get(url)
+    assert url in str(exc_info.value)
+    assert "fixture gateway failure" in str(exc_info.value)
+
+
 def test_comparability_is_registered_but_geometry_acquisition_is_new_frontier() -> None:
     assert (
         "reviewed_physical_comparability_assessment"
