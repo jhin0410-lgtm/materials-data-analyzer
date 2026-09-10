@@ -43,6 +43,7 @@ from .in625_zenodo_live_evidence import (
 from .kernel import ResearchLoopError, initialize_research_loop, load_research_state
 from .planning_adapter import plan_research_next_action
 from .research_program import build_research_program
+from .zenodo_evidence_acquisition import normalize_zenodo_record_metadata
 
 AUTONOMOUS_PRODUCTION_SCHEMA_VERSION = "1.1"
 AUTONOMOUS_PRODUCTION_POLICY_VERSION = "1.1"
@@ -164,7 +165,7 @@ def _exact_zenodo_get(url: str, *, timeout: int = 60) -> bytes:
         response = urllib.request.urlopen(request, timeout=timeout)
     except Exception as exc:  # operational failure; never scientific counterevidence
         raise AutonomousProductionDriverError(
-            f"exact Zenodo network request failed operationally: {exc}"
+            f"exact Zenodo network request failed operationally for {url}: {exc}"
         ) from exc
     with response:
         final_url = response.geturl()
@@ -181,6 +182,48 @@ def _exact_zenodo_get(url: str, *, timeout: int = 60) -> bytes:
                 f"Zenodo redirect left exact authorized HTTPS authority: {final_url}"
             )
         return response.read()
+
+
+def _canonical_zenodo_file_download_url(
+    *,
+    metadata_bytes: bytes,
+    record_url: str,
+    expected_record_id: object,
+    expected_doi: str,
+    file_name: str,
+) -> str:
+    """Select one exact file locator from authenticated Zenodo metadata only."""
+    try:
+        normalized = normalize_zenodo_record_metadata(
+            metadata_bytes=metadata_bytes,
+            request_url=record_url,
+            expected_record_id=expected_record_id,
+            expected_doi=expected_doi,
+        )
+    except ResearchLoopError as exc:
+        raise AutonomousProductionDriverError(
+            f"Zenodo record metadata failed canonical file-locator normalization: {exc}"
+        ) from exc
+    files = normalized.get("files")
+    if not isinstance(files, list):
+        raise AutonomousProductionDriverError(
+            "canonical Zenodo record omitted normalized file list"
+        )
+    matches = [
+        item
+        for item in files
+        if isinstance(item, Mapping) and item.get("key") == file_name
+    ]
+    if len(matches) != 1:
+        raise AutonomousProductionDriverError(
+            "canonical Zenodo record did not expose exactly one configured file identity"
+        )
+    download_url = matches[0].get("download_url")
+    if not isinstance(download_url, str) or not download_url:
+        raise AutonomousProductionDriverError(
+            "canonical Zenodo file identity omitted exact download URL"
+        )
+    return download_url
 
 
 def _mission_metadata(program: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -444,29 +487,14 @@ def run_autonomous_production(
     )
     record_url = network_policy["record_api_url"]
     metadata_bytes = _exact_zenodo_get(record_url)
-    try:
-        metadata_json = json.loads(metadata_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise AutonomousProductionDriverError(
-            "Zenodo record response must be valid UTF-8 JSON"
-        ) from exc
-    if not isinstance(metadata_json, dict):
-        raise AutonomousProductionDriverError(
-            "Zenodo record response root is not an object"
-        )
-    files = {
-        item["key"]: item
-        for item in metadata_json.get("files", [])
-        if isinstance(item, Mapping) and isinstance(item.get("key"), str)
-    }
     readme_name = source_config["zenodo"]["readme_file"]
-    if readme_name not in files:
-        raise AutonomousProductionDriverError(
-            "live Zenodo record lost exact configured README"
-        )
-    readme_url = files[readme_name].get("links", {}).get("self")
-    if not isinstance(readme_url, str):
-        raise AutonomousProductionDriverError("live Zenodo README link is missing")
+    readme_url = _canonical_zenodo_file_download_url(
+        metadata_bytes=metadata_bytes,
+        record_url=record_url,
+        expected_record_id=source_config["zenodo"]["record_id"],
+        expected_doi=source_config["zenodo"]["version_doi"],
+        file_name=readme_name,
+    )
     readme_bytes = _exact_zenodo_get(readme_url)
     pre_manifest = build_verified_in625_zenodo_readme_manifest(
         config=source_config,
