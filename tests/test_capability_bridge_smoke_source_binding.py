@@ -23,6 +23,7 @@ from materials_data_analyzer.research_loop.in625_geometry_condition_source_acqui
 ROOT = Path(__file__).resolve().parents[1]
 MISSION = ROOT / "configs/research/autonomous_in625_production_mission.v1.json"
 MISSION_SHA = hashlib.sha256(MISSION.read_bytes()).hexdigest()
+REGISTRY = ROOT / "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
 
 
 def _canonical_sha(value: object) -> str:
@@ -93,7 +94,7 @@ def _self_consistently_hashed_forged_replay_evidence(
             body=forged_body,
             final_url=bridge.SMOKE_SOURCE_URL,
             status_code=200,
-            content_type="text/html",
+            content_type="application/pdf;charset=UTF-8",
         )
 
     recorder = capability_smoke_replay_evidence.RecordingFetcher(forged_delegate)
@@ -144,10 +145,30 @@ def test_self_consistently_rehashed_bridge_smoke_body_cannot_regenerate_passing_
         )
 
 
-def test_bridge_smoke_witness_is_the_exact_f0da_live_source_version() -> None:
-    assert bridge.SMOKE_SOURCE_ID == "nist-official-amb2018-02-description"
-    assert bridge.SMOKE_SOURCE_URL == "https://www.nist.gov/ambench/amb2018-02-description"
-    assert bridge.SMOKE_SOURCE_SHA256 == (
-        "9c7fd41e9f82b5412097448a40892e3dbf80c6e237075fbe9294ab69224d55da"
+def test_bridge_smoke_witness_is_exact_stable_primary_pdf_source() -> None:
+    assert bridge.SMOKE_SOURCE_ID == "lane-2020-melt-pool-geometry"
+    assert bridge.SMOKE_SOURCE_URL == (
+        "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=927485"
     )
-    assert bridge.SMOKE_SOURCE_SIZE_BYTES == 104_348
+    assert bridge.SMOKE_SOURCE_SHA256 == (
+        "39de5e6987461c3cf607e544d202cfdc3f28dffd2e0ec298175df63803b99640"
+    )
+    assert bridge.SMOKE_SOURCE_SIZE_BYTES == 1_874_330
+
+    registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    matches = [
+        item
+        for item in registry["sources"]
+        if item.get("source_id") == bridge.SMOKE_SOURCE_ID
+    ]
+    assert len(matches) == 1
+    assert matches[0]["url"] == bridge.SMOKE_SOURCE_URL
+    assert matches[0]["media_type"] == "pdf"
+    claim_ids = {
+        claim["claim_id"] for claim in matches[0]["claims_under_review"]
+    }
+    assert {
+        "lane-ammt-corrected-cases",
+        "lane-ammt-cbm-spot-diameters",
+        "lane-cross-section-uncertainty-exists",
+    } <= claim_ids
