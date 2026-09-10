@@ -18,6 +18,7 @@ from .in625_geometry_condition_multisource_policy import (
     authenticate_geometry_condition_multisource_policy,
 )
 from .in625_geometry_condition_source_acquisition import (
+    FetchResult,
     acquire_geometry_condition_sources,
     fetch_exact_source,
 )
@@ -37,6 +38,17 @@ MULTISOURCE_POLICY_PATH = (
 MULTISOURCE_REGISTRY_PATH = (
     "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
 )
+
+# Historical source-version witness for the one network smoke used to promote this capability.
+# These values were observed in the exact live provenance accepted at head f0da7d0cac and are
+# deliberately part of this implementation module.  The capability verification receipt already
+# byte-binds this module via ``implementation_sha256``, so output-only rehashing cannot substitute
+# a different smoke body.  A legitimate upstream source-version change must therefore be reviewed
+# as a new implementation/source witness rather than silently rewriting historical verification.
+SMOKE_SOURCE_ID = "nist-official-amb2018-02-description"
+SMOKE_SOURCE_URL = "https://www.nist.gov/ambench/amb2018-02-description"
+SMOKE_SOURCE_SHA256 = "9c7fd41e9f82b5412097448a40892e3dbf80c6e237075fbe9294ab69224d55da"
+SMOKE_SOURCE_SIZE_BYTES = 104_348
 
 _REQUIRED_CLAIMS = frozenset(
     {
@@ -113,6 +125,46 @@ def _source_sha_map(evidence: Mapping[str, Any]) -> dict[str, str]:
         )
         result[source_id] = source_sha
     return result
+
+
+def verify_pinned_smoke_source(
+    *,
+    source_id: str,
+    requested_url: str,
+    fetched: FetchResult,
+) -> dict[str, Any]:
+    """Verify the exact historical source version bound into this implementation.
+
+    This is intentionally stricter than the generic HTTPS fetch contract.  The latter proves only
+    that bytes came from an allowed endpoint; this witness proves that live and historical smoke
+    verification use the same exact source version that originally promoted the capability.
+    """
+    observed_sha = hashlib.sha256(fetched.body).hexdigest()
+    observed_size = len(fetched.body)
+    _require(source_id == SMOKE_SOURCE_ID, "bridge smoke source id drifted from pinned witness")
+    _require(
+        requested_url == SMOKE_SOURCE_URL,
+        "bridge smoke requested URL drifted from pinned witness",
+    )
+    _require(
+        fetched.final_url == SMOKE_SOURCE_URL,
+        "bridge smoke final URL drifted from pinned witness",
+    )
+    _require(
+        observed_sha == SMOKE_SOURCE_SHA256,
+        "bridge smoke body SHA-256 drifted from pinned historical source",
+    )
+    _require(
+        observed_size == SMOKE_SOURCE_SIZE_BYTES,
+        "bridge smoke body size drifted from pinned historical source",
+    )
+    return {
+        "source_id": SMOKE_SOURCE_ID,
+        "requested_url": SMOKE_SOURCE_URL,
+        "final_url": SMOKE_SOURCE_URL,
+        "source_sha256": SMOKE_SOURCE_SHA256,
+        "source_size_bytes": SMOKE_SOURCE_SIZE_BYTES,
+    }
 
 
 def build_bridge_frontier_report(
@@ -251,16 +303,18 @@ def smoke_exact_source_authority(
         max_bytes=MAX_SOURCE_BYTES,
         timeout_seconds=TIMEOUT_SECONDS,
     )
+    pinned = verify_pinned_smoke_source(
+        source_id=source_id,
+        requested_url=url,
+        fetched=fetched,
+    )
     receipt: dict[str, Any] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "smoke_status": "exact_authorized_source_retrieved",
         "policy_sha256": qualification["policy_sha256"],
         "registry_git_blob_sha1": qualification["registry_git_blob_sha1"],
-        "source_id": source_id,
-        "requested_url": url,
-        "final_url": fetched.final_url,
-        "source_sha256": hashlib.sha256(fetched.body).hexdigest(),
-        "source_size_bytes": len(fetched.body),
+        **pinned,
+        "historical_source_version_binding_verified": True,
         "network_requests_performed": 1,
         "unrestricted_search_performed": False,
         "arbitrary_url_fetch_performed": False,
@@ -307,8 +361,13 @@ __all__ = [
     "IMPLEMENTATION_ID",
     "NEXT_ACTION_CLASS",
     "REQUIRED_VERIFIED_PRIMITIVES",
+    "SMOKE_SOURCE_ID",
+    "SMOKE_SOURCE_SHA256",
+    "SMOKE_SOURCE_SIZE_BYTES",
+    "SMOKE_SOURCE_URL",
     "CalibrationProtocolBridgeCapabilityError",
     "build_bridge_frontier_report",
     "execute_bridge_capability",
     "smoke_exact_source_authority",
+    "verify_pinned_smoke_source",
 ]
