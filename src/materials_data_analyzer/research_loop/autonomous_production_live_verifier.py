@@ -40,6 +40,9 @@ from .autonomous_production_exact_head_p2_round6 import (
 from .autonomous_production_exact_head_p2_round7 import (
     verify_exact_head_round7_boundaries,
 )
+from .autonomous_production_exact_head_p2_round8 import (
+    verify_exact_head_round8_boundaries,
+)
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
@@ -84,6 +87,8 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         verify_exact_head_round4_boundaries(output_root)
         # Authenticate candidate/verifier producers before replaying registry successors.
         verify_exact_head_round7_boundaries(output_root)
+        # Bind mutable retained smoke responses to independently reviewed source versions.
+        verify_exact_head_round8_boundaries(output_root)
         verify_exact_head_round6_boundaries(output_root)
         verify_exact_head_round5_boundaries(output_root)
     except (
