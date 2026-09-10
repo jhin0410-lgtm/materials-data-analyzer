@@ -12,6 +12,7 @@ import json
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 from .autonomous_production_cycle1_transport_stop import (
     Cycle1TransportStopError,
@@ -31,6 +32,7 @@ MISSION_PATH = "configs/research/autonomous_in625_production_mission.v1.json"
 NETWORK_POLICY_PATH = "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
 SOURCE_CONFIG_PATH = "configs/research/in625_zenodo_20503603_verified_source.v1.json"
 STOP_PATH = "cycle-1-transport-stop.json"
+ZENODO_HOST = "zenodo.org"
 
 
 class Cycle1TransportStopVerificationError(ResearchLoopError):
@@ -54,6 +56,43 @@ def _require(condition: bool, message: str) -> None:
         raise Cycle1TransportStopVerificationError(message)
 
 
+def _published_record_file_route(
+    value: object,
+    *,
+    record_id: int,
+    file_name: str,
+    field: str,
+) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise Cycle1TransportStopVerificationError(f"{field} must be non-empty text")
+    parsed = urlparse(value)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} contains an invalid port"
+        ) from exc
+    if (
+        parsed.scheme.lower() != "https"
+        or (parsed.hostname or "").lower() != ZENODO_HOST
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise Cycle1TransportStopVerificationError(
+            f"{field} left exact query-free Zenodo HTTPS authority"
+        )
+    expected_path = f"/api/records/{record_id}/files/{file_name}/content"
+    if unquote(parsed.path) != expected_path:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} is not the pinned published-record file content route"
+        )
+    return value
+
+
 def verify_cycle1_transport_stop(
     *, repository_root: str | Path, output_root: str | Path
 ) -> dict[str, Any]:
@@ -62,6 +101,9 @@ def verify_cycle1_transport_stop(
     output = Path(output_root).expanduser()
     if not output.is_absolute():
         output = root / output
+    # Output may intentionally be an exported/downloaded evidence directory outside the
+    # repository.  It is read-only input to this verifier; all trusted authority roots
+    # below are reconstructed from fixed repository paths.
     output = output.resolve(strict=True)
 
     mission = (root / MISSION_PATH).resolve(strict=True)
@@ -97,9 +139,11 @@ def verify_cycle1_transport_stop(
         authority.get("network_policy_sha256") == qualification.get("policy_sha256"),
         "transport stop network-policy binding differs from reconstructed authority",
     )
+    source_bytes = source.read_bytes()
+    source_config = _read_json(source, "source config")
     _require(
         authority.get("source_config_sha256")
-        == hashlib.sha256(source.read_bytes()).hexdigest()
+        == hashlib.sha256(source_bytes).hexdigest()
         == qualification.get("source_config_sha256"),
         "transport stop source-config binding differs from reconstructed authority",
     )
@@ -115,6 +159,27 @@ def verify_cycle1_transport_stop(
         "reconstructed standing policy unexpectedly widened network authority",
     )
 
+    zenodo = source_config.get("zenodo")
+    _require(isinstance(zenodo, Mapping), "source config Zenodo identity is missing")
+    record_id = zenodo.get("record_id")
+    _require(
+        isinstance(record_id, int)
+        and not isinstance(record_id, bool)
+        and record_id == authority.get("record_id")
+        and record_id == 20503603,
+        "transport stop record identity differs from pinned source config",
+    )
+    readme_name = zenodo.get("readme_file")
+    archive_name = zenodo.get("archive_file")
+    _require(
+        isinstance(readme_name, str) and readme_name,
+        "source README identity is invalid",
+    )
+    _require(
+        isinstance(archive_name, str) and archive_name,
+        "source archive identity is invalid",
+    )
+
     bounded = _read_json(output / "bounded-stop.json", "bounded stop")
     _require(
         bounded == stop,
@@ -127,14 +192,39 @@ def verify_cycle1_transport_stop(
 
     stage = stop["stage"]
     prior = stop["observed_prior_evidence"]
-    if stage in {"zenodo_record_metadata", "zenodo_readme"}:
+    requested_url = stop["requested_url"]
+    requested_route_basis: str
+    if stage == "zenodo_record_metadata":
+        expected_record_url = qualification.get("record_api_url")
+        _require(
+            isinstance(expected_record_url, str)
+            and requested_url == expected_record_url,
+            "metadata stop requested URL differs from reconstructed standing-policy record API",
+        )
+        requested_route_basis = "standing_network_policy_record_api"
         _require(
             not (output / "source-readme-manifest.json").exists(),
-            "pre-README transport stop may not promote partial control-plane bytes to source evidence",
+            "metadata transport stop may not promote partial control-plane bytes to source evidence",
         )
         _require(
             not (output / "network-authorization.json").exists(),
-            "pre-archive transport stop may not emit archive authorization",
+            "metadata transport stop may not emit archive authorization",
+        )
+    elif stage == "zenodo_readme":
+        _published_record_file_route(
+            requested_url,
+            record_id=record_id,
+            file_name=readme_name,
+            field="README stop requested URL",
+        )
+        requested_route_basis = "pinned_record_and_readme_content_route"
+        _require(
+            not (output / "source-readme-manifest.json").exists(),
+            "README transport stop may not promote partial control-plane bytes to source evidence",
+        )
+        _require(
+            not (output / "network-authorization.json").exists(),
+            "README transport stop may not emit archive authorization",
         )
     elif stage == "zenodo_archive":
         record_path = output / "record.json"
@@ -150,13 +240,6 @@ def verify_cycle1_transport_stop(
         _require(
             prior.get("metadata_sha256") == hashlib.sha256(metadata_bytes).hexdigest(),
             "archive stop prior metadata hash differs from persisted completed metadata",
-        )
-        source_bytes = source.read_bytes()
-        source_config = _read_json(source, "source config")
-        readme_name = source_config.get("zenodo", {}).get("readme_file")
-        _require(
-            isinstance(readme_name, str) and readme_name,
-            "source README identity is invalid",
         )
         readme_path = output / readme_name
         _require(readme_path.is_file(), "archive stop lost completed README bytes")
@@ -183,11 +266,33 @@ def verify_cycle1_transport_stop(
             == reconstructed_authorization.get("authorization_sha256"),
             "archive stop prior authorization hash differs from reconstructed authorization",
         )
+        archive_binding = reconstructed_authorization.get("archive")
+        _require(
+            isinstance(archive_binding, Mapping)
+            and isinstance(archive_binding.get("download_url"), str),
+            "reconstructed archive authorization omitted exact download URL",
+        )
+        archive_url = archive_binding["download_url"]
+        _published_record_file_route(
+            archive_url,
+            record_id=record_id,
+            file_name=archive_name,
+            field="reconstructed archive URL",
+        )
+        _require(
+            requested_url == archive_url,
+            "archive stop requested URL differs from reconstructed authorization",
+        )
+        requested_route_basis = "reconstructed_archive_authorization"
+    else:  # pragma: no cover - intrinsic authentication closes this branch.
+        raise Cycle1TransportStopVerificationError("unsupported transport-stop stage")
 
     return {
         "verification_status": "cycle_1_transport_stop_authenticated",
         "stage": stage,
         "request_ordinal": stop["request_ordinal"],
+        "requested_url_authenticated": True,
+        "requested_route_basis": requested_route_basis,
         "stop_sha256_without_self_field": stop["stop_sha256_without_self_field"],
         "mission_sha256": EXPECTED_MISSION_SHA256,
         "network_policy_sha256": qualification["policy_sha256"],

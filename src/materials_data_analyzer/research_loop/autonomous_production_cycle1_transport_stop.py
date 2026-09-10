@@ -108,16 +108,22 @@ def _text(value: object, field: str) -> str:
 def _exact_https_zenodo_url(value: object) -> str:
     text = _text(value, "requested_url")
     parsed = urlparse(text)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise Cycle1TransportStopError("requested_url contains an invalid port") from exc
     if (
         parsed.scheme.lower() != "https"
         or (parsed.hostname or "").lower() != ALLOWED_HOST
         or parsed.username is not None
         or parsed.password is not None
-        or parsed.port not in (None, 443)
+        or port not in (None, 443)
+        or parsed.params
+        or parsed.query
         or parsed.fragment
     ):
         raise Cycle1TransportStopError(
-            "requested_url must remain on exact authorized Zenodo HTTPS authority"
+            "requested_url must remain on exact authorized Zenodo HTTPS authority without params/query/fragment"
         )
     return text
 
