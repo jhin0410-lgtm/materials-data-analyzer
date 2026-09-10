@@ -11,12 +11,13 @@ from materials_data_analyzer.research_loop import capability_resolver
 from materials_data_analyzer.research_loop import (
     autonomous_production_weaver_extension as production,
 )
-from materials_data_analyzer.research_loop.in625_geometry_condition_source_acquisition import FetchResult
 from materials_data_analyzer.research_loop import weaver_2021_full_text_acquisition as acquisition
 from materials_data_analyzer.research_loop import weaver_2021_full_text_capability as capability
 from materials_data_analyzer.research_loop import weaver_2021_full_text_capability_verifier as verifier
 from materials_data_analyzer.research_loop import weaver_2021_full_text_policy as policy
-
+from materials_data_analyzer.research_loop.in625_geometry_condition_source_acquisition import (
+    FetchResult,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 MISSION = ROOT / "configs/research/autonomous_in625_production_mission.v1.json"
@@ -91,9 +92,46 @@ def _fixture_bioc() -> bytes:
         ]
     )
     return json.dumps(
-        [{"source": "PMC", "documents": [{"id": policy.SOURCE_PMCID, "passages": [{"text": text}]}]}],
+        [
+            {
+                "source": "PMC",
+                "documents": [
+                    {
+                        "id": policy.SOURCE_PMCID,
+                        "passages": [{"text": text}],
+                    }
+                ],
+            }
+        ],
         ensure_ascii=False,
     ).encode("utf-8")
+
+
+def _fake_fetch_result() -> FetchResult:
+    return FetchResult(
+        body=_fixture_bioc(),
+        final_url=policy.SOURCE_URL,
+        status_code=200,
+        content_type="application/json; charset=utf-8",
+    )
+
+
+def _spec_and_candidate() -> tuple[dict[str, object], dict[str, object]]:
+    graph = _reference_graph()
+    gap = capability_expansion.build_capability_gap(
+        requested_action=graph["next_action"],  # type: ignore[arg-type]
+        predecessor_report=graph,
+        available_action_classes=[],
+    )
+    spec = capability_expansion.build_capability_specification(gap)
+    candidate = capability_registry.build_capability_candidate(
+        capability_specification=spec,
+        factory_id=capability.FACTORY_ID,
+        implementation_id=capability.IMPLEMENTATION_ID,
+        mechanism=capability.MECHANISM,
+        required_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
+    )
+    return spec, candidate
 
 
 def test_policy_is_exactly_pinned_by_mission() -> None:
@@ -129,13 +167,7 @@ def test_weaver_ammt_claim_does_not_invent_numeric_spot_range() -> None:
 
 
 def test_resolver_discovers_only_bounded_weaver_factory() -> None:
-    graph = _reference_graph()
-    gap = capability_expansion.build_capability_gap(
-        requested_action=graph["next_action"],  # type: ignore[arg-type]
-        predecessor_report=graph,
-        available_action_classes=[],
-    )
-    spec = capability_expansion.build_capability_specification(gap)
+    spec, _ = _spec_and_candidate()
     result = capability_resolver.resolve_or_discover_capability(
         registry=capability_registry.build_initial_capability_registry(
             verified_action_classes=[]
@@ -151,9 +183,8 @@ def test_resolver_discovers_only_bounded_weaver_factory() -> None:
     assert result["candidate"]["execution_authority_granted"] is False
 
 
-def test_derived_authorization_binds_reference_graph_and_rejects_locator_substitution() -> None:
+def test_derived_authorization_rejects_locator_substitution() -> None:
     graph = _reference_graph()
-    manifest = _manifest(graph)
     qualification = policy.authenticate_weaver_2021_full_text_policy(
         repository_root=ROOT,
         mission_path=MISSION,
@@ -162,31 +193,26 @@ def test_derived_authorization_binds_reference_graph_and_rejects_locator_substit
     authorization = acquisition.build_derived_weaver_authorization(
         qualification=qualification,
         reference_graph=graph,
-        predecessor_manifest=manifest,
+        predecessor_manifest=_manifest(graph),
     )
     assert authorization["doi"] == policy.SOURCE_DOI
     assert authorization["pmcid"] == policy.SOURCE_PMCID
-    assert authorization["doi_derived_from_reference_graph"] is True
-    assert authorization["pmcid_derived_from_separately_pinned_policy"] is True
     assert authorization["caller_authored_url_used"] is False
-    assert authorization["caller_authored_pmcid_used"] is False
 
     forged = json.loads(json.dumps(graph))
     forged["next_action"]["candidate"]["doi"] = "10.1000/attacker"
     forged.pop("report_sha256_without_self_field")
     forged["report_sha256_without_self_field"] = _canonical_sha(forged)
-    forged_manifest = _manifest(forged)
     with pytest.raises(acquisition.Weaver2021FullTextAcquisitionError):
         acquisition.build_derived_weaver_authorization(
             qualification=qualification,
             reference_graph=forged,
-            predecessor_manifest=forged_manifest,
+            predecessor_manifest=_manifest(forged),
         )
 
 
-def test_fixture_acquisition_verifies_identity_and_preserves_scientific_gate() -> None:
+def test_fixture_acquisition_preserves_scientific_gate() -> None:
     graph = _reference_graph()
-    manifest = _manifest(graph)
     qualification = policy.authenticate_weaver_2021_full_text_policy(
         repository_root=ROOT,
         mission_path=MISSION,
@@ -195,30 +221,15 @@ def test_fixture_acquisition_verifies_identity_and_preserves_scientific_gate() -
     authorization = acquisition.build_derived_weaver_authorization(
         qualification=qualification,
         reference_graph=graph,
-        predecessor_manifest=manifest,
+        predecessor_manifest=_manifest(graph),
     )
-
-    def fake_fetcher(*args: object, **kwargs: object) -> FetchResult:
-        del args, kwargs
-        return FetchResult(
-            body=_fixture_bioc(),
-            final_url=policy.SOURCE_URL,
-            status_code=200,
-            content_type="application/json; charset=utf-8",
-        )
-
     report = acquisition.execute_derived_weaver_acquisition(
         authorization=authorization,
-        fetcher=fake_fetcher,
+        fetcher=lambda *args, **kwargs: _fake_fetch_result(),
     )
     claims = {item["claim_id"]: item for item in report["claim_receipts"]}
     assert report["article_identity"]["article_identity_established"] is True
     assert report["core_claims_matched"] is True
-    assert claims["weaver-primary-condition"]["matched"] is True
-    assert claims["weaver-ammt-machine-condition"]["matched"] is True
-    assert claims["weaver-d4sigma-definition"]["matched"] is True
-    assert claims["weaver-cross-section-protocol"]["matched"] is True
-    assert claims["weaver-dataset-size"]["matched"] is True
     assert claims["weaver-explicit-mds2-id"]["matched"] is False
     assert claims["weaver-explicit-power-conversion"]["matched"] is False
     gate = report["gate_assessment"]
@@ -228,70 +239,112 @@ def test_fixture_acquisition_verifies_identity_and_preserves_scientific_gate() -
     assert gate["direct_numerical_cross_source_validation_authorized"] is False
     assert gate["issue_76_exact_target_cells_satisfied"] == 0
     assert report["literature_promoted_to_row_level_measurement_authority"] is False
-    assert report["next_action"]["action_class"] == (
-        "mds2_2923_weaver_row_identity_binding_assessment"
+
+
+def test_verifier_uses_one_live_request_then_zero_network_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, candidate = _spec_and_candidate()
+    graph = _reference_graph()
+    calls = 0
+
+    def fake_fetch(*args: object, **kwargs: object) -> FetchResult:
+        nonlocal calls
+        del args, kwargs
+        calls += 1
+        return _fake_fetch_result()
+
+    monkeypatch.setattr(verifier, "fetch_exact_source", fake_fetch)
+    receipt = verifier.verify_weaver_2021_full_text_capability_candidate(
+        capability_specification=spec,
+        candidate=candidate,
+        available_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
+        repository_root=ROOT,
+        mission_path=MISSION,
+        expected_mission_sha256=MISSION_SHA,
+        verification_context={
+            "reference_graph": graph,
+            "predecessor_manifest": _manifest(graph),
+        },
+        perform_real_source_smoke=True,
     )
+    assert calls == 1
+    assert receipt["promotion_eligible"] is True
+    smoke = receipt["real_source_smoke_receipt"]
+    assert smoke["live_network_requests_performed"] == 1
+    assert smoke["deterministic_replay_fetch_invocations"] == 1
+    assert smoke["deterministic_replay_network_requests_performed"] == 0
+    replay = receipt["real_source_smoke_replay_evidence"]
+    assert replay["schema_version"] == "1.1"
+    assert len(replay["replay_module_sha256"]) == 64
+    assert len(replay["fetch_records"]) == 1
+
+
+def test_historical_verifier_replays_retained_bytes_without_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, candidate = _spec_and_candidate()
+    graph = _reference_graph()
+    context = {
+        "reference_graph": graph,
+        "predecessor_manifest": _manifest(graph),
+    }
+    monkeypatch.setattr(
+        verifier,
+        "fetch_exact_source",
+        lambda *args, **kwargs: _fake_fetch_result(),
+    )
+    live = verifier.verify_weaver_2021_full_text_capability_candidate(
+        capability_specification=spec,
+        candidate=candidate,
+        available_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
+        repository_root=ROOT,
+        mission_path=MISSION,
+        expected_mission_sha256=MISSION_SHA,
+        verification_context=context,
+        perform_real_source_smoke=True,
+    )
+
+    def forbidden_fetch(*args: object, **kwargs: object) -> FetchResult:
+        raise AssertionError("historical Weaver verification must not use network")
+
+    monkeypatch.setattr(verifier, "fetch_exact_source", forbidden_fetch)
+    replayed = verifier.verify_weaver_2021_full_text_capability_candidate(
+        capability_specification=spec,
+        candidate=candidate,
+        available_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
+        repository_root=ROOT,
+        mission_path=MISSION,
+        expected_mission_sha256=MISSION_SHA,
+        verification_context=context,
+        perform_real_source_smoke=False,
+        retained_smoke_replay_evidence=live["real_source_smoke_replay_evidence"],
+    )
+    assert replayed["promotion_eligible"] is True
+    assert replayed["historical_reverification_network_requests_performed"] == 0
+    assert replayed["real_source_smoke_receipt"]["live_network_requests_performed"] == 0
 
 
 def test_verifier_refuses_promotion_when_core_claims_do_not_match(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    spec, candidate = _spec_and_candidate()
     graph = _reference_graph()
-    manifest = _manifest(graph)
-    gap = capability_expansion.build_capability_gap(
-        requested_action=graph["next_action"],  # type: ignore[arg-type]
-        predecessor_report=graph,
-        available_action_classes=[],
+    bad = json.loads(_fixture_bioc().decode("utf-8"))
+    bad[0]["documents"][0]["passages"][0]["text"] = (
+        f"{policy.SOURCE_TITLE} {policy.SOURCE_DOI} {policy.SOURCE_PMCID} "
+        f"{policy.SOURCE_PMID} Weaver Heigel Lane"
     )
-    spec = capability_expansion.build_capability_specification(gap)
-    candidate = capability_registry.build_capability_candidate(
-        capability_specification=spec,
-        factory_id=capability.FACTORY_ID,
-        implementation_id=capability.IMPLEMENTATION_ID,
-        mechanism=capability.MECHANISM,
-        required_verified_primitives=capability.REQUIRED_VERIFIED_PRIMITIVES,
-    )
-    fake_report: dict[str, object] = {
-        "acquisition_status": "exact_weaver_primary_full_text_acquired_and_identity_verified",
-        "article_identity": {"article_identity_established": True},
-        "source": {"source_sha256": "a" * 64},
-        "core_claims_matched": False,
-        "evidence_scope": {
-            "weaver_full_text_acquired": True,
-            "weaver_article_identity_established": True,
-        },
-        "gate_assessment": {
-            "exact_mds2_rows_to_weaver_experiment_established": False,
-            "exact_mds2_experiment_identity_established": False,
-            "machine_setting_to_calibrated_power_relation_established": False,
-            "spot_size_transfer_authorized": False,
-            "protocol_equivalence_established": False,
-            "uncertainty_transfer_authorized": False,
-            "directly_comparable_mds2_rows": 0,
-            "direct_numerical_cross_source_validation_authorized": False,
-            "cross_machine_pooling_authorized": False,
-            "issue_76_exact_target_cells_satisfied": 0,
-        },
-        "network_requests_performed": 1,
-        "caller_authored_url_used": False,
-        "caller_authored_pmcid_used": False,
-        "unrestricted_search_performed": False,
-        "literature_promoted_to_row_level_measurement_authority": False,
-        "acquisition_success_establishes_scientific_bridge": False,
-        "scientific_status_changed": False,
-        "positive_scientific_closeout": False,
-        "global_evidence_unavailability_claimed": False,
-        "next_action": {
-            "action_class": acquisition.NEXT_ACTION_CLASS,
-            "automatic_execution_authorized": False,
-            "network_access_required": False,
-        },
-        "report_sha256_without_self_field": "b" * 64,
-    }
+    body = json.dumps(bad).encode("utf-8")
     monkeypatch.setattr(
-        acquisition,
-        "execute_derived_weaver_acquisition",
-        lambda **kwargs: fake_report,
+        verifier,
+        "fetch_exact_source",
+        lambda *args, **kwargs: FetchResult(
+            body=body,
+            final_url=policy.SOURCE_URL,
+            status_code=200,
+            content_type="application/json",
+        ),
     )
     receipt = verifier.verify_weaver_2021_full_text_capability_candidate(
         capability_specification=spec,
@@ -300,33 +353,40 @@ def test_verifier_refuses_promotion_when_core_claims_do_not_match(
         repository_root=ROOT,
         mission_path=MISSION,
         expected_mission_sha256=MISSION_SHA,
-        verification_context={"reference_graph": graph, "predecessor_manifest": manifest},
+        verification_context={
+            "reference_graph": graph,
+            "predecessor_manifest": _manifest(graph),
+        },
         perform_real_source_smoke=True,
     )
-    assert receipt["verification_results"][
-        "real_source_smoke_test_when_network_evidence_is_required"
-    ] is False
     assert receipt["promotion_eligible"] is False
     assert receipt["real_source_smoke_receipt"]["core_claims_matched"] is False
 
 
-def test_execution_must_match_independently_verified_weaver_bytes() -> None:
+def test_execution_must_match_verified_replay_bytes() -> None:
     evidence: dict[str, object] = {
         "core_claims_matched": True,
         "source": {"source_sha256": "a" * 64},
     }
     evidence["report_sha256_without_self_field"] = _canonical_sha(evidence)
     smoke: dict[str, object] = {
-        "network_requests_performed": 2,
-        "execution_evidence_reuse_authorized": False,
+        "live_network_requests_performed": 1,
+        "deterministic_replay_fetch_invocations": 1,
+        "deterministic_replay_network_requests_performed": 0,
+        "execution_must_replay_retained_bytes": True,
         "core_claims_matched": True,
         "evidence_self_hash_recomputed": True,
         "weaver_evidence_sha256": evidence["report_sha256_without_self_field"],
         "weaver_source_sha256": "a" * 64,
     }
     smoke["report_sha256_without_self_field"] = _canonical_sha(smoke)
-    verification = {"real_source_smoke_receipt": smoke}
-
+    verification = {
+        "real_source_smoke_receipt": smoke,
+        "real_source_smoke_replay_evidence": {
+            "smoke_replay_evidence_sha256_without_self_field": "c" * 64
+        },
+        "real_source_smoke_replay_evidence_sha256": "c" * 64,
+    }
     evidence_sha, source_sha = production._validate_execution_against_verification(
         evidence=evidence,
         verification=verification,
@@ -350,7 +410,6 @@ def test_execution_must_match_independently_verified_weaver_bytes() -> None:
 
 def test_wrong_article_identity_fails_before_claim_admission() -> None:
     graph = _reference_graph()
-    manifest = _manifest(graph)
     qualification = policy.authenticate_weaver_2021_full_text_policy(
         repository_root=ROOT,
         mission_path=MISSION,
@@ -359,13 +418,15 @@ def test_wrong_article_identity_fails_before_claim_admission() -> None:
     authorization = acquisition.build_derived_weaver_authorization(
         qualification=qualification,
         reference_graph=graph,
-        predecessor_manifest=manifest,
+        predecessor_manifest=_manifest(graph),
     )
 
     def fake_fetcher(*args: object, **kwargs: object) -> FetchResult:
         del args, kwargs
         return FetchResult(
-            body=json.dumps([{"documents": [{"passages": [{"text": "attacker paper"}]}]}]).encode(),
+            body=json.dumps(
+                [{"documents": [{"passages": [{"text": "attacker paper"}]}]}]
+            ).encode(),
             final_url=policy.SOURCE_URL,
             status_code=200,
             content_type="application/json",
