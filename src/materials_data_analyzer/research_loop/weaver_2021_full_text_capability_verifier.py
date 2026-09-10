@@ -1,4 +1,10 @@
-"""Independent verifier for bounded Weaver 2021 full-text acquisition capability."""
+"""Independent verifier for bounded Weaver 2021 full-text acquisition capability.
+
+The live verifier performs at most one exact authorized network fetch.  The exact bounded
+request/response bytes are retained with the common capability smoke-replay contract and then
+replayed through the acquisition parser without network access.  Historical verification accepts
+only authenticated retained replay evidence; it never re-queries mutable remote state.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -6,13 +12,15 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from . import capability_smoke_replay_evidence as smoke_replay
 from . import weaver_2021_full_text_acquisition as acquisition
 from . import weaver_2021_full_text_capability as capability
 from . import weaver_2021_full_text_policy as policy
 from .capability_registry import build_capability_verification_receipt
+from .in625_geometry_condition_source_acquisition import fetch_exact_source
 
-VERIFIER_SCHEMA_VERSION = "1.0"
-VERIFIER_POLICY_VERSION = "1.0"
+VERIFIER_SCHEMA_VERSION = "1.1"
+VERIFIER_POLICY_VERSION = "1.1"
 _EXPECTED_REQUIRED_INPUTS = (
     "verified_mds2_2923_reference_chain_assessment",
     "provenance_bound_weaver_primary_reference_locator",
@@ -72,6 +80,12 @@ def _self_hash_ok(value: Mapping[str, Any]) -> bool:
     unsigned = dict(value)
     unsigned.pop("report_sha256_without_self_field", None)
     return _canonical_sha(unsigned) == digest
+
+
+def _bound_sha(value: Mapping[str, Any], field: str, label: str) -> str:
+    digest = value.get(field)
+    _require(isinstance(digest, str) and len(digest) == 64, f"{label} binding is missing")
+    return digest
 
 
 def _module_sha(module: object, field: str) -> str:
@@ -157,6 +171,45 @@ def _boundary_ok(report: Mapping[str, Any]) -> bool:
     )
 
 
+def _qualification_and_authorization(
+    *,
+    repository_root: str | Path,
+    mission_path: str | Path,
+    expected_mission_sha256: str,
+    verification_context: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    graph, manifest = _context(verification_context)
+    qualification = policy.authenticate_weaver_2021_full_text_policy(
+        repository_root=repository_root,
+        mission_path=mission_path,
+        expected_mission_sha256=expected_mission_sha256,
+    )
+    authorization = acquisition.build_derived_weaver_authorization(
+        qualification=qualification,
+        reference_graph=graph,
+        predecessor_manifest=manifest,
+    )
+    return qualification, authorization
+
+
+def _source_smoke_ok(report: Mapping[str, Any]) -> bool:
+    identity = report.get("article_identity")
+    return bool(
+        report.get("acquisition_status")
+        == "exact_weaver_primary_full_text_acquired_and_identity_verified"
+        and isinstance(identity, Mapping)
+        and identity.get("article_identity_established") is True
+        and report.get("core_claims_matched") is True
+        and report.get("network_requests_performed") == 1
+        and report.get("caller_authored_url_used") is False
+        and report.get("caller_authored_pmcid_used") is False
+        and report.get("unrestricted_search_performed") is False
+        and report.get("literature_promoted_to_row_level_measurement_authority") is False
+        and report.get("acquisition_success_establishes_scientific_bridge") is False
+        and report.get("scientific_status_changed") is False
+    )
+
+
 def verify_weaver_2021_full_text_capability_candidate(
     *,
     capability_specification: Mapping[str, Any],
@@ -167,8 +220,9 @@ def verify_weaver_2021_full_text_capability_candidate(
     expected_mission_sha256: str,
     verification_context: Mapping[str, Any] | None,
     perform_real_source_smoke: bool = True,
+    retained_smoke_replay_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Verify semantic contract, exact source authority, deterministic replay and epistemic boundary."""
+    """Verify exact Weaver capability bytes and retain deterministic zero-network replay evidence."""
     _require(candidate.get("action_class") == capability.ACTION_CLASS, "candidate action drifted")
     _require(candidate.get("factory_id") == capability.FACTORY_ID, "candidate factory drifted")
     _require(
@@ -176,6 +230,7 @@ def verify_weaver_2021_full_text_capability_candidate(
         "candidate implementation drifted",
     )
     _require(candidate.get("mechanism") == capability.MECHANISM, "candidate mechanism drifted")
+
     deterministic_contract = bool(
         candidate.get("required_verified_primitives")
         == sorted(capability.REQUIRED_VERIFIED_PRIMITIVES)
@@ -187,55 +242,136 @@ def verify_weaver_2021_full_text_capability_candidate(
         and candidate.get("scientific_status_change_authorized") is False
         and candidate.get("self_promotion_requested") is False
     )
-    graph, manifest = _context(verification_context)
+    spec_sha = _bound_sha(
+        capability_specification,
+        "capability_specification_sha256_without_self_field",
+        "capability specification",
+    )
+    candidate_sha = _bound_sha(
+        candidate,
+        "capability_candidate_sha256_without_self_field",
+        "capability candidate",
+    )
+
     smoke_receipt: dict[str, Any] | None = None
+    replay_evidence: dict[str, Any] | None = None
     fixture_ok = False
     real_source_smoke_ok = False
     epistemic_boundary_ok = False
-    if perform_real_source_smoke:
-        qualification = policy.authenticate_weaver_2021_full_text_policy(
+
+    if retained_smoke_replay_evidence is not None:
+        replay_fetcher, retained_context = smoke_replay.authenticate_smoke_replay_evidence(
+            retained_smoke_replay_evidence,
+            action_class=capability.ACTION_CLASS,
+            capability_specification_sha256=spec_sha,
+            capability_candidate_sha256=candidate_sha,
+            mission_sha256=expected_mission_sha256,
+        )
+        _require(isinstance(retained_context, Mapping), "retained Weaver verifier context is missing")
+        if verification_context is not None:
+            _require(
+                _canonical_sha(retained_context) == _canonical_sha(verification_context),
+                "retained Weaver verification context drifted",
+            )
+        qualification, authorization = _qualification_and_authorization(
             repository_root=repository_root,
             mission_path=mission_path,
             expected_mission_sha256=expected_mission_sha256,
+            verification_context=retained_context,
         )
-        authorization = acquisition.build_derived_weaver_authorization(
-            qualification=qualification,
-            reference_graph=graph,
-            predecessor_manifest=manifest,
+        replayed = acquisition.execute_derived_weaver_acquisition(
+            authorization=authorization,
+            fetcher=replay_fetcher,
         )
-        first = acquisition.execute_derived_weaver_acquisition(authorization=authorization)
-        second = acquisition.execute_derived_weaver_acquisition(authorization=authorization)
-        fixture_ok = (
-            _self_hash_ok(first)
-            and _self_hash_ok(second)
-            and first.get("report_sha256_without_self_field")
-            == second.get("report_sha256_without_self_field")
-            and first.get("source", {}).get("source_sha256")
-            == second.get("source", {}).get("source_sha256")
-        )
-        epistemic_boundary_ok = _boundary_ok(first)
-        real_source_smoke_ok = bool(
-            first.get("acquisition_status")
-            == "exact_weaver_primary_full_text_acquired_and_identity_verified"
-            and first.get("article_identity", {}).get("article_identity_established") is True
-            and first.get("core_claims_matched") is True
-            and first.get("network_requests_performed") == 1
-            and first.get("caller_authored_url_used") is False
-            and first.get("caller_authored_pmcid_used") is False
-            and first.get("unrestricted_search_performed") is False
-            and first.get("literature_promoted_to_row_level_measurement_authority") is False
-            and first.get("acquisition_success_establishes_scientific_bridge") is False
-            and first.get("scientific_status_changed") is False
-        )
+        replay_fetcher.assert_consumed()
+        fixture_ok = _self_hash_ok(replayed)
+        real_source_smoke_ok = _source_smoke_ok(replayed)
+        epistemic_boundary_ok = _boundary_ok(replayed)
+        replay_evidence = dict(retained_smoke_replay_evidence)
         smoke_receipt = {
-            "schema_version": "1.0",
-            "smoke_status": "exact_weaver_pmc_source_and_boundary_replay_verified",
+            "schema_version": "1.1",
+            "smoke_status": "retained_exact_weaver_pmc_source_replayed_zero_network",
+            "qualification_policy_sha256": qualification.get("policy_sha256"),
+            "authorization_sha256": authorization.get("authorization_sha256"),
+            "weaver_evidence_sha256": replayed.get("report_sha256_without_self_field"),
+            "weaver_source_sha256": replayed.get("source", {}).get("source_sha256"),
+            "live_network_requests_performed": 0,
+            "deterministic_replay_fetch_invocations": 1,
+            "deterministic_replay_network_requests_performed": 0,
+            "execution_must_replay_retained_bytes": True,
+            "core_claims_matched": replayed.get("core_claims_matched") is True,
+            "evidence_self_hash_recomputed": fixture_ok,
+            "scientific_status_changed": False,
+        }
+        smoke_receipt["report_sha256_without_self_field"] = _canonical_sha(smoke_receipt)
+    elif perform_real_source_smoke:
+        qualification, authorization = _qualification_and_authorization(
+            repository_root=repository_root,
+            mission_path=mission_path,
+            expected_mission_sha256=expected_mission_sha256,
+            verification_context=verification_context,
+        )
+        recording = smoke_replay.RecordingFetcher(fetch_exact_source)
+        first = acquisition.execute_derived_weaver_acquisition(
+            authorization=authorization,
+            fetcher=recording,
+        )
+        first_self_hash_ok = _self_hash_ok(first)
+        if recording.records:
+            replay_evidence = smoke_replay.build_smoke_replay_evidence(
+                action_class=capability.ACTION_CLASS,
+                capability_specification_sha256=spec_sha,
+                capability_candidate_sha256=candidate_sha,
+                mission_sha256=expected_mission_sha256,
+                verification_context=verification_context,
+                fetch_records=recording.records,
+            )
+            replay_fetcher, retained_context = smoke_replay.authenticate_smoke_replay_evidence(
+                replay_evidence,
+                action_class=capability.ACTION_CLASS,
+                capability_specification_sha256=spec_sha,
+                capability_candidate_sha256=candidate_sha,
+                mission_sha256=expected_mission_sha256,
+            )
+            _require(isinstance(retained_context, Mapping), "retained Weaver verifier context is missing")
+            replay_qualification, replay_authorization = _qualification_and_authorization(
+                repository_root=repository_root,
+                mission_path=mission_path,
+                expected_mission_sha256=expected_mission_sha256,
+                verification_context=retained_context,
+            )
+            _require(
+                replay_qualification.get("policy_sha256") == qualification.get("policy_sha256")
+                and replay_authorization.get("authorization_sha256")
+                == authorization.get("authorization_sha256"),
+                "Weaver replay authority drifted",
+            )
+            second = acquisition.execute_derived_weaver_acquisition(
+                authorization=replay_authorization,
+                fetcher=replay_fetcher,
+            )
+            replay_fetcher.assert_consumed()
+            fixture_ok = bool(
+                first_self_hash_ok
+                and _self_hash_ok(second)
+                and first.get("report_sha256_without_self_field")
+                == second.get("report_sha256_without_self_field")
+                and first.get("source", {}).get("source_sha256")
+                == second.get("source", {}).get("source_sha256")
+            )
+        real_source_smoke_ok = _source_smoke_ok(first)
+        epistemic_boundary_ok = _boundary_ok(first)
+        smoke_receipt = {
+            "schema_version": "1.1",
+            "smoke_status": "exact_weaver_pmc_source_recorded_and_zero_network_replayed",
             "qualification_policy_sha256": qualification.get("policy_sha256"),
             "authorization_sha256": authorization.get("authorization_sha256"),
             "weaver_evidence_sha256": first.get("report_sha256_without_self_field"),
             "weaver_source_sha256": first.get("source", {}).get("source_sha256"),
-            "network_requests_performed": 2,
-            "execution_evidence_reuse_authorized": False,
+            "live_network_requests_performed": 1 if recording.records else 0,
+            "deterministic_replay_fetch_invocations": 1 if replay_evidence is not None else 0,
+            "deterministic_replay_network_requests_performed": 0,
+            "execution_must_replay_retained_bytes": True,
             "core_claims_matched": first.get("core_claims_matched") is True,
             "evidence_self_hash_recomputed": fixture_ok,
             "scientific_status_changed": False,
@@ -246,6 +382,7 @@ def verify_weaver_2021_full_text_capability_candidate(
         "capability_descriptor_sha256": _module_sha(capability, "capability descriptor"),
         "acquisition_adapter_sha256": _module_sha(acquisition, "acquisition adapter"),
         "policy_authenticator_sha256": _module_sha(policy, "policy authenticator"),
+        "smoke_replay_helper_sha256": _module_sha(smoke_replay, "smoke replay helper"),
     }
     implementation_sha = _canonical_sha(component_hashes)
     verifier_sha = hashlib.sha256(Path(__file__).resolve(strict=True).read_bytes()).hexdigest()
@@ -266,6 +403,9 @@ def verify_weaver_2021_full_text_capability_candidate(
     )
     unsigned = dict(receipt)
     unsigned.pop("capability_verification_sha256_without_self_field", None)
+    replay_sha = None
+    if replay_evidence is not None:
+        replay_sha = replay_evidence.get("smoke_replay_evidence_sha256_without_self_field")
     unsigned.update(
         {
             "verifier_schema_version": VERIFIER_SCHEMA_VERSION,
@@ -276,10 +416,11 @@ def verify_weaver_2021_full_text_capability_candidate(
             "verifier_sha256": verifier_sha,
             "real_source_smoke_receipt": smoke_receipt,
             "real_source_smoke_receipt_sha256": (
-                None
-                if smoke_receipt is None
-                else smoke_receipt["report_sha256_without_self_field"]
+                None if smoke_receipt is None else smoke_receipt["report_sha256_without_self_field"]
             ),
+            "real_source_smoke_replay_evidence": replay_evidence,
+            "real_source_smoke_replay_evidence_sha256": replay_sha,
+            "historical_reverification_network_requests_performed": 0,
         }
     )
     unsigned["capability_verification_sha256_without_self_field"] = _canonical_sha(unsigned)
