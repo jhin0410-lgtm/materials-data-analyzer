@@ -43,7 +43,10 @@ def test_exact_zenodo_get_preserves_shared_transport_subtype(
     monkeypatch.setattr(driver, "fetch_https_bytes", fail_transport)
 
     with pytest.raises(PublicAcquisitionTransportError):
-        driver._exact_zenodo_get("https://zenodo.org/api/records/20503603")
+        driver._exact_zenodo_get(
+            "https://zenodo.org/api/records/20503603",
+            expected_path="/api/records/20503603",
+        )
 
 
 def test_exact_zenodo_get_maps_shared_hard_failure_to_driver_error(
@@ -58,9 +61,68 @@ def test_exact_zenodo_get_maps_shared_hard_failure_to_driver_error(
         driver.AutonomousProductionDriverError,
         match="trust/integrity boundary",
     ) as caught:
-        driver._exact_zenodo_get("https://zenodo.org/api/records/20503603")
+        driver._exact_zenodo_get(
+            "https://zenodo.org/api/records/20503603",
+            expected_path="/api/records/20503603",
+        )
 
     assert not isinstance(caught.value, driver.AutonomousProductionTransportStop)
+
+
+def test_exact_zenodo_get_rejects_same_host_route_before_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    network_called = False
+
+    def must_not_fetch(*_: object, **__: object) -> FetchResult:
+        nonlocal network_called
+        network_called = True
+        return FetchResult(
+            body=b"unexpected",
+            status_code=200,
+            final_url="https://zenodo.org/api/records/20503604",
+        )
+
+    monkeypatch.setattr(driver, "fetch_https_bytes", must_not_fetch)
+
+    with pytest.raises(
+        driver.AutonomousProductionDriverError,
+        match="exact authorized Zenodo production route",
+    ):
+        driver._exact_zenodo_get(
+            "https://zenodo.org/api/records/20503604",
+            expected_path="/api/records/20503603",
+        )
+
+    assert network_called is False
+
+
+def test_exact_zenodo_get_rejects_query_before_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    network_called = False
+
+    def must_not_fetch(*_: object, **__: object) -> FetchResult:
+        nonlocal network_called
+        network_called = True
+        return FetchResult(
+            body=b"unexpected",
+            status_code=200,
+            final_url="https://zenodo.org/api/records/20503603?download=1",
+        )
+
+    monkeypatch.setattr(driver, "fetch_https_bytes", must_not_fetch)
+
+    with pytest.raises(
+        driver.AutonomousProductionDriverError,
+        match="exact authorized Zenodo production route",
+    ):
+        driver._exact_zenodo_get(
+            "https://zenodo.org/api/records/20503603?download=1",
+            expected_path="/api/records/20503603",
+        )
+
+    assert network_called is False
 
 
 def test_record_transport_stop_is_self_authenticated_before_raise(tmp_path: Path) -> None:

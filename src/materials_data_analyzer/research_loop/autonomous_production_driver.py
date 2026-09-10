@@ -170,20 +170,30 @@ def _repo_output(root: Path, output: Path) -> Path:
 def _exact_zenodo_get(
     url: str,
     *,
+    expected_path: str,
     max_bytes: int = _ZENODO_CONTROL_PLANE_MAX_BYTES,
     timeout: float = _ZENODO_CONTROL_PLANE_TIMEOUT_SECONDS,
 ) -> bytes:
     parsed = urllib.parse.urlparse(url)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise AutonomousProductionDriverError(
+            f"network target contains an invalid port: {url}"
+        ) from exc
     if (
         parsed.scheme.lower() != "https"
         or (parsed.hostname or "").lower() != "zenodo.org"
         or parsed.username is not None
         or parsed.password is not None
-        or parsed.port not in (None, 443)
+        or port not in (None, 443)
+        or parsed.params
+        or parsed.query
         or parsed.fragment
+        or urllib.parse.unquote(parsed.path) != expected_path
     ):
         raise AutonomousProductionDriverError(
-            f"network target left exact Zenodo HTTPS authority: {url}"
+            f"network target left exact authorized Zenodo production route: {url}"
         )
     request = urllib.request.Request(
         url,
@@ -509,9 +519,11 @@ def run_autonomous_production(
         "IN625 verified source config",
     )
     record_url = network_policy["record_api_url"]
+    record_path = urllib.parse.unquote(urllib.parse.urlparse(record_url).path)
     try:
         metadata_bytes = _exact_zenodo_get(
             record_url,
+            expected_path=record_path,
             max_bytes=_ZENODO_CONTROL_PLANE_MAX_BYTES,
         )
     except PublicAcquisitionTransportError as exc:
@@ -553,9 +565,11 @@ def run_autonomous_production(
     readme_size = readme_rule.get("size_bytes")
     if isinstance(readme_size, bool) or not isinstance(readme_size, int) or readme_size <= 0:
         raise AutonomousProductionDriverError("source config README size is invalid")
+    expected_readme_path = f"{record_path}/files/{readme_name}/content"
     try:
         readme_bytes = _exact_zenodo_get(
             readme_url,
+            expected_path=expected_readme_path,
             max_bytes=readme_size + 1,
         )
     except PublicAcquisitionTransportError as exc:
