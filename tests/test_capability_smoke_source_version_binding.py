@@ -96,7 +96,7 @@ def _discovery_fixture(script_token: str, *, target: str = "test") -> bytes:
 
 def _candidate_fixture(script_token: str) -> bytes:
     return (
-        "<html><body>Published Author(s) "
+        "<html><body>Published Author(s) Download Paper "
         '<a href="https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935350">'
         f"{candidate_policy.FULL_TEXT_LINK_LABEL}</a>"
         f"<script>volatile_runtime_token={script_token}</script>"
