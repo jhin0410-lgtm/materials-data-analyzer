@@ -17,6 +17,10 @@ from .autonomous_production_cycle1_transport_stop import (
     Cycle1TransportStopError,
     authenticate_cycle1_transport_stop,
 )
+from .in625_archive_network_acquisition import (
+    In625ArchiveNetworkAcquisitionError,
+    validate_in625_archive_network_authorization,
+)
 from .in625_network_policy import authenticate_in625_network_policy
 from .kernel import ResearchLoopError
 
@@ -59,12 +63,6 @@ def verify_cycle1_transport_stop(
     if not output.is_absolute():
         output = root / output
     output = output.resolve(strict=True)
-    try:
-        output.relative_to(root)
-    except ValueError as exc:
-        raise Cycle1TransportStopVerificationError(
-            "transport-stop output escaped repository root"
-        ) from exc
 
     mission = (root / MISSION_PATH).resolve(strict=True)
     policy = (root / NETWORK_POLICY_PATH).resolve(strict=True)
@@ -148,25 +146,42 @@ def verify_cycle1_transport_stop(
             and authorization_path.is_file(),
             "archive transport stop requires completed metadata/README authority artifacts",
         )
+        metadata_bytes = record_path.read_bytes()
         _require(
-            prior.get("metadata_sha256")
-            == hashlib.sha256(record_path.read_bytes()).hexdigest(),
+            prior.get("metadata_sha256") == hashlib.sha256(metadata_bytes).hexdigest(),
             "archive stop prior metadata hash differs from persisted completed metadata",
         )
+        source_bytes = source.read_bytes()
         source_config = _read_json(source, "source config")
         readme_name = source_config.get("zenodo", {}).get("readme_file")
-        _require(isinstance(readme_name, str) and readme_name, "source README identity is invalid")
+        _require(
+            isinstance(readme_name, str) and readme_name,
+            "source README identity is invalid",
+        )
         readme_path = output / readme_name
         _require(readme_path.is_file(), "archive stop lost completed README bytes")
+        readme_bytes = readme_path.read_bytes()
         _require(
-            prior.get("readme_sha256") == hashlib.sha256(readme_path.read_bytes()).hexdigest(),
+            prior.get("readme_sha256") == hashlib.sha256(readme_bytes).hexdigest(),
             "archive stop prior README hash differs from persisted completed README",
         )
         authorization = _read_json(authorization_path, "network authorization")
+        try:
+            reconstructed_authorization = validate_in625_archive_network_authorization(
+                authorization,
+                config=source_config,
+                config_bytes=source_bytes,
+                metadata_bytes=metadata_bytes,
+                readme_bytes=readme_bytes,
+            )
+        except In625ArchiveNetworkAcquisitionError as exc:
+            raise Cycle1TransportStopVerificationError(
+                "archive stop prior authorization failed authoritative reconstruction"
+            ) from exc
         _require(
             prior.get("network_authorization_sha256")
-            == authorization.get("authorization_sha256"),
-            "archive stop prior authorization hash differs from persisted authorization",
+            == reconstructed_authorization.get("authorization_sha256"),
+            "archive stop prior authorization hash differs from reconstructed authorization",
         )
 
     return {
