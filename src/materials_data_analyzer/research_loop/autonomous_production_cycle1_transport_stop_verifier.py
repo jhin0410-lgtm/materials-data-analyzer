@@ -93,6 +93,67 @@ def _published_record_file_route(
     return value
 
 
+def _completed_metadata_control_plane_witness(
+    output: Path,
+    *,
+    record_id: int,
+    readme_name: str,
+    requested_readme_url: str | None,
+) -> tuple[bytes, str]:
+    """Replay completed record metadata without granting it source/scientific authority."""
+    record_path = output / "record.json"
+    _require(
+        record_path.is_file(),
+        "post-metadata transport stop requires retained completed record metadata",
+    )
+    metadata_bytes = record_path.read_bytes()
+    try:
+        metadata = json.loads(metadata_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Cycle1TransportStopVerificationError(
+            "retained completed record metadata must be valid UTF-8 JSON"
+        ) from exc
+    _require(
+        isinstance(metadata, Mapping),
+        "retained completed record metadata root must be an object",
+    )
+    _require(
+        metadata.get("id") == record_id,
+        "retained completed record metadata record identity drifted",
+    )
+    files = metadata.get("files")
+    _require(
+        isinstance(files, list),
+        "retained completed record metadata files must be a list",
+    )
+    matches = [
+        item
+        for item in files
+        if isinstance(item, Mapping) and item.get("key") == readme_name
+    ]
+    _require(
+        len(matches) == 1,
+        "retained completed record metadata must contain exactly one configured README entry",
+    )
+    links = matches[0].get("links")
+    _require(
+        isinstance(links, Mapping),
+        "retained completed record metadata README links are missing",
+    )
+    metadata_readme_url = _published_record_file_route(
+        links.get("self"),
+        record_id=record_id,
+        file_name=readme_name,
+        field="retained metadata README self URL",
+    )
+    if requested_readme_url is not None:
+        _require(
+            metadata_readme_url == requested_readme_url,
+            "README stop requested URL differs from retained completed metadata",
+        )
+    return metadata_bytes, metadata_readme_url
+
+
 def verify_cycle1_transport_stop(
     *, repository_root: str | Path, output_root: str | Path
 ) -> dict[str, Any]:
@@ -194,6 +255,7 @@ def verify_cycle1_transport_stop(
     prior = stop["observed_prior_evidence"]
     requested_url = stop["requested_url"]
     requested_route_basis: str
+    completed_metadata_witness_replayed = False
     if stage == "zenodo_record_metadata":
         expected_record_url = qualification.get("record_api_url")
         _require(
@@ -202,6 +264,10 @@ def verify_cycle1_transport_stop(
             "metadata stop requested URL differs from reconstructed standing-policy record API",
         )
         requested_route_basis = "standing_network_policy_record_api"
+        _require(
+            not (output / "record.json").exists(),
+            "metadata transport stop may not retain nonexistent completed metadata",
+        )
         _require(
             not (output / "source-readme-manifest.json").exists(),
             "metadata transport stop may not promote partial control-plane bytes to source evidence",
@@ -217,7 +283,22 @@ def verify_cycle1_transport_stop(
             file_name=readme_name,
             field="README stop requested URL",
         )
-        requested_route_basis = "pinned_record_and_readme_content_route"
+        metadata_bytes, _ = _completed_metadata_control_plane_witness(
+            output,
+            record_id=record_id,
+            readme_name=readme_name,
+            requested_readme_url=requested_url,
+        )
+        _require(
+            prior.get("metadata_sha256") == hashlib.sha256(metadata_bytes).hexdigest(),
+            "README stop prior metadata hash differs from retained completed metadata",
+        )
+        completed_metadata_witness_replayed = True
+        requested_route_basis = "retained_metadata_and_pinned_readme_content_route"
+        _require(
+            not (output / readme_name).exists(),
+            "README transport stop may not retain failed README bytes as completed evidence",
+        )
         _require(
             not (output / "source-readme-manifest.json").exists(),
             "README transport stop may not promote partial control-plane bytes to source evidence",
@@ -227,20 +308,23 @@ def verify_cycle1_transport_stop(
             "README transport stop may not emit archive authorization",
         )
     elif stage == "zenodo_archive":
-        record_path = output / "record.json"
         source_manifest_path = output / "source-readme-manifest.json"
         authorization_path = output / "network-authorization.json"
         _require(
-            record_path.is_file()
-            and source_manifest_path.is_file()
-            and authorization_path.is_file(),
+            source_manifest_path.is_file() and authorization_path.is_file(),
             "archive transport stop requires completed metadata/README authority artifacts",
         )
-        metadata_bytes = record_path.read_bytes()
+        metadata_bytes, _ = _completed_metadata_control_plane_witness(
+            output,
+            record_id=record_id,
+            readme_name=readme_name,
+            requested_readme_url=None,
+        )
         _require(
             prior.get("metadata_sha256") == hashlib.sha256(metadata_bytes).hexdigest(),
             "archive stop prior metadata hash differs from persisted completed metadata",
         )
+        completed_metadata_witness_replayed = True
         readme_path = output / readme_name
         _require(readme_path.is_file(), "archive stop lost completed README bytes")
         readme_bytes = readme_path.read_bytes()
@@ -293,6 +377,7 @@ def verify_cycle1_transport_stop(
         "request_ordinal": stop["request_ordinal"],
         "requested_url_authenticated": True,
         "requested_route_basis": requested_route_basis,
+        "completed_metadata_control_plane_witness_replayed": completed_metadata_witness_replayed,
         "stop_sha256_without_self_field": stop["stop_sha256_without_self_field"],
         "mission_sha256": EXPECTED_MISSION_SHA256,
         "network_policy_sha256": qualification["policy_sha256"],

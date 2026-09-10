@@ -559,6 +559,10 @@ def run_autonomous_production(
             max_bytes=readme_size + 1,
         )
     except PublicAcquisitionTransportError as exc:
+        # The metadata request completed successfully. Retain its exact bytes only as a
+        # control-plane witness so the README-stage prior hash and derived URL can be
+        # replayed independently; this does not grant source or scientific authority.
+        (output / "record.json").write_bytes(metadata_bytes)
         _raise_cycle1_transport_stop(
             output=output,
             observed_mission_sha=observed_mission_sha,

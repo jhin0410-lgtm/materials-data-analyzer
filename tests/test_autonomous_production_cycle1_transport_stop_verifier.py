@@ -32,8 +32,13 @@ MISSION = REPOSITORY_ROOT / "configs/research/autonomous_in625_production_missio
 POLICY = REPOSITORY_ROOT / "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
 SOURCE = REPOSITORY_ROOT / "configs/research/in625_zenodo_20503603_verified_source.v1.json"
 METADATA_URL = "https://zenodo.org/api/records/20503603"
+README_NAME = "README - Dataset description.txt"
 README_URL = (
     "https://zenodo.org/api/records/20503603/files/"
+    "README%20-%20Dataset%20description.txt/content"
+)
+README_URL_EXPLICIT_443 = (
+    "https://zenodo.org:443/api/records/20503603/files/"
     "README%20-%20Dataset%20description.txt/content"
 )
 ARCHIVE_URL = "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
@@ -47,6 +52,25 @@ def _qualification() -> dict[str, object]:
         policy_path=POLICY,
         source_config_path=SOURCE,
     )
+
+
+def _metadata_bytes(
+    *,
+    readme_url: str = README_URL,
+    record_id: int = 20503603,
+    duplicate_readme: bool = False,
+) -> bytes:
+    files: list[dict[str, object]] = [
+        {"key": README_NAME, "links": {"self": readme_url}},
+        {"key": "Dataset.zip", "links": {"self": ARCHIVE_URL}},
+    ]
+    if duplicate_readme:
+        files.append({"key": README_NAME, "links": {"self": readme_url}})
+    return json.dumps(
+        {"id": record_id, "files": files},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
 def _persist_stop(output: Path, stop: dict[str, object]) -> None:
@@ -76,10 +100,12 @@ def _write_stop(output: Path, *, stage: str = "zenodo_record_metadata") -> dict[
     error_class = "PublicAcquisitionTransportError"
     requested_url = METADATA_URL
     if stage == "zenodo_readme":
-        prior = {"metadata_sha256": "a" * 64}
+        metadata = _metadata_bytes()
+        (output / "record.json").write_bytes(metadata)
+        prior = {"metadata_sha256": hashlib.sha256(metadata).hexdigest()}
         requested_url = README_URL
     elif stage == "zenodo_archive":
-        metadata = b'{"id":20503603}'
+        metadata = _metadata_bytes()
         source_config = json.loads(SOURCE.read_text(encoding="utf-8"))
         readme_name = source_config["zenodo"]["readme_file"]
         readme = b"completed readme bytes"
@@ -128,6 +154,7 @@ def test_verifier_reconstructs_current_authority_for_metadata_stop(tmp_path: Pat
     assert result["stage"] == "zenodo_record_metadata"
     assert result["requested_url_authenticated"] is True
     assert result["requested_route_basis"] == "standing_network_policy_record_api"
+    assert result["completed_metadata_control_plane_witness_replayed"] is False
     assert result["stop_sha256_without_self_field"] == stop["stop_sha256_without_self_field"]
     assert result["provider_event_externally_attested"] is False
     assert result["full_autonomous_live_gate_satisfied"] is False
@@ -145,7 +172,11 @@ def test_verifier_authenticates_pinned_readme_content_route(tmp_path: Path) -> N
 
     assert result["stage"] == "zenodo_readme"
     assert result["requested_url_authenticated"] is True
-    assert result["requested_route_basis"] == "pinned_record_and_readme_content_route"
+    assert result["requested_route_basis"] == (
+        "retained_metadata_and_pinned_readme_content_route"
+    )
+    assert result["completed_metadata_control_plane_witness_replayed"] is True
+    assert result["provider_event_externally_attested"] is False
 
 
 def test_verifier_rejects_bounded_stop_copy_drift(tmp_path: Path) -> None:
@@ -195,9 +226,7 @@ def test_verifier_rejects_rehashed_same_host_metadata_url_forgery(tmp_path: Path
 def test_verifier_rejects_rehashed_same_host_readme_route_forgery(tmp_path: Path) -> None:
     output = tmp_path / "stop"
     stop = _write_stop(output, stage="zenodo_readme")
-    stop["requested_url"] = (
-        "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
-    )
+    stop["requested_url"] = ARCHIVE_URL
     _persist_stop(output, _rehash(stop))
 
     with pytest.raises(Cycle1TransportStopVerificationError, match="pinned published-record"):
@@ -219,6 +248,90 @@ def test_intrinsic_stop_rejects_query_bearing_zenodo_url() -> None:
         )
 
 
+def test_metadata_stop_rejects_retained_completed_record_witness(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    (output / "record.json").write_bytes(_metadata_bytes())
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="nonexistent completed metadata",
+    ):
+        verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+
+def test_readme_stop_requires_retained_completed_metadata_witness(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_readme")
+    (output / "record.json").unlink()
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="requires retained completed record metadata",
+    ):
+        verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+
+def test_readme_stop_rejects_metadata_byte_drift(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_readme")
+    metadata = json.loads((output / "record.json").read_text(encoding="utf-8"))
+    metadata["runtime_noise"] = "changed-after-stop"
+    (output / "record.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="prior metadata hash",
+    ):
+        verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+
+def test_readme_stop_rejects_self_consistent_metadata_url_forgery(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    stop = _write_stop(output, stage="zenodo_readme")
+    forged_metadata = _metadata_bytes(readme_url=README_URL_EXPLICIT_443)
+    (output / "record.json").write_bytes(forged_metadata)
+    prior = stop["observed_prior_evidence"]
+    assert isinstance(prior, dict)
+    prior["metadata_sha256"] = hashlib.sha256(forged_metadata).hexdigest()
+    _persist_stop(output, _rehash(stop))
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="differs from retained completed metadata",
+    ):
+        verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+
+def test_readme_stop_rejects_duplicate_metadata_readme_identity(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    stop = _write_stop(output, stage="zenodo_readme")
+    forged_metadata = _metadata_bytes(duplicate_readme=True)
+    (output / "record.json").write_bytes(forged_metadata)
+    prior = stop["observed_prior_evidence"]
+    assert isinstance(prior, dict)
+    prior["metadata_sha256"] = hashlib.sha256(forged_metadata).hexdigest()
+    _persist_stop(output, _rehash(stop))
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="exactly one configured README entry",
+    ):
+        verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+
+def test_readme_stop_rejects_failed_readme_bytes_as_completed_evidence(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_readme")
+    (output / README_NAME).write_bytes(b"partial failed response")
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="failed README bytes",
+    ):
+        verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+
 def test_archive_stop_verifier_replays_prior_completed_byte_bindings(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -238,9 +351,12 @@ def test_archive_stop_verifier_replays_prior_completed_byte_bindings(
     assert result["stage"] == "zenodo_archive"
     assert result["requested_url_authenticated"] is True
     assert result["requested_route_basis"] == "reconstructed_archive_authorization"
+    assert result["completed_metadata_control_plane_witness_replayed"] is True
 
     record = output / "record.json"
-    record.write_bytes(record.read_bytes() + b"tamper")
+    metadata = json.loads(record.read_text(encoding="utf-8"))
+    metadata["runtime_noise"] = "tamper"
+    record.write_text(json.dumps(metadata), encoding="utf-8")
     with pytest.raises(Cycle1TransportStopVerificationError, match="prior metadata hash"):
         verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
 
