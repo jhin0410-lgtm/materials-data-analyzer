@@ -1,15 +1,15 @@
 """Current-mission facade for the reviewed Weaver full-text policy implementation.
 
-The source/acquisition policy is unchanged. This facade rebinds only the separately versioned
-Weaver authority extension to the current immutable autonomous-production mission bytes after
-upstream provenance/recovery hardening changed the base mission SHA.
+The source/acquisition policy is unchanged. This facade binds the separately versioned Weaver
+authority extension to the exact immutable mission bytes that are present in the current reviewed
+stack.  The extension itself is independently exact-byte pinned.
 """
 from __future__ import annotations
 
 from . import weaver_2021_full_text_policy_impl as _impl
 
-CURRENT_BASE_MISSION_SHA256 = "7de1c78d1411805623a4687a6d1956517edc009abe5790a0870e89ab6ccb4e88"
-CURRENT_AUTHORITY_EXTENSION_SHA256 = "ea9665470bccefa3c0d84c11dc888ed63fd544cdceb6d5dd8d61ba50ef252e30"
+CURRENT_BASE_MISSION_SHA256 = "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea"
+CURRENT_AUTHORITY_EXTENSION_SHA256 = "e8954d0b2f9af071db928b9750ca87eff3fe950c0753a79daf23567a7e833fc6"
 
 _impl.BASE_MISSION_SHA256 = CURRENT_BASE_MISSION_SHA256
 _impl.AUTHORITY_EXTENSION_SHA256 = CURRENT_AUTHORITY_EXTENSION_SHA256
