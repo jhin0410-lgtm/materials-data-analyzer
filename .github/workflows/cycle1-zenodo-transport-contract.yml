@@ -1,0 +1,122 @@
+name: Cycle-1 Zenodo transport contract
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/cycle1-zenodo-transport-contract.yml"
+      - "configs/research/autonomous_in625_production_mission.v1.json"
+      - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
+      - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+      - "src/materials_data_analyzer/research_program_cli.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop_verifier.py"
+      - "src/materials_data_analyzer/research_loop/in625_archive_network_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "tests/test_autonomous_production_cycle1_transport_*.py"
+      - "tests/test_in625_archive_network_transport_errors.py"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cycle1-zenodo-transport-contract.yml"
+      - "configs/research/autonomous_in625_production_mission.v1.json"
+      - "configs/research/in625_zenodo_network_acquisition_policy.v1.json"
+      - "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+      - "src/materials_data_analyzer/research_program_cli.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_driver.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop.py"
+      - "src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop_verifier.py"
+      - "src/materials_data_analyzer/research_loop/in625_archive_network_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "tests/test_autonomous_production_cycle1_transport_*.py"
+      - "tests/test_in625_archive_network_transport_errors.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-cycle1-transport-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install repository development environment
+        run: python -m pip install -e ".[dev]"
+      - name: Run cycle-1 transport adversarial tests
+        run: >-
+          python -m pytest -q
+          tests/test_autonomous_production_cycle1_transport_stop.py
+          tests/test_autonomous_production_cycle1_transport_recovery.py
+          tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          tests/test_in625_archive_network_transport_errors.py
+          tests/test_public_data_acquisition_transport_errors.py
+          tests/test_in625_archive_network_acquisition.py
+          tests/test_autonomous_production_driver.py
+      - name: Run exact cycle-1 live command without masking its outcome
+        id: live_cycle1
+        shell: bash
+        run: |
+          set +e
+          mda-research-program run-autonomous --max-cycles 1
+          status=$?
+          set -e
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+          echo "cycle-1 command exit code: ${status}"
+      - name: Verify provider-available cycle-1 completion
+        if: steps.live_cycle1.outputs.exit_code == '0'
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/autonomous-in625-production")
+          manifest = json.loads(
+              (root / "autonomous-production-manifest.json").read_text(encoding="utf-8")
+          )
+          assert manifest["cycles"]
+          assert manifest["cycles"][0]["cycle_index"] == 1
+          assert manifest["scientific_status_changed"] is False
+          assert manifest["positive_scientific_closeout_established"] is False
+          assert manifest["global_evidence_unavailability_claimed"] is False
+          assert not (root / "cycle-1-transport-stop.json").exists()
+      - name: Independently authenticate provider-unavailable cycle-1 stop
+        if: steps.live_cycle1.outputs.exit_code != '0'
+        shell: python
+        run: |
+          from materials_data_analyzer.research_loop.autonomous_production_cycle1_transport_stop_verifier import (
+              verify_cycle1_transport_stop,
+          )
+
+          result = verify_cycle1_transport_stop(
+              repository_root=".",
+              output_root="outputs/autonomous-in625-production",
+          )
+          assert result["verification_status"] == "cycle_1_transport_stop_authenticated"
+          assert result["provider_event_externally_attested"] is False
+          assert result["full_autonomous_live_gate_satisfied"] is False
+          assert result["scientific_status_changed"] is False
+          print(result)
+      - name: Upload cycle-1 bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cycle1-zenodo-transport-contract
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            outputs/autonomous-in625-production/standing-network-policy-qualification.json
+            outputs/autonomous-in625-production/cycle-1-transport-stop.json
+            outputs/autonomous-in625-production/bounded-stop.json
+            outputs/autonomous-in625-production/autonomous-production-manifest.json
+            outputs/autonomous-in625-production/source-readme-manifest.json
+            outputs/autonomous-in625-production/network-authorization.json
+            outputs/autonomous-in625-production/record.json
+            outputs/autonomous-in625-production/README - Dataset description.txt
