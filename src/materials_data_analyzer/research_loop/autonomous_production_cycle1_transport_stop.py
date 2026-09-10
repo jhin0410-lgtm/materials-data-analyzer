@@ -27,6 +27,11 @@ _STAGE_ORDINALS = {
     "zenodo_readme": 2,
     "zenodo_archive": 3,
 }
+_STAGE_TRANSPORT_ERROR_CLASSES = {
+    "zenodo_record_metadata": "PublicAcquisitionTransportError",
+    "zenodo_readme": "PublicAcquisitionTransportError",
+    "zenodo_archive": "In625ArchiveNetworkTransportError",
+}
 _STAGE_PRIOR_KEYS = {
     "zenodo_record_metadata": frozenset(),
     "zenodo_readme": frozenset({"metadata_sha256"}),
@@ -117,6 +122,16 @@ def _exact_https_zenodo_url(value: object) -> str:
     return text
 
 
+def _transport_error_class(value: object, stage: str) -> str:
+    text = _text(value, "transport_error_class")
+    expected = _STAGE_TRANSPORT_ERROR_CLASSES[stage]
+    if text != expected:
+        raise Cycle1TransportStopError(
+            "transport_error_class does not match the trusted transient type for the failed stage"
+        )
+    return text
+
+
 def build_cycle1_transport_stop(
     *,
     mission_sha256: str,
@@ -171,8 +186,8 @@ def build_cycle1_transport_stop(
             "maximum_network_requests_per_cycle": 3,
         },
         "observed_prior_evidence": normalized_prior,
-        "transport_error_class": _text(
-            transport_error_class, "transport_error_class"
+        "transport_error_class": _transport_error_class(
+            transport_error_class, stage
         ),
         "transport_error_detail": _text(
             transport_error_detail, "transport_error_detail"
@@ -240,7 +255,7 @@ def authenticate_cycle1_transport_stop(value: object) -> dict[str, Any]:
         raise Cycle1TransportStopError("cycle-1 prior-evidence binding drifted")
     for key, digest in prior.items():
         _sha(digest, f"observed_prior_evidence.{key}")
-    _text(stop.get("transport_error_class"), "transport_error_class")
+    _transport_error_class(stop.get("transport_error_class"), stage)
     _text(stop.get("transport_error_detail"), "transport_error_detail")
 
     required_false = (
