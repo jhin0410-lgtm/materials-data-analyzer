@@ -585,3 +585,41 @@ def test_readme_stop_rejects_impossible_archive_success_artifacts(
             repository_root=REPOSITORY_ROOT,
             output_root=output,
         )
+
+@pytest.mark.parametrize(
+    "artifact_name",
+    [
+        "selected-source-files",
+        "archive-manifest.json",
+        "reviewed-tensile",
+        "tensile-quality-verification.json",
+        "typed-research-objective.json",
+        "typed-research-run",
+        "cycle-1-planning.json",
+        "machine-authored-request",
+        "machine-request-compilation.json",
+        "typed-execution-handoff.json",
+        "typed-execution-result.json",
+        "typed-research-state.json",
+        "quality-aware-rediagnosis.json",
+        "physical-comparability-assessment.json",
+    ],
+)
+def test_transport_stop_rejects_known_post_archive_production_outputs(
+    tmp_path: Path,
+    artifact_name: str,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    artifact = output / artifact_name
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_text("forged downstream production artifact", encoding="utf-8")
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="post-archive production artifact",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )

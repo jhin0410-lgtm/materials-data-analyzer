@@ -38,6 +38,22 @@ NETWORK_POLICY_PATH = "configs/research/in625_zenodo_network_acquisition_policy.
 SOURCE_CONFIG_PATH = "configs/research/in625_zenodo_20503603_verified_source.v1.json"
 STOP_PATH = "cycle-1-transport-stop.json"
 ZENODO_HOST = "zenodo.org"
+_POST_ARCHIVE_PRODUCTION_PATHS = (
+    "selected-source-files",
+    "archive-manifest.json",
+    "reviewed-tensile",
+    "tensile-quality-verification.json",
+    "typed-research-objective.json",
+    "typed-research-run",
+    "cycle-1-planning.json",
+    "machine-authored-request",
+    "machine-request-compilation.json",
+    "typed-execution-handoff.json",
+    "typed-execution-result.json",
+    "typed-research-state.json",
+    "quality-aware-rediagnosis.json",
+    "physical-comparability-assessment.json",
+)
 
 
 class Cycle1TransportStopVerificationError(ResearchLoopError):
@@ -254,6 +270,12 @@ def verify_cycle1_transport_stop(
         not (output / "network-acquisition-receipt.json").exists(),
         "transport stop may not retain a completed network acquisition receipt",
     )
+    for relative_path in _POST_ARCHIVE_PRODUCTION_PATHS:
+        _require(
+            not (output / relative_path).exists(),
+            "transport stop may not retain post-archive production artifact: "
+            f"{relative_path}",
+        )
 
     bounded = _read_json(output / "bounded-stop.json", "bounded stop")
     _require(
