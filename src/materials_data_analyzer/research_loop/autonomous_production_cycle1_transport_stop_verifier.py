@@ -25,6 +25,7 @@ from .in625_archive_network_acquisition import (
 from .in625_network_policy import authenticate_in625_network_policy
 from .in625_zenodo_live_evidence import (
     In625ZenodoLiveEvidenceError,
+    build_verified_in625_zenodo_readme_manifest,
     validate_verified_in625_zenodo_metadata,
 )
 from .kernel import ResearchLoopError
@@ -43,9 +44,23 @@ class Cycle1TransportStopVerificationError(ResearchLoopError):
     """Raised when a cycle-1 transport stop does not match current trusted authority."""
 
 
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise Cycle1TransportStopVerificationError(
+                f"duplicate JSON key is not allowed: {key}"
+            )
+        result[key] = value
+    return result
+
+
 def _read_json(path: Path, field: str) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_pairs,
+        )
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise Cycle1TransportStopVerificationError(
             f"{field} must be valid UTF-8 JSON"
@@ -324,6 +339,32 @@ def verify_cycle1_transport_stop(
         _require(
             prior.get("readme_sha256") == hashlib.sha256(readme_bytes).hexdigest(),
             "archive stop prior README hash differs from persisted completed README",
+        )
+        persisted_source_manifest = _read_json(
+            source_manifest_path,
+            "source README manifest",
+        )
+        try:
+            reconstructed_source_manifest = build_verified_in625_zenodo_readme_manifest(
+                config=source_config,
+                metadata_bytes=metadata_bytes,
+                readme_bytes=readme_bytes,
+            )
+        except In625ZenodoLiveEvidenceError as exc:
+            raise Cycle1TransportStopVerificationError(
+                "archive stop source README manifest failed authoritative reconstruction"
+            ) from exc
+        _require(
+            persisted_source_manifest == reconstructed_source_manifest,
+            "archive stop source README manifest differs from authoritative reconstruction",
+        )
+        _require(
+            not (output / archive_name).exists(),
+            "archive transport stop may not retain completed archive bytes",
+        )
+        _require(
+            not (output / "network-acquisition-receipt.json").exists(),
+            "archive transport stop may not retain a completed network acquisition receipt",
         )
         authorization = _read_json(authorization_path, "network authorization")
         try:

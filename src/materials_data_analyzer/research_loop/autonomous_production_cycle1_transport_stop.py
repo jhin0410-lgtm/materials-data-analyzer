@@ -105,6 +105,12 @@ def _text(value: object, field: str) -> str:
     return value
 
 
+def _exact_int(value: object, expected: int, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value != expected:
+        raise Cycle1TransportStopError(f"{field} must be exact integer {expected}")
+    return value
+
+
 def _exact_https_zenodo_url(value: object) -> str:
     text = _text(value, "requested_url")
     parsed = urlparse(text)
@@ -155,6 +161,7 @@ def build_cycle1_transport_stop(
         raise Cycle1TransportStopError(f"unsupported cycle-1 transport stage: {stage!r}")
     if (
         isinstance(maximum_network_requests_per_cycle, bool)
+        or not isinstance(maximum_network_requests_per_cycle, int)
         or maximum_network_requests_per_cycle != 3
     ):
         raise Cycle1TransportStopError(
@@ -231,14 +238,17 @@ def authenticate_cycle1_transport_stop(value: object) -> dict[str, Any]:
         stop.get("schema_version") != SCHEMA_VERSION
         or stop.get("status") != "stopped"
         or stop.get("reason_code") != _REASON_CODE
-        or stop.get("cycle_index") != 1
     ):
         raise Cycle1TransportStopError("cycle-1 transport stop identity drifted")
+    _exact_int(stop.get("cycle_index"), 1, "cycle_index")
     stage = stop.get("stage")
     if stage not in _STAGE_ORDINALS:
         raise Cycle1TransportStopError("cycle-1 transport stop stage drifted")
-    if stop.get("request_ordinal") != _STAGE_ORDINALS[stage]:
-        raise Cycle1TransportStopError("cycle-1 transport request ordinal drifted")
+    _exact_int(
+        stop.get("request_ordinal"),
+        _STAGE_ORDINALS[stage],
+        "request_ordinal",
+    )
     _exact_https_zenodo_url(stop.get("requested_url"))
 
     authority = stop.get("authority")
@@ -250,11 +260,15 @@ def authenticate_cycle1_transport_stop(value: object) -> dict[str, Any]:
     if (
         authority.get("network_policy_id") != POLICY_ID
         or authority.get("provider") != PROVIDER
-        or authority.get("record_id") != RECORD_ID
         or authority.get("allowed_hosts") != [ALLOWED_HOST]
-        or authority.get("maximum_network_requests_per_cycle") != 3
     ):
         raise Cycle1TransportStopError("cycle-1 transport authority widened or drifted")
+    _exact_int(authority.get("record_id"), RECORD_ID, "authority.record_id")
+    _exact_int(
+        authority.get("maximum_network_requests_per_cycle"),
+        3,
+        "authority.maximum_network_requests_per_cycle",
+    )
 
     prior = stop.get("observed_prior_evidence")
     if not isinstance(prior, Mapping) or set(prior) != set(_STAGE_PRIOR_KEYS[stage]):

@@ -171,3 +171,46 @@ def test_authenticator_rejects_rehashed_forged_transport_class() -> None:
 
     with pytest.raises(Cycle1TransportStopError, match="trusted transient type"):
         authenticate_cycle1_transport_stop(forged)
+
+@pytest.mark.parametrize(
+    ("container", "field", "value"),
+    [
+        ("root", "cycle_index", True),
+        ("root", "cycle_index", 1.0),
+        ("root", "request_ordinal", True),
+        ("root", "request_ordinal", 1.0),
+        ("authority", "record_id", True),
+        ("authority", "record_id", 20503603.0),
+        ("authority", "maximum_network_requests_per_cycle", True),
+        ("authority", "maximum_network_requests_per_cycle", 3.0),
+    ],
+)
+def test_authenticator_rejects_non_integer_identity_even_when_rehashed(
+    container: str,
+    field: str,
+    value: object,
+) -> None:
+    forged = copy.deepcopy(_stop("zenodo_record_metadata"))
+    target = forged if container == "root" else forged["authority"]
+    assert isinstance(target, dict)
+    target[field] = value
+    unsigned = dict(forged)
+    unsigned.pop("stop_sha256_without_self_field")
+    forged["stop_sha256_without_self_field"] = stop_contract._canonical_sha(unsigned)
+
+    with pytest.raises(Cycle1TransportStopError, match="must be exact integer"):
+        authenticate_cycle1_transport_stop(forged)
+
+
+def test_builder_rejects_float_request_budget() -> None:
+    with pytest.raises(Cycle1TransportStopError, match="exact three-request"):
+        build_cycle1_transport_stop(
+            mission_sha256="a" * 64,
+            network_policy_sha256="b" * 64,
+            source_config_sha256="c" * 64,
+            maximum_network_requests_per_cycle=3.0,  # type: ignore[arg-type]
+            stage="zenodo_record_metadata",
+            requested_url="https://zenodo.org/api/records/20503603",
+            transport_error_class="PublicAcquisitionTransportError",
+            transport_error_detail="HTTP acquisition failed: 504",
+        )
