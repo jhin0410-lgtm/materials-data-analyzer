@@ -14,6 +14,7 @@ import zipfile
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 from .kernel import ResearchLoopError
 from .zenodo_evidence_acquisition import (
@@ -146,6 +147,37 @@ def _reject_html(body: bytes, field: str) -> None:
         raise In625ZenodoLiveEvidenceError(f"{field} looks like HTML rather than source evidence")
 
 
+def _published_record_file_url(
+    value: object,
+    *,
+    record_id: int,
+    file_name: str,
+    field: str,
+) -> str:
+    text = _text(value, field)
+    parsed = urlparse(text)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise In625ZenodoLiveEvidenceError(f"{field} contains an invalid port") from exc
+    expected_path = f"/api/records/{record_id}/files/{file_name}/content"
+    if (
+        parsed.scheme.lower() != "https"
+        or (parsed.hostname or "").lower() != "zenodo.org"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+        or unquote(parsed.path) != expected_path
+    ):
+        raise In625ZenodoLiveEvidenceError(
+            f"{field} is not the exact query-free published-record file content route"
+        )
+    return text
+
+
 def validate_verified_in625_zenodo_metadata(
     *,
     config: Mapping[str, Any],
@@ -246,6 +278,12 @@ def validate_verified_in625_zenodo_metadata(
             raise In625ZenodoLiveEvidenceError(
                 f"Zenodo file download URL is missing: {key}"
             )
+        download_url = _published_record_file_url(
+            download_url,
+            record_id=record_id,
+            file_name=key,
+            field=f"Zenodo file download URL for {key}",
+        )
         file_bindings[key] = {
             "size_bytes": size,
             "provider_checksum_algorithm": algorithm,

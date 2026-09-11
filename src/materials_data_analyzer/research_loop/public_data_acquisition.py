@@ -423,9 +423,15 @@ def plan_public_acquisition_queue(
 
 
 class _RestrictedRedirectHandler(HTTPRedirectHandler):
-    def __init__(self, allowed_hosts: Sequence[str]) -> None:
+    def __init__(
+        self,
+        allowed_hosts: Sequence[str],
+        *,
+        exact_url: str | None = None,
+    ) -> None:
         super().__init__()
         self._allowed_hosts = tuple(allowed_hosts)
+        self._exact_url = exact_url
 
     def redirect_request(
         self,
@@ -439,6 +445,10 @@ class _RestrictedRedirectHandler(HTTPRedirectHandler):
         _validate_https_endpoint(
             newurl, field="redirect endpoint", allowed_hosts=self._allowed_hosts
         )
+        if self._exact_url is not None and newurl != self._exact_url:
+            raise PublicAcquisitionError(
+                "redirect endpoint left the exact authorized fetch URL"
+            )
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -459,8 +469,9 @@ def fetch_https_bytes(
     max_bytes: int,
     timeout_seconds: float = 60.0,
     headers: Mapping[str, str] | None = None,
+    exact_url: str | None = None,
 ) -> FetchResult:
-    """Fetch HTTPS bytes with exact-host redirect restrictions and a byte ceiling."""
+    """Fetch HTTPS bytes with bounded redirects and optional exact-URL authority."""
 
     if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
         raise PublicAcquisitionError("max_bytes must be a positive integer")
@@ -470,6 +481,15 @@ def fetch_https_bytes(
     endpoint = _validate_https_endpoint(
         url, field="fetch endpoint", allowed_hosts=normalized_hosts
     )
+    exact_endpoint: str | None = None
+    if exact_url is not None:
+        exact_endpoint = _validate_https_endpoint(
+            exact_url, field="exact fetch endpoint", allowed_hosts=normalized_hosts
+        )
+        if endpoint != exact_endpoint:
+            raise PublicAcquisitionError(
+                "fetch endpoint differs from the exact authorized fetch URL"
+            )
 
     request_headers = {
         "User-Agent": "materials-data-analyzer/automatic-public-acquisition",
@@ -481,7 +501,9 @@ def fetch_https_bytes(
                 value, f"header {key!r}"
             )
 
-    opener = build_opener(_RestrictedRedirectHandler(normalized_hosts))
+    opener = build_opener(
+        _RestrictedRedirectHandler(normalized_hosts, exact_url=exact_endpoint)
+    )
     request = Request(endpoint, headers=request_headers, method="GET")
     try:
         with opener.open(request, timeout=float(timeout_seconds)) as response:
@@ -491,6 +513,10 @@ def fetch_https_bytes(
                 field="final response endpoint",
                 allowed_hosts=normalized_hosts,
             )
+            if exact_endpoint is not None and final_url != exact_endpoint:
+                raise PublicAcquisitionError(
+                    "final response endpoint left the exact authorized fetch URL"
+                )
             status = int(getattr(response, "status", response.getcode()))
             if status < 200 or status >= 300:
                 if status in _TRANSIENT_HTTP_STATUS_CODES:
