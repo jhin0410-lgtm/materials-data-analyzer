@@ -1,0 +1,57 @@
+name: Temporary Cycle-1 stage sequencing hardening
+
+on:
+  push:
+    branches:
+      - tmp/cycle1-stage-sequencing-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Apply exact-head stage sequencing hardening
+        run: python .tmp/build_cycle1_stage_sequencing_hardening.py
+      - name: Install development environment
+        run: python -m pip install -e ".[dev]"
+      - name: Normalize touched Python files
+        run: >-
+          python -m ruff check --fix
+          src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop_verifier.py
+          tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+      - name: Run focused authority regression suite
+        run: >-
+          python -m pytest -q
+          tests/test_autonomous_production_cycle1_transport_stop.py
+          tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          tests/test_cycle1_exact_zenodo_route_hardening.py
+          tests/test_autonomous_production_cycle1_transport_recovery.py
+          tests/test_in625_archive_network_transport_errors.py
+          tests/test_public_data_acquisition_transport_errors.py
+          tests/test_in625_archive_network_acquisition.py
+          tests/test_autonomous_production_driver.py
+      - name: Verify lint and diff
+        run: |
+          python -m ruff check \
+            src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop_verifier.py \
+            tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          git diff --check
+      - name: Commit validated source and test changes only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop_verifier.py tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          git diff --cached --check
+          git commit -m "Reject impossible earlier-stage Cycle-1 artifacts"
+          git push origin HEAD:tmp/cycle1-stage-sequencing-hardening
