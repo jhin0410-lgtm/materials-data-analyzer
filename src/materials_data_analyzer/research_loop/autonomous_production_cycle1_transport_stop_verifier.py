@@ -246,6 +246,14 @@ def verify_cycle1_transport_stop(
         isinstance(archive_name, str) and archive_name,
         "source archive identity is invalid",
     )
+    _require(
+        not (output / archive_name).exists(),
+        "transport stop may not retain completed archive bytes",
+    )
+    _require(
+        not (output / "network-acquisition-receipt.json").exists(),
+        "transport stop may not retain a completed network acquisition receipt",
+    )
 
     bounded = _read_json(output / "bounded-stop.json", "bounded stop")
     _require(
@@ -273,6 +281,10 @@ def verify_cycle1_transport_stop(
         _require(
             not (output / "record.json").exists(),
             "metadata transport stop may not retain nonexistent completed metadata",
+        )
+        _require(
+            not (output / readme_name).exists(),
+            "metadata transport stop may not retain downstream README bytes",
         )
         _require(
             not (output / "source-readme-manifest.json").exists(),
@@ -357,14 +369,6 @@ def verify_cycle1_transport_stop(
         _require(
             persisted_source_manifest == reconstructed_source_manifest,
             "archive stop source README manifest differs from authoritative reconstruction",
-        )
-        _require(
-            not (output / archive_name).exists(),
-            "archive transport stop may not retain completed archive bytes",
-        )
-        _require(
-            not (output / "network-acquisition-receipt.json").exists(),
-            "archive transport stop may not retain a completed network acquisition receipt",
         )
         authorization = _read_json(authorization_path, "network authorization")
         try:

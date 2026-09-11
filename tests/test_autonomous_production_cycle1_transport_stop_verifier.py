@@ -533,3 +533,55 @@ def test_archive_stop_rejects_impossible_completed_archive_artifacts(
             repository_root=REPOSITORY_ROOT,
             output_root=output,
         )
+
+@pytest.mark.parametrize(
+    ("artifact_name", "error_match"),
+    [
+        (README_NAME, "downstream README bytes"),
+        ("Dataset.zip", "completed archive bytes"),
+        (
+            "network-acquisition-receipt.json",
+            "completed network acquisition receipt",
+        ),
+    ],
+)
+def test_metadata_stop_rejects_impossible_downstream_artifacts(
+    tmp_path: Path,
+    artifact_name: str,
+    error_match: str,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    (output / artifact_name).write_bytes(b"impossible downstream artifact")
+
+    with pytest.raises(Cycle1TransportStopVerificationError, match=error_match):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+@pytest.mark.parametrize(
+    ("artifact_name", "error_match"),
+    [
+        ("Dataset.zip", "completed archive bytes"),
+        (
+            "network-acquisition-receipt.json",
+            "completed network acquisition receipt",
+        ),
+    ],
+)
+def test_readme_stop_rejects_impossible_archive_success_artifacts(
+    tmp_path: Path,
+    artifact_name: str,
+    error_match: str,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_readme")
+    (output / artifact_name).write_bytes(b"impossible downstream artifact")
+
+    with pytest.raises(Cycle1TransportStopVerificationError, match=error_match):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
