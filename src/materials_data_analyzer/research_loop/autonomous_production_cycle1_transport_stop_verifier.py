@@ -23,6 +23,10 @@ from .in625_archive_network_acquisition import (
     validate_in625_archive_network_authorization,
 )
 from .in625_network_policy import authenticate_in625_network_policy
+from .in625_zenodo_live_evidence import (
+    In625ZenodoLiveEvidenceError,
+    validate_verified_in625_zenodo_metadata,
+)
 from .kernel import ResearchLoopError
 
 EXPECTED_MISSION_SHA256 = (
@@ -96,11 +100,12 @@ def _published_record_file_route(
 def _completed_metadata_control_plane_witness(
     output: Path,
     *,
+    source_config: Mapping[str, Any],
     record_id: int,
     readme_name: str,
     requested_readme_url: str | None,
 ) -> tuple[bytes, str]:
-    """Replay completed record metadata without granting it source/scientific authority."""
+    """Replay trusted record semantics without granting scientific authority."""
     record_path = output / "record.json"
     _require(
         record_path.is_file(),
@@ -108,43 +113,29 @@ def _completed_metadata_control_plane_witness(
     )
     metadata_bytes = record_path.read_bytes()
     try:
-        metadata = json.loads(metadata_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        metadata_witness = validate_verified_in625_zenodo_metadata(
+            config=source_config,
+            metadata_bytes=metadata_bytes,
+        )
+    except In625ZenodoLiveEvidenceError as exc:
         raise Cycle1TransportStopVerificationError(
-            "retained completed record metadata must be valid UTF-8 JSON"
+            "retained completed record metadata failed authoritative source-identity replay"
         ) from exc
+    file_bindings = metadata_witness.get("file_bindings")
     _require(
-        isinstance(metadata, Mapping),
-        "retained completed record metadata root must be an object",
+        isinstance(file_bindings, Mapping),
+        "authoritative metadata replay omitted exact file bindings",
     )
+    readme_binding = file_bindings.get(readme_name)
     _require(
-        metadata.get("id") == record_id,
-        "retained completed record metadata record identity drifted",
-    )
-    files = metadata.get("files")
-    _require(
-        isinstance(files, list),
-        "retained completed record metadata files must be a list",
-    )
-    matches = [
-        item
-        for item in files
-        if isinstance(item, Mapping) and item.get("key") == readme_name
-    ]
-    _require(
-        len(matches) == 1,
-        "retained completed record metadata must contain exactly one configured README entry",
-    )
-    links = matches[0].get("links")
-    _require(
-        isinstance(links, Mapping),
-        "retained completed record metadata README links are missing",
+        isinstance(readme_binding, Mapping),
+        "authoritative metadata replay omitted configured README binding",
     )
     metadata_readme_url = _published_record_file_route(
-        links.get("self"),
+        readme_binding.get("download_url"),
         record_id=record_id,
         file_name=readme_name,
-        field="retained metadata README self URL",
+        field="retained metadata README download URL",
     )
     if requested_readme_url is not None:
         _require(
@@ -285,6 +276,7 @@ def verify_cycle1_transport_stop(
         )
         metadata_bytes, _ = _completed_metadata_control_plane_witness(
             output,
+            source_config=source_config,
             record_id=record_id,
             readme_name=readme_name,
             requested_readme_url=requested_url,
@@ -316,6 +308,7 @@ def verify_cycle1_transport_stop(
         )
         metadata_bytes, _ = _completed_metadata_control_plane_witness(
             output,
+            source_config=source_config,
             record_id=record_id,
             readme_name=readme_name,
             requested_readme_url=None,
