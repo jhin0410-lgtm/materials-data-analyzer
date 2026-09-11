@@ -38,6 +38,8 @@ NETWORK_POLICY_PATH = "configs/research/in625_zenodo_network_acquisition_policy.
 SOURCE_CONFIG_PATH = "configs/research/in625_zenodo_20503603_verified_source.v1.json"
 STOP_PATH = "cycle-1-transport-stop.json"
 ZENODO_HOST = "zenodo.org"
+_RETAINED_METADATA_MAX_BYTES = 8 * 1024 * 1024
+_EXPORTED_JSON_MAX_BYTES = 8 * 1024 * 1024
 _POST_ARCHIVE_PRODUCTION_PATHS = (
     "selected-source-files",
     "archive-manifest.json",
@@ -71,13 +73,37 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _read_bounded_bytes(path: Path, field: str, *, max_bytes: int) -> bytes:
+    if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} bounded byte ceiling must be a positive integer"
+        )
+    try:
+        with path.open("rb") as handle:
+            raw = handle.read(max_bytes + 1)
+    except OSError as exc:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} must be readable bounded bytes"
+        ) from exc
+    if len(raw) > max_bytes:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} exceeds bounded byte ceiling {max_bytes}"
+        )
+    return raw
+
+
 def _read_json(path: Path, field: str) -> dict[str, Any]:
+    raw = _read_bounded_bytes(
+        path,
+        field,
+        max_bytes=_EXPORTED_JSON_MAX_BYTES,
+    )
     try:
         value = json.loads(
-            path.read_text(encoding="utf-8"),
+            raw.decode("utf-8"),
             object_pairs_hook=_reject_duplicate_pairs,
         )
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise Cycle1TransportStopVerificationError(
             f"{field} must be valid UTF-8 JSON"
         ) from exc
@@ -89,6 +115,23 @@ def _read_json(path: Path, field: str) -> dict[str, Any]:
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise Cycle1TransportStopVerificationError(message)
+
+
+def _portable_qualification(value: Mapping[str, Any], field: str) -> dict[str, Any]:
+    normalized = dict(value)
+    source_path = normalized.get("source_config_path")
+    _require(
+        isinstance(source_path, str) and source_path,
+        f"{field} source config path is missing",
+    )
+    portable_path = source_path.replace("\\", "/")
+    _require(
+        portable_path == SOURCE_CONFIG_PATH
+        or portable_path.endswith(f"/{SOURCE_CONFIG_PATH}"),
+        f"{field} source config path differs from repository-pinned identity",
+    )
+    normalized["source_config_path"] = SOURCE_CONFIG_PATH
+    return normalized
 
 
 def _published_record_file_route(
@@ -142,7 +185,11 @@ def _completed_metadata_control_plane_witness(
         record_path.is_file(),
         "post-metadata transport stop requires retained completed record metadata",
     )
-    metadata_bytes = record_path.read_bytes()
+    metadata_bytes = _read_bounded_bytes(
+        record_path,
+        "retained completed record metadata",
+        max_bytes=_RETAINED_METADATA_MAX_BYTES,
+    )
     try:
         metadata_witness = validate_verified_in625_zenodo_metadata(
             config=source_config,
@@ -204,6 +251,21 @@ def verify_cycle1_transport_stop(
         policy_path=policy,
         source_config_path=source,
     )
+    persisted_qualification = _read_json(
+        output / "standing-network-policy-qualification.json",
+        "standing network policy qualification",
+    )
+    _require(
+        _portable_qualification(
+            persisted_qualification,
+            "persisted standing network policy qualification",
+        )
+        == _portable_qualification(
+            qualification,
+            "reconstructed standing network policy qualification",
+        ),
+        "persisted standing network policy qualification differs from reconstructed authority",
+    )
     persisted = _read_json(output / STOP_PATH, "cycle-1 transport stop")
     try:
         stop = authenticate_cycle1_transport_stop(persisted)
@@ -261,6 +323,17 @@ def verify_cycle1_transport_stop(
     _require(
         isinstance(archive_name, str) and archive_name,
         "source archive identity is invalid",
+    )
+    files = zenodo.get("files")
+    _require(isinstance(files, Mapping), "source config file bindings are invalid")
+    readme_rule = files.get(readme_name)
+    _require(isinstance(readme_rule, Mapping), "source README file binding is invalid")
+    readme_size = readme_rule.get("size_bytes")
+    _require(
+        isinstance(readme_size, int)
+        and not isinstance(readme_size, bool)
+        and readme_size > 0,
+        "source README size binding is invalid",
     )
     _require(
         not (output / archive_name).exists(),
@@ -369,7 +442,11 @@ def verify_cycle1_transport_stop(
         completed_metadata_witness_replayed = True
         readme_path = output / readme_name
         _require(readme_path.is_file(), "archive stop lost completed README bytes")
-        readme_bytes = readme_path.read_bytes()
+        readme_bytes = _read_bounded_bytes(
+            readme_path,
+            "retained completed README",
+            max_bytes=readme_size,
+        )
         _require(
             prior.get("readme_sha256") == hashlib.sha256(readme_bytes).hexdigest(),
             "archive stop prior README hash differs from persisted completed README",

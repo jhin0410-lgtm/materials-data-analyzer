@@ -132,6 +132,10 @@ def _rehash(stop: dict[str, object]) -> dict[str, object]:
 def _write_stop(output: Path, *, stage: str = "zenodo_record_metadata") -> dict[str, object]:
     output.mkdir(parents=True)
     qualification = _qualification()
+    (output / "standing-network-policy-qualification.json").write_text(
+        json.dumps(qualification, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     prior: dict[str, str] = {}
     error_class = "PublicAcquisitionTransportError"
     requested_url = METADATA_URL
@@ -618,6 +622,74 @@ def test_transport_stop_rejects_known_post_archive_production_outputs(
     with pytest.raises(
         Cycle1TransportStopVerificationError,
         match="post-archive production artifact",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_verifier_rejects_forged_persisted_policy_qualification(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    path = output / "standing-network-policy-qualification.json"
+    qualification = json.loads(path.read_text(encoding="utf-8"))
+    qualification["unrestricted_search_authorized"] = True
+    path.write_text(json.dumps(qualification) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="qualification differs from reconstructed authority",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_verifier_requires_retained_policy_qualification(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    (output / "standing-network-policy-qualification.json").unlink()
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="standing network policy qualification must be readable bounded bytes",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_readme_stop_bounds_retained_metadata_before_validation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_readme")
+    monkeypatch.setattr(stop_verifier, "_RETAINED_METADATA_MAX_BYTES", 64)
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="retained completed record metadata exceeds bounded byte ceiling 64",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_archive_stop_bounds_retained_readme_before_validation(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_archive")
+    source = json.loads(SOURCE.read_text(encoding="utf-8"))
+    readme_size = source["zenodo"]["files"][README_NAME]["size_bytes"]
+    (output / README_NAME).write_bytes(b"x" * (readme_size + 1))
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match=f"retained completed README exceeds bounded byte ceiling {readme_size}",
     ):
         verify_cycle1_transport_stop(
             repository_root=REPOSITORY_ROOT,
