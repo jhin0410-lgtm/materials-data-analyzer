@@ -301,6 +301,69 @@ def test_live_driver_rejects_metadata_identity_drift_before_readme_request(
     assert not (output / "record.json").exists()
 
 
+def test_live_driver_uses_authenticated_source_config_bytes_for_request_two(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "production-output"
+    forged_config = json.loads(SOURCE.read_text(encoding="utf-8"))
+    old_readme = forged_config["zenodo"]["readme_file"]
+    forged_readme = "forged-readme.txt"
+    forged_config["zenodo"]["readme_file"] = forged_readme
+    forged_config["zenodo"]["selected_files"] = ["Dataset.zip", forged_readme]
+    forged_config["zenodo"]["files"][forged_readme] = forged_config["zenodo"][
+        "files"
+    ].pop(old_readme)
+
+    metadata = json.loads(_source_valid_metadata_bytes())
+    metadata["files"][1]["key"] = forged_readme
+    metadata["files"][1]["links"]["self"] = (
+        "https://zenodo.org/api/records/20503603/files/forged-readme.txt/content"
+    )
+    forged_metadata = json.dumps(
+        metadata, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    requested_urls: list[str] = []
+    real_read_json = driver._read_json
+
+    def use_test_output(_: Path, __: Path) -> Path:
+        output.mkdir(parents=True, exist_ok=True)
+        return output
+
+    def stale_path_read(path: Path, field: str) -> dict[str, object]:
+        if path == SOURCE:
+            return forged_config
+        return real_read_json(path, field)
+
+    def metadata_then_forbidden_second_request(url: str, **_kwargs: object) -> bytes:
+        requested_urls.append(url)
+        if len(requested_urls) == 1:
+            return forged_metadata
+        raise AssertionError(
+            "request #2 must use the authenticated source-config byte snapshot"
+        )
+
+    monkeypatch.setattr(driver, "_repo_output", use_test_output)
+    monkeypatch.setattr(driver, "_read_json", stale_path_read)
+    monkeypatch.setattr(
+        driver, "_exact_zenodo_get", metadata_then_forbidden_second_request
+    )
+
+    with pytest.raises(
+        driver.AutonomousProductionDriverError,
+        match="source-identity validation before request #2",
+    ):
+        driver.run_autonomous_production(
+            repository_root=REPOSITORY_ROOT,
+            mission_path=MISSION,
+            expected_mission_sha256=EXPECTED_MISSION_SHA256,
+            output_root=Path("ignored-by-test"),
+            max_cycles=3,
+        )
+
+    assert requested_urls == ["https://zenodo.org/api/records/20503603"]
+
+
 def test_live_driver_readme_transport_failure_retains_replayable_metadata_witness(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

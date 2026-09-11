@@ -153,8 +153,10 @@ def _validate_endpoint(value: object, *, field: str) -> str:
         raise In625ArchiveNetworkAcquisitionError(f"{field} must remain on exact Zenodo host")
     if parsed.username is not None or parsed.password is not None or parsed.port not in (None, 443):
         raise In625ArchiveNetworkAcquisitionError(f"{field} contains unsupported authority data")
-    if parsed.fragment:
-        raise In625ArchiveNetworkAcquisitionError(f"{field} may not contain a fragment")
+    if parsed.params or parsed.query or parsed.fragment:
+        raise In625ArchiveNetworkAcquisitionError(
+            f"{field} may not contain params, query, or fragment"
+        )
     return text
 
 
@@ -308,6 +310,7 @@ def fetch_authorized_zenodo_bytes(
                 "User-Agent": "materials-data-analyzer/in625-authorized-acquisition",
                 "Accept": "*/*",
             },
+            exact_url=endpoint,
         )
     except PublicAcquisitionTransportError as exc:
         raise In625ArchiveNetworkTransportError(
@@ -366,6 +369,10 @@ def execute_authorized_in625_archive_download(
     if fetched.status_code < 200 or fetched.status_code >= 300:
         raise In625ArchiveNetworkAcquisitionError("network fetch did not return a success status")
     final_url = _validate_endpoint(fetched.final_url, field="fetched final_url")
+    if final_url != archive["download_url"]:
+        raise In625ArchiveNetworkAcquisitionError(
+            "fetched final_url differs from the exact authorized archive URL"
+        )
     body = fetched.body
     if not isinstance(body, bytes):
         raise In625ArchiveNetworkAcquisitionError("network fetch body must be exact bytes")

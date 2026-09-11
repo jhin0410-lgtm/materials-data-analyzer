@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from materials_data_analyzer.research_loop import public_data_acquisition
 from materials_data_analyzer.research_loop.acquisition_record_binding import (
     authenticate_acquisition_record_binding,
 )
@@ -281,6 +282,50 @@ def test_final_redirect_host_cannot_escape_candidate_allowlist(
             output_dir=tmp_path / "acquired",
             fetcher=fake_fetcher,
         )
+
+
+def test_exact_fetch_url_rejects_same_host_redirect_before_follow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exact_url = "https://data.example.org/expected.bin"
+    redirected_url = "https://data.example.org/other.bin"
+    opened: list[str] = []
+
+    class FakeOpener:
+        def __init__(self, handler: object) -> None:
+            self.handler = handler
+
+        def open(self, request: object, *, timeout: float) -> object:
+            del timeout
+            opened.append(request.full_url)
+            self.handler.redirect_request(
+                request,
+                None,
+                302,
+                "Found",
+                {},
+                redirected_url,
+            )
+            raise AssertionError("redirect must be rejected before it is followed")
+
+    monkeypatch.setattr(
+        public_data_acquisition,
+        "build_opener",
+        lambda handler: FakeOpener(handler),
+    )
+
+    with pytest.raises(
+        PublicAcquisitionError,
+        match="exact authorized fetch URL",
+    ):
+        public_data_acquisition.fetch_https_bytes(
+            exact_url,
+            allowed_hosts=["data.example.org"],
+            max_bytes=64,
+            exact_url=exact_url,
+        )
+
+    assert opened == [exact_url]
 
 
 def test_non_https_candidate_is_fail_closed() -> None:

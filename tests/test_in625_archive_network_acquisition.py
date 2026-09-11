@@ -174,6 +174,33 @@ def test_authorization_rejects_wrong_archive_host_before_network_access() -> Non
         )
 
 
+@pytest.mark.parametrize(
+    "archive_url",
+    [
+        "https://zenodo.org/api/records/20503603/files/other.zip/content",
+        "https://zenodo.org/api/records/20503603/files/Dataset.zip/content?download=1",
+        "https://zenodo.org/api/users/me",
+    ],
+)
+def test_authorization_rejects_same_host_non_exact_archive_route(
+    archive_url: str,
+) -> None:
+    archive = b"archive"
+    readme = b"verified publication dataset description\n"
+    config = _config(readme, archive)
+    with pytest.raises(In625ArchiveNetworkAcquisitionError):
+        build_in625_archive_network_authorization(
+            config=config,
+            config_bytes=_config_bytes(config),
+            metadata_bytes=_metadata(
+                readme,
+                archive,
+                archive_url=archive_url,
+            ),
+            readme_bytes=readme,
+        )
+
+
 def test_resigned_authorization_substitution_is_rejected_by_reconstruction() -> None:
     config, config_bytes, metadata, readme, authorization = _authorization_fixture()
     tampered = json.loads(json.dumps(authorization))
@@ -249,7 +276,9 @@ def test_authorized_download_verifies_exact_size_md5_sha_and_writes_atomically(
     assert receipt["scientific_boundary"]["hypothesis_truth_established"] is False
 
 
-@pytest.mark.parametrize("failure", ["wrong_size", "wrong_bytes", "wrong_host", "html"])
+@pytest.mark.parametrize(
+    "failure", ["wrong_size", "wrong_bytes", "wrong_host", "wrong_path", "html"]
+)
 def test_authorized_download_fails_closed_on_transport_or_payload_drift(
     tmp_path: Path,
     failure: str,
@@ -272,7 +301,12 @@ def test_authorized_download_fails_closed_on_transport_or_payload_drift(
             body = b"<html>" + b"x" * (len(archive) - len(b"<html>"))
         else:
             body = archive
-        final_url = "https://example.org/redirect" if failure == "wrong_host" else url
+        if failure == "wrong_host":
+            final_url = "https://example.org/redirect"
+        elif failure == "wrong_path":
+            final_url = "https://zenodo.org/api/records/20503603/files/other.zip/content"
+        else:
+            final_url = url
         return NetworkFetchResult(
             body=body,
             status_code=200,

@@ -43,16 +43,37 @@ class Cycle1TransportStopVerificationError(ResearchLoopError):
     """Raised when a cycle-1 transport stop does not match current trusted authority."""
 
 
-def _read_json(path: Path, field: str) -> dict[str, Any]:
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise Cycle1TransportStopVerificationError(
+                f"duplicate JSON key is not allowed: {key}"
+            )
+        result[key] = value
+    return result
+
+
+def _read_json_bytes(raw: bytes, field: str) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise Cycle1TransportStopVerificationError(
             f"{field} must be valid UTF-8 JSON"
         ) from exc
     if not isinstance(value, dict):
         raise Cycle1TransportStopVerificationError(f"{field} root must be an object")
     return value
+
+
+def _read_json(path: Path, field: str) -> dict[str, Any]:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise Cycle1TransportStopVerificationError(f"{field} must be readable") from exc
+    return _read_json_bytes(raw, field)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -192,7 +213,7 @@ def verify_cycle1_transport_stop(
         "transport stop network-policy binding differs from reconstructed authority",
     )
     source_bytes = source.read_bytes()
-    source_config = _read_json(source, "source config")
+    source_config = _read_json_bytes(source_bytes, "source config")
     _require(
         authority.get("source_config_sha256")
         == hashlib.sha256(source_bytes).hexdigest()

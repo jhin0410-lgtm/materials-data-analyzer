@@ -1,0 +1,37 @@
+name: Temporary exact-route blob builder
+
+on:
+  push:
+    branches:
+      - tmp/cycle1-route-hardening-build
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Apply reviewed patch and verify exact target blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply -p2 --check .tmp/cycle1-two-large-files.patch
+          git apply -p2 .tmp/cycle1-two-large-files.patch
+          test "$(git hash-object src/materials_data_analyzer/research_loop/autonomous_production_driver.py)" = "a7f48f04ccd3e913468eec80cbb842ef3e910290"
+          test "$(git hash-object src/materials_data_analyzer/research_loop/public_data_acquisition.py)" = "8c65209a2cdb3cffbc759b5ed4a0c58cc55517aa"
+      - name: Commit clean staging tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .tmp/cycle1-two-large-files.patch
+          rm -f .github/workflows/_tmp-cycle1-route-builder.yml
+          rmdir .tmp 2>/dev/null || true
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Build exact Zenodo route hardening blobs"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

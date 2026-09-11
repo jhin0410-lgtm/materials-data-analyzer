@@ -1,0 +1,202 @@
+diff --git a/mda_orig/src/materials_data_analyzer/research_loop/autonomous_production_driver.py b/mda_src/src/materials_data_analyzer/research_loop/autonomous_production_driver.py
+index e7b3c6d..a7f48f0 100644
+--- a/mda_orig/src/materials_data_analyzer/research_loop/autonomous_production_driver.py
++++ b/mda_src/src/materials_data_analyzer/research_loop/autonomous_production_driver.py
+@@ -42,8 +42,10 @@ from .in625_post_acquisition_rediagnosis_v2 import (
+ from .in625_tensile_quality_contract import verify_in625_tensile_observed_quality
+ from .in625_tensile_reviewed_intake_v2 import build_reviewed_in625_tensile_intake_v2
+ from .in625_zenodo_live_evidence import (
++    In625ZenodoLiveEvidenceError,
+     build_verified_in625_zenodo_readme_manifest,
+     inspect_verified_in625_dataset_archive,
++    validate_verified_in625_zenodo_metadata,
+ )
+ from .kernel import ResearchLoopError, initialize_research_loop, load_research_state
+ from .planning_adapter import plan_research_next_action
+@@ -109,16 +111,37 @@ def _write_json(path: Path, value: object) -> None:
+     )
+ 
+ 
+-def _read_json(path: Path, field: str) -> dict[str, Any]:
++def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
++    result: dict[str, Any] = {}
++    for key, value in pairs:
++        if key in result:
++            raise AutonomousProductionDriverError(
++                f"duplicate JSON key is not allowed: {key}"
++            )
++        result[key] = value
++    return result
++
++
++def _read_json_bytes(raw: bytes, field: str) -> dict[str, Any]:
+     try:
+-        value = json.loads(path.read_text(encoding="utf-8"))
+-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
++        value = json.loads(
++            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs
++        )
++    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+         raise AutonomousProductionDriverError(f"{field} must be valid UTF-8 JSON") from exc
+     if not isinstance(value, dict):
+         raise AutonomousProductionDriverError(f"{field} root must be an object")
+     return value
+ 
+ 
++def _read_json(path: Path, field: str) -> dict[str, Any]:
++    try:
++        raw = path.read_bytes()
++    except OSError as exc:
++        raise AutonomousProductionDriverError(f"{field} must be readable") from exc
++    return _read_json_bytes(raw, field)
++
++
+ def _sha256_file(path: Path) -> str:
+     digest = hashlib.sha256()
+     with path.open("rb") as handle:
+@@ -210,6 +233,7 @@ def _exact_zenodo_get(
+             max_bytes=max_bytes,
+             timeout_seconds=timeout,
+             headers=dict(request.header_items()),
++            exact_url=request.full_url,
+         )
+     except PublicAcquisitionTransportError:
+         raise
+@@ -514,8 +538,8 @@ def run_autonomous_production(
+         network_policy.get("source_config_sha256") == source_config_sha256,
+         "qualified network policy/source config binding drifted before cycle-1 transport",
+     )
+-    source_config = _read_json(
+-        source_config_path,
++    source_config = _read_json_bytes(
++        config_bytes,
+         "IN625 verified source config",
+     )
+     record_url = network_policy["record_api_url"]
+@@ -537,28 +561,30 @@ def run_autonomous_production(
+             transport_error=exc,
+         )
+     try:
+-        metadata_json = json.loads(metadata_bytes.decode("utf-8"))
+-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
++        metadata_witness = validate_verified_in625_zenodo_metadata(
++            config=source_config,
++            metadata_bytes=metadata_bytes,
++        )
++    except In625ZenodoLiveEvidenceError as exc:
+         raise AutonomousProductionDriverError(
+-            "Zenodo record response must be valid UTF-8 JSON"
++            "live Zenodo metadata failed exact source-identity validation before request #2"
+         ) from exc
+-    if not isinstance(metadata_json, dict):
++    readme_name = source_config["zenodo"]["readme_file"]
++    file_bindings = metadata_witness.get("file_bindings")
++    if not isinstance(file_bindings, Mapping):
+         raise AutonomousProductionDriverError(
+-            "Zenodo record response root is not an object"
++            "validated Zenodo metadata omitted exact file bindings"
+         )
+-    files = {
+-        item["key"]: item
+-        for item in metadata_json.get("files", [])
+-        if isinstance(item, Mapping) and isinstance(item.get("key"), str)
+-    }
+-    readme_name = source_config["zenodo"]["readme_file"]
+-    if readme_name not in files:
++    readme_binding = file_bindings.get(readme_name)
++    if not isinstance(readme_binding, Mapping):
+         raise AutonomousProductionDriverError(
+-            "live Zenodo record lost exact configured README"
++            "validated Zenodo metadata lost exact configured README"
+         )
+-    readme_url = files[readme_name].get("links", {}).get("self")
++    readme_url = readme_binding.get("download_url")
+     if not isinstance(readme_url, str):
+-        raise AutonomousProductionDriverError("live Zenodo README link is missing")
++        raise AutonomousProductionDriverError(
++            "validated Zenodo README download URL is missing"
++        )
+     readme_rule = source_config["zenodo"]["files"].get(readme_name)
+     if not isinstance(readme_rule, Mapping):
+         raise AutonomousProductionDriverError("source config lost exact README identity")
+diff --git a/mda_orig/src/materials_data_analyzer/research_loop/public_data_acquisition.py b/mda_src/src/materials_data_analyzer/research_loop/public_data_acquisition.py
+index 486c4a6..8c65209 100644
+--- a/mda_orig/src/materials_data_analyzer/research_loop/public_data_acquisition.py
++++ b/mda_src/src/materials_data_analyzer/research_loop/public_data_acquisition.py
+@@ -423,9 +423,15 @@ def plan_public_acquisition_queue(
+ 
+ 
+ class _RestrictedRedirectHandler(HTTPRedirectHandler):
+-    def __init__(self, allowed_hosts: Sequence[str]) -> None:
++    def __init__(
++        self,
++        allowed_hosts: Sequence[str],
++        *,
++        exact_url: str | None = None,
++    ) -> None:
+         super().__init__()
+         self._allowed_hosts = tuple(allowed_hosts)
++        self._exact_url = exact_url
+ 
+     def redirect_request(
+         self,
+@@ -439,6 +445,10 @@ class _RestrictedRedirectHandler(HTTPRedirectHandler):
+         _validate_https_endpoint(
+             newurl, field="redirect endpoint", allowed_hosts=self._allowed_hosts
+         )
++        if self._exact_url is not None and newurl != self._exact_url:
++            raise PublicAcquisitionError(
++                "redirect endpoint left the exact authorized fetch URL"
++            )
+         return super().redirect_request(req, fp, code, msg, headers, newurl)
+ 
+ 
+@@ -459,8 +469,9 @@ def fetch_https_bytes(
+     max_bytes: int,
+     timeout_seconds: float = 60.0,
+     headers: Mapping[str, str] | None = None,
++    exact_url: str | None = None,
+ ) -> FetchResult:
+-    """Fetch HTTPS bytes with exact-host redirect restrictions and a byte ceiling."""
++    """Fetch HTTPS bytes with bounded redirects and an optional exact-URL authority."""
+ 
+     if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+         raise PublicAcquisitionError("max_bytes must be a positive integer")
+@@ -470,6 +481,15 @@ def fetch_https_bytes(
+     endpoint = _validate_https_endpoint(
+         url, field="fetch endpoint", allowed_hosts=normalized_hosts
+     )
++    exact_endpoint: str | None = None
++    if exact_url is not None:
++        exact_endpoint = _validate_https_endpoint(
++            exact_url, field="exact fetch endpoint", allowed_hosts=normalized_hosts
++        )
++        if endpoint != exact_endpoint:
++            raise PublicAcquisitionError(
++                "fetch endpoint differs from the exact authorized fetch URL"
++            )
+ 
+     request_headers = {
+         "User-Agent": "materials-data-analyzer/automatic-public-acquisition",
+@@ -481,7 +501,9 @@ def fetch_https_bytes(
+                 value, f"header {key!r}"
+             )
+ 
+-    opener = build_opener(_RestrictedRedirectHandler(normalized_hosts))
++    opener = build_opener(
++        _RestrictedRedirectHandler(normalized_hosts, exact_url=exact_endpoint)
++    )
+     request = Request(endpoint, headers=request_headers, method="GET")
+     try:
+         with opener.open(request, timeout=float(timeout_seconds)) as response:
+@@ -491,6 +513,10 @@ def fetch_https_bytes(
+                 field="final response endpoint",
+                 allowed_hosts=normalized_hosts,
+             )
++            if exact_endpoint is not None and final_url != exact_endpoint:
++                raise PublicAcquisitionError(
++                    "final response endpoint left the exact authorized fetch URL"
++                )
+             status = int(getattr(response, "status", response.getcode()))
+             if status < 200 or status >= 300:
+                 if status in _TRANSIENT_HTTP_STATUS_CODES:

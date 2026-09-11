@@ -12,6 +12,7 @@ from materials_data_analyzer.research_loop.in625_zenodo_live_evidence import (
     In625ZenodoLiveEvidenceError,
     build_verified_in625_zenodo_readme_manifest,
     inspect_verified_in625_dataset_archive,
+    validate_verified_in625_zenodo_metadata,
 )
 
 
@@ -155,6 +156,30 @@ def test_record_identity_drift_fails_closed(mutation: str, match: str) -> None:
             config=_config(readme, archive),
             metadata_bytes=json.dumps(metadata, sort_keys=True).encode("utf-8"),
             readme_bytes=readme,
+        )
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "https://zenodo.org/api/records/20503603/files/other.zip/content",
+        "https://zenodo.org/api/records/20503603/files/Dataset.zip/content?download=1",
+        "https://zenodo.org/api/users/me",
+    ],
+)
+def test_metadata_rejects_same_host_non_exact_file_routes(bad_url: str) -> None:
+    readme = b"verified publication dataset description\n"
+    archive = _zip_bytes()
+    metadata = json.loads(_metadata(readme, archive))
+    metadata["files"][0]["links"]["self"] = bad_url
+
+    with pytest.raises(
+        In625ZenodoLiveEvidenceError,
+        match="exact published-record|query-free",
+    ):
+        validate_verified_in625_zenodo_metadata(
+            config=_config(readme, archive),
+            metadata_bytes=json.dumps(metadata, sort_keys=True).encode("utf-8"),
         )
 
 
