@@ -145,29 +145,30 @@ def test_driver_rejects_cycle_budget_outside_finite_range_before_network(
     assert network_called is False
 
 
-def test_driver_rejects_non_zenodo_target_before_urlopen(
+def test_driver_rejects_non_zenodo_target_before_shared_fetch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    urlopen_called = False
+    fetch_called = False
 
-    def forbidden_urlopen(*args: object, **kwargs: object) -> object:
-        nonlocal urlopen_called
-        urlopen_called = True
-        raise AssertionError("urlopen must not be called")
+    def forbidden_fetch(*args: object, **kwargs: object) -> object:
+        nonlocal fetch_called
+        fetch_called = True
+        raise AssertionError("shared fetch must not be called")
 
     monkeypatch.setattr(
-        autonomous_production_driver.urllib.request,
-        "urlopen",
-        forbidden_urlopen,
+        autonomous_production_driver,
+        "fetch_https_bytes",
+        forbidden_fetch,
     )
     with pytest.raises(
         autonomous_production_driver.AutonomousProductionDriverError,
-        match="network target left exact Zenodo HTTPS authority",
+        match="network target left exact authorized Zenodo production route",
     ):
         autonomous_production_driver._exact_zenodo_get(
-            "https://example.com/api/records/20503603"
+            "https://example.com/api/records/20503603",
+            expected_path="/api/records/20503603",
         )
-    assert urlopen_called is False
+    assert fetch_called is False
 
 
 def test_comparability_is_registered_but_geometry_acquisition_is_new_frontier() -> None:
