@@ -16,7 +16,11 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .kernel import ResearchLoopError
-from .zenodo_evidence_acquisition import normalize_zenodo_record_metadata, zenodo_record_url
+from .zenodo_evidence_acquisition import (
+    ZenodoEvidenceAcquisitionError,
+    normalize_zenodo_record_metadata,
+    zenodo_record_url,
+)
 
 IN625_ZENODO_LIVE_EVIDENCE_SCHEMA_VERSION = "1.0"
 IN625_ZENODO_LIVE_EVIDENCE_POLICY_VERSION = "1.0"
@@ -142,44 +146,61 @@ def _reject_html(body: bytes, field: str) -> None:
         raise In625ZenodoLiveEvidenceError(f"{field} looks like HTML rather than source evidence")
 
 
-def build_verified_in625_zenodo_readme_manifest(
+def validate_verified_in625_zenodo_metadata(
     *,
     config: Mapping[str, Any],
     metadata_bytes: bytes,
-    readme_bytes: bytes,
 ) -> dict[str, Any]:
-    """Verify exact current source identity and README bytes against repository policy."""
-    if not isinstance(metadata_bytes, bytes) or not isinstance(readme_bytes, bytes):
-        raise In625ZenodoLiveEvidenceError("metadata_bytes and readme_bytes must be exact bytes")
+    """Authenticate exact Zenodo record metadata before any derived file request."""
+    if not isinstance(metadata_bytes, bytes):
+        raise In625ZenodoLiveEvidenceError("metadata_bytes must be exact bytes")
     zenodo = _zenodo_config(config)
     record_id = _positive_int(zenodo.get("record_id"), "config.zenodo.record_id")
     version_doi = _text(zenodo.get("version_doi"), "config.zenodo.version_doi")
-    normalized = normalize_zenodo_record_metadata(
-        metadata_bytes=metadata_bytes,
-        request_url=zenodo_record_url(record_id),
-        expected_record_id=record_id,
-        expected_doi=version_doi,
-    )
+    try:
+        normalized = normalize_zenodo_record_metadata(
+            metadata_bytes=metadata_bytes,
+            request_url=zenodo_record_url(record_id),
+            expected_record_id=record_id,
+            expected_doi=version_doi,
+        )
+    except ZenodoEvidenceAcquisitionError as exc:
+        raise In625ZenodoLiveEvidenceError(
+            "Zenodo metadata failed bounded normalization"
+        ) from exc
     if normalized.get("record_decision") != "AUTO":
-        raise In625ZenodoLiveEvidenceError("exact Zenodo record is not automatically reusable under policy")
+        raise In625ZenodoLiveEvidenceError(
+            "exact Zenodo record is not automatically reusable under policy"
+        )
     raw_record = _json_object(metadata_bytes, "Zenodo metadata bytes")
     metadata = _mapping(raw_record.get("metadata"), "Zenodo metadata.metadata")
     expected_title = _text(zenodo.get("expected_title"), "config.zenodo.expected_title")
     if normalized.get("title") != expected_title:
-        raise In625ZenodoLiveEvidenceError("Zenodo title drifted from the pinned source identity")
+        raise In625ZenodoLiveEvidenceError(
+            "Zenodo title drifted from the pinned source identity"
+        )
     expected_date = _text(zenodo.get("publication_date"), "config.zenodo.publication_date")
     if metadata.get("publication_date") != expected_date:
-        raise In625ZenodoLiveEvidenceError("Zenodo publication date drifted from expectation")
+        raise In625ZenodoLiveEvidenceError(
+            "Zenodo publication date drifted from expectation"
+        )
     expected_license = _text(zenodo.get("license_id"), "config.zenodo.license_id").lower()
     source_licenses = normalized.get("source_license_ids")
     if source_licenses != [expected_license]:
-        raise In625ZenodoLiveEvidenceError("Zenodo license identity drifted from expectation")
-    related_doi = _text(zenodo.get("related_article_doi"), "config.zenodo.related_article_doi")
+        raise In625ZenodoLiveEvidenceError(
+            "Zenodo license identity drifted from expectation"
+        )
+    related_doi = _text(
+        zenodo.get("related_article_doi"), "config.zenodo.related_article_doi"
+    )
     related_relation = _text(
-        zenodo.get("related_article_relation"), "config.zenodo.related_article_relation"
+        zenodo.get("related_article_relation"),
+        "config.zenodo.related_article_relation",
     )
     if not _related_identifier_verified(metadata, related_doi, related_relation):
-        raise In625ZenodoLiveEvidenceError("publication DOI/relation is not verified by the exact Zenodo record")
+        raise In625ZenodoLiveEvidenceError(
+            "publication DOI/relation is not verified by the exact Zenodo record"
+        )
 
     expected_files = _expected_files(zenodo)
     observed_files = {
@@ -188,52 +209,51 @@ def build_verified_in625_zenodo_readme_manifest(
         if isinstance(item, Mapping) and isinstance(item.get("key"), str)
     }
     if set(observed_files) != set(expected_files):
-        raise In625ZenodoLiveEvidenceError("Zenodo file set drifted from the pinned source identity")
+        raise In625ZenodoLiveEvidenceError(
+            "Zenodo file set drifted from the pinned source identity"
+        )
     file_bindings: dict[str, Any] = {}
     for key, expected_raw in expected_files.items():
         expected = _mapping(expected_raw, f"config.zenodo.files[{key!r}]")
         observed = observed_files[key]
         size = _positive_int(expected.get("size_bytes"), f"expected {key} size")
         algorithm = _text(
-            expected.get("provider_checksum_algorithm"), f"expected {key} checksum algorithm"
+            expected.get("provider_checksum_algorithm"),
+            f"expected {key} checksum algorithm",
         ).lower()
         digest_length = 32 if algorithm == "md5" else 64 if algorithm == "sha256" else 0
         if digest_length == 0:
-            raise In625ZenodoLiveEvidenceError("only provider MD5/SHA-256 checksums are supported")
+            raise In625ZenodoLiveEvidenceError(
+                "only provider MD5/SHA-256 checksums are supported"
+            )
         digest = _hex(
-            expected.get("provider_checksum_digest"), digest_length, f"expected {key} checksum"
+            expected.get("provider_checksum_digest"),
+            digest_length,
+            f"expected {key} checksum",
         )
         if observed.get("size_bytes") != size:
             raise In625ZenodoLiveEvidenceError(f"Zenodo file size drifted: {key}")
         if observed.get("source_checksum_algorithm") != algorithm:
-            raise In625ZenodoLiveEvidenceError(f"Zenodo checksum algorithm drifted: {key}")
+            raise In625ZenodoLiveEvidenceError(
+                f"Zenodo checksum algorithm drifted: {key}"
+            )
         if observed.get("source_checksum_digest") != digest:
-            raise In625ZenodoLiveEvidenceError(f"Zenodo provider checksum drifted: {key}")
+            raise In625ZenodoLiveEvidenceError(
+                f"Zenodo provider checksum drifted: {key}"
+            )
+        download_url = observed.get("download_url")
+        if not isinstance(download_url, str) or not download_url:
+            raise In625ZenodoLiveEvidenceError(
+                f"Zenodo file download URL is missing: {key}"
+            )
         file_bindings[key] = {
             "size_bytes": size,
             "provider_checksum_algorithm": algorithm,
             "provider_checksum_digest": digest,
-            "download_url": observed.get("download_url"),
+            "download_url": download_url,
         }
 
-    readme_name = _text(zenodo.get("readme_file"), "config.zenodo.readme_file")
-    expected_readme = _mapping(expected_files.get(readme_name), "configured README identity")
-    _reject_html(readme_bytes, "README")
-    if len(readme_bytes) != _positive_int(expected_readme.get("size_bytes"), "README size"):
-        raise In625ZenodoLiveEvidenceError("README byte size does not match pinned source identity")
-    expected_md5 = _hex(expected_readme.get("provider_checksum_digest"), 32, "README provider MD5")
-    actual_md5 = hashlib.md5(readme_bytes, usedforsecurity=False).hexdigest()
-    if actual_md5 != expected_md5:
-        raise In625ZenodoLiveEvidenceError("README MD5 does not match Zenodo provider metadata")
-    expected_sha256 = _hex(expected_readme.get("verified_sha256"), 64, "README verified SHA-256")
-    actual_sha256 = hashlib.sha256(readme_bytes).hexdigest()
-    if actual_sha256 != expected_sha256:
-        raise In625ZenodoLiveEvidenceError("README SHA-256 does not match repository-verified bytes")
-
-    manifest: dict[str, Any] = {
-        "schema_version": IN625_ZENODO_LIVE_EVIDENCE_SCHEMA_VERSION,
-        "policy_version": IN625_ZENODO_LIVE_EVIDENCE_POLICY_VERSION,
-        "evidence_stage": "verified_publication_readme",
+    return {
         "record_id": str(record_id),
         "record_doi": version_doi.lower(),
         "record_title": expected_title,
@@ -243,6 +263,57 @@ def build_verified_in625_zenodo_readme_manifest(
         "related_article_relation": related_relation,
         "record_metadata_sha256": hashlib.sha256(metadata_bytes).hexdigest(),
         "file_bindings": file_bindings,
+    }
+
+
+def build_verified_in625_zenodo_readme_manifest(
+    *,
+    config: Mapping[str, Any],
+    metadata_bytes: bytes,
+    readme_bytes: bytes,
+) -> dict[str, Any]:
+    """Verify exact current source identity and README bytes against repository policy."""
+    if not isinstance(readme_bytes, bytes):
+        raise In625ZenodoLiveEvidenceError("readme_bytes must be exact bytes")
+    metadata_witness = validate_verified_in625_zenodo_metadata(
+        config=config,
+        metadata_bytes=metadata_bytes,
+    )
+    zenodo = _zenodo_config(config)
+    expected_files = _expected_files(zenodo)
+    readme_name = _text(zenodo.get("readme_file"), "config.zenodo.readme_file")
+    expected_readme = _mapping(
+        expected_files.get(readme_name), "configured README identity"
+    )
+    _reject_html(readme_bytes, "README")
+    if len(readme_bytes) != _positive_int(
+        expected_readme.get("size_bytes"), "README size"
+    ):
+        raise In625ZenodoLiveEvidenceError(
+            "README byte size does not match pinned source identity"
+        )
+    expected_md5 = _hex(
+        expected_readme.get("provider_checksum_digest"), 32, "README provider MD5"
+    )
+    actual_md5 = hashlib.md5(readme_bytes, usedforsecurity=False).hexdigest()
+    if actual_md5 != expected_md5:
+        raise In625ZenodoLiveEvidenceError(
+            "README MD5 does not match Zenodo provider metadata"
+        )
+    expected_sha256 = _hex(
+        expected_readme.get("verified_sha256"), 64, "README verified SHA-256"
+    )
+    actual_sha256 = hashlib.sha256(readme_bytes).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise In625ZenodoLiveEvidenceError(
+            "README SHA-256 does not match repository-verified bytes"
+        )
+
+    manifest: dict[str, Any] = {
+        "schema_version": IN625_ZENODO_LIVE_EVIDENCE_SCHEMA_VERSION,
+        "policy_version": IN625_ZENODO_LIVE_EVIDENCE_POLICY_VERSION,
+        "evidence_stage": "verified_publication_readme",
+        **metadata_witness,
         "readme": {
             "file_name": readme_name,
             "size_bytes": len(readme_bytes),
