@@ -132,6 +132,10 @@ def _rehash(stop: dict[str, object]) -> dict[str, object]:
 def _write_stop(output: Path, *, stage: str = "zenodo_record_metadata") -> dict[str, object]:
     output.mkdir(parents=True)
     qualification = _qualification()
+    (output / "standing-network-policy-qualification.json").write_text(
+        json.dumps(qualification, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     prior: dict[str, str] = {}
     error_class = "PublicAcquisitionTransportError"
     requested_url = METADATA_URL
@@ -618,6 +622,65 @@ def test_transport_stop_rejects_known_post_archive_production_outputs(
     with pytest.raises(
         Cycle1TransportStopVerificationError,
         match="post-archive production artifact",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_verifier_rejects_forged_retained_policy_qualification(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    qualification_path = output / "standing-network-policy-qualification.json"
+    qualification = json.loads(qualification_path.read_text(encoding="utf-8"))
+    qualification["unrestricted_search_authorized"] = True
+    qualification_path.write_text(json.dumps(qualification) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="qualification differs from reconstructed authority",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_readme_stop_rejects_oversized_retained_metadata_before_parse(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_readme")
+    with (output / "record.json").open("wb") as handle:
+        handle.truncate(stop_verifier._ZENODO_CONTROL_PLANE_MAX_BYTES + 1)
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="record metadata exceeds .* verification bound",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_archive_stop_rejects_oversized_retained_readme_before_hash(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_archive")
+    _patch_archive_manifest_builder(monkeypatch)
+    source = json.loads(SOURCE.read_text(encoding="utf-8"))
+    maximum = source["zenodo"]["files"][README_NAME]["size_bytes"]
+    assert isinstance(maximum, int) and not isinstance(maximum, bool)
+    with (output / README_NAME).open("wb") as handle:
+        handle.truncate(maximum + 1)
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="completed README exceeds .* verification bound",
     ):
         verify_cycle1_transport_stop(
             repository_root=REPOSITORY_ROOT,
