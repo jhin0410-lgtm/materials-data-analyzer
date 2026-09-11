@@ -294,5 +294,5 @@ def test_archive_stop_bounds_retained_readme_before_validation(tmp_path: Path) -
 '''
 if "test_verifier_rejects_forged_persisted_policy_qualification" in tests:
     raise SystemExit("final review hardening tests already present")
-tests = tests.rstrip() + new_tests + "\n"
+tests = tests.rstrip() + new_tests.rstrip() + "\n"
 TESTS.write_text(tests, encoding="utf-8")
