@@ -111,14 +111,35 @@ def _write_json(path: Path, value: object) -> None:
     )
 
 
-def _read_json(path: Path, field: str) -> dict[str, Any]:
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise AutonomousProductionDriverError(
+                f"duplicate JSON key is not allowed: {key}"
+            )
+        result[key] = value
+    return result
+
+
+def _read_json_bytes(raw: bytes, field: str) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise AutonomousProductionDriverError(f"{field} must be valid UTF-8 JSON") from exc
     if not isinstance(value, dict):
         raise AutonomousProductionDriverError(f"{field} root must be an object")
     return value
+
+
+def _read_json(path: Path, field: str) -> dict[str, Any]:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise AutonomousProductionDriverError(f"{field} must be readable") from exc
+    return _read_json_bytes(raw, field)
 
 
 def _sha256_file(path: Path) -> str:
@@ -212,6 +233,7 @@ def _exact_zenodo_get(
             max_bytes=max_bytes,
             timeout_seconds=timeout,
             headers=dict(request.header_items()),
+            exact_url=request.full_url,
         )
     except PublicAcquisitionTransportError:
         raise
@@ -516,8 +538,8 @@ def run_autonomous_production(
         network_policy.get("source_config_sha256") == source_config_sha256,
         "qualified network policy/source config binding drifted before cycle-1 transport",
     )
-    source_config = _read_json(
-        source_config_path,
+    source_config = _read_json_bytes(
+        config_bytes,
         "IN625 verified source config",
     )
     record_url = network_policy["record_api_url"]
