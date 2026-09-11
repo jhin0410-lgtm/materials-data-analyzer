@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "extension_id": "autonomous-in625-production-weaver-authority-extension-v1",
+  "base_mission_id": "autonomous-in625-production-v1",
+  "base_mission_sha256": "98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea",
+  "authorized_action_class": "weaver_2021_spot_size_full_text_derived_acquisition",
+  "predecessor_action_class": "mds2_2923_experiment_identity_reference_chain_assessment",
+  "source_trust_policy_pin": {
+    "policy_id": "weaver-2021-full-text-derived-acquisition-v1",
+    "sha256": "ca245cdfd6c8a0df1f6e485e5c5aea55ac94ba40896395868e754bf3763cfae0"
+  },
+  "source_identity": {
+    "doi": "10.1016/j.jmapro.2021.10.053",
+    "pmcid": "PMC9890508",
+    "pmid": "36733901"
+  },
+  "authority": {
+    "base_mission_mutation_required": false,
+    "caller_authored_url_allowed": false,
+    "caller_authored_pmcid_allowed": false,
+    "unrestricted_search_allowed": false,
+    "authority_may_be_reused_for_other_action_classes": false,
+    "acquisition_may_change_scientific_status": false,
+    "literature_may_be_promoted_to_row_level_measurement_authority": false,
+    "ambench_power_conversion_may_be_transferred_without_experiment_scoped_evidence": false
+  }
+}

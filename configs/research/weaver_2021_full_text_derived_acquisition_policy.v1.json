@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "weaver-2021-full-text-derived-acquisition-v1",
+  "action_class": "weaver_2021_spot_size_full_text_derived_acquisition",
+  "source": {
+    "source_id": "weaver-2021-pmc-bioc-full-text",
+    "doi": "10.1016/j.jmapro.2021.10.053",
+    "pmcid": "PMC9890508",
+    "pmid": "36733901",
+    "title": "Laser spot size and scaling laws for laser beam additive manufacturing",
+    "authors": [
+      "Jordan S. Weaver",
+      "Jarred C. Heigel",
+      "Brandon M. Lane"
+    ],
+    "url": "https://www.ncbi.nlm.nih.gov/research/bionlp/RESTful/pmcoa.cgi/BioC_json/PMC9890508/unicode",
+    "source_class": "primary_paper_full_text",
+    "media_type": "application/json"
+  },
+  "network": {
+    "scheme": "https",
+    "allowed_hosts": [
+      "www.ncbi.nlm.nih.gov"
+    ],
+    "exact_path": "/research/bionlp/RESTful/pmcoa.cgi/BioC_json/PMC9890508/unicode",
+    "max_requests": 1,
+    "max_source_bytes": 8388608,
+    "max_total_bytes": 8388608,
+    "timeout_seconds": 120,
+    "unrestricted_search_allowed": false,
+    "caller_authored_urls_allowed": false,
+    "same_host_redirects_only": true
+  },
+  "claims": [
+    {
+      "claim_id": "weaver-primary-condition",
+      "required_fragments": [
+        "primary laser power and speed combination",
+        "195 W",
+        "800 mm",
+        "D4",
+        "50",
+        "322"
+      ],
+      "scope": "The Weaver paper states the primary IN625 single-track condition and overall D4sigma spot-size range."
+    },
+    {
+      "claim_id": "weaver-ammt-machine-condition",
+      "required_fragments": [
+        "AMMT machine",
+        "fixed laser power and scan speed",
+        "195 W",
+        "800 mm",
+        "increasing spot diameter"
+      ],
+      "scope": "The Weaver paper identifies AMMT single-track scans at fixed 195 W and 800 mm/s with increasing spot diameter."
+    },
+    {
+      "claim_id": "weaver-d4sigma-definition",
+      "required_fragments": [
+        "spot size",
+        "rotationally-symmetric Gaussian",
+        "beam diameter",
+        "D4sigma definition",
+        "D4sigma = 4sigma"
+      ],
+      "scope": "The paper defines the rotationally symmetric Gaussian beam diameter using D4sigma = 4sigma."
+    },
+    {
+      "claim_id": "weaver-cross-section-protocol",
+      "required_fragments": [
+        "Single scan laser tracks",
+        "IN625",
+        "cross-sectioned",
+        "metallographically prepared",
+        "Aqua Regia",
+        "melt pool depth"
+      ],
+      "scope": "The paper states the single-track IN625 cross-section and metallographic measurement protocol."
+    },
+    {
+      "claim_id": "weaver-dataset-size",
+      "required_fragments": [
+        "data set contains",
+        "80 single track laser scans"
+      ],
+      "scope": "The paper states the total single-track dataset size."
+    },
+    {
+      "claim_id": "weaver-explicit-mds2-id",
+      "required_fragments": [
+        "mds2-2923"
+      ],
+      "scope": "Direct explicit mds2-2923 identifier, if present."
+    },
+    {
+      "claim_id": "weaver-explicit-power-conversion",
+      "required_fragments": [
+        "commanded",
+        "195 W",
+        "actual",
+        "179.2 W"
+      ],
+      "scope": "Explicit experiment-scoped commanded 195 W to actual 179.2 W conversion, if present."
+    }
+  ],
+  "authority": {
+    "doi_and_pmcid_are_locator_identity_not_scientific_truth": true,
+    "full_text_may_establish_experiment_details": true,
+    "full_text_may_establish_row_identity_without_explicit_row_binding": false,
+    "full_text_may_establish_power_conversion_without_explicit_experiment_scoped_relation": false,
+    "literature_may_be_row_level_measurement_authority": false,
+    "scientific_status_change_authorized_by_acquisition": false,
+    "global_evidence_unavailability_may_be_claimed_from_failure": false
+  }
+}
