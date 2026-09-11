@@ -24,7 +24,6 @@ text = text.replace(redundant, "")
 VERIFIER.write_text(text, encoding="utf-8")
 
 append = r'''
-
 @pytest.mark.parametrize(
     ("artifact_name", "error_match"),
     [
@@ -82,4 +81,7 @@ test_text = TESTS.read_text(encoding="utf-8")
 marker = "def test_metadata_stop_rejects_impossible_downstream_artifacts("
 if marker in test_text:
     raise SystemExit("sequencing regression already present")
-TESTS.write_text(test_text.rstrip() + append + "\n", encoding="utf-8")
+TESTS.write_text(
+    test_text.rstrip() + "\n\n" + append.strip() + "\n",
+    encoding="utf-8",
+)
