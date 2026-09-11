@@ -686,3 +686,43 @@ def test_archive_stop_rejects_oversized_retained_readme_before_hash(
             repository_root=REPOSITORY_ROOT,
             output_root=output,
         )
+
+
+def test_verifier_accepts_exported_qualification_from_different_checkout_root(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    qualification_path = output / "standing-network-policy-qualification.json"
+    qualification = json.loads(qualification_path.read_text(encoding="utf-8"))
+    qualification["source_config_path"] = (
+        "/different/checkout/materials-data-analyzer/"
+        "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+    )
+    qualification_path.write_text(json.dumps(qualification) + "\n", encoding="utf-8")
+
+    result = verify_cycle1_transport_stop(
+        repository_root=REPOSITORY_ROOT,
+        output_root=output,
+    )
+    assert result["verification_status"] == "cycle_1_transport_stop_authenticated"
+
+
+def test_verifier_rejects_exported_qualification_with_wrong_source_path(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output)
+    qualification_path = output / "standing-network-policy-qualification.json"
+    qualification = json.loads(qualification_path.read_text(encoding="utf-8"))
+    qualification["source_config_path"] = "/different/checkout/configs/research/other.json"
+    qualification_path.write_text(json.dumps(qualification) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="source config path differs from repository-pinned identity",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )

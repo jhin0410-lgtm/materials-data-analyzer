@@ -128,6 +128,23 @@ def _require(condition: bool, message: str) -> None:
         raise Cycle1TransportStopVerificationError(message)
 
 
+def _portable_qualification(value: Mapping[str, Any], field: str) -> dict[str, Any]:
+    normalized = dict(value)
+    source_path = normalized.get("source_config_path")
+    _require(
+        isinstance(source_path, str) and source_path,
+        f"{field} source config path is missing",
+    )
+    portable_path = source_path.replace("\\", "/")
+    _require(
+        portable_path == SOURCE_CONFIG_PATH
+        or portable_path.endswith(f"/{SOURCE_CONFIG_PATH}"),
+        f"{field} source config path differs from repository-pinned identity",
+    )
+    normalized["source_config_path"] = SOURCE_CONFIG_PATH
+    return normalized
+
+
 def _published_record_file_route(
     value: object,
     *,
@@ -250,7 +267,14 @@ def verify_cycle1_transport_stop(
         "standing network policy qualification",
     )
     _require(
-        persisted_qualification == qualification,
+        _portable_qualification(
+            persisted_qualification,
+            "retained standing network policy qualification",
+        )
+        == _portable_qualification(
+            qualification,
+            "reconstructed standing network policy qualification",
+        ),
         "retained standing network policy qualification differs from reconstructed authority",
     )
     persisted = _read_json(output / STOP_PATH, "cycle-1 transport stop")
