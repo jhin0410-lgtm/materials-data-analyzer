@@ -34,6 +34,61 @@ def _policy() -> dict[str, object]:
     }
 
 
+def _source_valid_metadata_bytes(
+    *,
+    readme_url: str = (
+        "https://zenodo.org/api/records/20503603/files/"
+        "README%20-%20Dataset%20description.txt/content"
+    ),
+) -> bytes:
+    source = json.loads(SOURCE.read_text(encoding="utf-8"))
+    zenodo = source["zenodo"]
+    files = zenodo["files"]
+    payload = {
+        "id": zenodo["record_id"],
+        "doi": zenodo["version_doi"],
+        "metadata": {
+            "title": zenodo["expected_title"],
+            "publication_date": zenodo["publication_date"],
+            "access_right": "open",
+            "license": {"id": zenodo["license_id"]},
+            "related_identifiers": [
+                {
+                    "identifier": zenodo["related_article_doi"],
+                    "relation": zenodo["related_article_relation"],
+                    "scheme": "doi",
+                }
+            ],
+        },
+        "files": [
+            {
+                "key": "Dataset.zip",
+                "size": files["Dataset.zip"]["size_bytes"],
+                "checksum": (
+                    f"{files['Dataset.zip']['provider_checksum_algorithm']}:"
+                    f"{files['Dataset.zip']['provider_checksum_digest']}"
+                ),
+                "links": {
+                    "self": (
+                        "https://zenodo.org/api/records/20503603/files/"
+                        "Dataset.zip/content"
+                    )
+                },
+            },
+            {
+                "key": zenodo["readme_file"],
+                "size": files[zenodo["readme_file"]]["size_bytes"],
+                "checksum": (
+                    f"{files[zenodo['readme_file']]['provider_checksum_algorithm']}:"
+                    f"{files[zenodo['readme_file']]['provider_checksum_digest']}"
+                ),
+                "links": {"self": readme_url},
+            },
+        ],
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
 def test_exact_zenodo_get_preserves_shared_transport_subtype(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -202,6 +257,50 @@ def test_live_driver_metadata_transport_failure_persists_exact_authority_stop(
     assert not (output / "autonomous-production-manifest.json").exists()
 
 
+def test_live_driver_rejects_metadata_identity_drift_before_readme_request(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "production-output"
+    metadata = json.loads(_source_valid_metadata_bytes())
+    metadata["metadata"]["title"] = "forged source identity"
+    forged = json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
+    requested_urls: list[str] = []
+
+    def use_test_output(_: Path, __: Path) -> Path:
+        output.mkdir(parents=True, exist_ok=True)
+        return output
+
+    def metadata_then_forbidden_second_request(url: str, **_kwargs: object) -> bytes:
+        requested_urls.append(url)
+        if len(requested_urls) == 1:
+            return forged
+        raise AssertionError("request #2 must not occur after metadata identity drift")
+
+    monkeypatch.setattr(driver, "_repo_output", use_test_output)
+    monkeypatch.setattr(
+        driver, "_exact_zenodo_get", metadata_then_forbidden_second_request
+    )
+
+    with pytest.raises(
+        driver.AutonomousProductionDriverError,
+        match="source-identity validation before request #2",
+    ):
+        driver.run_autonomous_production(
+            repository_root=REPOSITORY_ROOT,
+            mission_path=MISSION,
+            expected_mission_sha256=EXPECTED_MISSION_SHA256,
+            output_root=Path("ignored-by-test"),
+            max_cycles=3,
+        )
+
+    assert requested_urls == ["https://zenodo.org/api/records/20503603"]
+    assert not (output / "cycle-1-transport-stop.json").exists()
+    assert not (output / "record.json").exists()
+
+
 def test_live_driver_readme_transport_failure_retains_replayable_metadata_witness(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -213,16 +312,7 @@ def test_live_driver_readme_transport_failure_retains_replayable_metadata_witnes
         "https://zenodo.org/api/records/20503603/files/"
         "README%20-%20Dataset%20description.txt/content"
     )
-    metadata_bytes = json.dumps(
-        {
-            "id": 20503603,
-            "files": [
-                {"key": readme_name, "links": {"self": readme_url}},
-            ],
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    metadata_bytes = _source_valid_metadata_bytes(readme_url=readme_url)
     requested_urls: list[str] = []
 
     def use_test_output(_: Path, __: Path) -> Path:
