@@ -57,7 +57,7 @@ def test_resolver_discovers_only_finite_bridge_factory() -> None:
     assert result["factory_id"] == bridge.FACTORY_ID
     assert result["candidate"]["state"] == "candidate"
     assert result["candidate"]["implementation_id"] == bridge.IMPLEMENTATION_ID
-    assert result["factory_catalogue_size"] == 4
+    assert result["factory_catalogue_size"] == 5
     assert result["unrestricted_discovery_performed"] is False
     assert result["arbitrary_code_generation_performed"] is False
 
@@ -74,7 +74,7 @@ def test_resolver_discovers_finite_nist_index_factory_only_with_required_primiti
     )
     assert result["resolution_status"] == "bounded_candidate_discovered"
     assert result["factory_id"] == discovery.FACTORY_ID
-    assert result["factory_catalogue_size"] == 4
+    assert result["factory_catalogue_size"] == 5
     assert result["candidate"]["implementation_id"] == discovery.IMPLEMENTATION_ID
     assert result["candidate"]["mechanism"] == "generate_declarative_adapter_instance"
     assert result["candidate"]["network_authority_granted"] is False
@@ -100,7 +100,7 @@ def test_resolver_does_not_invent_candidate_for_unknown_action() -> None:
     )
     assert result["resolution_status"] == "no_bounded_candidate_available"
     assert result["candidate"] is None
-    assert result["factory_catalogue_size"] == 4
+    assert result["factory_catalogue_size"] == 5
     assert result["arbitrary_code_generation_performed"] is False
 
 
@@ -331,12 +331,11 @@ def test_terminal_capability_lineage_rejects_jointly_rehashed_action_substitutio
     write_json("capability-specification-5.json", forged_specification)
     write_json("capability-resolution-5.json", forged_resolution)
 
-    # Round 4 authenticates this internally consistent forged terminal trio but does not
-    # bind the gap's requested action back to the cycle-12 reference graph.
-    round4._verify_terminal_capability_resolution(tmp_path, cycles)
-
     with pytest.raises(
-        round5.AutonomousProductionExactHeadRound5Error,
-        match="terminal capability gap drifted from the authenticated reference action",
+        round4.AutonomousProductionExactHeadRound4Error,
+        match="terminal capability resolution drifted from the authenticated fail-closed contract",
     ):
+        round4._verify_terminal_capability_resolution(tmp_path, cycles)
+
+    with pytest.raises(round5.AutonomousProductionExactHeadRound5Error):
         round5.verify_exact_head_round5_boundaries(tmp_path)
