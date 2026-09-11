@@ -59,15 +59,52 @@ def _metadata_bytes(
     readme_url: str = README_URL,
     record_id: int = 20503603,
     duplicate_readme: bool = False,
+    title: str | None = None,
 ) -> bytes:
+    source = json.loads(SOURCE.read_text(encoding="utf-8"))
+    zenodo = source["zenodo"]
+    configured_files = zenodo["files"]
     files: list[dict[str, object]] = [
-        {"key": README_NAME, "links": {"self": readme_url}},
-        {"key": "Dataset.zip", "links": {"self": ARCHIVE_URL}},
+        {
+            "key": README_NAME,
+            "size": configured_files[README_NAME]["size_bytes"],
+            "checksum": (
+                f"{configured_files[README_NAME]['provider_checksum_algorithm']}:"
+                f"{configured_files[README_NAME]['provider_checksum_digest']}"
+            ),
+            "links": {"self": readme_url},
+        },
+        {
+            "key": "Dataset.zip",
+            "size": configured_files["Dataset.zip"]["size_bytes"],
+            "checksum": (
+                f"{configured_files['Dataset.zip']['provider_checksum_algorithm']}:"
+                f"{configured_files['Dataset.zip']['provider_checksum_digest']}"
+            ),
+            "links": {"self": ARCHIVE_URL},
+        },
     ]
     if duplicate_readme:
-        files.append({"key": README_NAME, "links": {"self": readme_url}})
+        files.append(dict(files[0]))
     return json.dumps(
-        {"id": record_id, "files": files},
+        {
+            "id": record_id,
+            "doi": zenodo["version_doi"],
+            "metadata": {
+                "title": title or zenodo["expected_title"],
+                "publication_date": zenodo["publication_date"],
+                "access_right": "open",
+                "license": {"id": zenodo["license_id"]},
+                "related_identifiers": [
+                    {
+                        "identifier": zenodo["related_article_doi"],
+                        "relation": zenodo["related_article_relation"],
+                        "scheme": "doi",
+                    }
+                ],
+            },
+            "files": files,
+        },
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
@@ -303,6 +340,27 @@ def test_readme_stop_rejects_self_consistent_metadata_url_forgery(tmp_path: Path
         verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
 
 
+def test_readme_stop_rejects_self_consistent_source_identity_forgery(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    stop = _write_stop(output, stage="zenodo_readme")
+    forged_metadata = _metadata_bytes(title="forged source title")
+    (output / "record.json").write_bytes(forged_metadata)
+    prior = stop["observed_prior_evidence"]
+    assert isinstance(prior, dict)
+    prior["metadata_sha256"] = hashlib.sha256(forged_metadata).hexdigest()
+    _persist_stop(output, _rehash(stop))
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="authoritative source-identity replay",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT, output_root=output
+        )
+
+
 def test_readme_stop_rejects_duplicate_metadata_readme_identity(tmp_path: Path) -> None:
     output = tmp_path / "stop"
     stop = _write_stop(output, stage="zenodo_readme")
@@ -315,7 +373,7 @@ def test_readme_stop_rejects_duplicate_metadata_readme_identity(tmp_path: Path) 
 
     with pytest.raises(
         Cycle1TransportStopVerificationError,
-        match="exactly one configured README entry",
+        match="authoritative source-identity replay",
     ):
         verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
 
