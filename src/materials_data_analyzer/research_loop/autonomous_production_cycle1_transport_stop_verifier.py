@@ -38,6 +38,8 @@ NETWORK_POLICY_PATH = "configs/research/in625_zenodo_network_acquisition_policy.
 SOURCE_CONFIG_PATH = "configs/research/in625_zenodo_20503603_verified_source.v1.json"
 STOP_PATH = "cycle-1-transport-stop.json"
 ZENODO_HOST = "zenodo.org"
+_ZENODO_CONTROL_PLANE_MAX_BYTES = 8 * 1024 * 1024
+_PERSISTED_JSON_MAX_BYTES = _ZENODO_CONTROL_PLANE_MAX_BYTES
 _POST_ARCHIVE_PRODUCTION_PATHS = (
     "selected-source-files",
     "archive-manifest.json",
@@ -71,13 +73,48 @@ def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _read_bounded_bytes(
+    path: Path,
+    field: str,
+    *,
+    maximum_bytes: int,
+) -> bytes:
+    if isinstance(maximum_bytes, bool) or not isinstance(maximum_bytes, int) or maximum_bytes <= 0:
+        raise Cycle1TransportStopVerificationError(f"{field} byte bound is invalid")
+    try:
+        if not path.is_file():
+            raise Cycle1TransportStopVerificationError(f"{field} must be a regular file")
+        observed_size = path.stat().st_size
+    except OSError as exc:
+        raise Cycle1TransportStopVerificationError(f"{field} could not be inspected") from exc
+    if observed_size > maximum_bytes:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} exceeds {maximum_bytes}-byte verification bound"
+        )
+    try:
+        with path.open("rb") as handle:
+            value = handle.read(maximum_bytes + 1)
+    except OSError as exc:
+        raise Cycle1TransportStopVerificationError(f"{field} could not be read") from exc
+    if len(value) > maximum_bytes:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} exceeds {maximum_bytes}-byte verification bound"
+        )
+    return value
+
+
 def _read_json(path: Path, field: str) -> dict[str, Any]:
+    raw = _read_bounded_bytes(
+        path,
+        field,
+        maximum_bytes=_PERSISTED_JSON_MAX_BYTES,
+    )
     try:
         value = json.loads(
-            path.read_text(encoding="utf-8"),
+            raw.decode("utf-8"),
             object_pairs_hook=_reject_duplicate_pairs,
         )
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise Cycle1TransportStopVerificationError(
             f"{field} must be valid UTF-8 JSON"
         ) from exc
@@ -142,7 +179,11 @@ def _completed_metadata_control_plane_witness(
         record_path.is_file(),
         "post-metadata transport stop requires retained completed record metadata",
     )
-    metadata_bytes = record_path.read_bytes()
+    metadata_bytes = _read_bounded_bytes(
+        record_path,
+        "retained completed record metadata",
+        maximum_bytes=_ZENODO_CONTROL_PLANE_MAX_BYTES,
+    )
     try:
         metadata_witness = validate_verified_in625_zenodo_metadata(
             config=source_config,
@@ -204,6 +245,14 @@ def verify_cycle1_transport_stop(
         policy_path=policy,
         source_config_path=source,
     )
+    persisted_qualification = _read_json(
+        output / "standing-network-policy-qualification.json",
+        "standing network policy qualification",
+    )
+    _require(
+        persisted_qualification == qualification,
+        "retained standing network policy qualification differs from reconstructed authority",
+    )
     persisted = _read_json(output / STOP_PATH, "cycle-1 transport stop")
     try:
         stop = authenticate_cycle1_transport_stop(persisted)
@@ -261,6 +310,17 @@ def verify_cycle1_transport_stop(
     _require(
         isinstance(archive_name, str) and archive_name,
         "source archive identity is invalid",
+    )
+    file_rules = zenodo.get("files")
+    _require(isinstance(file_rules, Mapping), "source config file rules are missing")
+    readme_rule = file_rules.get(readme_name)
+    _require(isinstance(readme_rule, Mapping), "source README rule is missing")
+    readme_max_bytes = readme_rule.get("size_bytes")
+    _require(
+        isinstance(readme_max_bytes, int)
+        and not isinstance(readme_max_bytes, bool)
+        and readme_max_bytes > 0,
+        "source README size bound is invalid",
     )
     _require(
         not (output / archive_name).exists(),
@@ -369,7 +429,11 @@ def verify_cycle1_transport_stop(
         completed_metadata_witness_replayed = True
         readme_path = output / readme_name
         _require(readme_path.is_file(), "archive stop lost completed README bytes")
-        readme_bytes = readme_path.read_bytes()
+        readme_bytes = _read_bounded_bytes(
+            readme_path,
+            "retained completed README",
+            maximum_bytes=readme_max_bytes,
+        )
         _require(
             prior.get("readme_sha256") == hashlib.sha256(readme_bytes).hexdigest(),
             "archive stop prior README hash differs from persisted completed README",
