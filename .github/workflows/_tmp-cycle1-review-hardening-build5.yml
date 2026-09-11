@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - tmp/cycle1-review-hardening-build5
+    paths:
+      - ".github/workflows/_tmp-cycle1-review-hardening-build5.yml"
 
 permissions:
   contents: write
@@ -53,14 +55,17 @@ jobs:
             tests/test_autonomous_production_cycle1_transport_stop_verifier.py \
             tests/test_cycle1_exact_zenodo_route_hardening.py
           git diff --check
-      - name: Commit clean staging tree
+      - name: Commit validated source and test changes only
         run: |
-          rm -f .tmp/build_cycle1_review_hardening.py
-          rm -f .github/workflows/_tmp-cycle1-review-hardening-build5.yml
-          rmdir .tmp 2>/dev/null || true
+          git restore --source=HEAD -- .github/workflows/cycle1-zenodo-transport-contract.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add \
+            src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop.py \
+            src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop_verifier.py \
+            tests/test_autonomous_production_cycle1_transport_stop.py \
+            tests/test_autonomous_production_cycle1_transport_stop_verifier.py \
+            tests/test_cycle1_exact_zenodo_route_hardening.py
           git diff --cached --check
           git commit -m "Harden Cycle-1 persisted stop authentication"
           git push origin HEAD:tmp/cycle1-review-hardening-build5
