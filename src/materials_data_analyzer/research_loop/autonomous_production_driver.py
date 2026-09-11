@@ -42,8 +42,10 @@ from .in625_post_acquisition_rediagnosis_v2 import (
 from .in625_tensile_quality_contract import verify_in625_tensile_observed_quality
 from .in625_tensile_reviewed_intake_v2 import build_reviewed_in625_tensile_intake_v2
 from .in625_zenodo_live_evidence import (
+    In625ZenodoLiveEvidenceError,
     build_verified_in625_zenodo_readme_manifest,
     inspect_verified_in625_dataset_archive,
+    validate_verified_in625_zenodo_metadata,
 )
 from .kernel import ResearchLoopError, initialize_research_loop, load_research_state
 from .planning_adapter import plan_research_next_action
@@ -537,28 +539,30 @@ def run_autonomous_production(
             transport_error=exc,
         )
     try:
-        metadata_json = json.loads(metadata_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        metadata_witness = validate_verified_in625_zenodo_metadata(
+            config=source_config,
+            metadata_bytes=metadata_bytes,
+        )
+    except In625ZenodoLiveEvidenceError as exc:
         raise AutonomousProductionDriverError(
-            "Zenodo record response must be valid UTF-8 JSON"
+            "live Zenodo metadata failed exact source-identity validation before request #2"
         ) from exc
-    if not isinstance(metadata_json, dict):
-        raise AutonomousProductionDriverError(
-            "Zenodo record response root is not an object"
-        )
-    files = {
-        item["key"]: item
-        for item in metadata_json.get("files", [])
-        if isinstance(item, Mapping) and isinstance(item.get("key"), str)
-    }
     readme_name = source_config["zenodo"]["readme_file"]
-    if readme_name not in files:
+    file_bindings = metadata_witness.get("file_bindings")
+    if not isinstance(file_bindings, Mapping):
         raise AutonomousProductionDriverError(
-            "live Zenodo record lost exact configured README"
+            "validated Zenodo metadata omitted exact file bindings"
         )
-    readme_url = files[readme_name].get("links", {}).get("self")
+    readme_binding = file_bindings.get(readme_name)
+    if not isinstance(readme_binding, Mapping):
+        raise AutonomousProductionDriverError(
+            "validated Zenodo metadata lost exact configured README"
+        )
+    readme_url = readme_binding.get("download_url")
     if not isinstance(readme_url, str):
-        raise AutonomousProductionDriverError("live Zenodo README link is missing")
+        raise AutonomousProductionDriverError(
+            "validated Zenodo README download URL is missing"
+        )
     readme_rule = source_config["zenodo"]["files"].get(readme_name)
     if not isinstance(readme_rule, Mapping):
         raise AutonomousProductionDriverError("source config lost exact README identity")
