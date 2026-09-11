@@ -1,0 +1,1 @@
+This branch points at the validated staging commit. Final PR tree is constructed from validated tree object without temporary builder/workflow files.
