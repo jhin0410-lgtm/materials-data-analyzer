@@ -15,8 +15,8 @@ from materials_data_analyzer.research_loop.autonomous_production_cycle1_transpor
     build_cycle1_transport_stop,
 )
 from materials_data_analyzer.research_loop.autonomous_production_cycle1_transport_stop_verifier import (
-    Cycle1TransportStopVerificationError,
     EXPECTED_MISSION_SHA256,
+    Cycle1TransportStopVerificationError,
     verify_cycle1_transport_stop,
 )
 from materials_data_analyzer.research_loop.in625_archive_network_acquisition import (
@@ -25,7 +25,6 @@ from materials_data_analyzer.research_loop.in625_archive_network_acquisition imp
 from materials_data_analyzer.research_loop.in625_network_policy import (
     authenticate_in625_network_policy,
 )
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 MISSION = REPOSITORY_ROOT / "configs/research/autonomous_in625_production_mission.v1.json"
@@ -152,7 +151,10 @@ def _write_stop(output: Path, *, stage: str = "zenodo_record_metadata") -> dict[
         }
         (output / "record.json").write_bytes(metadata)
         (output / readme_name).write_bytes(readme)
-        (output / "source-readme-manifest.json").write_text("{}\n", encoding="utf-8")
+        (output / "source-readme-manifest.json").write_text(
+            json.dumps({"fixture": "trusted-source-manifest"}) + "\n",
+            encoding="utf-8",
+        )
         (output / "network-authorization.json").write_text(
             json.dumps(authorization) + "\n", encoding="utf-8"
         )
@@ -176,6 +178,14 @@ def _write_stop(output: Path, *, stage: str = "zenodo_record_metadata") -> dict[
     )
     _persist_stop(output, stop)
     return stop
+
+
+def _patch_archive_manifest_builder(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        stop_verifier,
+        "build_verified_in625_zenodo_readme_manifest",
+        lambda **_kwargs: {"fixture": "trusted-source-manifest"},
+    )
 
 
 def test_verifier_reconstructs_current_authority_for_metadata_stop(tmp_path: Path) -> None:
@@ -396,6 +406,7 @@ def test_archive_stop_verifier_replays_prior_completed_byte_bindings(
 ) -> None:
     output = tmp_path / "stop"
     _write_stop(output, stage="zenodo_archive")
+    _patch_archive_manifest_builder(monkeypatch)
 
     monkeypatch.setattr(
         stop_verifier,
@@ -425,6 +436,7 @@ def test_archive_stop_verifier_rejects_rehashed_requested_url_forgery(
 ) -> None:
     output = tmp_path / "stop"
     stop = _write_stop(output, stage="zenodo_archive")
+    _patch_archive_manifest_builder(monkeypatch)
     stop["requested_url"] = README_URL
     _persist_stop(output, _rehash(stop))
     monkeypatch.setattr(
@@ -443,6 +455,7 @@ def test_archive_stop_verifier_rejects_authorization_reconstruction_failure(
 ) -> None:
     output = tmp_path / "stop"
     _write_stop(output, stage="zenodo_archive")
+    _patch_archive_manifest_builder(monkeypatch)
 
     def reject(*_args: object, **_kwargs: object) -> dict[str, object]:
         raise In625ArchiveNetworkAcquisitionError("forged authorization")
@@ -457,3 +470,66 @@ def test_archive_stop_verifier_rejects_authorization_reconstruction_failure(
         match="authoritative reconstruction",
     ):
         verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+
+def test_verifier_rejects_duplicate_keys_in_persisted_stop_json(tmp_path: Path) -> None:
+    output = tmp_path / "stop"
+    stop = _write_stop(output)
+    raw = json.dumps(stop, separators=(",", ":"))
+    raw = raw.replace("{", '{"scientific_status_changed":true,', 1)
+    (output / "cycle-1-transport-stop.json").write_text(raw, encoding="utf-8")
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="duplicate JSON key",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+def test_archive_stop_rejects_forged_retained_source_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_archive")
+    _patch_archive_manifest_builder(monkeypatch)
+    (output / "source-readme-manifest.json").write_text(
+        json.dumps({"fixture": "forged-source-manifest"}) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="source README manifest differs",
+    ):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
+
+
+@pytest.mark.parametrize(
+    ("artifact_name", "error_match"),
+    [
+        ("Dataset.zip", "completed archive bytes"),
+        ("network-acquisition-receipt.json", "completed network acquisition receipt"),
+    ],
+)
+def test_archive_stop_rejects_impossible_completed_archive_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    artifact_name: str,
+    error_match: str,
+) -> None:
+    output = tmp_path / "stop"
+    _write_stop(output, stage="zenodo_archive")
+    _patch_archive_manifest_builder(monkeypatch)
+    (output / artifact_name).write_bytes(b"impossible completed artifact")
+
+    with pytest.raises(Cycle1TransportStopVerificationError, match=error_match):
+        verify_cycle1_transport_stop(
+            repository_root=REPOSITORY_ROOT,
+            output_root=output,
+        )
