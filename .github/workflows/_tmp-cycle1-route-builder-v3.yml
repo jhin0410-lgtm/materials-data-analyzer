@@ -1,0 +1,54 @@
+name: Temporary exact-route builder v3
+
+on:
+  push:
+    branches:
+      - tmp/cycle1-route-hardening-build3
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Apply exact-tree transformations
+        run: python .tmp/build_exact_route.py
+      - name: Install development environment
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused authority regression suite
+        run: >-
+          python -m pytest -q
+          tests/test_cycle1_exact_zenodo_route_hardening.py
+          tests/test_public_data_acquisition.py
+          tests/test_in625_zenodo_live_evidence.py
+          tests/test_in625_archive_network_acquisition.py
+          tests/test_autonomous_production_driver.py
+          tests/test_autonomous_production_cycle1_transport_recovery.py
+          tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+      - name: Ruff focused diff
+        run: >-
+          python -m ruff check
+          src/materials_data_analyzer/research_loop/autonomous_production_driver.py
+          src/materials_data_analyzer/research_loop/public_data_acquisition.py
+          src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py
+          src/materials_data_analyzer/research_loop/in625_archive_network_acquisition.py
+          tests/test_cycle1_exact_zenodo_route_hardening.py
+      - name: Commit clean staging tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .tmp/build_exact_route.py
+          rm -f .github/workflows/_tmp-cycle1-route-builder-v3.yml
+          rmdir .tmp 2>/dev/null || true
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Build exact Zenodo route hardening tree"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

@@ -1,0 +1,467 @@
+from pathlib import Path
+
+
+def replace_once(path: str, old: str, new: str) -> None:
+    p = Path(path)
+    text = p.read_text(encoding='utf-8')
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f'{path}: expected one replacement, found {count}')
+    p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+
+driver = 'src/materials_data_analyzer/research_loop/autonomous_production_driver.py'
+replace_once(
+    driver,
+    '''def _read_json(path: Path, field: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AutonomousProductionDriverError(f"{field} must be valid UTF-8 JSON") from exc
+    if not isinstance(value, dict):
+        raise AutonomousProductionDriverError(f"{field} root must be an object")
+    return value
+''',
+    '''def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise AutonomousProductionDriverError(
+                f"duplicate JSON key is not allowed: {key}"
+            )
+        result[key] = value
+    return result
+
+
+def _read_json_bytes(raw: bytes, field: str) -> dict[str, Any]:
+    try:
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AutonomousProductionDriverError(f"{field} must be valid UTF-8 JSON") from exc
+    if not isinstance(value, dict):
+        raise AutonomousProductionDriverError(f"{field} root must be an object")
+    return value
+
+
+def _read_json(path: Path, field: str) -> dict[str, Any]:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise AutonomousProductionDriverError(f"{field} must be readable") from exc
+    return _read_json_bytes(raw, field)
+''',
+)
+replace_once(
+    driver,
+    '''            timeout_seconds=timeout,
+            headers=dict(request.header_items()),
+        )
+''',
+    '''            timeout_seconds=timeout,
+            headers=dict(request.header_items()),
+            exact_url=request.full_url,
+        )
+''',
+)
+replace_once(
+    driver,
+    '''    source_config = _read_json(
+        source_config_path,
+        "IN625 verified source config",
+    )
+''',
+    '''    source_config = _read_json_bytes(
+        config_bytes,
+        "IN625 verified source config",
+    )
+''',
+)
+
+public = 'src/materials_data_analyzer/research_loop/public_data_acquisition.py'
+replace_once(
+    public,
+    '''class _RestrictedRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, allowed_hosts: Sequence[str]) -> None:
+        super().__init__()
+        self._allowed_hosts = tuple(allowed_hosts)
+''',
+    '''class _RestrictedRedirectHandler(HTTPRedirectHandler):
+    def __init__(
+        self,
+        allowed_hosts: Sequence[str],
+        *,
+        exact_url: str | None = None,
+    ) -> None:
+        super().__init__()
+        self._allowed_hosts = tuple(allowed_hosts)
+        self._exact_url = exact_url
+''',
+)
+replace_once(
+    public,
+    '''        _validate_https_endpoint(
+            newurl, field="redirect endpoint", allowed_hosts=self._allowed_hosts
+        )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+''',
+    '''        _validate_https_endpoint(
+            newurl, field="redirect endpoint", allowed_hosts=self._allowed_hosts
+        )
+        if self._exact_url is not None and newurl != self._exact_url:
+            raise PublicAcquisitionError(
+                "redirect endpoint left the exact authorized fetch URL"
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+''',
+)
+replace_once(
+    public,
+    '''    timeout_seconds: float = 60.0,
+    headers: Mapping[str, str] | None = None,
+) -> FetchResult:
+    """Fetch HTTPS bytes with exact-host redirect restrictions and a byte ceiling."""
+''',
+    '''    timeout_seconds: float = 60.0,
+    headers: Mapping[str, str] | None = None,
+    exact_url: str | None = None,
+) -> FetchResult:
+    """Fetch HTTPS bytes with bounded redirects and optional exact-URL authority."""
+''',
+)
+replace_once(
+    public,
+    '''    endpoint = _validate_https_endpoint(
+        url, field="fetch endpoint", allowed_hosts=normalized_hosts
+    )
+
+    request_headers = {
+''',
+    '''    endpoint = _validate_https_endpoint(
+        url, field="fetch endpoint", allowed_hosts=normalized_hosts
+    )
+    exact_endpoint: str | None = None
+    if exact_url is not None:
+        exact_endpoint = _validate_https_endpoint(
+            exact_url, field="exact fetch endpoint", allowed_hosts=normalized_hosts
+        )
+        if endpoint != exact_endpoint:
+            raise PublicAcquisitionError(
+                "fetch endpoint differs from the exact authorized fetch URL"
+            )
+
+    request_headers = {
+''',
+)
+replace_once(
+    public,
+    '''    opener = build_opener(_RestrictedRedirectHandler(normalized_hosts))
+    request = Request(endpoint, headers=request_headers, method="GET")
+''',
+    '''    opener = build_opener(
+        _RestrictedRedirectHandler(normalized_hosts, exact_url=exact_endpoint)
+    )
+    request = Request(endpoint, headers=request_headers, method="GET")
+''',
+)
+replace_once(
+    public,
+    '''            _validate_https_endpoint(
+                final_url,
+                field="final response endpoint",
+                allowed_hosts=normalized_hosts,
+            )
+            status = int(getattr(response, "status", response.getcode()))
+''',
+    '''            _validate_https_endpoint(
+                final_url,
+                field="final response endpoint",
+                allowed_hosts=normalized_hosts,
+            )
+            if exact_endpoint is not None and final_url != exact_endpoint:
+                raise PublicAcquisitionError(
+                    "final response endpoint left the exact authorized fetch URL"
+                )
+            status = int(getattr(response, "status", response.getcode()))
+''',
+)
+
+live = 'src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py'
+replace_once(
+    live,
+    '''from typing import Any
+
+from .kernel import ResearchLoopError
+''',
+    '''from typing import Any
+from urllib.parse import unquote, urlparse
+
+from .kernel import ResearchLoopError
+''',
+)
+replace_once(
+    live,
+    '''def _reject_html(body: bytes, field: str) -> None:
+    prefix = body.lstrip()[:512].lower()
+    if prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html") or b"<html" in prefix:
+        raise In625ZenodoLiveEvidenceError(f"{field} looks like HTML rather than source evidence")
+
+
+def validate_verified_in625_zenodo_metadata(
+''',
+    '''def _reject_html(body: bytes, field: str) -> None:
+    prefix = body.lstrip()[:512].lower()
+    if prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html") or b"<html" in prefix:
+        raise In625ZenodoLiveEvidenceError(f"{field} looks like HTML rather than source evidence")
+
+
+def _published_record_file_url(
+    value: object,
+    *,
+    record_id: int,
+    file_name: str,
+    field: str,
+) -> str:
+    text = _text(value, field)
+    parsed = urlparse(text)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise In625ZenodoLiveEvidenceError(f"{field} contains an invalid port") from exc
+    expected_path = f"/api/records/{record_id}/files/{file_name}/content"
+    if (
+        parsed.scheme.lower() != "https"
+        or (parsed.hostname or "").lower() != "zenodo.org"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+        or unquote(parsed.path) != expected_path
+    ):
+        raise In625ZenodoLiveEvidenceError(
+            f"{field} is not the exact query-free published-record file content route"
+        )
+    return text
+
+
+def validate_verified_in625_zenodo_metadata(
+''',
+)
+replace_once(
+    live,
+    '''        download_url = observed.get("download_url")
+        if not isinstance(download_url, str) or not download_url:
+            raise In625ZenodoLiveEvidenceError(
+                f"Zenodo file download URL is missing: {key}"
+            )
+        file_bindings[key] = {
+''',
+    '''        download_url = observed.get("download_url")
+        if not isinstance(download_url, str) or not download_url:
+            raise In625ZenodoLiveEvidenceError(
+                f"Zenodo file download URL is missing: {key}"
+            )
+        download_url = _published_record_file_url(
+            download_url,
+            record_id=record_id,
+            file_name=key,
+            field=f"Zenodo file download URL for {key}",
+        )
+        file_bindings[key] = {
+''',
+)
+
+archive = 'src/materials_data_analyzer/research_loop/in625_archive_network_acquisition.py'
+replace_once(archive, 'from urllib.parse import urlparse\n', 'from urllib.parse import unquote, urlparse\n')
+replace_once(
+    archive,
+    '''EXPECTED_RECORD_ID = 20503603
+EXPECTED_HOST = "zenodo.org"
+''',
+    '''EXPECTED_RECORD_ID = 20503603
+EXPECTED_HOST = "zenodo.org"
+EXPECTED_ARCHIVE_FILE_NAME = "Dataset.zip"
+''',
+)
+replace_once(
+    archive,
+    '''    if parsed.username is not None or parsed.password is not None or parsed.port not in (None, 443):
+        raise In625ArchiveNetworkAcquisitionError(f"{field} contains unsupported authority data")
+    if parsed.fragment:
+        raise In625ArchiveNetworkAcquisitionError(f"{field} may not contain a fragment")
+    return text
+''',
+    '''    if parsed.username is not None or parsed.password is not None or parsed.port not in (None, 443):
+        raise In625ArchiveNetworkAcquisitionError(f"{field} contains unsupported authority data")
+    expected_path = (
+        f"/api/records/{EXPECTED_RECORD_ID}/files/"
+        f"{EXPECTED_ARCHIVE_FILE_NAME}/content"
+    )
+    if parsed.params or parsed.query or parsed.fragment or unquote(parsed.path) != expected_path:
+        raise In625ArchiveNetworkAcquisitionError(
+            f"{field} must be the exact query-free authorized archive content route"
+        )
+    return text
+''',
+)
+replace_once(
+    archive,
+    '''            headers={
+                "User-Agent": "materials-data-analyzer/in625-authorized-acquisition",
+                "Accept": "*/*",
+            },
+        )
+''',
+    '''            headers={
+                "User-Agent": "materials-data-analyzer/in625-authorized-acquisition",
+                "Accept": "*/*",
+            },
+            exact_url=endpoint,
+        )
+''',
+)
+replace_once(
+    archive,
+    '''    expected_size = _positive_int(archive.get("expected_size_bytes"), "expected_size_bytes")
+    fetched = fetcher(
+        _text(archive.get("download_url"), "archive.download_url"),
+        max_bytes=expected_size + _MAX_DOWNLOAD_OVERHEAD_BYTES,
+        timeout_seconds=timeout_seconds,
+    )
+''',
+    '''    expected_size = _positive_int(archive.get("expected_size_bytes"), "expected_size_bytes")
+    requested_url = _validate_endpoint(
+        archive.get("download_url"), field="archive.download_url"
+    )
+    fetched = fetcher(
+        requested_url,
+        max_bytes=expected_size + _MAX_DOWNLOAD_OVERHEAD_BYTES,
+        timeout_seconds=timeout_seconds,
+    )
+''',
+)
+replace_once(
+    archive,
+    '''    final_url = _validate_endpoint(fetched.final_url, field="fetched final_url")
+    body = fetched.body
+''',
+    '''    final_url = _validate_endpoint(fetched.final_url, field="fetched final_url")
+    if final_url != requested_url:
+        raise In625ArchiveNetworkAcquisitionError(
+            "network fetch final URL differs from exact authorized archive URL"
+        )
+    body = fetched.body
+''',
+)
+replace_once(archive, '            "requested_url": archive["download_url"],\n', '            "requested_url": requested_url,\n')
+
+Path('tests/test_cycle1_exact_zenodo_route_hardening.py').write_text('''from __future__ import annotations
+
+import json
+from pathlib import Path
+from urllib.request import Request
+
+import pytest
+
+from materials_data_analyzer.research_loop import autonomous_production_driver as driver
+from materials_data_analyzer.research_loop import in625_archive_network_acquisition as archive
+from materials_data_analyzer.research_loop import in625_zenodo_live_evidence as live
+from materials_data_analyzer.research_loop import public_data_acquisition as public
+from materials_data_analyzer.research_loop.public_data_acquisition import FetchResult
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / "configs/research/in625_zenodo_20503603_verified_source.v1.json"
+RECORD_URL = "https://zenodo.org/api/records/20503603"
+README_NAME = "README - Dataset description.txt"
+README_URL = "https://zenodo.org/api/records/20503603/files/README%20-%20Dataset%20description.txt/content"
+ARCHIVE_URL = "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
+
+
+def _metadata(*, archive_url: str = ARCHIVE_URL, readme_url: str = README_URL) -> tuple[dict[str, object], bytes]:
+    config = json.loads(SOURCE.read_text(encoding="utf-8"))
+    zenodo = config["zenodo"]
+    files = zenodo["files"]
+    value = {
+        "id": zenodo["record_id"],
+        "doi": zenodo["version_doi"],
+        "metadata": {
+            "title": zenodo["expected_title"],
+            "publication_date": zenodo["publication_date"],
+            "access_right": "open",
+            "license": {"id": zenodo["license_id"]},
+            "related_identifiers": [{"identifier": zenodo["related_article_doi"], "relation": zenodo["related_article_relation"], "scheme": "doi"}],
+        },
+        "files": [
+            {"key": README_NAME, "size": files[README_NAME]["size_bytes"], "checksum": f"{files[README_NAME]['provider_checksum_algorithm']}:{files[README_NAME]['provider_checksum_digest']}", "links": {"self": readme_url}},
+            {"key": "Dataset.zip", "size": files["Dataset.zip"]["size_bytes"], "checksum": f"{files['Dataset.zip']['provider_checksum_algorithm']}:{files['Dataset.zip']['provider_checksum_digest']}", "links": {"self": archive_url}},
+        ],
+    }
+    return config, json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+
+
+@pytest.mark.parametrize("bad_url", ["https://zenodo.org/api/records/20503603/files/other.zip/content", f"{ARCHIVE_URL}?download=1", "https://zenodo.org/api/users/me"])
+def test_metadata_rejects_same_host_archive_authority_widening(bad_url: str) -> None:
+    config, metadata = _metadata(archive_url=bad_url)
+    with pytest.raises(live.In625ZenodoLiveEvidenceError, match="published-record file content route"):
+        live.validate_verified_in625_zenodo_metadata(config=config, metadata_bytes=metadata)
+
+
+def test_metadata_rejects_same_host_readme_query_widening() -> None:
+    config, metadata = _metadata(readme_url=f"{README_URL}?x=1")
+    with pytest.raises(live.In625ZenodoLiveEvidenceError, match="published-record file content route"):
+        live.validate_verified_in625_zenodo_metadata(config=config, metadata_bytes=metadata)
+
+
+def test_archive_low_level_fetch_rejects_non_archive_same_host_route_before_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    called = False
+    def forbidden(*args: object, **kwargs: object) -> FetchResult:
+        nonlocal called
+        called = True
+        raise AssertionError("network must not be reached")
+    monkeypatch.setattr(archive, "fetch_https_bytes", forbidden)
+    with pytest.raises(archive.In625ArchiveNetworkAcquisitionError, match="authorized archive content route"):
+        archive.fetch_authorized_zenodo_bytes("https://zenodo.org/api/users/me", max_bytes=10)
+    assert called is False
+
+
+def test_archive_fetch_passes_exact_url_to_shared_fetcher(monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: dict[str, object] = {}
+    def fake(url: str, **kwargs: object) -> FetchResult:
+        observed["url"] = url
+        observed.update(kwargs)
+        return FetchResult(b"x", 200, url, "application/zip")
+    monkeypatch.setattr(archive, "fetch_https_bytes", fake)
+    result = archive.fetch_authorized_zenodo_bytes(ARCHIVE_URL, max_bytes=10)
+    assert result.body == b"x"
+    assert observed["exact_url"] == ARCHIVE_URL
+
+
+def test_shared_exact_url_rejects_initial_mismatch_before_network() -> None:
+    with pytest.raises(public.PublicAcquisitionError, match="differs from the exact authorized"):
+        public.fetch_https_bytes(RECORD_URL, allowed_hosts=["zenodo.org"], max_bytes=10, exact_url=f"{RECORD_URL}?x=1")
+
+
+def test_shared_exact_url_rejects_same_host_redirect_before_follow() -> None:
+    handler = public._RestrictedRedirectHandler(["zenodo.org"], exact_url=ARCHIVE_URL)
+    with pytest.raises(public.PublicAcquisitionError, match="redirect endpoint left"):
+        handler.redirect_request(Request(ARCHIVE_URL), None, 302, "Found", {}, "https://zenodo.org/api/users/me")
+
+
+def test_driver_exact_get_passes_exact_url_to_shared_fetcher(monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: dict[str, object] = {}
+    def fake(url: str, **kwargs: object) -> FetchResult:
+        observed["url"] = url
+        observed.update(kwargs)
+        return FetchResult(b"{}", 200, url, "application/json")
+    monkeypatch.setattr(driver, "fetch_https_bytes", fake)
+    assert driver._exact_zenodo_get(RECORD_URL, expected_path="/api/records/20503603") == b"{}"
+    assert observed["exact_url"] == RECORD_URL
+
+
+def test_driver_json_snapshot_rejects_duplicate_keys() -> None:
+    with pytest.raises(driver.AutonomousProductionDriverError, match="duplicate JSON key"):
+        driver._read_json_bytes(b'{"source_id":"a","source_id":"b"}', "source")
+''', encoding='utf-8')
