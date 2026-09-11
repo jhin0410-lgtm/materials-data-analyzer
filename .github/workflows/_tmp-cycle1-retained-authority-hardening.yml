@@ -27,6 +27,11 @@ jobs:
       - name: Normalize touched Python files
         run: |
           python -m ruff check --fix src/materials_data_analyzer/research_loop/autonomous_production_cycle1_transport_stop_verifier.py tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("tests/test_autonomous_production_cycle1_transport_stop_verifier.py")
+          path.write_text(path.read_text(encoding="utf-8").rstrip() + "\n", encoding="utf-8")
+          PY
       - name: Run focused authority regression suite
         run: |
           python -m pytest -q \
