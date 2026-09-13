@@ -1,0 +1,56 @@
+name: Temporary Cycle-1 network-policy trigger hardening
+
+on:
+  push:
+    branches:
+      - tmp/cycle1-network-policy-trigger-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Apply workflow dependency hardening
+        run: python .tmp/build_cycle1_network_policy_trigger_hardening.py
+      - name: Install development environment
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused cycle-1 authority regressions
+        run: >-
+          python -m pytest -q
+          tests/test_cycle1_exact_zenodo_route_hardening.py
+          tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          tests/test_autonomous_production_driver.py
+      - name: Verify mirrored workflow dependency
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/cycle1-zenodo-transport-contract.yml')
+          text = p.read_text(encoding='utf-8')
+          dep = 'src/materials_data_analyzer/research_loop/in625_network_policy.py'
+          assert text.count(f'- "{dep}"') == 2
+          PY
+      - name: Run focused lint and diff checks
+        run: |
+          python -m ruff check --select F,I tests/test_cycle1_exact_zenodo_route_hardening.py
+          git diff --check
+      - name: Commit validated production changes only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/cycle1-zenodo-transport-contract.yml \
+            tests/test_cycle1_exact_zenodo_route_hardening.py
+          git diff --cached --check
+          git commit -m "Trigger Cycle-1 transport gate for network-policy changes"
+          git push origin HEAD:tmp/cycle1-network-policy-trigger-hardening
