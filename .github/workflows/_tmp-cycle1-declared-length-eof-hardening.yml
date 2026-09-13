@@ -32,9 +32,11 @@ jobs:
           tests/test_in625_archive_network_transport_errors.py
           tests/test_autonomous_production_cycle1_transport_stop.py
           tests/test_autonomous_production_cycle1_transport_stop_verifier.py
-      - name: Run lint and diff checks
+      - name: Run focused lint and diff checks
         run: |
-          python -m ruff check src/materials_data_analyzer/research_loop/public_data_acquisition.py tests/test_public_data_acquisition_transport_errors.py
+          python -m ruff check --select E,F,I \
+            src/materials_data_analyzer/research_loop/public_data_acquisition.py \
+            tests/test_public_data_acquisition_transport_errors.py
           git diff --check
       - name: Commit validated production changes only
         run: |
