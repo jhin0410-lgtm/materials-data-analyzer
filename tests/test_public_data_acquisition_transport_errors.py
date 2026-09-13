@@ -110,6 +110,57 @@ def test_network_delivery_failures_use_transport_subtype(
     assert "HTTP acquisition failed" in str(caught.value)
 
 
+def test_premature_eof_before_declared_content_length_is_transport_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _StaticOpener(
+            _Response(
+                status=200,
+                headers={"Content-Length": "12"},
+                body=b"short",
+            )
+        ),
+    )
+
+    with pytest.raises(
+        PublicAcquisitionTransportError,
+        match=r"ended before declared Content-Length \(5 < 12\)",
+    ):
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+
+def test_exact_declared_content_length_still_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = b"exact-length"
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _StaticOpener(
+            _Response(
+                status=200,
+                headers={"Content-Length": str(len(body))},
+                body=body,
+            )
+        ),
+    )
+
+    result = fetch_https_bytes(
+        "https://data.example.org/example.bin",
+        allowed_hosts=["data.example.org"],
+        max_bytes=1024,
+    )
+
+    assert result.body == body
+
+
 def test_incomplete_chunk_read_is_transport_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
