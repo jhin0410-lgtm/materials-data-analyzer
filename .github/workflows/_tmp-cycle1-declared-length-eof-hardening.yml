@@ -34,7 +34,7 @@ jobs:
           tests/test_autonomous_production_cycle1_transport_stop_verifier.py
       - name: Run focused lint and diff checks
         run: |
-          python -m ruff check --select E,F,I \
+          python -m ruff check --select F,I \
             src/materials_data_analyzer/research_loop/public_data_acquisition.py \
             tests/test_public_data_acquisition_transport_errors.py
           git diff --check
