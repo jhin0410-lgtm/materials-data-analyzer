@@ -107,12 +107,13 @@ def test_driver_json_snapshot_rejects_duplicate_keys() -> None:
     with pytest.raises(driver.AutonomousProductionDriverError, match="duplicate JSON key"):
         driver._read_json_bytes(b'{"source_id":"a","source_id":"b"}', "source")
 
-def test_cycle1_workflow_tracks_metadata_normalizer_dependencies() -> None:
+def test_cycle1_workflow_tracks_transport_authority_dependencies() -> None:
     workflow = (
         ROOT / ".github/workflows/cycle1-zenodo-transport-contract.yml"
     ).read_text(encoding="utf-8")
     for dependency in (
         "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py",
         "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py",
+        "src/materials_data_analyzer/research_loop/in625_network_policy.py",
     ):
         assert workflow.count(f'- "{dependency}"') == 2
