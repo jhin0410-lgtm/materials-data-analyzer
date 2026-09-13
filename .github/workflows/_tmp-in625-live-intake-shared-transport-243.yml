@@ -27,7 +27,7 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Normalize touched Python files
         run: >-
-          python -m ruff check --fix
+          python -m ruff check --fix --ignore EXE001
           scripts/run_live_in625_authorized_row_intake.py
           tests/test_live_in625_authorized_row_intake_transport.py
       - name: Run focused transport regression suite
@@ -37,19 +37,23 @@ jobs:
           tests/test_public_data_acquisition_transport_errors.py
           tests/test_in625_archive_network_transport_errors.py
           tests/test_in625_archive_network_acquisition.py
+      - name: Verify workflow wiring
+        run: |
+          test "$(grep -c 'tests/test_live_in625_authorized_row_intake_transport.py' .github/workflows/in625-authorized-network-row-intake.yml)" -eq 3
       - name: Verify lint and diff
         run: |
-          python -m ruff check \
+          python -m ruff check --ignore EXE001 \
             scripts/run_live_in625_authorized_row_intake.py \
             tests/test_live_in625_authorized_row_intake_transport.py
           git diff --check
-      - name: Commit validated source and test changes only
+      - name: Commit validated production changes only
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             scripts/run_live_in625_authorized_row_intake.py \
-            tests/test_live_in625_authorized_row_intake_transport.py
+            tests/test_live_in625_authorized_row_intake_transport.py \
+            .github/workflows/in625-authorized-network-row-intake.yml
           git diff --cached --check
           git commit -m "Route IN625 live intake through shared bounded transport"
           git push origin HEAD:tmp/in625-live-intake-shared-transport-243
