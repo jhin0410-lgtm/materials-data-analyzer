@@ -527,6 +527,7 @@ def fetch_https_bytes(
                     f"HTTP acquisition returned non-success status {status}"
                 )
             content_length = response.headers.get("Content-Length")
+            declared_length: int | None = None
             if content_length is not None:
                 try:
                     declared_length = int(content_length)
@@ -550,6 +551,11 @@ def fetch_https_bytes(
                         "HTTP response exceeded the configured byte ceiling"
                     )
                 chunks.append(chunk)
+            if declared_length is not None and observed < declared_length:
+                raise PublicAcquisitionTransportError(
+                    "HTTP response ended before declared Content-Length "
+                    f"({observed} < {declared_length})"
+                )
             body = b"".join(chunks)
             content_type = response.headers.get("Content-Type")
             return FetchResult(
