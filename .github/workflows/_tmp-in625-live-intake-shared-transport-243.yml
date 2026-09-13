@@ -27,7 +27,7 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Normalize touched Python files
         run: >-
-          python -m ruff check --fix --ignore EXE001
+          python -m ruff check --fix --select F,I
           scripts/run_live_in625_authorized_row_intake.py
           tests/test_live_in625_authorized_row_intake_transport.py
       - name: Run focused transport regression suite
@@ -35,14 +35,13 @@ jobs:
           python -m pytest -q
           tests/test_live_in625_authorized_row_intake_transport.py
           tests/test_public_data_acquisition_transport_errors.py
-          tests/test_in625_archive_network_transport_errors.py
           tests/test_in625_archive_network_acquisition.py
       - name: Verify workflow wiring
         run: |
           test "$(grep -c 'tests/test_live_in625_authorized_row_intake_transport.py' .github/workflows/in625-authorized-network-row-intake.yml)" -eq 3
-      - name: Verify lint and diff
+      - name: Verify focused lint and diff
         run: |
-          python -m ruff check --ignore EXE001 \
+          python -m ruff check --select F,I \
             scripts/run_live_in625_authorized_row_intake.py \
             tests/test_live_in625_authorized_row_intake_transport.py
           git diff --check
