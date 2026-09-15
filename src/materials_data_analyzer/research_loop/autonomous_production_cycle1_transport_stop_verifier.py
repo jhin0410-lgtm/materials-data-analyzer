@@ -283,14 +283,22 @@ def verify_cycle1_transport_stop(
         output / "standing-network-policy-qualification.json",
         "standing network policy qualification",
     )
+    portable_persisted_qualification = _portable_qualification(
+        persisted_qualification,
+        "retained standing network policy qualification",
+    )
+    portable_reconstructed_qualification = _portable_qualification(
+        qualification,
+        "reconstructed standing network policy qualification",
+    )
     _require(
-        _portable_qualification(
-            persisted_qualification,
-            "retained standing network policy qualification",
+        _canonical_json_bytes(
+            portable_persisted_qualification,
+            field="retained standing network policy qualification",
         )
-        == _portable_qualification(
-            qualification,
-            "reconstructed standing network policy qualification",
+        == _canonical_json_bytes(
+            portable_reconstructed_qualification,
+            field="reconstructed standing network policy qualification",
         ),
         "retained standing network policy qualification differs from reconstructed authority",
     )
@@ -501,7 +509,14 @@ def verify_cycle1_transport_stop(
                 "archive stop source README manifest failed authoritative reconstruction"
             ) from exc
         _require(
-            persisted_source_manifest == reconstructed_source_manifest,
+            _canonical_json_bytes(
+                persisted_source_manifest,
+                field="retained source README manifest",
+            )
+            == _canonical_json_bytes(
+                reconstructed_source_manifest,
+                field="reconstructed source README manifest",
+            ),
             "archive stop source README manifest differs from authoritative reconstruction",
         )
         authorization = _read_json(authorization_path, "network authorization")
@@ -517,6 +532,17 @@ def verify_cycle1_transport_stop(
             raise Cycle1TransportStopVerificationError(
                 "archive stop prior authorization failed authoritative reconstruction"
             ) from exc
+        _require(
+            _canonical_json_bytes(
+                authorization,
+                field="retained network authorization",
+            )
+            == _canonical_json_bytes(
+                reconstructed_authorization,
+                field="reconstructed network authorization",
+            ),
+            "archive stop retained authorization differs from authoritative reconstruction",
+        )
         _require(
             prior.get("network_authorization_sha256")
             == reconstructed_authorization.get("authorization_sha256"),
