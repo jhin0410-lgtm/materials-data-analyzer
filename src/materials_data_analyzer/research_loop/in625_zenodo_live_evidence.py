@@ -167,6 +167,7 @@ def _published_record_file_url(
         or parsed.username is not None
         or parsed.password is not None
         or port not in (None, 443)
+        or any(delimiter in text for delimiter in ("?", "#", ";"))
         or parsed.params
         or parsed.query
         or parsed.fragment
