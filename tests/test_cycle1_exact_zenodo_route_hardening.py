@@ -51,6 +51,13 @@ def test_metadata_rejects_same_host_archive_authority_widening(bad_url: str) -> 
         live.validate_verified_in625_zenodo_metadata(config=config, metadata_bytes=metadata)
 
 
+@pytest.mark.parametrize("delimiter", ["?", "#", ";"])
+def test_metadata_rejects_empty_exact_route_delimiters(delimiter: str) -> None:
+    config, metadata = _metadata(archive_url=f"{ARCHIVE_URL}{delimiter}")
+    with pytest.raises(live.In625ZenodoLiveEvidenceError, match="published-record file content route"):
+        live.validate_verified_in625_zenodo_metadata(config=config, metadata_bytes=metadata)
+
+
 def test_metadata_rejects_same_host_readme_query_widening() -> None:
     config, metadata = _metadata(readme_url=f"{README_URL}?x=1")
     with pytest.raises(live.In625ZenodoLiveEvidenceError, match="published-record file content route"):
@@ -107,6 +114,7 @@ def test_driver_json_snapshot_rejects_duplicate_keys() -> None:
     with pytest.raises(driver.AutonomousProductionDriverError, match="duplicate JSON key"):
         driver._read_json_bytes(b'{"source_id":"a","source_id":"b"}', "source")
 
+
 def test_cycle1_workflow_tracks_transport_authority_dependencies() -> None:
     workflow = (
         ROOT / ".github/workflows/cycle1-zenodo-transport-contract.yml"
@@ -115,5 +123,10 @@ def test_cycle1_workflow_tracks_transport_authority_dependencies() -> None:
         "src/materials_data_analyzer/research_loop/in625_zenodo_live_evidence.py",
         "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py",
         "src/materials_data_analyzer/research_loop/in625_network_policy.py",
+        "src/materials_data_analyzer/research_loop/research_program.py",
     ):
         assert workflow.count(f'- "{dependency}"') == 2
+    assert (
+        "outputs/autonomous-in625-production/network-acquisition-receipt.json"
+        in workflow
+    )
