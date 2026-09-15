@@ -5,19 +5,19 @@ authoritative verifiers. A retained replay packet is still locally self-consiste
 bytes and every downstream hash could be rewritten together.
 
 For immutable/static sources, exact response bytes are the appropriate external witness. For the NIST
-CMS HTML used by promotions 2 and 3, they are not: independent live runs (and even repeated requests
-inside one run) showed Cloudflare/New Relic runtime bytes changing while the trusted parser's visible
-text, ranked discovery candidates, derived full-text URL, and static primary PDF stayed identical.
+CMS HTML used by promotions 2 and 3, they are not: independent live runs showed provider-managed HTML
+and even visible page text changing while the authority-bearing parser outputs stayed stable. Promotion
+2 derives a ranked candidate set; promotion 3 derives one exact NIST PDF route; the primary PDF itself
+is static and byte-addressable.
 
 This gate therefore authenticates the authority-bearing semantic projection of mutable HTML and keeps
-an exact-byte witness for the static primary PDF. The witness values originate from the independently
-retained GitHub Actions artifact from run 34430156288 (artifact 10134264310, digest
+an exact-byte witness for the static primary PDF. Historical witness values originate from the
+independently retained GitHub Actions artifact from run 34430156288 (artifact 10134264310, digest
 sha256:b895422a03bf1eedb3009695fa177e3fceae61f15d722970515a7ff383df0a9b).
 
 This is deliberately narrower than a generic historical-event attestation. It prevents rewritten
-mutable HTML from changing the authority-bearing discovery/acquisition semantics while allowing
-provider-injected non-visible runtime noise. Generic external event/source trust remains a separate
-architecture concern.
+mutable HTML from changing downstream acquisition authority while allowing non-authority CMS text and
+runtime noise to vary. Generic external event/source trust remains a separate architecture concern.
 """
 from __future__ import annotations
 
@@ -48,7 +48,12 @@ WITNESS_ORIGIN_ARTIFACT_DIGEST = (
 
 
 class SemanticHtmlWitness(NamedTuple):
-    """Exact request contract plus trusted parser semantic projection."""
+    """Exact request contract plus historical parser-observation provenance.
+
+    The visible-text fields document the independently reviewed witness artifact. They are
+    intentionally not authority gates: mutable CMS text may change without changing the ranked
+    discovery candidates or the exact derived primary-PDF route.
+    """
 
     requested_url: str
     allowed_hosts: tuple[str, ...]
@@ -131,11 +136,6 @@ def _canonical_sha(value: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _visible_text_binding(text: str) -> tuple[str, int]:
-    raw = text.encode("utf-8")
-    return hashlib.sha256(raw).hexdigest(), len(raw)
-
-
 def _authenticated_replay_fetcher(
     evidence: Mapping[str, Any],
     *,
@@ -170,7 +170,7 @@ def verify_discovery_semantic_witness(
     expected_candidates_sha256: str = DISCOVERY_CANDIDATES_SHA256,
     label: str = "capability promotion 2",
 ) -> None:
-    """Authenticate mutable discovery HTML by its trusted authority-bearing projection."""
+    """Authenticate mutable discovery HTML by its authority-bearing ranked candidates."""
 
     fetcher, _context = _authenticated_replay_fetcher(
         evidence,
@@ -191,16 +191,7 @@ def verify_discovery_semantic_witness(
             fetched.final_url == witness.final_url,
             f"{label} discovery final URL drifted from reviewed witness",
         )
-        candidates, visible_text = _source_discovery._candidate_records(fetched.body)
-        visible_sha, visible_size = _visible_text_binding(visible_text)
-        _require(
-            visible_sha == witness.visible_text_sha256,
-            f"{label} discovery visible-text SHA-256 drifted from reviewed witness",
-        )
-        _require(
-            visible_size == witness.visible_text_utf8_bytes,
-            f"{label} discovery visible-text size drifted from reviewed witness",
-        )
+        candidates, _visible_text = _source_discovery._candidate_records(fetched.body)
         _require(
             _canonical_sha(candidates) == expected_candidates_sha256,
             f"{label} ranked discovery candidate projection drifted from reviewed witness",
@@ -227,7 +218,7 @@ def verify_candidate_semantic_and_static_witness(
     pdf_witness: ExactSourceWitness = CANDIDATE_FULL_TEXT_WITNESS,
     label: str = "capability promotion 3",
 ) -> None:
-    """Authenticate mutable candidate-page semantics and exact static primary PDF bytes."""
+    """Authenticate the mutable page's derived route and exact static primary PDF bytes."""
 
     fetcher, _context = _authenticated_replay_fetcher(
         evidence,
@@ -248,18 +239,9 @@ def verify_candidate_semantic_and_static_witness(
             page.final_url == html_witness.final_url,
             f"{label} candidate-page final URL drifted from reviewed witness",
         )
-        visible_text, derived_full_text_url = _candidate_acquisition._parse_candidate_page(
+        _visible_text, derived_full_text_url = _candidate_acquisition._parse_candidate_page(
             page.body,
             html_witness.requested_url,
-        )
-        visible_sha, visible_size = _visible_text_binding(visible_text)
-        _require(
-            visible_sha == html_witness.visible_text_sha256,
-            f"{label} candidate-page visible-text SHA-256 drifted from reviewed witness",
-        )
-        _require(
-            visible_size == html_witness.visible_text_utf8_bytes,
-            f"{label} candidate-page visible-text size drifted from reviewed witness",
         )
         _require(
             derived_full_text_url == pdf_witness.requested_url,
@@ -365,17 +347,23 @@ def _discovery_authority_projection(
 ) -> dict[str, Any]:
     """Project a discovery report onto semantics that may carry downstream authority.
 
-    NIST CMS response bytes are intentionally excluded because provider-injected runtime
-    bytes can vary across independently trusted requests.  Visible text, ranked candidates,
-    route identity, policy identity, budgets, negative-authority boundaries, and next-action
-    semantics remain in the projection and must match exactly with JSON type sensitivity.
+    Mutable CMS bytes, content type, and whole-page visible-text fingerprints are excluded because
+    they can vary independently of discovery authority. Ranked candidates, exact source routes,
+    policy identity, budgets, negative-authority boundaries, and next-action semantics remain and
+    must match exactly with JSON type sensitivity.
     """
     projected = dict(report)
     projected.pop("report_sha256_without_self_field", None)
     source_index = projected.get("source_index")
     _require(isinstance(source_index, Mapping), f"{label} source_index is missing")
     normalized_source = dict(source_index)
-    for key in ("source_sha256", "source_size_bytes", "http_content_type"):
+    for key in (
+        "source_sha256",
+        "source_size_bytes",
+        "http_content_type",
+        "visible_text_sha256",
+        "visible_text_utf8_bytes",
+    ):
         normalized_source.pop(key, None)
     projected["source_index"] = normalized_source
     return projected
