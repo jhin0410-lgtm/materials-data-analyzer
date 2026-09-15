@@ -237,7 +237,10 @@ def test_verifier_rejects_bounded_stop_copy_drift(tmp_path: Path) -> None:
     bounded["transport_error_detail"] = "different observation"
     (output / "bounded-stop.json").write_text(json.dumps(bounded), encoding="utf-8")
 
-    with pytest.raises(Cycle1TransportStopVerificationError, match="differs"):
+    with pytest.raises(
+        Cycle1TransportStopVerificationError,
+        match="bounded-stop.json failed intrinsic authentication",
+    ):
         verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
 
 
@@ -537,7 +540,6 @@ def test_archive_stop_rejects_impossible_completed_archive_artifacts(
             repository_root=REPOSITORY_ROOT,
             output_root=output,
         )
-
 @pytest.mark.parametrize(
     ("artifact_name", "error_match"),
     [
