@@ -128,6 +128,22 @@ def _require(condition: bool, message: str) -> None:
         raise Cycle1TransportStopVerificationError(message)
 
 
+def _canonical_json_bytes(value: object, *, field: str) -> bytes:
+    """Serialize with JSON type fidelity so bool/int/float substitutions cannot compare equal."""
+    try:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise Cycle1TransportStopVerificationError(
+            f"{field} must be canonical-JSON serializable"
+        ) from exc
+
+
 def _portable_qualification(value: Mapping[str, Any], field: str) -> dict[str, Any]:
     normalized = dict(value)
     source_path = normalized.get("source_config_path")
@@ -167,6 +183,7 @@ def _published_record_file_route(
         or parsed.username is not None
         or parsed.password is not None
         or port not in (None, 443)
+        or any(delimiter in value for delimiter in ("?", "#", ";"))
         or parsed.params
         or parsed.query
         or parsed.fragment
@@ -362,8 +379,15 @@ def verify_cycle1_transport_stop(
         )
 
     bounded = _read_json(output / "bounded-stop.json", "bounded stop")
+    try:
+        authenticated_bounded = authenticate_cycle1_transport_stop(bounded)
+    except Cycle1TransportStopError as exc:
+        raise Cycle1TransportStopVerificationError(
+            "bounded-stop.json failed intrinsic authentication"
+        ) from exc
     _require(
-        bounded == stop,
+        _canonical_json_bytes(authenticated_bounded, field="bounded stop")
+        == _canonical_json_bytes(stop, field="authenticated cycle-1 transport stop"),
         "bounded-stop.json differs from authenticated cycle-1 transport stop",
     )
     _require(
