@@ -38,6 +38,7 @@ _SYNTHETIC_ZENODO_ARCHIVE_SHA256 = (
     "b8016f3d9cdcae76fdfbf506cddb23db9ddad45a26658f7cf1f071b7a66eaf50"
 )
 _SYNTHETIC_ZENODO_AUTHORIZATION_SHA256 = "1" * 64
+_SYNTHETIC_TENSILE_ROWS = b'{"synthetic_fixture_only":true}\n'
 _EXPECTED_ZENODO_ARCHIVE_URL = (
     "https://zenodo.org/api/records/20503603/files/Dataset.zip/content"
 )
@@ -170,6 +171,65 @@ def _harden_cycle1_receipt(
     return str(receipt["receipt_sha256"])
 
 
+def _harden_synthetic_reviewed_tensile(
+    *,
+    output: Path,
+    quality: dict[str, Any],
+    canonical_sha: Any,
+) -> str:
+    """Materialize the derivative pair required by post-derivation cycle-3 stops.
+
+    These bytes are intentionally tiny test fixtures.  Dedicated reviewed-tensile replay tests
+    exercise the real workbook/README reconstruction; transport-recovery tests only need an
+    authenticated derivative-presence contract so they do not fabricate a 180 MB source archive.
+    """
+    reviewed_dir = output / "reviewed-tensile"
+    reviewed_dir.mkdir(parents=True, exist_ok=True)
+    rows_path = reviewed_dir / "reviewed_tensile_rows.v2.jsonl"
+    rows_path.write_bytes(_SYNTHETIC_TENSILE_ROWS)
+    manifest = {
+        "schema_version": "2.0",
+        "source_id": _EXPECTED_ZENODO_SOURCE_ID,
+        "source_archive_sha256": _EXPECTED_ZENODO_ARCHIVE_SHA256,
+        "measurement_row_count": 200289,
+        "complete_numeric_measurement_row_count": 200288,
+        "incomplete_numeric_measurement_row_count": 1,
+        "parallel_test_block_count": 19,
+        "synthetic_fixture_only": True,
+        "row_artifact": {
+            "path": str(rows_path.resolve(strict=True)),
+            "sha256": hashlib.sha256(_SYNTHETIC_TENSILE_ROWS).hexdigest(),
+            "bytes": len(_SYNTHETIC_TENSILE_ROWS),
+            "row_count": 1,
+        },
+    }
+    _rehash(manifest, "manifest_sha256", canonical_sha)
+    _write_json(reviewed_dir / "reviewed_tensile_manifest.v2.json", manifest)
+    quality["reviewed_tensile_manifest_sha256"] = manifest["manifest_sha256"]
+    return str(manifest["manifest_sha256"])
+
+
+def _verify_synthetic_reviewed_tensile(
+    root: Path,
+    *,
+    canonical_sha: Any,
+) -> None:
+    """Test-only exact-byte check replacing the expensive real workbook replay."""
+    manifest_path = root / "reviewed-tensile/reviewed_tensile_manifest.v2.json"
+    rows_path = root / "reviewed-tensile/reviewed_tensile_rows.v2.jsonl"
+    assert manifest_path.is_file() and rows_path.is_file()
+    manifest = _read_json(manifest_path)
+    digest = manifest.get("manifest_sha256")
+    unsigned = dict(manifest)
+    unsigned.pop("manifest_sha256", None)
+    assert digest == canonical_sha(unsigned)
+    row_record = manifest.get("row_artifact")
+    assert isinstance(row_record, dict)
+    rows = rows_path.read_bytes()
+    assert row_record.get("sha256") == hashlib.sha256(rows).hexdigest()
+    assert row_record.get("bytes") == len(rows)
+
+
 def _harden_transport_fixture(
     *,
     root: Path,
@@ -186,7 +246,20 @@ def _harden_transport_fixture(
         canonical_sha=canonical_sha,
     )
     quality = _read_json(output / "tensile-quality-verification.json")
+    reviewed_manifest_sha = _harden_synthetic_reviewed_tensile(
+        output=output,
+        quality=quality,
+        canonical_sha=canonical_sha,
+    )
+    _rehash(quality, "verification_sha256", canonical_sha)
+    _write_json(output / "tensile-quality-verification.json", quality)
+
     rediagnosis = _read_json(output / "quality-aware-rediagnosis.json")
+    rediagnosis["observed_quality_verification_sha256"] = quality[
+        "verification_sha256"
+    ]
+    if isinstance(rediagnosis.get("observed_quality_verification"), dict):
+        rediagnosis["observed_quality_verification"] = quality
     rediagnosis["secondary_blockers"] = [
         {
             "code": "reviewed_numeric_source_missingness_observed",
@@ -227,6 +300,8 @@ def _harden_transport_fixture(
     cycle1 = cycles[0]
     cycle1["network_receipt_sha256"] = receipt_sha
     cycle1["network_authorization_sha256"] = _SYNTHETIC_ZENODO_AUTHORIZATION_SHA256
+    cycle1["reviewed_tensile_manifest_sha256"] = reviewed_manifest_sha
+    cycle1["quality_verification_sha256"] = quality["verification_sha256"]
     cycle1["rediagnosis_sha256"] = rediagnosis["rediagnosis_sha256"]
     _rehash(cycle1, "cycle_sha256", canonical_sha)
     cycle2 = cycles[1]
@@ -352,6 +427,38 @@ def _production_grade_transport_recovery_fixture(
     base = getattr(module, "_base", None)
     if base is None:
         return
+
+    from materials_data_analyzer.research_loop import (
+        autonomous_production_exact_head_p2_closure as exact_head_closure,
+    )
+    from materials_data_analyzer.research_loop import (
+        autonomous_production_exact_head_p2_round3 as exact_head_round3,
+    )
+    from materials_data_analyzer.research_loop import (
+        autonomous_production_source_replay_hardening as source_replay_hardening,
+    )
+
+    def synthetic_reviewed_replay(output_root: Path) -> None:
+        _verify_synthetic_reviewed_tensile(
+            Path(output_root).resolve(strict=True),
+            canonical_sha=base.recovery._canonical_sha,
+        )
+
+    monkeypatch.setattr(
+        exact_head_closure,
+        "_replay_reviewed_tensile_for_every_lifecycle",
+        synthetic_reviewed_replay,
+    )
+    monkeypatch.setattr(
+        source_replay_hardening,
+        "_verify_reviewed_tensile_source_replay",
+        synthetic_reviewed_replay,
+    )
+    monkeypatch.setattr(
+        exact_head_round3,
+        "_verify_tensile_quality_projection",
+        lambda _root: None,
+    )
 
     if request.node.name == "test_live_verifier_rejects_bounded_stop_manifest_divergence":
         _patch_legacy_error_expectation(base=base, monkeypatch=monkeypatch)
