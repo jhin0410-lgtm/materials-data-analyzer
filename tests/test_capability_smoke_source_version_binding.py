@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,14 @@ from materials_data_analyzer.research_loop.in625_geometry_condition_source_acqui
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _write_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _self_consistent_replay_evidence(
@@ -267,6 +276,75 @@ def test_promotion_three_same_size_rehashed_primary_pdf_fails_external_witness()
             html_witness=html_witness,
             pdf_witness=pdf_witness,
         )
+
+
+def test_persisted_discovery_report_must_equal_trusted_promotion_two_replay(
+    tmp_path: Path,
+) -> None:
+    suffix = round8._round6._PROMOTIONS[1][0]
+    trusted = {
+        "schema_version": "test",
+        "discovered_candidates_are_scientific_evidence": False,
+    }
+    _write_json(
+        tmp_path / round8._round6._name("capability-verification", suffix),
+        {"real_source_smoke_receipt": trusted},
+    )
+    forged = dict(trusted)
+    forged["discovered_candidates_are_scientific_evidence"] = True
+    _write_json(tmp_path / "calibration-record-source-discovery.json", forged)
+
+    with pytest.raises(
+        round8.AutonomousProductionExactHeadRound8Error,
+        match="persisted calibration discovery report drifted from trusted promotion-2 replay",
+    ):
+        round8._bind_persisted_discovery_to_trusted_replay(tmp_path)
+
+
+def test_persisted_reference_graph_must_equal_trusted_promotion_four_replay(
+    tmp_path: Path,
+) -> None:
+    report = {"schema_version": "test", "authority": "dataset-association-only"}
+    report["report_sha256_without_self_field"] = round8._canonical_sha(report)
+    suffix = round8._round6._PROMOTIONS[3][0]
+    _write_json(
+        tmp_path / round8._round6._name("capability-verification", suffix),
+        {
+            "real_source_smoke_receipt": {
+                "reference_graph_sha256": report["report_sha256_without_self_field"]
+            }
+        },
+    )
+    forged = dict(report)
+    forged["authority"] = "exact-experiment-identity"
+    forged.pop("report_sha256_without_self_field")
+    forged["report_sha256_without_self_field"] = round8._canonical_sha(forged)
+    _write_json(tmp_path / "mds2-2923-experiment-identity-reference-chain.json", forged)
+
+    with pytest.raises(
+        round8.AutonomousProductionExactHeadRound8Error,
+        match="persisted mds2-2923 reference graph drifted from trusted promotion-4 replay",
+    ):
+        round8._bind_persisted_reference_graph_to_trusted_replay(tmp_path)
+
+
+def test_persisted_reference_graph_accepts_exact_trusted_replay_digest(
+    tmp_path: Path,
+) -> None:
+    report = {"schema_version": "test", "authority": "dataset-association-only"}
+    report["report_sha256_without_self_field"] = round8._canonical_sha(report)
+    suffix = round8._round6._PROMOTIONS[3][0]
+    _write_json(
+        tmp_path / round8._round6._name("capability-verification", suffix),
+        {
+            "real_source_smoke_receipt": {
+                "reference_graph_sha256": report["report_sha256_without_self_field"]
+            }
+        },
+    )
+    _write_json(tmp_path / "mds2-2923-experiment-identity-reference-chain.json", report)
+
+    round8._bind_persisted_reference_graph_to_trusted_replay(tmp_path)
 
 
 def test_round8_witnesses_match_reviewed_7e734c7_authority_projection() -> None:
