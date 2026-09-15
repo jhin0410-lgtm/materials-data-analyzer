@@ -345,8 +345,54 @@ def _promotion_replay_context(
     return evidence, action_class, specification_sha, candidate_sha, mission_sha
 
 
+def _trusted_smoke_receipt(root: Path, *, step: int) -> Mapping[str, Any]:
+    """Return the receipt already proven canonical by the preceding Round-7 trusted replay."""
+    suffix = _round6._PROMOTIONS[step - 1][0]
+    verification = _merge_gate._load(
+        root,
+        _round6._name("capability-verification", suffix),
+    )
+    receipt = verification.get("real_source_smoke_receipt")
+    _require(
+        isinstance(receipt, Mapping),
+        f"capability promotion {step} trusted smoke receipt is missing",
+    )
+    return receipt
+
+
+def _bind_persisted_discovery_to_trusted_replay(root: Path) -> None:
+    trusted = _trusted_smoke_receipt(root, step=2)
+    persisted = _merge_gate._load(root, "calibration-record-source-discovery.json")
+    _require(
+        dict(persisted) == dict(trusted),
+        "persisted calibration discovery report drifted from trusted promotion-2 replay",
+    )
+
+
+def _bind_persisted_reference_graph_to_trusted_replay(root: Path) -> None:
+    trusted = _trusted_smoke_receipt(root, step=4)
+    trusted_sha = trusted.get("reference_graph_sha256")
+    _require(
+        isinstance(trusted_sha, str) and len(trusted_sha) == 64,
+        "trusted promotion-4 replay omitted the reference-graph digest",
+    )
+    persisted = _merge_gate._load(
+        root,
+        "mds2-2923-experiment-identity-reference-chain.json",
+    )
+    persisted_sha = _merge_gate._verify_self_hash(
+        persisted,
+        "report_sha256_without_self_field",
+        label="persisted mds2-2923 experiment-identity reference chain",
+    )
+    _require(
+        persisted_sha == trusted_sha,
+        "persisted mds2-2923 reference graph drifted from trusted promotion-4 replay",
+    )
+
+
 def verify_exact_head_round8_boundaries(output_root: str | Path) -> None:
-    """Bind promotions 2/3 to reviewed semantic authority and immutable source witnesses."""
+    """Bind trusted replay results to persisted authority-bearing source artifacts."""
 
     root = Path(output_root).expanduser().resolve(strict=True)
     manifest = _merge_gate._load(root, "autonomous-production-manifest.json")
@@ -364,6 +410,7 @@ def verify_exact_head_round8_boundaries(output_root: str | Path) -> None:
             capability_candidate_sha256=candidate_sha,
             mission_sha256=mission_sha,
         )
+        _bind_persisted_discovery_to_trusted_replay(root)
 
     if len(cycles) >= _round6._PROMOTIONS[2][3]:
         evidence, action_class, specification_sha, candidate_sha, mission_sha = (
@@ -376,6 +423,9 @@ def verify_exact_head_round8_boundaries(output_root: str | Path) -> None:
             capability_candidate_sha256=candidate_sha,
             mission_sha256=mission_sha,
         )
+
+    if len(cycles) >= _round6._PROMOTIONS[3][3]:
+        _bind_persisted_reference_graph_to_trusted_replay(root)
 
 
 __all__ = [
