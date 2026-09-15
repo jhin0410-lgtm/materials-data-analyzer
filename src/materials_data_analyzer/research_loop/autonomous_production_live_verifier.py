@@ -58,6 +58,9 @@ from .autonomous_production_source_replay_hardening import (
     AutonomousProductionSourceReplayHardeningError,
     verify_source_replay_boundaries,
 )
+from .autonomous_production_trusted_replay_artifact_binding import (
+    verify_trusted_replay_artifact_bindings,
+)
 
 AutonomousProductionLiveVerificationError = (
     _base.AutonomousProductionLiveVerificationError
@@ -89,6 +92,8 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         verify_exact_head_round7_boundaries(output_root)
         # Bind mutable retained smoke responses to independently reviewed source versions.
         verify_exact_head_round8_boundaries(output_root)
+        # Bind persisted downstream authority artifacts to the canonical trusted producer replay.
+        verify_trusted_replay_artifact_bindings(output_root)
         verify_exact_head_round6_boundaries(output_root)
         verify_exact_head_round5_boundaries(output_root)
     except (
