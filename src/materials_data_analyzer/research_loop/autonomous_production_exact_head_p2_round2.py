@@ -114,9 +114,13 @@ def _verify_bound_reviewed_tensile_presence(
         _round1._replay_reviewed_tensile_for_every_lifecycle(root)
         return
 
+    # The accepted three-cycle NIST transport stop is post-derivation: cycle 1 has
+    # already completed the reviewed-tensile intake before cycle 3 attempts NIST.
+    # Only genuinely earlier (<3-cycle) pre-derivation lifecycles may omit the
+    # reviewed binding and both derivative artifacts.
     _require(
-        len(cycles) <= 3,
-        "post-transport production outcome is missing the cycle-1 reviewed tensile binding",
+        len(cycles) < 3,
+        "cycle-3-or-later production outcome is missing the cycle-1 reviewed tensile binding",
     )
     if manifest_present or rows_present:
         _round1._replay_reviewed_tensile_for_every_lifecycle(root)
