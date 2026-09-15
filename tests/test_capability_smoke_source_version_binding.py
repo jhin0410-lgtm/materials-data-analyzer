@@ -286,17 +286,20 @@ def test_persisted_discovery_report_must_equal_trusted_promotion_two_replay(
         "schema_version": "test",
         "discovered_candidates_are_scientific_evidence": False,
     }
+    trusted["report_sha256_without_self_field"] = round8._canonical_sha(trusted)
     _write_json(
         tmp_path / round8._round6._name("capability-verification", suffix),
         {"real_source_smoke_receipt": trusted},
     )
     forged = dict(trusted)
     forged["discovered_candidates_are_scientific_evidence"] = True
+    forged.pop("report_sha256_without_self_field", None)
+    forged["report_sha256_without_self_field"] = round8._canonical_sha(forged)
     _write_json(tmp_path / "calibration-record-source-discovery.json", forged)
 
     with pytest.raises(
         round8.AutonomousProductionExactHeadRound8Error,
-        match="persisted calibration discovery report drifted from trusted promotion-2 replay",
+        match="persisted calibration discovery authority projection drifted from trusted promotion-2 replay",
     ):
         round8._bind_persisted_discovery_to_trusted_replay(tmp_path)
 
