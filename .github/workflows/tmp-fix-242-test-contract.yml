@@ -1,0 +1,47 @@
+name: Temporary exact-head test-contract repair 242
+
+on:
+  push:
+    branches:
+      - fix/cycle1-zenodo-transport-provenance-241
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-self-delete:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: fix/cycle1-zenodo-transport-provenance-241
+          fetch-depth: 0
+      - name: Align rejection assertion with stronger intrinsic authentication
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('tests/test_autonomous_production_cycle1_transport_stop_verifier.py')
+          text = path.read_text(encoding='utf-8')
+          needle = '''    with pytest.raises(Cycle1TransportStopVerificationError, match="differs"):
+              verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+          '''
+          replacement = '''    with pytest.raises(
+              Cycle1TransportStopVerificationError,
+              match="bounded-stop.json failed intrinsic authentication",
+          ):
+              verify_cycle1_transport_stop(repository_root=REPOSITORY_ROOT, output_root=output)
+          '''
+          if needle not in text:
+              raise SystemExit('target assertion block not found exactly')
+          path.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+      - name: Remove temporary workflow and commit only the intended repair
+        shell: bash
+        run: |
+          git rm .github/workflows/tmp-fix-242-test-contract.yml
+          git add tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Align bounded-stop rejection regression"
+          git push origin HEAD:fix/cycle1-zenodo-transport-provenance-241
