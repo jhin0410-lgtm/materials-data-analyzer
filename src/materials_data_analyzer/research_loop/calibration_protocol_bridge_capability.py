@@ -18,6 +18,7 @@ from .in625_geometry_condition_multisource_policy import (
     authenticate_geometry_condition_multisource_policy,
 )
 from .in625_geometry_condition_source_acquisition import (
+    FetchResult,
     acquire_geometry_condition_sources,
     fetch_exact_source,
 )
@@ -37,6 +38,18 @@ MULTISOURCE_POLICY_PATH = (
 MULTISOURCE_REGISTRY_PATH = (
     "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
 )
+
+# Exact source-version witness for the one network smoke used to promote this capability.
+# Use the mission-pinned primary-paper PDF rather than a mutable NIST CMS HTML page.  This PDF
+# was byte-identical in the prior accepted f0da7d0 live provenance and the current 94dd98 live
+# multisource acquisition.  The capability verification receipt byte-binds this module via
+# ``implementation_sha256``; retained replay therefore cannot replace the body and merely rehash
+# its packet.  Any future change to these static publication bytes remains a fail-closed source
+# version event requiring explicit review rather than silent historical-evidence rewriting.
+SMOKE_SOURCE_ID = "lane-2020-melt-pool-geometry"
+SMOKE_SOURCE_URL = "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=927485"
+SMOKE_SOURCE_SHA256 = "39de5e6987461c3cf607e544d202cfdc3f28dffd2e0ec298175df63803b99640"
+SMOKE_SOURCE_SIZE_BYTES = 1_874_330
 
 _REQUIRED_CLAIMS = frozenset(
     {
@@ -113,6 +126,41 @@ def _source_sha_map(evidence: Mapping[str, Any]) -> dict[str, str]:
         )
         result[source_id] = source_sha
     return result
+
+
+def verify_pinned_smoke_source(
+    *,
+    source_id: str,
+    requested_url: str,
+    fetched: FetchResult,
+) -> dict[str, Any]:
+    """Verify the exact mission-pinned static source version bound into this implementation."""
+    observed_sha = hashlib.sha256(fetched.body).hexdigest()
+    observed_size = len(fetched.body)
+    _require(source_id == SMOKE_SOURCE_ID, "bridge smoke source id drifted from pinned witness")
+    _require(
+        requested_url == SMOKE_SOURCE_URL,
+        "bridge smoke requested URL drifted from pinned witness",
+    )
+    _require(
+        fetched.final_url == SMOKE_SOURCE_URL,
+        "bridge smoke final URL drifted from pinned witness",
+    )
+    _require(
+        observed_sha == SMOKE_SOURCE_SHA256,
+        "bridge smoke body SHA-256 drifted from pinned historical source",
+    )
+    _require(
+        observed_size == SMOKE_SOURCE_SIZE_BYTES,
+        "bridge smoke body size drifted from pinned historical source",
+    )
+    return {
+        "source_id": SMOKE_SOURCE_ID,
+        "requested_url": SMOKE_SOURCE_URL,
+        "final_url": SMOKE_SOURCE_URL,
+        "source_sha256": SMOKE_SOURCE_SHA256,
+        "source_size_bytes": SMOKE_SOURCE_SIZE_BYTES,
+    }
 
 
 def build_bridge_frontier_report(
@@ -240,27 +288,36 @@ def smoke_exact_source_authority(
     registry = _read_json(registry_path, "multi-source source registry")
     sources = registry.get("sources")
     _require(isinstance(sources, list) and sources, "source registry is empty")
-    first = sources[0]
-    _require(isinstance(first, Mapping), "first source registry entry is invalid")
-    source_id = first.get("source_id")
-    url = first.get("url")
-    _require(isinstance(source_id, str) and isinstance(url, str), "first source identity is invalid")
+    matches = [
+        source
+        for source in sources
+        if isinstance(source, Mapping) and source.get("source_id") == SMOKE_SOURCE_ID
+    ]
+    _require(
+        len(matches) == 1,
+        "pinned bridge smoke source is not exactly represented in source registry",
+    )
+    selected = matches[0]
+    url = selected.get("url")
+    _require(isinstance(url, str), "pinned bridge smoke source URL is invalid")
     fetched = fetch_exact_source(
         url,
         allowed_hosts=ALLOWED_HOSTS,
         max_bytes=MAX_SOURCE_BYTES,
         timeout_seconds=TIMEOUT_SECONDS,
     )
+    pinned = verify_pinned_smoke_source(
+        source_id=SMOKE_SOURCE_ID,
+        requested_url=url,
+        fetched=fetched,
+    )
     receipt: dict[str, Any] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "smoke_status": "exact_authorized_source_retrieved",
         "policy_sha256": qualification["policy_sha256"],
         "registry_git_blob_sha1": qualification["registry_git_blob_sha1"],
-        "source_id": source_id,
-        "requested_url": url,
-        "final_url": fetched.final_url,
-        "source_sha256": hashlib.sha256(fetched.body).hexdigest(),
-        "source_size_bytes": len(fetched.body),
+        **pinned,
+        "historical_source_version_binding_verified": True,
         "network_requests_performed": 1,
         "unrestricted_search_performed": False,
         "arbitrary_url_fetch_performed": False,
@@ -307,8 +364,13 @@ __all__ = [
     "IMPLEMENTATION_ID",
     "NEXT_ACTION_CLASS",
     "REQUIRED_VERIFIED_PRIMITIVES",
+    "SMOKE_SOURCE_ID",
+    "SMOKE_SOURCE_SHA256",
+    "SMOKE_SOURCE_SIZE_BYTES",
+    "SMOKE_SOURCE_URL",
     "CalibrationProtocolBridgeCapabilityError",
     "build_bridge_frontier_report",
     "execute_bridge_capability",
     "smoke_exact_source_authority",
+    "verify_pinned_smoke_source",
 ]

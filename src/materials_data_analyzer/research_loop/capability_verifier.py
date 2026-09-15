@@ -1,21 +1,25 @@
 """Independent verifier for bounded capability candidates.
 
-Verification is separate from candidate discovery and registry promotion. The verifier may perform
-an exact-source smoke test only under authority that was already authenticated by the mission;
-it cannot add hosts, URLs, action classes, or scientific truth authority.
+Verification is separate from candidate discovery and registry promotion.  A live verifier may
+perform an exact-source smoke only under authority already authenticated by the mission.  The
+exact bounded fetch request/response bytes used by that smoke are retained inside the verification
+receipt so later promotion replay can be deterministic and perform zero network requests.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from . import calibration_protocol_bridge_capability as bridge
+from . import capability_smoke_replay_evidence as smoke_replay
 from . import capability_verifier as _this_module
 from . import nist_ammt_calibration_candidate_acquisition as candidate_acquisition
 from . import nist_ammt_calibration_source_discovery as discovery
 from .capability_registry import build_capability_verification_receipt
+from .in625_geometry_condition_source_acquisition import fetch_exact_source
 from .nist_ammt_candidate_acquisition_policy import (
     authenticate_nist_ammt_candidate_acquisition_policy,
 )
@@ -24,8 +28,8 @@ from .nist_ammt_source_discovery_policy import (
     authenticate_nist_ammt_source_discovery_policy,
 )
 
-CAPABILITY_VERIFIER_SCHEMA_VERSION = "1.3"
-CAPABILITY_VERIFIER_POLICY_VERSION = "1.3"
+CAPABILITY_VERIFIER_SCHEMA_VERSION = "1.4"
+CAPABILITY_VERIFIER_POLICY_VERSION = "1.4"
 
 
 class CapabilityVerifierError(ValueError):
@@ -132,9 +136,7 @@ def _verify_discovery_fixture() -> tuple[bool, bool]:
         "AMMT" in page_text
         and len(candidates) == 1
         and candidates[0]["link_host"] == "www.nist.gov"
-        and "calibration" in [
-            term.lower() for term in candidates[0]["matched_query_terms"]
-        ]
+        and "calibration" in [term.lower() for term in candidates[0]["matched_query_terms"]]
     )
     boundary_ok = (
         candidates[0]["candidate_url_followed"] is False
@@ -158,9 +160,7 @@ def _verify_candidate_acquisition_fixture() -> tuple[bool, bool]:
         "action_class": discovery.ACTION_CLASS,
         "discovery_status": "official_nist_ammt_publication_index_reviewed",
         "policy_id": "nist-ammt-publication-index-source-discovery-v1",
-        "policy_sha256": (
-            "e053faca2a28adae1d299d5771b6df4a99e1e15400b536e1f7502f34051a9324"
-        ),
+        "policy_sha256": "e053faca2a28adae1d299d5771b6df4a99e1e15400b536e1f7502f34051a9324",
         "source_index": {
             "source_id": "nist-ammt-relevant-publications-index",
             "requested_url": "https://www.nist.gov/el/ammt/relevant-publications",
@@ -273,16 +273,62 @@ def _implementation_contract(
     raise CapabilityVerifierError("no verifier is registered for candidate action class")
 
 
+def _bound_sha(value: Mapping[str, Any], field: str, label: str) -> str:
+    digest = value.get(field)
+    _require(isinstance(digest, str) and len(digest) == 64, f"{label} binding is missing")
+    return digest
+
+
+def _bridge_smoke_with_fetcher(
+    *,
+    fetcher: Any,
+    repository_root: str | Path,
+    mission_path: str | Path,
+    expected_mission_sha256: str,
+) -> dict[str, Any]:
+    original = bridge.fetch_exact_source
+    bridge.fetch_exact_source = fetcher
+    try:
+        return bridge.smoke_exact_source_authority(
+            repository_root=repository_root,
+            mission_path=mission_path,
+            expected_mission_sha256=expected_mission_sha256,
+        )
+    finally:
+        bridge.fetch_exact_source = original
+
+
 def _real_source_smoke(
     *,
     module: object,
+    action_class: str,
+    capability_specification_sha256: str,
+    capability_candidate_sha256: str,
     repository_root: str | Path,
     mission_path: str | Path,
     expected_mission_sha256: str,
     verification_context: Mapping[str, Any] | None,
-) -> tuple[bool, dict[str, Any]]:
+    retained_smoke_replay_evidence: Mapping[str, Any] | None,
+) -> tuple[bool, dict[str, Any], dict[str, Any] | None]:
+    if retained_smoke_replay_evidence is None:
+        recording = smoke_replay.RecordingFetcher(fetch_exact_source)
+        fetcher: Any = recording
+        effective_context = verification_context
+        replaying = False
+    else:
+        fetcher, effective_context = smoke_replay.authenticate_smoke_replay_evidence(
+            retained_smoke_replay_evidence,
+            action_class=action_class,
+            capability_specification_sha256=capability_specification_sha256,
+            capability_candidate_sha256=capability_candidate_sha256,
+            mission_sha256=expected_mission_sha256,
+        )
+        recording = None
+        replaying = True
+
     if module is bridge:
-        receipt = bridge.smoke_exact_source_authority(
+        receipt = _bridge_smoke_with_fetcher(
+            fetcher=fetcher,
             repository_root=repository_root,
             mission_path=mission_path,
             expected_mission_sha256=expected_mission_sha256,
@@ -294,9 +340,7 @@ def _real_source_smoke(
             and receipt.get("arbitrary_url_fetch_performed") is False
             and receipt.get("scientific_status_changed") is False
         )
-        return ok, receipt
-
-    if module is discovery:
+    elif module is discovery:
         qualification = authenticate_nist_ammt_source_discovery_policy(
             repository_root=repository_root,
             mission_path=mission_path,
@@ -304,6 +348,7 @@ def _real_source_smoke(
         )
         receipt = discovery.discover_nist_ammt_calibration_sources(
             qualification=qualification,
+            fetcher=fetcher,
         )
         ok = (
             receipt.get("discovery_status")
@@ -317,59 +362,76 @@ def _real_source_smoke(
             and receipt.get("global_evidence_unavailability_claimed") is False
             and receipt.get("scientific_status_changed") is False
         )
-        return ok, receipt
+    else:
+        _require(
+            isinstance(effective_context, Mapping),
+            "derived candidate acquisition verification requires predecessor context",
+        )
+        discovery_report = effective_context.get("discovery_report")
+        predecessor_manifest = effective_context.get("predecessor_manifest")
+        _require(
+            isinstance(discovery_report, Mapping)
+            and isinstance(predecessor_manifest, Mapping),
+            "derived candidate acquisition verification context is incomplete",
+        )
+        qualification = authenticate_nist_ammt_candidate_acquisition_policy(
+            repository_root=repository_root,
+            mission_path=mission_path,
+            expected_mission_sha256=expected_mission_sha256,
+        )
+        lineage = verify_discovery_lineage(
+            qualification=qualification,
+            discovery_report=discovery_report,
+        )
+        authorization = candidate_acquisition.build_derived_candidate_authorization(
+            qualification=qualification,
+            discovery_report=discovery_report,
+            predecessor_manifest=predecessor_manifest,
+        )
+        acquisition = candidate_acquisition.execute_derived_candidate_acquisition(
+            authorization=authorization,
+            fetcher=fetcher,
+        )
+        ok = (
+            lineage.get("verification_status")
+            == "exact_discovery_policy_source_and_rank1_lineage_verified"
+            and acquisition.get("acquisition_status")
+            == "derived_nist_calibration_candidate_and_full_text_acquired"
+            and acquisition.get("network_requests_performed") == 2
+            and acquisition.get("candidate_url_derived_from_discovery") is True
+            and acquisition.get("full_text_url_derived_from_candidate_page") is True
+            and acquisition.get("caller_authored_url_used") is False
+            and acquisition.get("unrestricted_search_performed") is False
+            and acquisition.get("literature_promoted_to_row_level_measurement_authority") is False
+            and acquisition.get("acquisition_success_establishes_calibration_bridge") is False
+            and acquisition.get("scientific_status_changed") is False
+        )
+        receipt = {
+            "schema_version": "1.0",
+            "smoke_status": "derived_candidate_lineage_and_acquisition_verified",
+            "lineage_verification": lineage,
+            "acquisition_receipt": acquisition,
+            "network_requests_performed": acquisition.get("network_requests_performed"),
+            "scientific_status_changed": False,
+        }
+        receipt["report_sha256_without_self_field"] = _canonical_sha(receipt)
 
-    _require(
-        isinstance(verification_context, Mapping),
-        "derived candidate acquisition verification requires predecessor context",
-    )
-    discovery_report = verification_context.get("discovery_report")
-    predecessor_manifest = verification_context.get("predecessor_manifest")
-    _require(
-        isinstance(discovery_report, Mapping)
-        and isinstance(predecessor_manifest, Mapping),
-        "derived candidate acquisition verification context is incomplete",
-    )
-    qualification = authenticate_nist_ammt_candidate_acquisition_policy(
-        repository_root=repository_root,
-        mission_path=mission_path,
-        expected_mission_sha256=expected_mission_sha256,
-    )
-    lineage = verify_discovery_lineage(
-        qualification=qualification,
-        discovery_report=discovery_report,
-    )
-    receipt = candidate_acquisition.smoke_derived_candidate_acquisition(
-        repository_root=str(repository_root),
-        mission_path=str(mission_path),
-        expected_mission_sha256=expected_mission_sha256,
-        discovery_report=discovery_report,
-        predecessor_manifest=predecessor_manifest,
-    )
-    ok = (
-        lineage.get("verification_status")
-        == "exact_discovery_policy_source_and_rank1_lineage_verified"
-        and receipt.get("acquisition_status")
-        == "derived_nist_calibration_candidate_and_full_text_acquired"
-        and receipt.get("network_requests_performed") == 2
-        and receipt.get("candidate_url_derived_from_discovery") is True
-        and receipt.get("full_text_url_derived_from_candidate_page") is True
-        and receipt.get("caller_authored_url_used") is False
-        and receipt.get("unrestricted_search_performed") is False
-        and receipt.get("literature_promoted_to_row_level_measurement_authority") is False
-        and receipt.get("acquisition_success_establishes_calibration_bridge") is False
-        and receipt.get("scientific_status_changed") is False
-    )
-    combined: dict[str, Any] = {
-        "schema_version": "1.0",
-        "smoke_status": "derived_candidate_lineage_and_acquisition_verified",
-        "lineage_verification": lineage,
-        "acquisition_receipt": receipt,
-        "network_requests_performed": receipt.get("network_requests_performed"),
-        "scientific_status_changed": False,
-    }
-    combined["report_sha256_without_self_field"] = _canonical_sha(combined)
-    return ok, combined
+    if replaying:
+        fetcher.assert_consumed()
+        replay_evidence = dict(retained_smoke_replay_evidence)
+    else:
+        records = [] if recording is None else recording.records
+        replay_evidence = None
+        if records:
+            replay_evidence = smoke_replay.build_smoke_replay_evidence(
+                action_class=action_class,
+                capability_specification_sha256=capability_specification_sha256,
+                capability_candidate_sha256=capability_candidate_sha256,
+                mission_sha256=expected_mission_sha256,
+                verification_context=effective_context,
+                fetch_records=records,
+            )
+    return ok, dict(receipt), replay_evidence
 
 
 def verify_bounded_capability_candidate(
@@ -382,22 +444,17 @@ def verify_bounded_capability_candidate(
     expected_mission_sha256: str,
     perform_real_source_smoke: bool,
     verification_context: Mapping[str, Any] | None = None,
+    retained_smoke_replay_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Verify one candidate and return a byte-bound independent promotion receipt."""
     module, required_primitives, factory_id, implementation_id, mechanism = (
         _implementation_contract(candidate)
     )
     _require(candidate.get("factory_id") == factory_id, "candidate factory drifted")
-    _require(
-        candidate.get("implementation_id") == implementation_id,
-        "candidate implementation drifted",
-    )
+    _require(candidate.get("implementation_id") == implementation_id, "candidate implementation drifted")
     _require(candidate.get("mechanism") == mechanism, "candidate mechanism drifted")
 
-    deterministic_contract = (
-        candidate.get("required_verified_primitives")
-        == sorted(required_primitives)
-    )
+    deterministic_contract = candidate.get("required_verified_primitives") == sorted(required_primitives)
     authority_and_provenance = (
         candidate.get("network_authority_granted") is False
         and candidate.get("execution_authority_granted") is False
@@ -413,14 +470,32 @@ def verify_bounded_capability_candidate(
         fixture_ok, epistemic_boundary_ok = _verify_candidate_acquisition_fixture()
 
     smoke_receipt: dict[str, Any] | None = None
-    if perform_real_source_smoke:
-        real_source_smoke_ok, smoke_receipt = _real_source_smoke(
-            module=module,
-            repository_root=repository_root,
-            mission_path=mission_path,
-            expected_mission_sha256=expected_mission_sha256,
-            verification_context=verification_context,
+    replay_evidence: dict[str, Any] | None = None
+    if perform_real_source_smoke or retained_smoke_replay_evidence is not None:
+        spec_sha = _bound_sha(
+            capability_specification,
+            "capability_specification_sha256_without_self_field",
+            "capability specification",
         )
+        candidate_sha = _bound_sha(
+            candidate,
+            "capability_candidate_sha256_without_self_field",
+            "capability candidate",
+        )
+        try:
+            real_source_smoke_ok, smoke_receipt, replay_evidence = _real_source_smoke(
+                module=module,
+                action_class=str(candidate.get("action_class")),
+                capability_specification_sha256=spec_sha,
+                capability_candidate_sha256=candidate_sha,
+                repository_root=repository_root,
+                mission_path=mission_path,
+                expected_mission_sha256=expected_mission_sha256,
+                verification_context=verification_context,
+                retained_smoke_replay_evidence=retained_smoke_replay_evidence,
+            )
+        except smoke_replay.CapabilitySmokeReplayEvidenceError as exc:
+            raise CapabilityVerifierError(f"retained smoke replay failed: {exc}") from exc
     else:
         real_source_smoke_ok = False
 
@@ -449,6 +524,9 @@ def verify_bounded_capability_candidate(
         smoke_sha = smoke_receipt.get("smoke_receipt_sha256_without_self_field")
         if smoke_sha is None:
             smoke_sha = smoke_receipt.get("report_sha256_without_self_field")
+    replay_sha = None
+    if replay_evidence is not None:
+        replay_sha = replay_evidence.get("smoke_replay_evidence_sha256_without_self_field")
     unsigned.update(
         {
             "verifier_schema_version": CAPABILITY_VERIFIER_SCHEMA_VERSION,
@@ -457,6 +535,8 @@ def verify_bounded_capability_candidate(
             "verifier_sha256": verifier_sha,
             "real_source_smoke_receipt_sha256": smoke_sha,
             "real_source_smoke_receipt": smoke_receipt,
+            "real_source_smoke_replay_evidence_sha256": replay_sha,
+            "real_source_smoke_replay_evidence": replay_evidence,
         }
     )
     unsigned["capability_verification_sha256_without_self_field"] = _canonical_sha(unsigned)
