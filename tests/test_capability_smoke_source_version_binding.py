@@ -284,6 +284,7 @@ def test_persisted_discovery_report_must_equal_trusted_promotion_two_replay(
     suffix = round8._round6._PROMOTIONS[1][0]
     trusted = {
         "schema_version": "test",
+        "source_index": {"source_id": "test-source"},
         "discovered_candidates_are_scientific_evidence": False,
     }
     trusted["report_sha256_without_self_field"] = round8._canonical_sha(trusted)
