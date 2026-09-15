@@ -55,11 +55,24 @@ def test_cycle1_reviewed_binding_requires_persisted_derivatives(tmp_path: Path) 
         round2._verify_bound_reviewed_tensile_presence(tmp_path, cycles)
 
 
+@pytest.mark.parametrize("cycle_count", [1, 2])
 def test_genuinely_prederivation_transport_can_omit_reviewed_derivatives(
+    tmp_path: Path,
+    cycle_count: int,
+) -> None:
+    cycles = [{"cycle_index": index} for index in range(1, cycle_count + 1)]
+    round2._verify_bound_reviewed_tensile_presence(tmp_path, cycles)
+
+
+def test_three_cycle_nist_transport_cannot_omit_cycle1_reviewed_binding(
     tmp_path: Path,
 ) -> None:
     cycles = [{"cycle_index": 1}, {"cycle_index": 2}, {"cycle_index": 3}]
-    round2._verify_bound_reviewed_tensile_presence(tmp_path, cycles)
+    with pytest.raises(
+        round2.AutonomousProductionExactHeadRound2Error,
+        match="cycle-3-or-later production outcome is missing the cycle-1 reviewed tensile binding",
+    ):
+        round2._verify_bound_reviewed_tensile_presence(tmp_path, cycles)
 
 
 def test_posttransport_outcome_cannot_omit_cycle1_reviewed_binding(
