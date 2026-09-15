@@ -1,0 +1,51 @@
+name: Temporary exact-head fixture repair 233
+
+on:
+  push:
+    branches:
+      - fix/wire-autonomous-nist-transport-recovery-20260824
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-self-delete:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: fix/wire-autonomous-nist-transport-recovery-20260824
+          fetch-depth: 0
+      - name: Align regression fixture with canonical discovery receipt contract
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('tests/test_capability_smoke_source_version_binding.py')
+          text = path.read_text(encoding='utf-8')
+          needle = '''    trusted = {
+              "schema_version": "test",
+              "discovered_candidates_are_scientific_evidence": False,
+          }
+          _write_json(
+          '''
+          replacement = '''    trusted = {
+              "schema_version": "test",
+              "discovered_candidates_are_scientific_evidence": False,
+          }
+          trusted["report_sha256_without_self_field"] = round8._canonical_sha(trusted)
+          _write_json(
+          '''
+          if needle not in text:
+              raise SystemExit('target fixture block not found exactly')
+          path.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+      - name: Remove temporary workflow and commit only the intended repair
+        shell: bash
+        run: |
+          git rm .github/workflows/tmp-fix-233-fixture.yml
+          git add tests/test_capability_smoke_source_version_binding.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Align discovery binding regression fixture"
+          git push origin HEAD:fix/wire-autonomous-nist-transport-recovery-20260824
