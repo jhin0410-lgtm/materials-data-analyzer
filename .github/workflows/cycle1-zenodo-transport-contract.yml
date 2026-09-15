@@ -18,6 +18,7 @@ on:
       - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
       - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
       - "tests/test_autonomous_production_cycle1_transport_*.py"
+      - "tests/test_cycle1_authority_json_type_fidelity.py"
       - "tests/test_cycle1_exact_zenodo_route_hardening.py"
       - "tests/test_in625_archive_network_transport_errors.py"
   push:
@@ -39,6 +40,7 @@ on:
       - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
       - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
       - "tests/test_autonomous_production_cycle1_transport_*.py"
+      - "tests/test_cycle1_authority_json_type_fidelity.py"
       - "tests/test_cycle1_exact_zenodo_route_hardening.py"
       - "tests/test_in625_archive_network_transport_errors.py"
   workflow_dispatch:
@@ -66,6 +68,7 @@ jobs:
           tests/test_autonomous_production_cycle1_transport_stop.py
           tests/test_autonomous_production_cycle1_transport_recovery.py
           tests/test_autonomous_production_cycle1_transport_stop_verifier.py
+          tests/test_cycle1_authority_json_type_fidelity.py
           tests/test_cycle1_exact_zenodo_route_hardening.py
           tests/test_in625_archive_network_transport_errors.py
           tests/test_public_data_acquisition_transport_errors.py
