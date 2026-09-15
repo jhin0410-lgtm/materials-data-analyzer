@@ -360,12 +360,51 @@ def _trusted_smoke_receipt(root: Path, *, step: int) -> Mapping[str, Any]:
     return receipt
 
 
+def _discovery_authority_projection(
+    report: Mapping[str, Any], *, label: str
+) -> dict[str, Any]:
+    """Project a discovery report onto semantics that may carry downstream authority.
+
+    NIST CMS response bytes are intentionally excluded because provider-injected runtime
+    bytes can vary across independently trusted requests.  Visible text, ranked candidates,
+    route identity, policy identity, budgets, negative-authority boundaries, and next-action
+    semantics remain in the projection and must match exactly with JSON type sensitivity.
+    """
+    projected = dict(report)
+    projected.pop("report_sha256_without_self_field", None)
+    source_index = projected.get("source_index")
+    _require(isinstance(source_index, Mapping), f"{label} source_index is missing")
+    normalized_source = dict(source_index)
+    for key in ("source_sha256", "source_size_bytes", "http_content_type"):
+        normalized_source.pop(key, None)
+    projected["source_index"] = normalized_source
+    return projected
+
+
 def _bind_persisted_discovery_to_trusted_replay(root: Path) -> None:
     trusted = _trusted_smoke_receipt(root, step=2)
+    _merge_gate._verify_self_hash(
+        trusted,
+        "report_sha256_without_self_field",
+        label="trusted promotion-2 discovery replay",
+    )
     persisted = _merge_gate._load(root, "calibration-record-source-discovery.json")
+    _merge_gate._verify_self_hash(
+        persisted,
+        "report_sha256_without_self_field",
+        label="persisted calibration discovery report",
+    )
+    trusted_projection = _discovery_authority_projection(
+        trusted,
+        label="trusted promotion-2 discovery replay",
+    )
+    persisted_projection = _discovery_authority_projection(
+        persisted,
+        label="persisted calibration discovery report",
+    )
     _require(
-        dict(persisted) == dict(trusted),
-        "persisted calibration discovery report drifted from trusted promotion-2 replay",
+        _canonical_sha(persisted_projection) == _canonical_sha(trusted_projection),
+        "persisted calibration discovery authority projection drifted from trusted promotion-2 replay",
     )
 
 
