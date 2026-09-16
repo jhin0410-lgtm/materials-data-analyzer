@@ -1,0 +1,333 @@
+{
+  "pdf_extractor": {
+    "package": "pypdf",
+    "strict": false
+  },
+  "policy_id": "in625-geometry-condition-multisource-acquisition-v1",
+  "policy_sha256": "a2b70b96096650811671db445bd27897795f028a508608c2eb7c4a0226658652",
+  "registry_git_blob_sha1": "d117162543a8e0c01328d65acadbe482172b16dd",
+  "schema_version": "1.0",
+  "scope": "Historical replay witness for the eight-source NIST geometry-condition acquisition. Exact source digests/sizes/routes and claim-match receipts are pinned; literature remains non-row-level evidence.",
+  "sources": [
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "a5c541e28f11d52bdec67d07f4c91c0b5d554e7543105c942b1deb0fdcb28d6c",
+          "claim_id": "amb2018-ammt-actual-power-correction",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "ce1b29c13f2151ef3433b9413440795757a1519e91d24e2f7a93f2b7b02bbf1d",
+              "matched_text_utf8_bytes": 65,
+              "page_index_zero_based": null
+            }
+          ],
+          "scope": "official calibration correction for the three AMMT AMB2018-02 cases"
+        },
+        {
+          "anchor_regex_sha256": "b22d7189c1176bab35c0e5511c43bc1c525ace24677c225e9cfe3933276644e4",
+          "claim_id": "amb2018-programmed-cases-and-replications",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "780f734deb169e7c2ca4b7d8deed5e5cf06d7aa225a810518fbe061929119519",
+              "matched_text_utf8_bytes": 34,
+              "page_index_zero_based": null
+            }
+          ],
+          "scope": "programmed power/speed cases and stated replication counts"
+        }
+      ],
+      "final_url": "https://www.nist.gov/ambench/amb2018-02-description",
+      "media_type": "html",
+      "pdf_page_count": null,
+      "request_index": 1,
+      "requested_url": "https://www.nist.gov/ambench/amb2018-02-description",
+      "source_id": "nist-official-amb2018-02-description",
+      "source_sha256": "66b5ea27aad45d83a8e5cd8dd5443d717ea1fb6aa429d29ce15a4b88928ed45d",
+      "source_size_bytes": 104349
+    },
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "a13f9aed3fd6b4b283ae49c6e610140cc96375e8180b5ca5bc0f32f6971d7c2f",
+          "claim_id": "benchmark-ammt-calibration-note",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "95b70db5cb864ebb0f1b6f651d45a82c310fbdbef1805034189ead41ac966b83",
+              "matched_text_utf8_bytes": 92,
+              "page_index_zero_based": null
+            }
+          ],
+          "scope": "official benchmark-page correction from commanded to actual AMMT power"
+        }
+      ],
+      "final_url": "https://www.nist.gov/ambench/benchmark-test-data",
+      "media_type": "html",
+      "pdf_page_count": null,
+      "request_index": 2,
+      "requested_url": "https://www.nist.gov/ambench/benchmark-test-data",
+      "source_id": "nist-official-amb2018-benchmark-test-data",
+      "source_sha256": "9d4ae1fda04f8b441427c8387072b8ac0632ea2f9bf312afebc52b22b22c4de3",
+      "source_size_bytes": 90414
+    },
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "b5ad67ee5fade2bec0185d162c4011e36c18517318a590b86d9b22d27c3e7760",
+          "claim_id": "benchmark-later-spot-size-correction-note",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "3884e0437be6a6838a723e8a421227467167bbbfe335c6125c22e38aa679d286",
+              "matched_text_utf8_bytes": 104,
+              "page_index_zero_based": null
+            }
+          ],
+          "scope": "official notice that later spot-size investigation changed the interpretation of original benchmark conditions"
+        }
+      ],
+      "final_url": "https://www.nist.gov/ambench/challenges-and-descriptions",
+      "media_type": "html",
+      "pdf_page_count": null,
+      "request_index": 3,
+      "requested_url": "https://www.nist.gov/ambench/challenges-and-descriptions",
+      "source_id": "nist-official-amb2018-challenges-description",
+      "source_sha256": "770b3e06f48a229311b2d36179a83a1b01bcad7368b25094642441fb292f4544",
+      "source_size_bytes": 88527
+    },
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "a03eded29102b604161d82ecef2e5c0d1001d2b7fe4a0231a0c2c3c2c36607a0",
+          "claim_id": "ricker-two-machine-bare-plate-design",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "d8900c4c88df80d5fe5c396406930cc1a3d38bc203d8f9a0689f2bd254b898a3",
+              "matched_text_utf8_bytes": 173,
+              "page_index_zero_based": 0
+            }
+          ],
+          "scope": "two-machine bare-plate benchmark design"
+        }
+      ],
+      "final_url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=928240",
+      "media_type": "pdf",
+      "pdf_page_count": 22,
+      "request_index": 4,
+      "requested_url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=928240",
+      "source_id": "ricker-2019-topographic-tracks",
+      "source_sha256": "00abe91ed18d2b1461bef981c9a4f2c4771cce78da4e4a7744aa38d5ddac748d",
+      "source_size_bytes": 16569542
+    },
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "6d60d3e81ee69710b7a676176f8434f996bbd80832ab2725c96829d788d5072f",
+          "claim_id": "lane-surface-preparation-320-grit",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "87fff5208a8e77951b7e07f2f41c704a7d112d16147990417cea9e764055cda9",
+              "matched_text_utf8_bytes": 33,
+              "page_index_zero_based": 3
+            }
+          ],
+          "scope": "bare-plate surface preparation"
+        },
+        {
+          "anchor_regex_sha256": "bc133309918727f0f5b02c5f57c1103b3ed4a7f7d4559442d2c07c308cddb3f2",
+          "claim_id": "lane-ammt-cbm-spot-diameters",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "8e36b2ae233058feefcad4a484dbcb25574c129f27dba2794f220a77556730e2",
+              "matched_text_utf8_bytes": 2634,
+              "page_index_zero_based": 4
+            }
+          ],
+          "scope": "machine-specific D4-sigma and FWHM spot sizes"
+        },
+        {
+          "anchor_regex_sha256": "224cd8c1817544d59b5b8f10a1e9cbe0eff6a5504c9bd8b48d8fb47a38cc633e",
+          "claim_id": "lane-machine-environment",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "8ac72661406f2e12d53b57e5cf045d659871ee3978c1e35ff5d718b24d5e9254",
+              "matched_text_utf8_bytes": 44,
+              "page_index_zero_based": 4
+            }
+          ],
+          "scope": "CBM versus AMMT inert gas and oxygen-level distinction"
+        },
+        {
+          "anchor_regex_sha256": "ec12b2e8426c0e5f8647309ee2d76bfc994a3265ef89ddc8b8f85557beed3365",
+          "claim_id": "lane-ammt-corrected-cases",
+          "match_count": 3,
+          "matches": [
+            {
+              "matched_text_sha256": "dbfec5bdf983c57490de1c9f1035f7a4590053a1f293a94c75b84003e190b808",
+              "matched_text_utf8_bytes": 65,
+              "page_index_zero_based": 3
+            },
+            {
+              "matched_text_sha256": "7d5055b48d229224169a01d4251c3ca078cd7b4dae0cec46a87fb43c700ef525",
+              "matched_text_utf8_bytes": 578,
+              "page_index_zero_based": 10
+            },
+            {
+              "matched_text_sha256": "5927b0747b345189ce601880df5b367a470423a2a01ab67c06fb59983ddf7749",
+              "matched_text_utf8_bytes": 50,
+              "page_index_zero_based": 11
+            }
+          ],
+          "scope": "AMMT applied-power cases in the later experiment synthesis"
+        },
+        {
+          "anchor_regex_sha256": "852b14eeed44bf969f42ef87dcc28c20cf78e12c5354f22ada32f9d157556eaf",
+          "claim_id": "lane-cross-section-uncertainty-exists",
+          "match_count": 2,
+          "matches": [
+            {
+              "matched_text_sha256": "74954a59f55c8a85fabb6b2971a0dc833a38e7da80f0f811feea1f1eca111500",
+              "matched_text_utf8_bytes": 2289,
+              "page_index_zero_based": 11
+            },
+            {
+              "matched_text_sha256": "89e4fba7148a813550309020f98b1c5613498824c6569f8bd30ac6797766886f",
+              "matched_text_utf8_bytes": 576,
+              "page_index_zero_based": 15
+            }
+          ],
+          "scope": "paper contains an explicit uncertainty treatment for melt-pool measurements"
+        }
+      ],
+      "final_url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=927485",
+      "media_type": "pdf",
+      "pdf_page_count": 17,
+      "request_index": 5,
+      "requested_url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=927485",
+      "source_id": "lane-2020-melt-pool-geometry",
+      "source_sha256": "39de5e6987461c3cf607e544d202cfdc3f28dffd2e0ec298175df63803b99640",
+      "source_size_bytes": 1874330
+    },
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "db0545f354be56191306eeaf04468ead0150a7030bcab4536f9a2a13d2d37c7d",
+          "claim_id": "weaver-spot-size-range-abstract",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "c1a803c1cd216e88dd9b6e16f5296ec2fbab28703b194e7046d27c7d662b22cf",
+              "matched_text_utf8_bytes": 3198,
+              "page_index_zero_based": null
+            }
+          ],
+          "scope": "official abstract establishes deliberate spot-size variation in the associated experiment family"
+        }
+      ],
+      "final_url": "https://www.nist.gov/publications/laser-spot-size-and-scaling-laws-laser-beam-additive-manufacturing",
+      "media_type": "html",
+      "pdf_page_count": null,
+      "request_index": 6,
+      "requested_url": "https://www.nist.gov/publications/laser-spot-size-and-scaling-laws-laser-beam-additive-manufacturing",
+      "source_id": "weaver-2021-spot-size-scaling-metadata",
+      "source_sha256": "8bdc0f69eeeba587386a8779823896a4700ad7725da6f1625ecbc1de7907c879",
+      "source_size_bytes": 82486
+    },
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "27937f9651dca413cd2ca34d16c661d7a3cf5744f80168e631b3765eac850c3f",
+          "claim_id": "naderi-eos-m270-condition-space",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "f6ccad077637fec0e9b66bb5268e2fc323c5d748d2e91fea7805107fe2610312",
+              "matched_text_utf8_bytes": 245,
+              "page_index_zero_based": 3
+            }
+          ],
+          "scope": "EOS M270 condition-space statement"
+        },
+        {
+          "anchor_regex_sha256": "9ef251564bce274f820260249922554ddcd1cef79dc686eb9072b740511b2601",
+          "claim_id": "naderi-ammt-spot-range",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "757d31843f48efe31d349f8a8c4abc997cfe41879aad613f0d1c6fd0dbf14caf",
+              "matched_text_utf8_bytes": 96,
+              "page_index_zero_based": 4
+            }
+          ],
+          "scope": "AMMT spot-size sweep in the associated geometry dataset family"
+        },
+        {
+          "anchor_regex_sha256": "335719e26553d7dd445a63359d47f62218a0c8f43a4fb3bbd55ade343df329a0",
+          "claim_id": "naderi-spot-measurement-authority",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "a01e4936f7cab324ead63925f1f27753d80bb66e351af2ff677b7f89bd69a3a9",
+              "matched_text_utf8_bytes": 253,
+              "page_index_zero_based": 4
+            }
+          ],
+          "scope": "different spot-size evidence basis for EOS versus AMMT"
+        }
+      ],
+      "final_url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935135",
+      "media_type": "pdf",
+      "pdf_page_count": 16,
+      "request_index": 7,
+      "requested_url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935135",
+      "source_id": "naderi-2022-scaling-fidelity",
+      "source_sha256": "c35a62f9f3b9346af2e0fa99de46710b3017c915e3c792dbf01c83b920a53e81",
+      "source_size_bytes": 4597480
+    },
+    {
+      "claims": [
+        {
+          "anchor_regex_sha256": "77a9aa54d1335b89726753066be5e93cf2d5ee9b1f5b4ccfdbbaceb65ce7be79",
+          "claim_id": "nist-2026-machine-parameter-uncertainty",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "77a9aa54d1335b89726753066be5e93cf2d5ee9b1f5b4ccfdbbaceb65ce7be79",
+              "matched_text_utf8_bytes": 61,
+              "page_index_zero_based": null
+            }
+          ],
+          "scope": "official abstract states machine/parameter uncertainty is part of benchmark evidence"
+        },
+        {
+          "anchor_regex_sha256": "8ba05ed0c347c2e17d2d2ae12a36db7432e2c295bc092bef2f333a69aab0e142",
+          "claim_id": "nist-2026-cross-section-uncertainty",
+          "match_count": 1,
+          "matches": [
+            {
+              "matched_text_sha256": "b635f31929a75a46e600a13372f05d73eadc81f19e06d69ca7c57397ea58ffba",
+              "matched_text_utf8_bytes": 58,
+              "page_index_zero_based": null
+            }
+          ],
+          "scope": "official abstract states cross-section measurement uncertainty was analyzed"
+        }
+      ],
+      "final_url": "https://www.nist.gov/publications/enabling-modelers-test-their-simulations-against-rigorous-highly-controlled-additive",
+      "media_type": "html",
+      "pdf_page_count": null,
+      "request_index": 8,
+      "requested_url": "https://www.nist.gov/publications/enabling-modelers-test-their-simulations-against-rigorous-highly-controlled-additive",
+      "source_id": "nist-2026-ambench-uncertainty-synthesis",
+      "source_sha256": "2cfc2e32ea00f38e8ecc11208bea8813d02f1f164bc7743def78f3a9c1ac5d0f",
+      "source_size_bytes": 84639
+    }
+  ],
+  "witness_id": "in625-geometry-condition-multisource-reviewed-witness-v1"
+}
