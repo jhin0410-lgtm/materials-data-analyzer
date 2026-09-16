@@ -198,9 +198,6 @@ def _verify_cycle4_artifacts(root: Path, cycles: list[dict[str, Any]]) -> None:
         cycle4.get("source_acquisition_report_sha256") == sources_sha,
         "cycle 4 multisource acquisition digest binding mismatch",
     )
-    _multisource_witness.verify_multisource_acquisition_against_reviewed_witness(
-        sources
-    )
     records = sources.get("sources")
     _require(isinstance(records, list), "multisource source records must be a list")
     _require(
@@ -238,6 +235,11 @@ def verify_exact_head_round2_boundaries(output_root: str | Path) -> None:
     _verify_predecessor_execution_boundary(root)
     _verify_post_acquisition_lane_contract(root)
     _verify_cycle4_artifacts(root, cycles)
+    if len(cycles) >= 4:
+        sources = _merge_gate._load(root, "multisource-source-acquisition.json")
+        _multisource_witness.verify_multisource_acquisition_against_reviewed_witness(
+            sources
+        )
 
 
 def install_exact_head_round2_closures() -> None:
