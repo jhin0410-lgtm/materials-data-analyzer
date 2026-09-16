@@ -12,7 +12,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from . import autonomous_production_fresh_review_round10 as _round10
 from . import autonomous_production_live_verifier_base as _base
+from . import autonomous_production_merge_gate_hardening as _merge_gate
 from .autonomous_production_authority_binding_hardening import (
     AutonomousProductionAuthorityBindingError,
     verify_exact_authority_bindings,
@@ -49,8 +51,8 @@ from .autonomous_production_exact_head_p2_round8 import (
 from .autonomous_production_fresh_review_round9 import (
     verify_fresh_review_round9_boundaries,
 )
-from .autonomous_production_fresh_review_round10 import (
-    verify_fresh_review_round10_boundaries,
+from .autonomous_production_fresh_review_round11 import (
+    verify_fresh_review_round11_boundaries,
 )
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
@@ -109,9 +111,27 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         verify_exact_head_round8_boundaries(output_root)
         # Bind persisted downstream authority artifacts to the canonical trusted producer replay.
         verify_trusted_replay_artifact_bindings(output_root)
-        # Rebuild remaining derived mapping/resolver/authorization/assessment artifacts rather than
-        # trusting a self-consistent persisted chain as its own authority.
-        verify_fresh_review_round10_boundaries(output_root)
+
+        # Round 10 was written for the complete 12-cycle lineage.  Its promotion loop must not
+        # demand verification/promoted-registry artifacts from legitimate 5/7/9/11-cycle bounded
+        # stops.  Preserve geometry replay on partial lifecycles and run the full derived-artifact
+        # replay only when all 12 cycles exist.
+        root = Path(output_root).expanduser().resolve(strict=True)
+        manifest = _merge_gate._load(root, "autonomous-production-manifest.json")
+        cycles = manifest.get("cycles")
+        if not isinstance(cycles, list):
+            raise AutonomousProductionMergeGateHardeningError(
+                "autonomous production cycles must be a list"
+            )
+        if len(cycles) == 12:
+            _round10.verify_fresh_review_round10_boundaries(root)
+        else:
+            _round10._verify_geometry_mapping(root, manifest)
+
+        # Final fresh-review closure adds stage-aware promotion replay, canonical JSON type
+        # fidelity, complete predecessor reconstruction, cycle-6 execution boundaries, and
+        # independent cycle-1 authority/execution provenance checks.
+        verify_fresh_review_round11_boundaries(root)
         verify_exact_head_round6_boundaries(output_root)
         verify_exact_head_round5_boundaries(output_root)
     except (
