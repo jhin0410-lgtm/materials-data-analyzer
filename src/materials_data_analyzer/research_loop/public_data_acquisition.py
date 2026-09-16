@@ -96,6 +96,31 @@ _TRANSIENT_HTTP_STATUS_CODES = frozenset(
 )
 _PERMISSION_ERRNOS = frozenset({errno.EACCES, errno.EPERM})
 _WINDOWS_WSAEACCES = 10013
+_TRANSIENT_NETWORK_ERRNOS = frozenset(
+    value
+    for value in (
+        getattr(errno, "ECONNABORTED", None),
+        getattr(errno, "ECONNREFUSED", None),
+        getattr(errno, "ECONNRESET", None),
+        getattr(errno, "ENETDOWN", None),
+        getattr(errno, "ENETRESET", None),
+        getattr(errno, "ENETUNREACH", None),
+        getattr(errno, "EHOSTDOWN", None),
+        getattr(errno, "EHOSTUNREACH", None),
+        getattr(errno, "ETIMEDOUT", None),
+        getattr(errno, "EPIPE", None),
+        getattr(errno, "WSAECONNABORTED", None),
+        getattr(errno, "WSAECONNREFUSED", None),
+        getattr(errno, "WSAECONNRESET", None),
+        getattr(errno, "WSAENETDOWN", None),
+        getattr(errno, "WSAENETRESET", None),
+        getattr(errno, "WSAENETUNREACH", None),
+        getattr(errno, "WSAEHOSTDOWN", None),
+        getattr(errno, "WSAEHOSTUNREACH", None),
+        getattr(errno, "WSAETIMEDOUT", None),
+    )
+    if isinstance(value, int)
+)
 
 
 class PublicAcquisitionError(ResearchLoopError):
@@ -462,6 +487,14 @@ def _is_permission_denial(error: object) -> bool:
     return getattr(error, "winerror", None) == _WINDOWS_WSAEACCES
 
 
+def _is_recognized_transient_delivery_error(error: object) -> bool:
+    """Return true only for explicitly recognized transient delivery failures."""
+
+    if isinstance(error, (TimeoutError, socket.timeout, ConnectionError)):
+        return True
+    return isinstance(error, OSError) and error.errno in _TRANSIENT_NETWORK_ERRNOS
+
+
 def fetch_https_bytes(
     url: str,
     *,
@@ -609,8 +642,12 @@ def fetch_https_bytes(
             raise PublicAcquisitionError(
                 f"HTTP acquisition permission/access-control failure: {reason}"
             ) from exc
-        raise PublicAcquisitionTransportError(
-            f"HTTP acquisition failed: {exc}"
+        if _is_recognized_transient_delivery_error(reason):
+            raise PublicAcquisitionTransportError(
+                f"HTTP acquisition failed: {exc}"
+            ) from exc
+        raise PublicAcquisitionError(
+            f"HTTP acquisition unrecognized/non-transient URL failure: {reason}"
         ) from exc
     except ssl.SSLError as exc:
         raise PublicAcquisitionError(
@@ -633,8 +670,12 @@ def fetch_https_bytes(
             raise PublicAcquisitionError(
                 f"HTTP acquisition permission/access-control failure: {exc}"
             ) from exc
-        raise PublicAcquisitionTransportError(
-            f"HTTP acquisition failed: {exc}"
+        if _is_recognized_transient_delivery_error(exc):
+            raise PublicAcquisitionTransportError(
+                f"HTTP acquisition failed: {exc}"
+            ) from exc
+        raise PublicAcquisitionError(
+            f"HTTP acquisition unrecognized/non-transient OS failure: {exc}"
         ) from exc
 
 

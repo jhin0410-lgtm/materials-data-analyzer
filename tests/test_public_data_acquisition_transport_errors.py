@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import socket
 import ssl
 from collections.abc import Callable
@@ -83,9 +84,14 @@ class _StaticOpener:
             hdrs=None,
             fp=None,
         ),
-        lambda: URLError("temporary DNS failure"),
+        lambda: URLError(
+            socket.gaierror(
+                socket.EAI_AGAIN,
+                "temporary failure in name resolution",
+            )
+        ),
         lambda: TimeoutError("socket timed out"),
-        lambda: OSError("connection reset"),
+        lambda: ConnectionResetError(errno.ECONNRESET, "connection reset"),
         lambda: BadStatusLine("malformed HTTP status line"),
     ],
 )
@@ -108,6 +114,56 @@ def test_network_delivery_failures_use_transport_subtype(
 
     assert isinstance(caught.value, PublicAcquisitionError)
     assert "HTTP acquisition failed" in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        URLError("unknown url type: socks"),
+        URLError(OSError("unclassified local network failure")),
+        OSError("unclassified local network failure"),
+    ],
+)
+def test_unrecognized_url_or_os_errors_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    error: BaseException,
+) -> None:
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionError) as caught:
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+    assert not isinstance(caught.value, PublicAcquisitionTransportError)
+    assert isinstance(caught.value.__cause__, type(error))
+    assert "unrecognized/non-transient" in str(caught.value)
+
+
+def test_explicit_connection_errno_remains_transport_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    error = OSError(errno.ECONNRESET, "connection reset by peer")
+    monkeypatch.setattr(
+        acquisition,
+        "build_opener",
+        lambda *_: _FailingOpener(error),
+    )
+
+    with pytest.raises(PublicAcquisitionTransportError) as caught:
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+        )
+
+    assert caught.value.__cause__ is error
 
 
 def test_premature_eof_before_declared_content_length_is_transport_failure(
