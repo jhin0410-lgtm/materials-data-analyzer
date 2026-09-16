@@ -6,6 +6,7 @@ authenticated claim packet establishes and what remains unresolved.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -128,6 +129,97 @@ def _source_sha_map(evidence: Mapping[str, Any]) -> dict[str, str]:
     return result
 
 
+def _capturing_multisource_fetcher(
+    registry: Mapping[str, Any],
+) -> tuple[Any, dict[str, bytes]]:
+    """Capture the exact bytes returned by every authorized cycle-6 reacquisition."""
+    sources = registry.get("sources")
+    _require(
+        isinstance(sources, list) and len(sources) == 8,
+        "multi-source registry must contain exactly eight sources",
+    )
+    allowed_urls: set[str] = set()
+    for index, raw_source in enumerate(sources, start=1):
+        _require(
+            isinstance(raw_source, Mapping),
+            f"multi-source registry entry {index} must be an object",
+        )
+        url = raw_source.get("url")
+        _require(
+            isinstance(url, str) and bool(url),
+            f"multi-source registry entry {index} URL is missing",
+        )
+        _require(url not in allowed_urls, "multi-source registry contains duplicate URLs")
+        allowed_urls.add(url)
+
+    captured: dict[str, bytes] = {}
+
+    def fetcher(
+        url: str,
+        *,
+        allowed_hosts: tuple[str, ...],
+        max_bytes: int,
+        timeout_seconds: float,
+    ) -> FetchResult:
+        _require(url in allowed_urls, "cycle-6 fetch escaped the trusted source registry")
+        _require(url not in captured, "cycle-6 fetch repeated a trusted source URL")
+        result = fetch_exact_source(
+            url,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            timeout_seconds=timeout_seconds,
+        )
+        captured[url] = bytes(result.body)
+        return result
+
+    return fetcher, captured
+
+
+def _attach_retained_source_bytes(
+    evidence: dict[str, Any],
+    captured: Mapping[str, bytes],
+) -> None:
+    """Bind exact cycle-6 response bytes into the self-hashed reacquisition packet."""
+    records = evidence.get("sources")
+    _require(
+        isinstance(records, list) and len(records) == 8,
+        "cycle-6 multi-source evidence records are incomplete",
+    )
+    observed_urls: set[str] = set()
+    for index, raw_record in enumerate(records, start=1):
+        _require(
+            isinstance(raw_record, dict),
+            f"cycle-6 multi-source evidence record {index} must be mutable JSON",
+        )
+        requested_url = raw_record.get("requested_url")
+        _require(
+            isinstance(requested_url, str) and requested_url in captured,
+            f"cycle-6 evidence record {index} has no retained fetch bytes",
+        )
+        _require(
+            requested_url not in observed_urls,
+            "cycle-6 evidence contains a duplicate requested URL",
+        )
+        observed_urls.add(requested_url)
+        body = captured[requested_url]
+        _require(
+            hashlib.sha256(body).hexdigest() == raw_record.get("source_sha256")
+            and len(body) == raw_record.get("source_size_bytes"),
+            f"cycle-6 evidence record {index} drifted before byte retention",
+        )
+        raw_record["source_bytes_b64"] = base64.b64encode(body).decode("ascii")
+        raw_record["source_bytes_persisted"] = True
+
+    _require(
+        len(observed_urls) == len(captured) == 8,
+        "cycle-6 retained fetch byte count drifted",
+    )
+    evidence["source_bytes_persisted"] = True
+    evidence["retained_source_bytes_count"] = 8
+    evidence.pop("report_sha256_without_self_field", None)
+    evidence["report_sha256_without_self_field"] = _canonical_sha(evidence)
+
+
 def verify_pinned_smoke_source(
     *,
     source_id: str,
@@ -196,6 +288,11 @@ def build_bridge_frontier_report(
         "reacquired source packet is incomplete",
     )
     _require(
+        reacquired_evidence.get("source_bytes_persisted") is True
+        and reacquired_evidence.get("retained_source_bytes_count") == 8,
+        "cycle-6 reacquired source bytes were not retained",
+    )
+    _require(
         reacquired_evidence.get("paper_claims_promoted_to_row_level_authority") is False,
         "literature authority was improperly promoted",
     )
@@ -216,7 +313,7 @@ def build_bridge_frontier_report(
         )
 
     report: dict[str, Any] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "action_class": ACTION_CLASS,
         "execution_status": "authorized_bridge_sources_reacquired_and_frontier_refined",
         "source_count": 8,
@@ -224,6 +321,7 @@ def build_bridge_frontier_report(
         "reacquired_source_report_sha256": reacquired_evidence.get(
             "report_sha256_without_self_field"
         ),
+        "reacquired_source_evidence": dict(reacquired_evidence),
         "source_version_changes": source_version_changes,
         "new_source_version_information": bool(source_version_changes),
         "established_by_authenticated_claim_packet": {
@@ -335,7 +433,7 @@ def execute_bridge_capability(
     mapping_assessment: Mapping[str, Any],
     prior_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Execute the promoted adapter under the exact existing multi-source authority."""
+    """Execute the promoted adapter and retain every exact cycle-6 source response."""
     root = Path(repository_root).expanduser().resolve(strict=True)
     policy_path = (root / MULTISOURCE_POLICY_PATH).resolve(strict=True)
     registry_path = (root / MULTISOURCE_REGISTRY_PATH).resolve(strict=True)
@@ -347,10 +445,13 @@ def execute_bridge_capability(
         registry_path=registry_path,
     )
     registry = _read_json(registry_path, "multi-source source registry")
+    fetcher, captured = _capturing_multisource_fetcher(registry)
     reacquired = acquire_geometry_condition_sources(
         qualification=qualification,
         source_registry=registry,
+        fetcher=fetcher,
     )
+    _attach_retained_source_bytes(reacquired, captured)
     return build_bridge_frontier_report(
         mapping_assessment=mapping_assessment,
         reacquired_evidence=reacquired,
