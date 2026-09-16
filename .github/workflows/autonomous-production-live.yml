@@ -36,6 +36,7 @@ on:
       - "src/materials_data_analyzer/research_loop/in625_physical_comparability_assessment.py"
       - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake_v2.py"
       - "src/materials_data_analyzer/research_loop/acquisition_record_binding.py"
       - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
@@ -51,6 +52,7 @@ on:
       - "tests/test_autonomous_production_exact_head_p2_round3.py"
       - "tests/test_autonomous_production_exact_head_p2_round4.py"
       - "tests/test_autonomous_production_fresh_review_closure.py"
+      - "tests/test_autonomous_production_fresh_review_round9.py"
       - "tests/test_mutable_html_authority_projection.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
@@ -96,6 +98,7 @@ on:
       - "src/materials_data_analyzer/research_loop/in625_physical_comparability_assessment.py"
       - "src/materials_data_analyzer/research_loop/nist_mds2_2923_*.py"
       - "src/materials_data_analyzer/research_loop/public_data_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/zenodo_evidence_acquisition.py"
       - "src/materials_data_analyzer/research_loop/in625_tensile_reviewed_intake_v2.py"
       - "src/materials_data_analyzer/research_loop/acquisition_record_binding.py"
       - "src/materials_data_analyzer/research_loop/nist_pdr_acquisition.py"
@@ -111,6 +114,7 @@ on:
       - "tests/test_autonomous_production_exact_head_p2_round3.py"
       - "tests/test_autonomous_production_exact_head_p2_round4.py"
       - "tests/test_autonomous_production_fresh_review_closure.py"
+      - "tests/test_autonomous_production_fresh_review_round9.py"
       - "tests/test_mutable_html_authority_projection.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
       - "tests/test_capability_*.py"
@@ -156,6 +160,7 @@ jobs:
           tests/test_autonomous_production_exact_head_p2_round3.py
           tests/test_autonomous_production_exact_head_p2_round4.py
           tests/test_autonomous_production_fresh_review_closure.py
+          tests/test_autonomous_production_fresh_review_round9.py
           tests/test_mutable_html_authority_projection.py
           tests/test_research_program_cli_transport_recovery_wiring.py
           tests/test_public_data_acquisition_transport_errors.py
