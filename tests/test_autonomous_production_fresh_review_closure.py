@@ -15,6 +15,9 @@ from materials_data_analyzer.research_loop import (
     autonomous_production_multisource_reviewed_witness as multisource_witness,
 )
 from materials_data_analyzer.research_loop import (
+    autonomous_production_round3_preflight_scope as bounded_preflight,
+)
+from materials_data_analyzer.research_loop import (
     autonomous_production_trusted_replay_artifact_binding as trusted_binding,
 )
 from materials_data_analyzer.research_loop import (
@@ -328,3 +331,18 @@ def test_historical_replay_pypdf_dependency_is_exactly_pinned() -> None:
     pyproject = (_REPOSITORY_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '"pypdf==6.18.1"' in pyproject
     assert '"pypdf>=5,<7"' not in pyproject
+
+
+def test_untrusted_provenance_json_preflight_is_bounded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(bounded_preflight, "_MAX_PERSISTED_JSON_BYTES", 64)
+    oversized = tmp_path / "oversized.json"
+    oversized.write_bytes(b'{"padding":"' + b"x" * 80 + b'"}')
+
+    with pytest.raises(
+        bounded_preflight.AutonomousProductionExactHeadRound3Error,
+        match="exceeds bounded verifier budget",
+    ):
+        bounded_preflight.verify_round3_duplicate_key_preflight(tmp_path)
