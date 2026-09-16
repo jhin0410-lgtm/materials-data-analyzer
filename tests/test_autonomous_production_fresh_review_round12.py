@@ -145,6 +145,108 @@ def test_cycle1_preexecution_digest_is_derived_from_retained_history(
         round12._verify_cycle1_independent_bindings(fixture["output"], fixture["manifest"])
 
 
+def test_cycle8_original_no_candidate_resolution_is_replayed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        round12._round11._round6,
+        "_PROMOTIONS",
+        (("", "a1", "i1", 6, None), ("-2", "a2", "i2", 8, None), ("-3", "a3", "i3", 10, None)),
+    )
+    monkeypatch.setattr(
+        round12._round11._round7,
+        "_canonical_gap_and_specification",
+        lambda **_kwargs: ({}, {"requested_action_class": "a3"}, {}),
+    )
+    expected = {
+        "resolution_status": "no_bounded_candidate_available",
+        "candidate": None,
+        "unrestricted_discovery_performed": False,
+        "arbitrary_code_generation_performed": False,
+    }
+    persisted = dict(expected)
+    persisted["unrestricted_discovery_performed"] = True
+    monkeypatch.setattr(round12, "resolve_or_discover_capability", lambda **_kwargs: copy.deepcopy(expected))
+    monkeypatch.setattr(round12._merge_gate, "_load", lambda _root, _name: copy.deepcopy(persisted))
+    with pytest.raises(round12.AutonomousProductionFreshReviewRound12Error, match="resolution-3 drifted"):
+        round12._verify_original_cycle8_resolution(
+            tmp_path,
+            {"cycles": [{} for _ in range(8)]},
+            {2: {"registry_after": {"trusted": True}}},
+        )
+
+
+def test_cycle7_projection_rejects_unrestricted_discovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        round12._round11._round6,
+        "_PROMOTIONS",
+        (("", "bridge", "i1", 6, None), ("-2", "discovery", "i2", 8, None)),
+    )
+    artifacts = {
+        "capability-gap.json": {"gap_class": "g1", "capability_gap_sha256_without_self_field": "1" * 64},
+        "capability-specification.json": {"capability_specification_sha256_without_self_field": "2" * 64},
+        "capability-resolution.json": {"resolution_status": "bounded_candidate_discovered", "candidate": {}},
+        "capability-gap-2.json": {"gap_class": "g2", "capability_gap_sha256_without_self_field": "3" * 64},
+        "capability-specification-2.json": {"capability_specification_sha256_without_self_field": "4" * 64},
+        "capability-resolution-2.json": {"resolution_status": "bounded_candidate_discovered", "candidate": {"capability_candidate_sha256_without_self_field": "5" * 64}},
+    }
+    monkeypatch.setattr(round12._merge_gate, "_load", lambda _root, name: copy.deepcopy(artifacts[name]))
+    cycles: list[dict[str, Any]] = [{}, {}, {}, {"cycle_sha256": "a" * 64}, {}, {"cycle_sha256": "b" * 64}, {}]
+    cycle5 = {
+        "cycle_index": 5, "predecessor_cycle_sha256": "a" * 64,
+        "input_blocker": "experiment_specific_calibration_protocol_bridge_not_established",
+        "selected_action_class": "bridge", "capability_available": False,
+        "capability_gap_class": "g1", "capability_gap_sha256": "1" * 64,
+        "capability_specification_sha256": "2" * 64,
+        "resolution_status": "bounded_candidate_discovered", "bounded_candidate_discovered": True,
+        "unrestricted_discovery_performed": False, "arbitrary_code_generation_performed": False,
+        "global_evidence_unavailability_claimed": False, "new_verified_information": True,
+        "scientific_status_changed": False,
+    }
+    cycle5["cycle_sha256"] = round12._canonical_sha(cycle5)
+    cycles[4] = cycle5
+    cycle7 = {
+        "cycle_index": 7, "predecessor_cycle_sha256": "b" * 64,
+        "input_blocker": "experiment_specific_calibration_record_not_discovered",
+        "selected_action_class": "discovery", "capability_available": False,
+        "capability_gap_class": "g2", "capability_gap_sha256": "3" * 64,
+        "capability_specification_sha256": "4" * 64,
+        "resolution_status": "bounded_candidate_discovered", "bounded_candidate_discovered": True,
+        "capability_candidate_sha256": "5" * 64, "unrestricted_discovery_performed": True,
+        "arbitrary_code_generation_performed": False, "global_evidence_unavailability_claimed": False,
+        "new_verified_information": True, "scientific_status_changed": False,
+    }
+    cycle7["cycle_sha256"] = round12._canonical_sha(cycle7)
+    cycles[6] = cycle7
+    with pytest.raises(round12.AutonomousProductionFreshReviewRound12Error, match="cycle 7 projection drifted"):
+        round12._verify_discovery_cycle_projections(tmp_path, {"cycles": cycles}, {})
+
+
+@pytest.mark.parametrize(("cycle_count", "expected_calls"), ((9, 0), (10, 1), (11, 1), (12, 1)))
+def test_derived_artifact_replay_starts_at_cycle10(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cycle_count: int,
+    expected_calls: int,
+) -> None:
+    manifest = {"cycles": [{} for _ in range(cycle_count)]}
+    monkeypatch.setattr(round12._merge_gate, "_load", lambda _root, _name: copy.deepcopy(manifest))
+    monkeypatch.setattr(round12, "_verify_cycle1_independent_bindings", lambda *_args: None)
+    monkeypatch.setattr(round12._round11, "_strict_replay_promotions", lambda *_args: {})
+    monkeypatch.setattr(round12, "_verify_original_cycle8_resolution", lambda *_args: None)
+    monkeypatch.setattr(round12, "_verify_discovery_cycle_projections", lambda *_args: None)
+    calls: list[int] = []
+    monkeypatch.setattr(
+        round12._round10,
+        "_verify_derived_authorization_and_bridge_assessment",
+        lambda *_args: calls.append(cycle_count),
+    )
+    round12.verify_fresh_review_round12_boundaries(tmp_path)
+    assert len(calls) == expected_calls
+
+
 def test_round12_is_wired_and_uploaded_by_the_live_gate() -> None:
     module_root = Path(round12.__file__).resolve().parent
     verifier = (module_root / "autonomous_production_live_verifier.py").read_text(encoding="utf-8")
