@@ -1,8 +1,10 @@
 """Extend autonomous IN625 production with reviewed paper/official condition mapping."""
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +21,9 @@ from .in625_geometry_condition_multisource_policy import (
     authenticate_geometry_condition_multisource_policy,
 )
 from .in625_geometry_condition_source_acquisition import (
+    FetchResult,
     acquire_geometry_condition_sources,
+    fetch_exact_source,
 )
 
 AUTONOMOUS_PRODUCTION_SCHEMA_VERSION = "1.3"
@@ -110,7 +114,10 @@ def _maximum_cycle_stop(next_action: str) -> dict[str, Any]:
 
 
 def _bounded_capability_stop(next_action: str) -> dict[str, Any]:
-    _require(next_action not in _AVAILABLE_ACTION_CLASSES, "bounded stop received implemented capability")
+    _require(
+        next_action not in _AVAILABLE_ACTION_CLASSES,
+        "bounded stop received implemented capability",
+    )
     return {
         "status": "stopped",
         "reason_code": "registered_capability_unavailable_for_current_next_action",
@@ -122,6 +129,97 @@ def _bounded_capability_stop(next_action: str) -> dict[str, Any]:
         "positive_scientific_closeout": False,
         "scientific_status_changed": False,
     }
+
+
+def _capturing_multisource_fetcher(
+    registry: Mapping[str, Any],
+) -> tuple[Any, dict[str, bytes]]:
+    """Capture the exact bytes returned by each authorized first-pass source fetch."""
+    sources = registry.get("sources")
+    _require(
+        isinstance(sources, list) and len(sources) == 8,
+        "multi-source registry must contain exactly eight sources",
+    )
+    allowed_urls: set[str] = set()
+    for index, raw_source in enumerate(sources, start=1):
+        _require(
+            isinstance(raw_source, Mapping),
+            f"multi-source registry entry {index} must be an object",
+        )
+        url = raw_source.get("url")
+        _require(
+            isinstance(url, str) and bool(url),
+            f"multi-source registry entry {index} URL is missing",
+        )
+        _require(url not in allowed_urls, "multi-source registry contains duplicate URLs")
+        allowed_urls.add(url)
+
+    captured: dict[str, bytes] = {}
+
+    def fetcher(
+        url: str,
+        *,
+        allowed_hosts: tuple[str, ...],
+        max_bytes: int,
+        timeout_seconds: float,
+    ) -> FetchResult:
+        _require(url in allowed_urls, "capture fetch escaped the trusted source registry")
+        _require(url not in captured, "capture fetch repeated a trusted source URL")
+        result = fetch_exact_source(
+            url,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            timeout_seconds=timeout_seconds,
+        )
+        captured[url] = bytes(result.body)
+        return result
+
+    return fetcher, captured
+
+
+def _attach_retained_source_bytes(
+    evidence: dict[str, Any],
+    captured: Mapping[str, bytes],
+) -> None:
+    """Bind exact first-fetch bytes into the self-hashed acquisition report."""
+    records = evidence.get("sources")
+    _require(
+        isinstance(records, list) and len(records) == 8,
+        "multi-source evidence records are incomplete",
+    )
+    observed_urls: set[str] = set()
+    for index, raw_record in enumerate(records, start=1):
+        _require(
+            isinstance(raw_record, dict),
+            f"multi-source evidence record {index} must be mutable JSON",
+        )
+        requested_url = raw_record.get("requested_url")
+        _require(
+            isinstance(requested_url, str) and requested_url in captured,
+            f"multi-source evidence record {index} has no retained fetch bytes",
+        )
+        _require(
+            requested_url not in observed_urls,
+            "multi-source evidence contains a duplicate requested URL",
+        )
+        observed_urls.add(requested_url)
+        body = captured[requested_url]
+        _require(
+            hashlib.sha256(body).hexdigest() == raw_record.get("source_sha256")
+            and len(body) == raw_record.get("source_size_bytes"),
+            f"multi-source evidence record {index} drifted before byte retention",
+        )
+        raw_record["source_bytes_b64"] = base64.b64encode(body).decode("ascii")
+        raw_record["source_bytes_persisted"] = True
+
+    _require(
+        len(observed_urls) == len(captured) == 8,
+        "multi-source retained fetch byte count drifted",
+    )
+    evidence["source_bytes_persisted"] = True
+    evidence["retained_source_bytes_count"] = 8
+    evidence.pop("report_sha256_without_self_field", None)
+    evidence["report_sha256_without_self_field"] = _canonical_sha(evidence)
 
 
 def run_autonomous_production(
@@ -167,7 +265,10 @@ def run_autonomous_production(
         return base_manifest
 
     output = _resolved_output(root, output_root)
-    manifest = _read_json(output / "autonomous-production-manifest.json", "NIST production manifest")
+    manifest = _read_json(
+        output / "autonomous-production-manifest.json",
+        "NIST production manifest",
+    )
     intake = _read_json(output / "nist-scientific-intake.json", "NIST scientific intake")
     rediagnosis = _read_json(
         output / "nist-post-acquisition-rediagnosis.json",
@@ -182,7 +283,10 @@ def run_autonomous_production(
         "post-NIST re-diagnosis action drifted",
     )
     cycles = manifest.get("cycles")
-    _require(isinstance(cycles, list) and len(cycles) == 3, "NIST base cycle history drifted")
+    _require(
+        isinstance(cycles, list) and len(cycles) == 3,
+        "NIST base cycle history drifted",
+    )
 
     policy_path = (root / MULTISOURCE_POLICY_PATH).resolve(strict=True)
     registry_path = (root / MULTISOURCE_REGISTRY_PATH).resolve(strict=True)
@@ -193,17 +297,32 @@ def run_autonomous_production(
         policy_path=policy_path,
         registry_path=registry_path,
     )
-    _require(qualification["network_access_performed"] is False, "policy qualification claimed network access")
+    _require(
+        qualification["network_access_performed"] is False,
+        "policy qualification claimed network access",
+    )
     _write_json(output / "multisource-policy-qualification.json", qualification)
 
     registry = _read_json(registry_path, "multi-source registry")
+    retaining_fetcher, captured = _capturing_multisource_fetcher(registry)
     evidence = acquire_geometry_condition_sources(
         qualification=qualification,
         source_registry=registry,
+        fetcher=retaining_fetcher,
     )
-    _require(evidence["network_requests_performed"] == 8, "multi-source acquisition did not perform exactly eight requests")
-    _require(evidence["all_claim_anchors_matched"] is True, "multi-source claim acquisition incomplete")
-    _require(evidence["paper_claims_promoted_to_row_level_authority"] is False, "paper claim authority was promoted")
+    _require(
+        evidence["network_requests_performed"] == 8,
+        "multi-source acquisition did not perform exactly eight requests",
+    )
+    _require(
+        evidence["all_claim_anchors_matched"] is True,
+        "multi-source claim acquisition incomplete",
+    )
+    _require(
+        evidence["paper_claims_promoted_to_row_level_authority"] is False,
+        "paper claim authority was promoted",
+    )
+    _attach_retained_source_bytes(evidence, captured)
     _write_json(output / "multisource-source-acquisition.json", evidence)
 
     mapping = build_geometry_condition_mapping_assessment(
@@ -224,7 +343,10 @@ def run_autonomous_production(
         mapping["gate_decision"]["issue_76_exact_target_cells_satisfied"] == 0,
         "mapping improperly promoted Issue #76",
     )
-    _require(mapping["next_action"]["action_class"] == MAPPING_NEXT_ACTION_CLASS, "mapping next action drifted")
+    _require(
+        mapping["next_action"]["action_class"] == MAPPING_NEXT_ACTION_CLASS,
+        "mapping next action drifted",
+    )
     _write_json(output / "geometry-condition-mapping-assessment.json", mapping)
 
     cycle3 = cycles[-1]
@@ -283,11 +405,17 @@ def run_autonomous_production(
             "cycles": cycles,
             "stop": stop,
             "multisource_condition_policy_sha256": qualification["policy_sha256"],
-            "multisource_condition_registry_git_blob_sha1": qualification["registry_git_blob_sha1"],
+            "multisource_condition_registry_git_blob_sha1": qualification[
+                "registry_git_blob_sha1"
+            ],
             "multisource_condition_source_count": 8,
             "multisource_condition_network_requests_performed": 8,
-            "multisource_condition_source_acquisition_sha256": evidence["report_sha256_without_self_field"],
-            "geometry_condition_mapping_assessment_sha256": mapping["report_sha256_without_self_field"],
+            "multisource_condition_source_acquisition_sha256": evidence[
+                "report_sha256_without_self_field"
+            ],
+            "geometry_condition_mapping_assessment_sha256": mapping[
+                "report_sha256_without_self_field"
+            ],
             "geometry_condition_mapping_review_completed": True,
             "geometry_condition_mapping_established": False,
             "directly_comparable_mds2_rows": 0,
