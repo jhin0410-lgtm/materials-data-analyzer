@@ -107,6 +107,14 @@ def _install_loads(
     )
 
 
+def _accept_reviewed_witness(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        binding,
+        "verify_multisource_acquisition_against_reviewed_witness",
+        lambda _report: None,
+    )
+
+
 def test_cycle6_reacquisition_rebuild_accepts_exact_bound_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -201,11 +209,7 @@ def test_cycle6_fabricated_source_version_changes_rejected_after_rehash(
     assert isinstance(cycle6, dict)
     cycle6["new_verified_information"] = True
     _install_loads(monkeypatch, artifacts)
-    monkeypatch.setattr(
-        binding,
-        "verify_multisource_acquisition_against_reviewed_witness",
-        lambda _report: None,
-    )
+    _accept_reviewed_witness(monkeypatch)
 
     with pytest.raises(
         binding.AutonomousProductionCycle6ReacquisitionBindingError,
@@ -222,14 +226,54 @@ def test_cycle6_manifest_bridge_binding_drift_is_rejected(
         "f" * 64
     )
     _install_loads(monkeypatch, artifacts)
-    monkeypatch.setattr(
-        binding,
-        "verify_multisource_acquisition_against_reviewed_witness",
-        lambda _report: None,
-    )
+    _accept_reviewed_witness(monkeypatch)
 
     with pytest.raises(
         binding.AutonomousProductionCycle6ReacquisitionBindingError,
         match="manifest bridge execution digest",
+    ):
+        binding.verify_cycle6_reacquisition_boundaries(tmp_path)
+
+
+def test_later_cycles_bind_cycle6_frontier_through_cycle7_selected_action(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifacts = _artifacts()
+    manifest = artifacts["autonomous-production-manifest.json"]
+    cycles = manifest["cycles"]
+    assert isinstance(cycles, list)
+    cycles.append(
+        {
+            "cycle_index": 7,
+            "selected_action_class": bridge.NEXT_ACTION_CLASS,
+        }
+    )
+    manifest["generated_next_action_class"] = "later_frontier_after_additional_research"
+    _install_loads(monkeypatch, artifacts)
+    _accept_reviewed_witness(monkeypatch)
+
+    binding.verify_cycle6_reacquisition_boundaries(tmp_path)
+
+
+def test_cycle7_must_continue_authenticated_cycle6_frontier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifacts = _artifacts()
+    manifest = artifacts["autonomous-production-manifest.json"]
+    cycles = manifest["cycles"]
+    assert isinstance(cycles, list)
+    cycles.append(
+        {
+            "cycle_index": 7,
+            "selected_action_class": "forged_action_class",
+        }
+    )
+    manifest["generated_next_action_class"] = "later_frontier_after_additional_research"
+    _install_loads(monkeypatch, artifacts)
+    _accept_reviewed_witness(monkeypatch)
+
+    with pytest.raises(
+        binding.AutonomousProductionCycle6ReacquisitionBindingError,
+        match="cycle-7 selected action",
     ):
         binding.verify_cycle6_reacquisition_boundaries(tmp_path)
