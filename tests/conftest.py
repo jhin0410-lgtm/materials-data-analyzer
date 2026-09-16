@@ -435,6 +435,9 @@ def _production_grade_transport_recovery_fixture(
         autonomous_production_exact_head_p2_round3 as exact_head_round3,
     )
     from materials_data_analyzer.research_loop import (
+        autonomous_production_fresh_review_round11 as fresh_review_round11,
+    )
+    from materials_data_analyzer.research_loop import (
         autonomous_production_source_replay_hardening as source_replay_hardening,
     )
 
@@ -458,6 +461,15 @@ def _production_grade_transport_recovery_fixture(
         exact_head_round3,
         "_verify_tensile_quality_projection",
         lambda _root: None,
+    )
+    # These transport-recovery tests intentionally model the cycle-3 NIST delivery boundary
+    # with a small synthetic cycle-1 fixture rather than replaying the real Zenodo request/run.
+    # Round-11 cycle-1 authority is covered by its dedicated regression module and by the literal
+    # production live replay; do not make this unrelated fixture fabricate those retained bytes.
+    monkeypatch.setattr(
+        fresh_review_round11,
+        "_verify_cycle1_authority_artifacts",
+        lambda _root, _manifest: None,
     )
 
     if request.node.name == "test_live_verifier_rejects_bounded_stop_manifest_divergence":
