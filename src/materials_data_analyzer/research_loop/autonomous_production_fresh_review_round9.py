@@ -166,24 +166,29 @@ def _rebuild_qualification(
 
 
 def _verify_late_policy_qualifications(root: Path, *, cycle_count: int) -> None:
+    # The accepted typed NIST transport stop ends at cycle 3, before multisource acquisition or
+    # any of these late policy qualifications exist.  Preserve that lifecycle boundary and let
+    # the existing transport verifier authenticate it without requiring future-stage artifacts.
+    if cycle_count < 4:
+        return
+
     repository_root, mission_path, mission_sha = _round7._trusted_mission_binding()
 
-    if cycle_count >= 4:
-        expected_multisource = _rebuild_qualification(
-            _multisource_policy.authenticate_geometry_condition_multisource_policy,
-            repository_root=repository_root,
-            mission_path=mission_path,
-            mission_sha=mission_sha,
-            label="multisource policy qualification",
-            policy_path=(repository_root / _MULTISOURCE_POLICY_PATH).resolve(strict=True),
-            registry_path=(repository_root / _MULTISOURCE_REGISTRY_PATH).resolve(strict=True),
-        )
-        _require_exact_qualification(
-            root=root,
-            filename="multisource-policy-qualification.json",
-            expected=expected_multisource,
-            label="multisource policy qualification",
-        )
+    expected_multisource = _rebuild_qualification(
+        _multisource_policy.authenticate_geometry_condition_multisource_policy,
+        repository_root=repository_root,
+        mission_path=mission_path,
+        mission_sha=mission_sha,
+        label="multisource policy qualification",
+        policy_path=(repository_root / _MULTISOURCE_POLICY_PATH).resolve(strict=True),
+        registry_path=(repository_root / _MULTISOURCE_REGISTRY_PATH).resolve(strict=True),
+    )
+    _require_exact_qualification(
+        root=root,
+        filename="multisource-policy-qualification.json",
+        expected=expected_multisource,
+        label="multisource policy qualification",
+    )
 
     late_specs: tuple[tuple[str, Callable[..., dict[str, Any]], str], ...] = (
         (
