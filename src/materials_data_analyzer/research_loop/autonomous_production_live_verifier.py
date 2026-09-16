@@ -54,6 +54,9 @@ from .autonomous_production_fresh_review_round9 import (
 from .autonomous_production_fresh_review_round11 import (
     verify_fresh_review_round11_boundaries,
 )
+from .autonomous_production_fresh_review_round12 import (
+    verify_fresh_review_round12_boundaries,
+)
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
@@ -112,10 +115,11 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         # Bind persisted downstream authority artifacts to the canonical trusted producer replay.
         verify_trusted_replay_artifact_bindings(output_root)
 
-        # Round 10 was written for the complete 12-cycle lineage.  Its promotion loop must not
+        # Round 10 was written for the complete 12-cycle lineage. Its promotion loop must not
         # demand verification/promoted-registry artifacts from legitimate 5/7/9/11-cycle bounded
-        # stops.  Preserve geometry replay on partial lifecycles and run the full derived-artifact
-        # replay only when all 12 cycles exist.
+        # stops. Preserve geometry replay on partial lifecycles and run the full legacy Round-10
+        # replay only when all 12 cycles exist. Round 12 below independently supplies the missing
+        # stage-aware derived-artifact replay for legitimate 10/11-cycle outputs.
         root = Path(output_root).expanduser().resolve(strict=True)
         manifest = _merge_gate._load(root, "autonomous-production-manifest.json")
         cycles = manifest.get("cycles")
@@ -128,10 +132,16 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         else:
             _round10._verify_geometry_mapping(root, manifest)
 
-        # Final fresh-review closure adds stage-aware promotion replay, canonical JSON type
-        # fidelity, complete predecessor reconstruction, cycle-6 execution boundaries, and
-        # independent cycle-1 authority/execution provenance checks.
+        # Round 11 provides stage-aware promotion replay, canonical JSON type fidelity,
+        # complete predecessor reconstruction, cycle-6 execution boundaries, and the first
+        # independent cycle-1 authority/execution closure.
         verify_fresh_review_round11_boundaries(root)
+        # Round 12 closes the remaining fresh-review surfaces: bind the request action id and
+        # retained action-report bytes to the immutable ledger, derive the pre-execution ledger
+        # digest, authenticate the standing Zenodo policy and README manifest, replay the original
+        # cycle-8 no-candidate resolver state, compare discovery-cycle projections, and replay the
+        # derived candidate authorization/assessment as soon as cycle 10 exists.
+        verify_fresh_review_round12_boundaries(root)
         verify_exact_head_round6_boundaries(output_root)
         verify_exact_head_round5_boundaries(output_root)
     except (
