@@ -198,6 +198,9 @@ def test_cycle1_missing_network_authorization_fails_closed(
         ),
         encoding="utf-8",
     )
+    registry_path = repository / round11._ACTION_REGISTRY_PATH
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_text("{}\n", encoding="utf-8")
     (output / "record.json").write_bytes(b"metadata")
     (output / "README - Dataset description.txt").write_bytes(b"readme")
     mission = repository / "mission.json"
