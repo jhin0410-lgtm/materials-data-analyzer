@@ -54,6 +54,9 @@ from .autonomous_production_fresh_review_round9 import (
 from .autonomous_production_fresh_review_round11 import (
     verify_fresh_review_round11_boundaries,
 )
+from .autonomous_production_fresh_review_round12 import (
+    verify_fresh_review_round12_boundaries,
+)
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
@@ -68,6 +71,10 @@ from .autonomous_production_semantic_hardening import (
 from .autonomous_production_source_replay_hardening import (
     AutonomousProductionSourceReplayHardeningError,
     verify_source_replay_boundaries,
+)
+from .autonomous_production_transport_recovery import (
+    NIST_ACTION_CLASS,
+    TRANSPORT_STOP_REASON_CODE,
 )
 from .autonomous_production_trusted_replay_artifact_binding import (
     verify_trusted_replay_artifact_bindings,
@@ -84,6 +91,33 @@ _original_impl_verify_live_autonomous_output = (
 install_exact_head_p2_closures()
 install_exact_head_round2_closures()
 install_exact_head_round3_closures()
+
+
+def _is_exact_nist_transport_stop_lifecycle(manifest: dict[str, Any]) -> bool:
+    """Recognize only the dedicated three-cycle typed NIST transport-stop contract.
+
+    This does not authenticate that stop by itself. The retained base verifier performs the
+    complete transport report/policy/authorization/scientific-boundary verification after the
+    additive gates return. The narrow predicate exists only so Round 12 does not demand current
+    cycle-1 typed-execution artifacts from the older dedicated transport-stop lifecycle.
+    """
+    cycles = manifest.get("cycles")
+    stop = manifest.get("stop")
+    if not isinstance(cycles, list) or len(cycles) != 3 or not isinstance(stop, dict):
+        return False
+    cycle3 = cycles[2]
+    if not isinstance(cycle3, dict):
+        return False
+    return (
+        stop.get("status") == "stopped"
+        and stop.get("reason_code") == TRANSPORT_STOP_REASON_CODE
+        and stop.get("requested_action_class") == NIST_ACTION_CLASS
+        and stop.get("scientific_status_changed") is False
+        and cycle3.get("cycle_index") == 3
+        and cycle3.get("selected_action_class") == NIST_ACTION_CLASS
+        and cycle3.get("scientific_status_changed") is False
+        and manifest.get("scientific_status_changed") is False
+    )
 
 
 def _verify_with_semantic_hardening(output_root: str | Path) -> str:
@@ -112,10 +146,11 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         # Bind persisted downstream authority artifacts to the canonical trusted producer replay.
         verify_trusted_replay_artifact_bindings(output_root)
 
-        # Round 10 was written for the complete 12-cycle lineage.  Its promotion loop must not
+        # Round 10 was written for the complete 12-cycle lineage. Its promotion loop must not
         # demand verification/promoted-registry artifacts from legitimate 5/7/9/11-cycle bounded
-        # stops.  Preserve geometry replay on partial lifecycles and run the full derived-artifact
-        # replay only when all 12 cycles exist.
+        # stops. Preserve geometry replay on partial lifecycles and run the full legacy Round-10
+        # replay only when all 12 cycles exist. Round 12 below independently supplies the missing
+        # stage-aware derived-artifact replay for legitimate 10/11-cycle outputs.
         root = Path(output_root).expanduser().resolve(strict=True)
         manifest = _merge_gate._load(root, "autonomous-production-manifest.json")
         cycles = manifest.get("cycles")
@@ -128,10 +163,17 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         else:
             _round10._verify_geometry_mapping(root, manifest)
 
-        # Final fresh-review closure adds stage-aware promotion replay, canonical JSON type
-        # fidelity, complete predecessor reconstruction, cycle-6 execution boundaries, and
-        # independent cycle-1 authority/execution provenance checks.
+        # Round 11 provides stage-aware promotion replay, canonical JSON type fidelity,
+        # complete predecessor reconstruction, cycle-6 execution boundaries, and the first
+        # independent cycle-1 authority/execution closure.
         verify_fresh_review_round11_boundaries(root)
+        # Round 12 closes the remaining fresh-review surfaces on the current production lineage.
+        # The dedicated three-cycle NIST transport-stop lifecycle predates those retained cycle-1
+        # typed-execution artifacts and is already authenticated by the base transport verifier.
+        # Skip only that exact lifecycle shape; a current/full output cannot delete Round-12 fields
+        # and downgrade into this path without also satisfying the base verifier's transport proof.
+        if not _is_exact_nist_transport_stop_lifecycle(manifest):
+            verify_fresh_review_round12_boundaries(root)
         verify_exact_head_round6_boundaries(output_root)
         verify_exact_head_round5_boundaries(output_root)
     except (
