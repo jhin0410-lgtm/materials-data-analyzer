@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 from typing import Any
 
@@ -173,3 +174,55 @@ def test_cycle6_execution_counts_are_type_sensitive(
         match="JSON integer",
     ):
         round11._verify_cycle6_execution_boundary(tmp_path, manifest)
+
+
+def test_cycle1_missing_network_authorization_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = tmp_path / "repository"
+    output = repository / "outputs" / "autonomous-in625-production"
+    output.mkdir(parents=True)
+    config_path = repository / round11._SOURCE_CONFIG_PATH
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        json.dumps(
+            {
+                "zenodo": {
+                    "readme_file": "README - Dataset description.txt",
+                    "archive_file": "Dataset.zip",
+                    "files": {
+                        "Dataset.zip": {"verified_sha256": "d" * 64},
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output / "record.json").write_bytes(b"metadata")
+    (output / "README - Dataset description.txt").write_bytes(b"readme")
+    mission = repository / "mission.json"
+    mission.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(
+        round11._round7,
+        "_trusted_mission_binding",
+        lambda: (repository, mission, "0" * 64),
+    )
+    expected_authorization = {"authorization_sha256": "a" * 64}
+    monkeypatch.setattr(
+        round11,
+        "build_in625_archive_network_authorization",
+        lambda **_kwargs: copy.deepcopy(expected_authorization),
+    )
+    manifest = {
+        "cycles": [
+            {
+                "network_authorization_sha256": "a" * 64,
+            }
+        ]
+    }
+
+    with pytest.raises(
+        round11.AutonomousProductionFreshReviewRound11Error,
+        match="network-authorization.json",
+    ):
+        round11._verify_cycle1_authority_artifacts(output, manifest)
