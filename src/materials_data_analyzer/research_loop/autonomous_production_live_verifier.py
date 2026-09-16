@@ -17,6 +17,9 @@ from .autonomous_production_authority_binding_hardening import (
     AutonomousProductionAuthorityBindingError,
     verify_exact_authority_bindings,
 )
+from .autonomous_production_cycle6_reacquisition_binding import (
+    verify_cycle6_reacquisition_boundaries,
+)
 from .autonomous_production_exact_head_p2_closure import (
     install_exact_head_p2_closures,
 )
@@ -94,6 +97,9 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         # Fresh-review closure authenticates mutable-fingerprint presence, parser identity,
         # cycle-4 network history, and persisted late policy qualifications before capability replay.
         verify_fresh_review_round9_boundaries(output_root)
+        # Cycle 6 performs a second eight-source network acquisition. Replay those exact retained
+        # responses and rebuild its source-version and bridge conclusions before later promotion gates.
+        verify_cycle6_reacquisition_boundaries(output_root)
         # Authenticate candidate/verifier producers before replaying registry successors.
         verify_exact_head_round7_boundaries(output_root)
         # Bind mutable retained smoke responses to independently reviewed source versions.
