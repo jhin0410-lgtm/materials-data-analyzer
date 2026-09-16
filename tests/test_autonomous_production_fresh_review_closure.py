@@ -1,19 +1,35 @@
 from __future__ import annotations
 
+import base64
 import copy
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
 from materials_data_analyzer.research_loop import (
+    autonomous_production_multisource_extension as multisource_extension,
+)
+from materials_data_analyzer.research_loop import (
     autonomous_production_multisource_reviewed_witness as multisource_witness,
 )
 from materials_data_analyzer.research_loop import (
     autonomous_production_trusted_replay_artifact_binding as trusted_binding,
 )
+from materials_data_analyzer.research_loop import (
+    in625_geometry_condition_source_acquisition as source_acquisition,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_WITNESS_PATH = (
+    _REPOSITORY_ROOT
+    / "configs/research/in625_geometry_condition_multisource_reviewed_witness.v1.json"
+)
+_REGISTRY_PATH = (
+    _REPOSITORY_ROOT
+    / "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
+)
 
 
 def _candidate_report() -> dict[str, object]:
@@ -87,19 +103,15 @@ def test_mutable_candidate_page_fingerprint_must_be_structurally_valid(
         )
 
 
+def _load_witness() -> dict[str, object]:
+    value = json.loads(_WITNESS_PATH.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
 def _reviewed_multisource_report() -> dict[str, object]:
-    witness = json.loads(
-        (
-            _REPOSITORY_ROOT
-            / "configs/research/in625_geometry_condition_multisource_reviewed_witness.v1.json"
-        ).read_text(encoding="utf-8")
-    )
-    registry = json.loads(
-        (
-            _REPOSITORY_ROOT
-            / "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
-        ).read_text(encoding="utf-8")
-    )
+    witness = _load_witness()
+    registry = json.loads(_REGISTRY_PATH.read_text(encoding="utf-8"))
     witness_sources = witness["sources"]
     registry_sources = registry["sources"]
     assert isinstance(witness_sources, list) and isinstance(registry_sources, list)
@@ -122,7 +134,7 @@ def _reviewed_multisource_report() -> dict[str, object]:
         for key in metadata_keys:
             source[key] = registered.get(key)
         source["http_content_type"] = (
-            "application/pdf;charset=UTF-8"
+            "application/pdf"
             if source["media_type"] == "pdf"
             else "text/html; charset=UTF-8"
         )
@@ -141,34 +153,175 @@ def _reviewed_multisource_report() -> dict[str, object]:
     }
 
 
-def test_multisource_reviewed_witness_accepts_exact_source_and_claim_projection() -> None:
+def test_historical_projection_allows_mutable_html_raw_fingerprint_drift() -> None:
     report = _reviewed_multisource_report()
-    multisource_witness.verify_multisource_acquisition_against_reviewed_witness(report)
-
-
-@pytest.mark.parametrize("mutation", ["source_digest", "claim_match"])
-def test_multisource_reviewed_witness_rejects_fabricated_rehashed_semantics(
-    mutation: str,
-) -> None:
-    report = _reviewed_multisource_report()
+    witness = _load_witness()
     sources = report["sources"]
-    assert isinstance(sources, list) and isinstance(sources[0], dict)
-    if mutation == "source_digest":
-        sources[0]["source_sha256"] = "f" * 64
-    else:
-        claims = sources[0]["claims"]
-        assert isinstance(claims, list) and isinstance(claims[0], dict)
-        matches = claims[0]["matches"]
-        assert isinstance(matches, list) and isinstance(matches[0], dict)
-        matches[0]["matched_text_sha256"] = "e" * 64
+    assert isinstance(sources, list)
+    html_source = next(
+        source
+        for source in sources
+        if isinstance(source, dict) and source.get("media_type") == "html"
+    )
+    html_source["source_sha256"] = "f" * 64
+    html_source["source_size_bytes"] = 999_999
+
+    multisource_witness._verify_historical_projection(report, witness)
+
+
+def test_historical_projection_keeps_static_pdf_exact_byte_binding() -> None:
+    report = _reviewed_multisource_report()
+    witness = _load_witness()
+    sources = report["sources"]
+    assert isinstance(sources, list)
+    pdf_source = next(
+        source
+        for source in sources
+        if isinstance(source, dict) and source.get("media_type") == "pdf"
+    )
+    pdf_source["source_sha256"] = "f" * 64
 
     with pytest.raises(
         multisource_witness.AutonomousProductionMultisourceReviewedWitnessError,
         match="source/claim authority projection drifted",
     ):
-        multisource_witness.verify_multisource_acquisition_against_reviewed_witness(
-            report
+        multisource_witness._verify_historical_projection(report, witness)
+
+
+def test_historical_projection_rejects_claim_semantic_drift_on_mutable_html() -> None:
+    report = _reviewed_multisource_report()
+    witness = _load_witness()
+    sources = report["sources"]
+    assert isinstance(sources, list)
+    html_source = next(
+        source
+        for source in sources
+        if isinstance(source, dict) and source.get("media_type") == "html"
+    )
+    claims = html_source["claims"]
+    assert isinstance(claims, list) and isinstance(claims[0], dict)
+    matches = claims[0]["matches"]
+    assert isinstance(matches, list) and isinstance(matches[0], dict)
+    matches[0]["matched_text_sha256"] = "e" * 64
+
+    with pytest.raises(
+        multisource_witness.AutonomousProductionMultisourceReviewedWitnessError,
+        match="source/claim authority projection drifted",
+    ):
+        multisource_witness._verify_historical_projection(report, witness)
+
+
+def _synthetic_html_replay_fixture() -> tuple[dict[str, object], dict[str, object], bytes]:
+    body = (
+        b"<html><body>trusted calibration evidence 137.9 W then 179.2 W</body></html>"
+    )
+    registered: dict[str, object] = {
+        "media_type": "html",
+        "claims_under_review": [
+            {
+                "claim_id": "synthetic-calibration-claim",
+                "anchor_regex": r"137\.9\s*W.*179\.2\s*W",
+                "scope": "synthetic retained-byte replay",
+            }
+        ],
+    }
+    pages = source_acquisition._html_pages(body)
+    claim = source_acquisition._claim_receipt(
+        registered["claims_under_review"][0],  # type: ignore[index,arg-type]
+        pages,
+        is_pdf=False,
+    )
+    observed: dict[str, object] = {
+        "source_id": "synthetic-html",
+        "media_type": "html",
+        "http_content_type": "text/html",
+        "source_sha256": hashlib.sha256(body).hexdigest(),
+        "source_size_bytes": len(body),
+        "source_bytes_b64": base64.b64encode(body).decode("ascii"),
+        "source_bytes_persisted": True,
+        "pdf_page_count": None,
+        "claims": [claim],
+    }
+    return observed, registered, body
+
+
+def test_retained_html_bytes_replay_recomputes_claim_receipt() -> None:
+    observed, registered, body = _synthetic_html_replay_fixture()
+    assert (
+        multisource_witness._replay_retained_source(
+            observed,
+            registered,
+            label="synthetic source",
         )
+        == len(body)
+    )
+
+
+def test_retained_html_bytes_replay_rejects_rehashed_claim_fabrication() -> None:
+    observed, registered, _ = _synthetic_html_replay_fixture()
+    claims = observed["claims"]
+    assert isinstance(claims, list) and isinstance(claims[0], dict)
+    matches = claims[0]["matches"]
+    assert isinstance(matches, list) and isinstance(matches[0], dict)
+    matches[0]["matched_text_sha256"] = "d" * 64
+
+    with pytest.raises(
+        multisource_witness.AutonomousProductionMultisourceReviewedWitnessError,
+        match="claim receipts do not replay from retained source bytes",
+    ):
+        multisource_witness._replay_retained_source(
+            observed,
+            registered,
+            label="synthetic source",
+        )
+
+
+def test_retained_html_bytes_replay_rejects_digest_fabrication() -> None:
+    observed, registered, _ = _synthetic_html_replay_fixture()
+    observed["source_sha256"] = "c" * 64
+
+    with pytest.raises(
+        multisource_witness.AutonomousProductionMultisourceReviewedWitnessError,
+        match="retained source SHA-256 drifted",
+    ):
+        multisource_witness._replay_retained_source(
+            observed,
+            registered,
+            label="synthetic source",
+        )
+
+
+def test_cycle4_producer_retains_all_first_fetch_bytes_before_self_hashing() -> None:
+    captured = {
+        f"https://example.invalid/source-{index}": f"body-{index}".encode()
+        for index in range(1, 9)
+    }
+    sources: list[dict[str, object]] = []
+    for url, body in captured.items():
+        sources.append(
+            {
+                "requested_url": url,
+                "source_sha256": hashlib.sha256(body).hexdigest(),
+                "source_size_bytes": len(body),
+                "source_bytes_persisted": False,
+            }
+        )
+    evidence: dict[str, object] = {
+        "sources": sources,
+        "source_bytes_persisted": False,
+        "report_sha256_without_self_field": "0" * 64,
+    }
+
+    multisource_extension._attach_retained_source_bytes(evidence, captured)
+
+    assert evidence["source_bytes_persisted"] is True
+    assert evidence["retained_source_bytes_count"] == 8
+    assert isinstance(evidence["report_sha256_without_self_field"], str)
+    for source in sources:
+        assert source["source_bytes_persisted"] is True
+        encoded = source["source_bytes_b64"]
+        assert isinstance(encoded, str)
+        assert base64.b64decode(encoded, validate=True) == captured[source["requested_url"]]
 
 
 def test_historical_replay_pypdf_dependency_is_exactly_pinned() -> None:
