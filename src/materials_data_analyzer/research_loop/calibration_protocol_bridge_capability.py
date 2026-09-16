@@ -287,11 +287,12 @@ def build_bridge_frontier_report(
         and reacquired_evidence.get("all_claim_anchors_matched") is True,
         "reacquired source packet is incomplete",
     )
-    _require(
-        reacquired_evidence.get("source_bytes_persisted") is True
-        and reacquired_evidence.get("retained_source_bytes_count") == 8,
-        "cycle-6 reacquired source bytes were not retained",
-    )
+    if prior_evidence is not None:
+        _require(
+            reacquired_evidence.get("source_bytes_persisted") is True
+            and reacquired_evidence.get("retained_source_bytes_count") == 8,
+            "cycle-6 reacquired source bytes were not retained",
+        )
     _require(
         reacquired_evidence.get("paper_claims_promoted_to_row_level_authority") is False,
         "literature authority was improperly promoted",
@@ -313,7 +314,7 @@ def build_bridge_frontier_report(
         )
 
     report: dict[str, Any] = {
-        "schema_version": "1.1",
+        "schema_version": "1.1" if prior_evidence is not None else "1.0",
         "action_class": ACTION_CLASS,
         "execution_status": "authorized_bridge_sources_reacquired_and_frontier_refined",
         "source_count": 8,
@@ -321,7 +322,6 @@ def build_bridge_frontier_report(
         "reacquired_source_report_sha256": reacquired_evidence.get(
             "report_sha256_without_self_field"
         ),
-        "reacquired_source_evidence": dict(reacquired_evidence),
         "source_version_changes": source_version_changes,
         "new_source_version_information": bool(source_version_changes),
         "established_by_authenticated_claim_packet": {
@@ -362,6 +362,8 @@ def build_bridge_frontier_report(
             "caller_authored_arbitrary_urls_authorized": False,
         },
     }
+    if prior_evidence is not None:
+        report["reacquired_source_evidence"] = dict(reacquired_evidence)
     report["report_sha256_without_self_field"] = _canonical_sha(report)
     return report
 
