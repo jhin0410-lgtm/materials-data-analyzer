@@ -1,15 +1,16 @@
 """Retain and replay exact capability-verifier smoke inputs without network access.
 
 A self-hashed verification receipt is not sufficient historical authority when its real-source
-smoke is rerun against mutable remote state.  This module records the exact bounded fetch request
+smoke is rerun against mutable remote state. This module records the exact bounded fetch request
 contract and response bytes used by the original verifier, then provides a strict single-use
-fetcher that can replay only those retained calls.  The retained packet binds the exact replay
-helper bytes as well as the source evidence; it does not grant new network, execution, or
-scientific authority.
+fetcher that can replay only those retained calls. Retained verifier-context bytes are decoded
+under the exact current NIST metadata budget before zlib allocation; this does not grant new
+network, execution, or scientific authority.
 """
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import json
 import zlib
@@ -19,9 +20,12 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from .in625_geometry_condition_source_acquisition import FetchResult
+from .nist_mds2_2923_network_policy_impl import MAX_METADATA_BYTES
 
 SMOKE_REPLAY_EVIDENCE_SCHEMA_VERSION = "1.1"
 _BYTES_MARKER = "__mda_exact_bytes_zlib_base64__"
+_MAX_VERIFICATION_CONTEXT_VALUE_BYTES = MAX_METADATA_BYTES
+_MAX_VERIFICATION_CONTEXT_TOTAL_BYTES = MAX_METADATA_BYTES
 
 
 class CapabilitySmokeReplayEvidenceError(ValueError):
@@ -48,6 +52,16 @@ def _replay_module_sha256() -> str:
     return hashlib.sha256(Path(__file__).resolve(strict=True).read_bytes()).hexdigest()
 
 
+def _zlib_compress_bound(size: int) -> int:
+    """Return zlib's documented conservative compressBound for an input size."""
+    return size + (size >> 12) + (size >> 14) + (size >> 25) + 13
+
+
+def _maximum_base64_chars_for_raw_size(size: int) -> int:
+    compressed_bound = _zlib_compress_bound(size)
+    return 4 * ((compressed_bound + 2) // 3)
+
+
 def _encode_bytes(raw: bytes) -> dict[str, Any]:
     compressed = zlib.compress(raw, level=9)
     return {
@@ -56,6 +70,17 @@ def _encode_bytes(raw: bytes) -> dict[str, Any]:
         "size_bytes": len(raw),
         "compression": "zlib-9",
     }
+
+
+def _declared_byte_size(value: Mapping[str, Any], *, label: str) -> int:
+    declared_size = value.get("size_bytes")
+    _require(
+        isinstance(declared_size, int)
+        and not isinstance(declared_size, bool)
+        and declared_size >= 0,
+        f"{label} byte size is invalid",
+    )
+    return declared_size
 
 
 def _decode_bytes(
@@ -67,13 +92,7 @@ def _decode_bytes(
     encoded = value.get(_BYTES_MARKER)
     _require(isinstance(encoded, str) and encoded, f"{label} encoded bytes are missing")
     _require(value.get("compression") == "zlib-9", f"{label} compression drifted")
-    declared_size = value.get("size_bytes")
-    _require(
-        isinstance(declared_size, int)
-        and not isinstance(declared_size, bool)
-        and declared_size >= 0,
-        f"{label} byte size is invalid",
-    )
+    declared_size = _declared_byte_size(value, label=label)
     if max_bytes is not None:
         _require(
             isinstance(max_bytes, int)
@@ -82,11 +101,25 @@ def _decode_bytes(
             f"{label} replay byte budget is invalid",
         )
         _require(declared_size <= max_bytes, f"{label} exceeds replay byte budget")
+
+    # Bound the encoded input before base64 decoding or zlib allocation.  Every packet created by
+    # _encode_bytes is below zlib compressBound, so longer input cannot be a canonical producer
+    # output for the declared raw size.
+    _require(
+        len(encoded) <= _maximum_base64_chars_for_raw_size(declared_size),
+        f"{label} compressed payload exceeds the canonical encoded-size budget",
+    )
     try:
         compressed = base64.b64decode(encoded.encode("ascii"), validate=True)
+        _require(
+            len(compressed) <= _zlib_compress_bound(declared_size),
+            f"{label} compressed bytes exceed zlib compressBound",
+        )
         decompressor = zlib.decompressobj()
         raw = decompressor.decompress(compressed, declared_size + 1)
-    except (UnicodeEncodeError, ValueError, zlib.error) as exc:
+    except CapabilitySmokeReplayEvidenceError:
+        raise
+    except (UnicodeEncodeError, binascii.Error, ValueError, OverflowError, zlib.error) as exc:
         raise CapabilitySmokeReplayEvidenceError(f"{label} bytes could not be decoded") from exc
     _require(len(raw) == declared_size, f"{label} byte size drifted")
     _require(
@@ -119,23 +152,75 @@ def encode_context(value: object) -> object:
     )
 
 
-def decode_context(value: object, *, label: str = "verification context") -> object:
-    """Restore the exact verifier context retained by :func:`encode_context`."""
+def _decode_context_bounded(
+    value: object,
+    *,
+    label: str,
+    remaining_bytes: int,
+) -> tuple[object, int]:
+    _require(
+        isinstance(remaining_bytes, int)
+        and not isinstance(remaining_bytes, bool)
+        and remaining_bytes >= 0,
+        f"{label} cumulative replay byte budget is invalid",
+    )
     if isinstance(value, Mapping):
         if _BYTES_MARKER in value:
-            return _decode_bytes(value, label=label)
-        return {
-            str(key): decode_context(item, label=f"{label}.{key}")
-            for key, item in value.items()
-        }
+            declared_size = _declared_byte_size(value, label=label)
+            _require(
+                declared_size <= _MAX_VERIFICATION_CONTEXT_VALUE_BYTES,
+                f"{label} exceeds per-value verification-context byte budget",
+            )
+            _require(
+                declared_size <= remaining_bytes,
+                f"{label} exceeds cumulative verification-context byte budget",
+            )
+            raw = _decode_bytes(
+                value,
+                label=label,
+                max_bytes=max(1, min(_MAX_VERIFICATION_CONTEXT_VALUE_BYTES, remaining_bytes)),
+            )
+            return raw, len(raw)
+        decoded: dict[str, object] = {}
+        used = 0
+        for key, item in value.items():
+            restored, consumed = _decode_context_bounded(
+                item,
+                label=f"{label}.{key}",
+                remaining_bytes=remaining_bytes - used,
+            )
+            decoded[str(key)] = restored
+            used += consumed
+        return decoded, used
     if isinstance(value, list):
-        return [
-            decode_context(item, label=f"{label}[{index}]")
-            for index, item in enumerate(value)
-        ]
+        decoded_list: list[object] = []
+        used = 0
+        for index, item in enumerate(value):
+            restored, consumed = _decode_context_bounded(
+                item,
+                label=f"{label}[{index}]",
+                remaining_bytes=remaining_bytes - used,
+            )
+            decoded_list.append(restored)
+            used += consumed
+        return decoded_list, used
     if value is None or isinstance(value, (str, int, float, bool)):
-        return value
+        return value, 0
     raise CapabilitySmokeReplayEvidenceError(f"{label} contains unsupported JSON value")
+
+
+def decode_context(value: object, *, label: str = "verification context") -> object:
+    """Restore retained verifier context under exact per-value and cumulative byte budgets."""
+    decoded, used = _decode_context_bounded(
+        value,
+        label=label,
+        remaining_bytes=_MAX_VERIFICATION_CONTEXT_TOTAL_BYTES,
+    )
+    _require(
+        used <= _MAX_VERIFICATION_CONTEXT_TOTAL_BYTES,
+        f"{label} exceeded cumulative verification-context byte budget",
+    )
+    return decoded
 
 
 def _validate_https_url(url: object, allowed_hosts: Sequence[str], *, label: str) -> str:
@@ -295,7 +380,10 @@ class ReplayFetcher:
             f"historical smoke response {self._index} HTTP status was not successful",
         )
         _require(bool(body), f"historical smoke response {self._index} returned empty bytes")
-        _require(content_type is None or isinstance(content_type, str), "retained content type is invalid")
+        _require(
+            content_type is None or isinstance(content_type, str),
+            "retained content type is invalid",
+        )
         return FetchResult(
             body=body,
             final_url=final_url,
