@@ -54,6 +54,7 @@ on:
       - "tests/test_autonomous_production_fresh_review_closure.py"
       - "tests/test_autonomous_production_fresh_review_round9.py"
       - "tests/test_autonomous_production_fresh_review_round10.py"
+      - "tests/test_autonomous_production_fresh_review_round11.py"
       - "tests/test_autonomous_production_cycle6_reacquisition_binding.py"
       - "tests/test_mutable_html_authority_projection.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
@@ -118,6 +119,7 @@ on:
       - "tests/test_autonomous_production_fresh_review_closure.py"
       - "tests/test_autonomous_production_fresh_review_round9.py"
       - "tests/test_autonomous_production_fresh_review_round10.py"
+      - "tests/test_autonomous_production_fresh_review_round11.py"
       - "tests/test_autonomous_production_cycle6_reacquisition_binding.py"
       - "tests/test_mutable_html_authority_projection.py"
       - "tests/test_research_program_cli_transport_recovery_wiring.py"
@@ -166,6 +168,7 @@ jobs:
           tests/test_autonomous_production_fresh_review_closure.py
           tests/test_autonomous_production_fresh_review_round9.py
           tests/test_autonomous_production_fresh_review_round10.py
+          tests/test_autonomous_production_fresh_review_round11.py
           tests/test_autonomous_production_cycle6_reacquisition_binding.py
           tests/test_mutable_html_authority_projection.py
           tests/test_research_program_cli_transport_recovery_wiring.py
@@ -240,7 +243,16 @@ jobs:
           path: |
             outputs/autonomous-in625-production/autonomous-production-manifest.json
             outputs/autonomous-in625-production/bounded-stop.json
+            outputs/autonomous-in625-production/source-readme-manifest.json
+            outputs/autonomous-in625-production/record.json
+            outputs/autonomous-in625-production/README - Dataset description.txt
+            outputs/autonomous-in625-production/network-authorization.json
             outputs/autonomous-in625-production/network-acquisition-receipt.json
+            outputs/autonomous-in625-production/machine-authored-request/**
+            outputs/autonomous-in625-production/typed-execution-handoff.json
+            outputs/autonomous-in625-production/typed-execution-result.json
+            outputs/autonomous-in625-production/typed-research-state.json
+            outputs/autonomous-in625-production/typed-research-run/**
             outputs/autonomous-in625-production/archive-manifest.json
             outputs/autonomous-in625-production/reviewed-tensile/reviewed_tensile_manifest.v2.json
             outputs/autonomous-in625-production/reviewed-tensile/reviewed_tensile_rows.v2.jsonl
