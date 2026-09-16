@@ -142,11 +142,23 @@ def verify_cycle6_reacquisition_boundaries(output_root: str | Path) -> None:
         "cycle 6 new-information state drifted from authenticated source-version comparison",
     )
     next_action = _mapping(expected_bridge.get("next_action"), label="cycle-6 rebuilt next action")
+    next_action_class = next_action.get("action_class")
     _require(
-        cycle6.get("output_next_action_class") == next_action.get("action_class")
-        and manifest.get("generated_next_action_class") == next_action.get("action_class"),
-        "cycle-6 next-action lineage drifted from rebuilt bridge result",
+        cycle6.get("output_next_action_class") == next_action_class,
+        "cycle-6 next action drifted from rebuilt bridge result",
     )
+    if len(cycles) == 6:
+        _require(
+            manifest.get("generated_next_action_class") == next_action_class,
+            "cycle-6 terminal manifest next action drifted from rebuilt bridge result",
+        )
+    else:
+        cycle7 = _mapping(cycles[6], label="cycle 7")
+        _require(
+            cycle7.get("cycle_index") == 7
+            and cycle7.get("selected_action_class") == next_action_class,
+            "cycle-7 selected action does not continue the rebuilt cycle-6 frontier",
+        )
     _require(
         cycle6.get("bridge_established") is False
         and cycle6.get("directly_comparable_mds2_rows") == 0
