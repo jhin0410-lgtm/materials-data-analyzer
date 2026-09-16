@@ -16,6 +16,7 @@ from typing import Any
 from . import autonomous_production_exact_head_p2_closure as _round1
 from . import autonomous_production_merge_gate_hardening as _merge_gate
 from . import autonomous_production_merge_gate_lifecycle as _lifecycle
+from . import autonomous_production_multisource_reviewed_witness as _multisource_witness
 
 AutonomousProductionExactHeadRound2Error = (
     _merge_gate.AutonomousProductionMergeGateHardeningError
@@ -196,6 +197,9 @@ def _verify_cycle4_artifacts(root: Path, cycles: list[dict[str, Any]]) -> None:
     _require(
         cycle4.get("source_acquisition_report_sha256") == sources_sha,
         "cycle 4 multisource acquisition digest binding mismatch",
+    )
+    _multisource_witness.verify_multisource_acquisition_against_reviewed_witness(
+        sources
     )
     records = sources.get("sources")
     _require(isinstance(records, list), "multisource source records must be a list")
