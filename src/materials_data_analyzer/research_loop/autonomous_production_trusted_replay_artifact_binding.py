@@ -10,6 +10,7 @@ policy identity, and fail-closed scientific authority remain bound.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,15 @@ from . import autonomous_production_merge_gate_hardening as _merge_gate
 
 AutonomousProductionTrustedReplayArtifactBindingError = (
     _merge_gate.AutonomousProductionMergeGateHardeningError
+)
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_MUTABLE_PAGE_FINGERPRINT_FIELDS = (
+    "source_sha256",
+    "source_size_bytes",
+    "http_content_type",
+    "visible_text_sha256",
+    "visible_text_utf8_bytes",
 )
 
 
@@ -38,24 +48,44 @@ def _canonical_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
+def _validate_mutable_page_fingerprints(
+    candidate_page: Mapping[str, Any], *, label: str
+) -> None:
+    for field in _MUTABLE_PAGE_FINGERPRINT_FIELDS:
+        _require(field in candidate_page, f"{label} mutable fingerprint is missing: {field}")
+    for field in ("source_sha256", "visible_text_sha256"):
+        value = candidate_page.get(field)
+        _require(
+            isinstance(value, str) and _SHA256_RE.fullmatch(value) is not None,
+            f"{label} mutable fingerprint is malformed: {field}",
+        )
+    for field in ("source_size_bytes", "visible_text_utf8_bytes"):
+        value = candidate_page.get(field)
+        _require(
+            isinstance(value, int) and not isinstance(value, bool) and value > 0,
+            f"{label} mutable fingerprint is malformed: {field}",
+        )
+    content_type = candidate_page.get("http_content_type")
+    _require(
+        content_type is None
+        or (isinstance(content_type, str) and bool(content_type.strip())),
+        f"{label} mutable fingerprint is malformed: http_content_type",
+    )
+
+
 def _candidate_acquisition_authority_projection(
     report: Mapping[str, Any], *, label: str
 ) -> dict[str, Any]:
-    """Return all acquisition semantics except mutable candidate-page fingerprints."""
+    """Return all acquisition semantics except mutable candidate-page fingerprint values."""
 
     projected = dict(report)
     projected.pop("report_sha256_without_self_field", None)
     candidate_page = projected.get("candidate_page")
     _require(isinstance(candidate_page, Mapping), f"{label} candidate_page is missing")
+    _validate_mutable_page_fingerprints(candidate_page, label=label)
     normalized_page = dict(candidate_page)
-    for field in (
-        "source_sha256",
-        "source_size_bytes",
-        "http_content_type",
-        "visible_text_sha256",
-        "visible_text_utf8_bytes",
-    ):
-        normalized_page.pop(field, None)
+    for field in _MUTABLE_PAGE_FINGERPRINT_FIELDS:
+        normalized_page.pop(field)
     projected["candidate_page"] = normalized_page
     return projected
 
