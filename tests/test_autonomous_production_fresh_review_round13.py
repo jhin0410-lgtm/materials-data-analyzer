@@ -49,6 +49,40 @@ def test_transport_stop_rejects_equal_valued_float_in_policy_request_budget(
         live_verifier.verify_live_autonomous_output(output)
 
 
+def test_transport_stop_rejects_equal_valued_float_in_authorization_budget(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _transport_output(tmp_path, monkeypatch)
+    _fixture._base._rehash_authorization_chain(
+        output,
+        lambda authorization: authorization.__setitem__(
+            "maximum_network_requests",
+            float(authorization["maximum_network_requests"]),
+        ),
+    )
+
+    with pytest.raises(live_verifier.AutonomousProductionLiveVerificationError):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_transport_stop_rejects_equal_valued_float_nested_expected_file_size(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _transport_output(tmp_path, monkeypatch)
+    path = output / "nist-network-policy-qualification.json"
+    qualification = json.loads(path.read_text(encoding="utf-8"))
+    expected_files = qualification["expected_files"]
+    first_name = sorted(expected_files)[0]
+    expected_files[first_name]["size_bytes"] = float(expected_files[first_name]["size_bytes"])
+    _fixture._rehash(qualification, "qualification_sha256")
+    _write(path, qualification)
+
+    with pytest.raises(live_verifier.AutonomousProductionLiveVerificationError):
+        live_verifier.verify_live_autonomous_output(output)
+
+
 def test_transport_stop_rejects_equal_valued_float_cycle_index(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
