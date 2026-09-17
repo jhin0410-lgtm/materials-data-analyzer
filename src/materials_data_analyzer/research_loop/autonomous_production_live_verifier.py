@@ -57,6 +57,9 @@ from .autonomous_production_fresh_review_round11 import (
 from .autonomous_production_fresh_review_round12 import (
     verify_fresh_review_round12_boundaries,
 )
+from .autonomous_production_fresh_review_round13 import (
+    verify_fresh_review_round13_boundaries,
+)
 from .autonomous_production_merge_gate_lifecycle import (
     AutonomousProductionMergeGateHardeningError,
     verify_final_merge_gate_boundaries,
@@ -113,6 +116,7 @@ def _is_exact_nist_transport_stop_lifecycle(manifest: dict[str, Any]) -> bool:
         and stop.get("reason_code") == TRANSPORT_STOP_REASON_CODE
         and stop.get("requested_action_class") == NIST_ACTION_CLASS
         and stop.get("scientific_status_changed") is False
+        and type(cycle3.get("cycle_index")) is int
         and cycle3.get("cycle_index") == 3
         and cycle3.get("selected_action_class") == NIST_ACTION_CLASS
         and cycle3.get("scientific_status_changed") is False
@@ -126,6 +130,10 @@ def _verify_with_semantic_hardening(output_root: str | Path) -> str:
         # handling of bounded partial source metadata that is not yet a complete JSON object.
         verify_round3_duplicate_key_preflight(output_root)
         verify_exact_authority_bindings(output_root)
+        # Python equality aliases JSON ints/floats and bools/ints. Re-check the retained NIST
+        # authority/control-plane identities through canonical JSON before any legacy equality
+        # can accept an equal-valued type substitution.
+        verify_fresh_review_round13_boundaries(output_root)
         verify_persisted_semantic_boundaries(output_root)
         verify_exact_head_round2_boundaries(output_root)
         verify_final_merge_gate_boundaries(output_root)
