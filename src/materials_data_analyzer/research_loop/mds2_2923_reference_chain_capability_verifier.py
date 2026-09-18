@@ -1,25 +1,28 @@
 """Independent verifier for the bounded mds2-2923 reference-chain capability.
 
-The verifier may authenticate and smoke-test only the already mission-pinned Naderi source
-authority. Promotion remains owned by the common immutable registry kernel, and verifier
-evidence is never reused as execution evidence. The verifier independently pins the semantic
-capability contract instead of trusting the capability-specification builder.
+The live verifier authenticates and smoke-tests only the mission-pinned Naderi source authority.
+It also retains the exact bounded fetch request/response bytes and exact verifier context inside
+its receipt.  Historical promotion replay therefore reuses those retained bytes with zero network
+requests instead of redefining past validity from current remote state.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
+from . import capability_smoke_replay_evidence as smoke_replay
 from . import mds2_2923_experiment_identity_reference_chain as reference_chain
 from . import mds2_2923_reference_chain_capability as capability
 from . import nist_mds2_2923_reference_chain_evidence as reference_evidence
 from . import nist_mds2_2923_reference_chain_policy as reference_policy
 from .capability_registry import build_capability_verification_receipt
+from .in625_geometry_condition_source_acquisition import fetch_exact_source
 
-VERIFIER_SCHEMA_VERSION = "1.2"
-VERIFIER_POLICY_VERSION = "1.2"
+VERIFIER_SCHEMA_VERSION = "1.3"
+VERIFIER_POLICY_VERSION = "1.3"
 _REQUIRED_CONTEXT_FIELDS = (
     "nerdm_metadata_bytes",
     "nist_intake",
@@ -121,10 +124,8 @@ def _semantic_spec_contract_ok(specification: Mapping[str, Any]) -> bool:
         and specification.get("gap_class") == "missing_analysis_executor"
         and specification.get("required_inputs") == list(_EXPECTED_REQUIRED_INPUTS)
         and specification.get("required_outputs") == list(_EXPECTED_REQUIRED_OUTPUTS)
-        and specification.get("scientific_acceptance")
-        == list(_EXPECTED_SCIENTIFIC_ACCEPTANCE)
-        and specification.get("verification_requirements")
-        == list(_EXPECTED_VERIFICATION_REQUIREMENTS)
+        and specification.get("scientific_acceptance") == list(_EXPECTED_SCIENTIFIC_ACCEPTANCE)
+        and specification.get("verification_requirements") == list(_EXPECTED_VERIFICATION_REQUIREMENTS)
         and isinstance(mechanisms, list)
         and capability.MECHANISM in mechanisms
         and isinstance(forbidden, list)
@@ -179,6 +180,12 @@ def _boundary_ok(report: Mapping[str, Any]) -> bool:
     )
 
 
+def _bound_sha(value: Mapping[str, Any], field: str, label: str) -> str:
+    digest = value.get(field)
+    _require(isinstance(digest, str) and len(digest) == 64, f"{label} binding is missing")
+    return digest
+
+
 def verify_reference_chain_capability_candidate(
     *,
     capability_specification: Mapping[str, Any],
@@ -189,18 +196,15 @@ def verify_reference_chain_capability_candidate(
     expected_mission_sha256: str,
     verification_context: Mapping[str, Any] | None,
     perform_real_source_smoke: bool = True,
+    retained_smoke_replay_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Verify exact contract, deterministic replay, source authority and epistemic boundary."""
     _require(candidate.get("action_class") == capability.ACTION_CLASS, "candidate action drifted")
     _require(candidate.get("factory_id") == capability.FACTORY_ID, "candidate factory drifted")
-    _require(
-        candidate.get("implementation_id") == capability.IMPLEMENTATION_ID,
-        "candidate implementation drifted",
-    )
+    _require(candidate.get("implementation_id") == capability.IMPLEMENTATION_ID, "candidate implementation drifted")
     _require(candidate.get("mechanism") == capability.MECHANISM, "candidate mechanism drifted")
     deterministic_contract = bool(
-        candidate.get("required_verified_primitives")
-        == sorted(capability.REQUIRED_VERIFIED_PRIMITIVES)
+        candidate.get("required_verified_primitives") == sorted(capability.REQUIRED_VERIFIED_PRIMITIVES)
         and _semantic_spec_contract_ok(capability_specification)
     )
     authority_and_provenance = bool(
@@ -210,19 +214,52 @@ def verify_reference_chain_capability_candidate(
         and candidate.get("self_promotion_requested") is False
     )
 
-    metadata, nist_intake, multisource, discovery, calibration = _context(verification_context)
+    replay_evidence: dict[str, Any] | None = None
+    if retained_smoke_replay_evidence is not None:
+        try:
+            fetcher, restored = smoke_replay.authenticate_smoke_replay_evidence(
+                retained_smoke_replay_evidence,
+                action_class=capability.ACTION_CLASS,
+                capability_specification_sha256=_bound_sha(
+                    capability_specification,
+                    "capability_specification_sha256_without_self_field",
+                    "capability specification",
+                ),
+                capability_candidate_sha256=_bound_sha(
+                    candidate,
+                    "capability_candidate_sha256_without_self_field",
+                    "capability candidate",
+                ),
+                mission_sha256=expected_mission_sha256,
+            )
+        except smoke_replay.CapabilitySmokeReplayEvidenceError as exc:
+            raise Mds22923ReferenceChainCapabilityVerifierError(
+                f"retained reference-chain smoke replay failed: {exc}"
+            ) from exc
+        effective_context = restored
+        replay_evidence = dict(retained_smoke_replay_evidence)
+        replaying = True
+    else:
+        fetcher = smoke_replay.RecordingFetcher(fetch_exact_source)
+        effective_context = verification_context
+        replaying = False
+
+    metadata, nist_intake, multisource, discovery, calibration = _context(
+        effective_context if isinstance(effective_context, Mapping) else None
+    )
     smoke_receipt: dict[str, Any] | None = None
     fixture_ok = False
     epistemic_boundary_ok = False
     real_source_smoke_ok = False
-    if perform_real_source_smoke:
+    if perform_real_source_smoke or replaying:
         qualification = reference_policy.authenticate_nist_mds2_2923_reference_chain_policy(
             repository_root=repository_root,
             mission_path=mission_path,
             expected_mission_sha256=expected_mission_sha256,
         )
         naderi = reference_evidence.acquire_naderi_reference_chain_evidence(
-            qualification=qualification
+            qualification=qualification,
+            fetcher=fetcher,
         )
         first = reference_chain.build_mds2_2923_experiment_identity_reference_chain(
             nerdm_metadata_bytes=metadata,
@@ -241,15 +278,13 @@ def verify_reference_chain_capability_candidate(
             calibration_candidate_assessment=calibration,
         )
         fixture_ok = (
-            first.get("report_sha256_without_self_field")
-            == second.get("report_sha256_without_self_field")
+            first.get("report_sha256_without_self_field") == second.get("report_sha256_without_self_field")
             and first.get("reference_graph", {}).get("edges_sha256")
             == second.get("reference_graph", {}).get("edges_sha256")
         )
         epistemic_boundary_ok = _boundary_ok(first)
         real_source_smoke_ok = bool(
-            naderi.get("acquisition_status")
-            == "exact_naderi_reference_chain_evidence_acquired"
+            naderi.get("acquisition_status") == "exact_naderi_reference_chain_evidence_acquired"
             and naderi.get("network_requests_performed") == 1
             and naderi.get("all_claims_matched") is True
             and naderi.get("unrestricted_search_performed") is False
@@ -271,6 +306,25 @@ def verify_reference_chain_capability_candidate(
             "scientific_status_changed": False,
         }
         smoke_receipt["report_sha256_without_self_field"] = _canonical_sha(smoke_receipt)
+        if replaying:
+            fetcher.assert_consumed()
+        else:
+            replay_evidence = smoke_replay.build_smoke_replay_evidence(
+                action_class=capability.ACTION_CLASS,
+                capability_specification_sha256=_bound_sha(
+                    capability_specification,
+                    "capability_specification_sha256_without_self_field",
+                    "capability specification",
+                ),
+                capability_candidate_sha256=_bound_sha(
+                    candidate,
+                    "capability_candidate_sha256_without_self_field",
+                    "capability candidate",
+                ),
+                mission_sha256=expected_mission_sha256,
+                verification_context=verification_context,
+                fetch_records=fetcher.records,
+            )
 
     component_hashes = {
         "capability_descriptor_sha256": _module_sha(capability, "capability descriptor"),
@@ -297,6 +351,9 @@ def verify_reference_chain_capability_candidate(
     )
     unsigned = dict(receipt)
     unsigned.pop("capability_verification_sha256_without_self_field", None)
+    replay_sha = None
+    if replay_evidence is not None:
+        replay_sha = replay_evidence.get("smoke_replay_evidence_sha256_without_self_field")
     unsigned.update(
         {
             "verifier_schema_version": VERIFIER_SCHEMA_VERSION,
@@ -309,6 +366,8 @@ def verify_reference_chain_capability_candidate(
             "real_source_smoke_receipt_sha256": (
                 None if smoke_receipt is None else smoke_receipt["report_sha256_without_self_field"]
             ),
+            "real_source_smoke_replay_evidence": replay_evidence,
+            "real_source_smoke_replay_evidence_sha256": replay_sha,
         }
     )
     unsigned["capability_verification_sha256_without_self_field"] = _canonical_sha(unsigned)

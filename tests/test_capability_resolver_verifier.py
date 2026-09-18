@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
 
+from materials_data_analyzer.research_loop import (
+    autonomous_production_exact_head_p2_round4 as round4,
+)
+from materials_data_analyzer.research_loop import (
+    autonomous_production_exact_head_p2_round5 as round5,
+)
 from materials_data_analyzer.research_loop import (
     calibration_protocol_bridge_capability as bridge,
 )
@@ -225,3 +233,110 @@ def test_verified_registry_is_preferred_over_candidate_discovery(
     assert result["resolution_status"] == "verified_capability_resolved"
     assert result["implementation_id"] == bridge.IMPLEMENTATION_ID
     assert result["candidate"] is None
+
+
+def test_terminal_capability_lineage_rejects_jointly_rehashed_action_substitution(
+    tmp_path: Path,
+) -> None:
+    def canonical_sha(value: object) -> str:
+        return hashlib.sha256(
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+
+    def write_json(name: str, value: object) -> None:
+        (tmp_path / name).write_text(
+            json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    requested_action = {
+        "action_class": "weaver_2021_spot_size_full_text_derived_acquisition",
+        "objective": "Acquire the exact Weaver primary full text.",
+        "candidate": {
+            "doi": "10.1016/j.jmapro.2021.10.053",
+            "acquisition_authorized": False,
+        },
+        "caller_authored_url_authorized": False,
+        "automatic_acquisition_authorized": False,
+        "unrestricted_search_authorized": False,
+    }
+    reference = {
+        "schema_version": "1.0",
+        "next_action": requested_action,
+        "scientific_status_changed": False,
+    }
+    reference["report_sha256_without_self_field"] = canonical_sha(reference)
+
+    registry = capability_registry.build_initial_capability_registry(
+        verified_action_classes=["external_evidence_search"]
+    )
+    verified_actions = ["external_evidence_search"]
+    gap = capability_expansion.build_capability_gap(
+        requested_action=requested_action,
+        predecessor_report=reference,
+        available_action_classes=verified_actions,
+    )
+    specification = capability_expansion.build_capability_specification(gap)
+    resolution = capability_resolver.resolve_or_discover_capability(
+        registry=registry,
+        capability_specification=specification,
+        available_verified_primitives=[],
+    )
+    cycles = [{"cycle_index": index} for index in range(1, 13)]
+    cycles[11].update(
+        {
+            "output_next_action_class": requested_action["action_class"],
+            "reference_graph_sha256": reference[
+                "report_sha256_without_self_field"
+            ],
+            "promoted_registry_sha256": registry[
+                "capability_registry_sha256_without_self_field"
+            ],
+        }
+    )
+
+    write_json("autonomous-production-manifest.json", {"cycles": cycles})
+    write_json(
+        "mds2-2923-experiment-identity-reference-chain.json",
+        reference,
+    )
+    write_json("capability-registry-promoted-4.json", registry)
+    write_json("capability-gap-5.json", gap)
+    write_json("capability-specification-5.json", specification)
+    write_json("capability-resolution-5.json", resolution)
+
+    round5.verify_exact_head_round5_boundaries(tmp_path)
+
+    forged_action = dict(requested_action)
+    forged_action["action_class"] = "untrusted_weaver_full_text_acquisition"
+    forged_action["objective"] = "Substitute a different terminal acquisition action."
+    forged_gap = capability_expansion.build_capability_gap(
+        requested_action=forged_action,
+        predecessor_report=reference,
+        available_action_classes=verified_actions,
+    )
+    forged_specification = capability_expansion.build_capability_specification(forged_gap)
+    forged_resolution = capability_resolver.resolve_or_discover_capability(
+        registry=registry,
+        capability_specification=forged_specification,
+        available_verified_primitives=[],
+    )
+    write_json("capability-gap-5.json", forged_gap)
+    write_json("capability-specification-5.json", forged_specification)
+    write_json("capability-resolution-5.json", forged_resolution)
+
+    # Round 4 authenticates this internally consistent forged terminal trio but does not
+    # bind the gap's requested action back to the cycle-12 reference graph.
+    round4._verify_terminal_capability_resolution(tmp_path, cycles)
+
+    with pytest.raises(
+        round5.AutonomousProductionExactHeadRound5Error,
+        match="terminal capability gap drifted from the authenticated reference action",
+    ):
+        round5.verify_exact_head_round5_boundaries(tmp_path)
