@@ -253,6 +253,24 @@ def _strict_replay_promotions(
             successor,
             f"capability promotion {step} successor registry lost JSON type fidelity",
         )
+        try:
+            expected_post_resolution = resolve_or_discover_capability(
+                registry=successor,
+                capability_specification=specification,
+                available_verified_primitives=[],
+            )
+        except (CapabilityRegistryError, CapabilityResolverError) as exc:
+            raise AutonomousProductionFreshReviewRound11Error(
+                f"capability promotion {step} post-promotion resolver replay failed: {exc}"
+            ) from exc
+        persisted_post_resolution = _merge_gate._load(
+            root, _round6._name("capability-post-promotion-resolution", suffix)
+        )
+        _require_json_equal(
+            persisted_post_resolution,
+            expected_post_resolution,
+            f"capability promotion {step} post-promotion resolution lost JSON type fidelity",
+        )
         replay[step] = {
             "gap": expected_gap,
             "specification": specification,
