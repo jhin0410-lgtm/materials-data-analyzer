@@ -58,6 +58,44 @@ def _strict_text(value: object, field: str) -> str:
     return value
 
 
+def _strict_positive_int(value: object, field: str) -> int:
+    if type(value) is not int or value <= 0:
+        raise In625NetworkPolicyError(f"{field} must be an exact positive JSON integer")
+    return value
+
+
+def _typed_json_equal(observed: object, expected: object) -> bool:
+    if isinstance(expected, bool):
+        return type(observed) is bool and observed is expected
+    if isinstance(expected, int):
+        return type(observed) is int and observed == expected
+    if isinstance(expected, float):
+        return type(observed) is float and observed == expected
+    if expected is None:
+        return observed is None
+    if isinstance(expected, str):
+        return type(observed) is str and observed == expected
+    if isinstance(expected, list):
+        return (
+            isinstance(observed, list)
+            and len(observed) == len(expected)
+            and all(
+                _typed_json_equal(left, right)
+                for left, right in zip(observed, expected, strict=True)
+            )
+        )
+    if isinstance(expected, Mapping):
+        return (
+            isinstance(observed, Mapping)
+            and set(observed) == set(expected)
+            and all(
+                _typed_json_equal(observed[key], expected[key])
+                for key in expected
+            )
+        )
+    return type(observed) is type(expected) and observed == expected
+
+
 def _repo_file(root: Path, raw: object, field: str) -> Path:
     path = Path(_strict_text(raw, field)).expanduser()
     if not path.is_absolute():
@@ -96,6 +134,16 @@ def _file_map(value: object, field: str) -> dict[str, Mapping[str, Any]]:
             raise In625NetworkPolicyError(f"{field}[{index}] must be an object")
         _exact_keys(raw, expected_keys, f"{field}[{index}]")
         name = _strict_text(raw.get("name"), f"{field}[{index}].name")
+        _strict_positive_int(raw.get("size_bytes"), f"{field}[{index}].size_bytes")
+        _strict_text(
+            raw.get("provider_checksum_algorithm"),
+            f"{field}[{index}].provider_checksum_algorithm",
+        )
+        _strict_text(
+            raw.get("provider_checksum_digest"),
+            f"{field}[{index}].provider_checksum_digest",
+        )
+        _sha(raw.get("verified_sha256"), f"{field}[{index}].verified_sha256")
         if name in result:
             raise In625NetworkPolicyError("network policy contains duplicate file identity")
         result[name] = raw
@@ -171,12 +219,15 @@ def authenticate_in625_network_policy(
     if not isinstance(transport, Mapping):
         raise In625NetworkPolicyError("network policy transport must be an object")
     _exact_keys(transport, {"scheme", "host", "allowed_port", "redirect_host_must_remain_exact"}, "network policy transport")
-    if dict(transport) != {
-        "scheme": "https",
-        "host": "zenodo.org",
-        "allowed_port": 443,
-        "redirect_host_must_remain_exact": True,
-    }:
+    if not _typed_json_equal(
+        dict(transport),
+        {
+            "scheme": "https",
+            "host": "zenodo.org",
+            "allowed_port": 443,
+            "redirect_host_must_remain_exact": True,
+        },
+    ):
         raise In625NetworkPolicyError("network transport authority widened or drifted")
 
     source_binding = policy.get("source_binding")
@@ -190,14 +241,22 @@ def authenticate_in625_network_policy(
     source_sha = hashlib.sha256(source_bytes).hexdigest()
     if source_sha != _sha(source_binding.get("source_config_sha256"), "source_binding.source_config_sha256"):
         raise In625NetworkPolicyError("source config bytes differ from network policy pin")
-    if source_binding.get("record_id") != RECORD_ID or source_binding.get("record_api_path") != "/api/records/20503603":
+    if (
+        type(source_binding.get("record_id")) is not int
+        or source_binding.get("record_id") != RECORD_ID
+        or source_binding.get("record_api_path") != "/api/records/20503603"
+    ):
         raise In625NetworkPolicyError("network policy record identity drifted")
 
     source = _json(source_bytes, "IN625 source config")
     if source.get("source_id") != SOURCE_ID:
         raise In625NetworkPolicyError("source config identity drifted")
     zenodo = source.get("zenodo")
-    if not isinstance(zenodo, Mapping) or zenodo.get("record_id") != RECORD_ID:
+    if (
+        not isinstance(zenodo, Mapping)
+        or type(zenodo.get("record_id")) is not int
+        or zenodo.get("record_id") != RECORD_ID
+    ):
         raise In625NetworkPolicyError("source config Zenodo identity drifted")
     files = zenodo.get("files")
     if not isinstance(files, Mapping):
@@ -207,15 +266,31 @@ def authenticate_in625_network_policy(
         source_rule = files.get(name)
         if not isinstance(source_rule, Mapping):
             raise In625NetworkPolicyError(f"source config lost exact allowed file: {name}")
-        for field in ("size_bytes", "provider_checksum_algorithm", "provider_checksum_digest", "verified_sha256"):
-            if source_rule.get(field) != rule.get(field):
-                raise In625NetworkPolicyError(f"network/source file binding drifted: {name}.{field}")
+        if type(source_rule.get("size_bytes")) is not int:
+            raise In625NetworkPolicyError(
+                f"source config file size must remain an exact JSON integer: {name}"
+            )
+        for field in (
+            "size_bytes",
+            "provider_checksum_algorithm",
+            "provider_checksum_digest",
+            "verified_sha256",
+        ):
+            if not _typed_json_equal(source_rule.get(field), rule.get(field)):
+                raise In625NetworkPolicyError(
+                    f"network/source file binding drifted: {name}.{field}"
+                )
 
     limits = policy.get("limits")
     if not isinstance(limits, Mapping):
         raise In625NetworkPolicyError("network policy limits must be an object")
     _exact_keys(limits, {"maximum_network_requests_per_cycle", "maximum_archive_bytes", "unrestricted_search", "arbitrary_url_fetch"}, "network policy limits")
-    if limits.get("maximum_network_requests_per_cycle") != 3 or limits.get("maximum_archive_bytes") != 180726708:
+    if (
+        type(limits.get("maximum_network_requests_per_cycle")) is not int
+        or limits.get("maximum_network_requests_per_cycle") != 3
+        or type(limits.get("maximum_archive_bytes")) is not int
+        or limits.get("maximum_archive_bytes") != 180726708
+    ):
         raise In625NetworkPolicyError("network request/byte limits drifted")
     if limits.get("unrestricted_search") is not False or limits.get("arbitrary_url_fetch") is not False:
         raise In625NetworkPolicyError("network policy improperly permits open-ended discovery")
