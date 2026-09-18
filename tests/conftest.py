@@ -385,6 +385,9 @@ def _synthetic_live_verifier_trusted_root(
     from materials_data_analyzer.research_loop import (
         autonomous_production_merge_gate_hardening as merge_gate_hardening,
     )
+    from materials_data_analyzer.research_loop import (
+        autonomous_production_fresh_review_round12 as fresh_review_round12,
+    )
 
     quality_relative = Path(_EXPECTED_BINDING_PATHS["zenodo_observed_quality_contract"])
     frontier_relative = Path(_EXPECTED_BINDING_PATHS["in625_physical_source_frontier"])
@@ -412,6 +415,15 @@ def _synthetic_live_verifier_trusted_root(
         merge_gate_hardening,
         "_EXPECTED_ZENODO_PERSISTED_ARCHIVE_SIZE_BYTES",
         len(_SYNTHETIC_ZENODO_ARCHIVE_BYTES),
+    )
+    # These modules use deliberately minimal transport fixtures. They do not fabricate the
+    # retained cycle-1 request/ledger/source bytes required by the production Round-12 replay.
+    # Dedicated Round-12 regressions prove short lifecycles invoke that replay, while the literal
+    # live workflow exercises the real retained bytes. Keep only this synthetic fixture isolated.
+    monkeypatch.setattr(
+        fresh_review_round12,
+        "_verify_cycle1_independent_bindings",
+        lambda _root, _manifest: None,
     )
 
 
