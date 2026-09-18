@@ -522,6 +522,7 @@ def test_live_verifier_rejects_rehashed_authorization_that_widens_authority(
     ("field", "value"),
     [
         ("maximum_network_requests", 999),
+        ("maximum_network_requests", float(MAX_NETWORK_REQUESTS)),
         ("metadata_allowed_hosts", ["untrusted.example"]),
         ("artifact_allowed_hosts", ["untrusted.example"]),
         ("maximum_total_artifact_bytes", MAX_TOTAL_ARTIFACT_BYTES + 1),
