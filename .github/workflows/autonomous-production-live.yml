@@ -236,7 +236,10 @@ jobs:
               unsigned_cycle = dict(cycle)
               cycle_sha = unsigned_cycle.pop("cycle_sha256")
               assert cycle_sha == canonical_sha(unsigned_cycle), f"cycle {index} self-hash mismatch"
-              assert cycle.get("cycle_index") == index, f"cycle {index} index drifted"
+              assert (
+                  type(cycle.get("cycle_index")) is int
+                  and cycle.get("cycle_index") == index
+              ), f"cycle {index} index drifted"
               if index > 1:
                   assert (
                       cycle.get("predecessor_cycle_sha256")
