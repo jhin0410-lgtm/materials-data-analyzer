@@ -406,6 +406,12 @@ def verify_fresh_review_round12_boundaries(output_root: str | Path) -> None:
     _require(isinstance(cycles, list) and cycles, "autonomous production cycles must be a non-empty list")
 
     _verify_cycle1_independent_bindings(root, manifest)
+    # Three/four-cycle operational stops still contain authoritative cycle-1 execution
+    # evidence, so authenticate that evidence above. Promotion artifacts do not exist until
+    # the cycle-5 discovery frontier, therefore no later Round-12 replay applies yet.
+    if len(cycles) < 5:
+        return
+
     replay = _round11._strict_replay_promotions(root, manifest)
     _verify_original_cycle8_resolution(root, manifest, replay)
     _verify_discovery_cycle_projections(root, manifest, replay)
