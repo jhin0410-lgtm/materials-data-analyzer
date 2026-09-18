@@ -508,8 +508,12 @@ def fetch_https_bytes(
 
     if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
         raise PublicAcquisitionError("max_bytes must be a positive integer")
-    if not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
-        raise PublicAcquisitionError("timeout_seconds must be positive")
+    if (
+        isinstance(timeout_seconds, bool)
+        or not isinstance(timeout_seconds, (int, float))
+        or timeout_seconds <= 0
+    ):
+        raise PublicAcquisitionError("timeout_seconds must be a positive numeric duration")
     normalized_hosts = _normalize_hosts(list(allowed_hosts))
     endpoint = _validate_https_endpoint(
         url, field="fetch endpoint", allowed_hosts=normalized_hosts
