@@ -91,6 +91,107 @@ def test_five_cycle_stop_replays_candidate_without_requiring_future_verification
     assert round11._strict_replay_promotions(tmp_path, manifest) == {}
 
 
+def test_six_cycle_stop_replays_post_promotion_resolution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    promotion = ("", "action", "impl", 6, "registry_binding")
+    monkeypatch.setattr(round11._round6, "_PROMOTIONS", (promotion,))
+    monkeypatch.setattr(round11._round6, "_INITIAL_VERIFIED_ACTIONS", ("base",))
+    initial = {"capability_registry_sha256_without_self_field": "0" * 64}
+    monkeypatch.setattr(
+        round11._round6,
+        "build_initial_capability_registry",
+        lambda **_kwargs: copy.deepcopy(initial),
+    )
+    gap = {"requested_action_class": "action", "gap": "trusted"}
+    spec = {
+        "requested_action_class": "action",
+        "capability_specification_sha256_without_self_field": "1" * 64,
+    }
+    predecessor = {
+        "report_sha256_without_self_field": "p" * 64,
+        "next_action": {"action_class": "action"},
+    }
+    candidate = {"implementation_id": "impl", "candidate": "trusted"}
+    discovery_resolution = {
+        "resolution_status": "bounded_candidate_discovered",
+        "candidate": copy.deepcopy(candidate),
+        "unrestricted_discovery_performed": False,
+        "arbitrary_code_generation_performed": False,
+    }
+    verification = {
+        "capability_verification_sha256_without_self_field": "v" * 64,
+        "promotion_eligible": True,
+    }
+    successor = {"capability_registry_sha256_without_self_field": "2" * 64}
+    expected_post_resolution = {
+        "resolution_status": "capability_already_available",
+        "candidate": None,
+    }
+    forged_post_resolution = {
+        "resolution_status": "no_bounded_candidate_available",
+        "candidate": None,
+    }
+
+    monkeypatch.setattr(
+        round11._round7,
+        "_canonical_gap_and_specification",
+        lambda **_kwargs: (
+            copy.deepcopy(gap),
+            copy.deepcopy(spec),
+            copy.deepcopy(predecessor),
+        ),
+    )
+    monkeypatch.setattr(round11._round7, "_TRUSTED_PRIMITIVES", {"action": ("primitive",)})
+    monkeypatch.setattr(
+        round11._round7,
+        "_replay_trusted_candidate_and_verification",
+        lambda **_kwargs: (copy.deepcopy(candidate), copy.deepcopy(verification)),
+    )
+    monkeypatch.setattr(
+        round11,
+        "promote_verified_capability",
+        lambda **_kwargs: copy.deepcopy(successor),
+    )
+
+    def resolver(**kwargs: Any) -> dict[str, Any]:
+        if kwargs["registry"] == initial:
+            return copy.deepcopy(discovery_resolution)
+        return copy.deepcopy(expected_post_resolution)
+
+    monkeypatch.setattr(round11, "resolve_or_discover_capability", resolver)
+    artifacts: dict[str, dict[str, Any]] = {
+        "capability-registry-initial.json": initial,
+        "capability-gap.json": gap,
+        "capability-specification.json": spec,
+        "capability-resolution.json": discovery_resolution,
+        "capability-candidate.json": candidate,
+        "capability-verification.json": verification,
+        "capability-registry-promoted.json": successor,
+        "capability-post-promotion-resolution.json": forged_post_resolution,
+    }
+    monkeypatch.setattr(
+        round11._merge_gate,
+        "_load",
+        lambda _root, name: copy.deepcopy(artifacts[name]),
+    )
+    monkeypatch.setattr(
+        round11._round10,
+        "_RESOLUTION_ARTIFACTS",
+        ("capability-resolution.json",),
+    )
+    manifest = {
+        "cycles": [{}, {}, {}, {}, {}, {}],
+        "registry_binding": "2" * 64,
+    }
+
+    with pytest.raises(
+        round11.AutonomousProductionFreshReviewRound11Error,
+        match="post-promotion resolution",
+    ):
+        round11._strict_replay_promotions(tmp_path, manifest)
+
+
 def _cycle6_report() -> dict[str, Any]:
     sources = [
         {
