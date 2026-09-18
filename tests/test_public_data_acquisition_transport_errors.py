@@ -146,6 +146,30 @@ def test_unrecognized_url_or_os_errors_fail_closed(
     assert "unrecognized/non-transient" in str(caught.value)
 
 
+def test_boolean_timeout_is_rejected_before_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    def forbidden(*_: object, **__: object) -> object:
+        nonlocal called
+        called = True
+        raise AssertionError("network must not be reached")
+
+    monkeypatch.setattr(acquisition, "build_opener", forbidden)
+    with pytest.raises(
+        PublicAcquisitionError,
+        match="positive numeric duration",
+    ):
+        fetch_https_bytes(
+            "https://data.example.org/example.bin",
+            allowed_hosts=["data.example.org"],
+            max_bytes=1024,
+            timeout_seconds=True,
+        )
+    assert called is False
+
+
 def test_explicit_connection_errno_remains_transport_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
