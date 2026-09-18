@@ -283,6 +283,78 @@ def test_network_policy_rejects_widened_host_even_under_new_mission_root(
         )
 
 
+@pytest.mark.parametrize(
+    ("mutate_policy", "mutate_source", "message"),
+    [
+        (
+            lambda value: value["transport"].__setitem__("allowed_port", 443.0),
+            None,
+            "network transport authority widened or drifted",
+        ),
+        (
+            lambda value: value["source_binding"].__setitem__("record_id", 20503603.0),
+            None,
+            "network policy record identity drifted",
+        ),
+        (
+            lambda value: value["limits"].__setitem__(
+                "maximum_network_requests_per_cycle", 3.0
+            ),
+            None,
+            "network request/byte limits drifted",
+        ),
+        (
+            lambda value: value["limits"].__setitem__(
+                "maximum_archive_bytes", 180726708.0
+            ),
+            None,
+            "network request/byte limits drifted",
+        ),
+        (
+            lambda value: value["allowed_files"][0].__setitem__("size_bytes", 1408.0),
+            None,
+            "exact positive JSON integer",
+        ),
+        (
+            lambda value: value["allowed_files"][0].__setitem__("size_bytes", 1408),
+            lambda source: source["zenodo"]["files"][
+                "README - Dataset description.txt"
+            ].__setitem__("size_bytes", 1408.0),
+            "source config file size must remain an exact JSON integer",
+        ),
+        (
+            lambda value: None,
+            lambda source: source["zenodo"].__setitem__("record_id", 20503603.0),
+            "source config Zenodo identity drifted",
+        ),
+    ],
+)
+def test_network_policy_rejects_equal_valued_numeric_type_aliases_even_if_repinned(
+    tmp_path: Path,
+    mutate_policy: Callable[[dict[str, Any]], None],
+    mutate_source: Callable[[dict[str, Any]], None] | None,
+    message: str,
+) -> None:
+    root, mission_path, policy_path, source_path, mission_sha = (
+        _write_reauthorized_network_fixture(
+            tmp_path,
+            mutate_policy=mutate_policy,
+            mutate_source=mutate_source,
+        )
+    )
+    with pytest.raises(
+        in625_network_policy.In625NetworkPolicyError,
+        match=message,
+    ):
+        in625_network_policy.authenticate_in625_network_policy(
+            repository_root=root,
+            mission_path=mission_path,
+            expected_mission_sha256=mission_sha,
+            policy_path=policy_path,
+            source_config_path=source_path,
+        )
+
+
 def test_network_policy_rejects_source_identity_substitution_even_if_repinned(
     tmp_path: Path,
 ) -> None:
