@@ -272,10 +272,10 @@ def _load_bound_quality_contract(
         and contract.get("source_archive_sha256") == _EXPECTED_ARCHIVE_SHA256
         and contract.get("workbook_sha256") == _EXPECTED_WORKBOOK_SHA256
         and contract.get("reviewed_intake_schema_version") == "2.0"
-        and contract.get("measurement_row_count") == 200289
-        and contract.get("complete_numeric_measurement_row_count") == 200288
-        and contract.get("incomplete_numeric_measurement_row_count") == 1
-        and contract.get("known_incomplete_rows") == _EXPECTED_INCOMPLETE_ROWS,
+        and _typed_equal(contract.get("measurement_row_count"), 200289)
+        and _typed_equal(contract.get("complete_numeric_measurement_row_count"), 200288)
+        and _typed_equal(contract.get("incomplete_numeric_measurement_row_count"), 1)
+        and _typed_equal(contract.get("known_incomplete_rows"), _EXPECTED_INCOMPLETE_ROWS),
         "tensile quality contract observed-evidence identity drifted",
     )
     interpretation = _mapping(contract.get("interpretation"), "tensile quality contract interpretation")
@@ -304,7 +304,11 @@ def _verify_repository_binding(
         raise AutonomousProductionSemanticHardeningError(f"{label} escaped repository root") from exc
     _require(path.is_file(), f"{label} is not a repository file")
     raw = path.read_bytes()
-    _require(binding.get("bytes") == len(raw), f"{label} byte count mismatch")
+    _require_typed_equal(
+        binding.get("bytes"),
+        len(raw),
+        f"{label} byte count mismatch",
+    )
     _require(binding.get("sha256") == hashlib.sha256(raw).hexdigest(), f"{label} SHA-256 mismatch")
 
 
@@ -371,9 +375,9 @@ def _verify_secondary_quality_blocker(rediagnosis: Mapping[str, Any]) -> None:
         blocker.get("code") == "reviewed_numeric_source_missingness_observed"
         and blocker.get("kind") == "data_quality"
         and blocker.get("severity") == "bounded"
-        and blocker.get("measurement_row_count") == 200289
-        and blocker.get("affected_row_count") == 1
-        and blocker.get("known_incomplete_rows") == _EXPECTED_INCOMPLETE_ROWS
+        and _typed_equal(blocker.get("measurement_row_count"), 200289)
+        and _typed_equal(blocker.get("affected_row_count"), 1)
+        and _typed_equal(blocker.get("known_incomplete_rows"), _EXPECTED_INCOMPLETE_ROWS)
         and blocker.get("blocks_external_evidence_availability") is False
         and blocker.get("blocks_unqualified_use_of_affected_load_value") is True
         and blocker.get("missingness_mechanism_established") is False
@@ -420,10 +424,17 @@ def _verify_pretransport_science(root: Path, *, manifest: Mapping[str, Any]) -> 
         and _typed_equal(manifest.get("parallel_test_block_count"), 19),
         "autonomous manifest row-count identity drifted",
     )
-    _require(quality.get("known_incomplete_rows") == _EXPECTED_INCOMPLETE_ROWS, "tensile quality incomplete-row identity drifted")
+    _require_typed_equal(
+        quality.get("known_incomplete_rows"),
+        _EXPECTED_INCOMPLETE_ROWS,
+        "tensile quality incomplete-row identity drifted",
+    )
     _require(
-        manifest.get("known_incomplete_rows") == _EXPECTED_INCOMPLETE_ROWS
-        and manifest.get("known_incomplete_rows") == quality.get("known_incomplete_rows"),
+        _typed_equal(manifest.get("known_incomplete_rows"), _EXPECTED_INCOMPLETE_ROWS)
+        and _typed_equal(
+            manifest.get("known_incomplete_rows"),
+            quality.get("known_incomplete_rows"),
+        ),
         "autonomous manifest incomplete-row identity disagrees with verified quality evidence",
     )
     _, repository_root = _load_bound_quality_contract(root=root, quality=quality)
@@ -441,14 +452,18 @@ def _verify_pretransport_science(root: Path, *, manifest: Mapping[str, Any]) -> 
     )
 
     _require(rediagnosis.get("observed_quality_verification_sha256") == quality_sha, "rediagnosis/quality digest binding mismatch")
-    _require(rediagnosis.get("observed_quality_verification") == quality, "rediagnosis embedded quality evidence disagrees with persisted verification")
+    _require_typed_equal(
+        rediagnosis.get("observed_quality_verification"),
+        quality,
+        "rediagnosis embedded quality evidence disagrees with persisted verification",
+    )
     evidence_state = _mapping(rediagnosis.get("evidence_state"), "quality-aware rediagnosis evidence_state")
     _require(
         evidence_state.get("real_external_source_acquired") is True
         and evidence_state.get("real_row_level_measurements_observed") is True
         and evidence_state.get("observed_source_quality_contract_verified") is True
-        and evidence_state.get("complete_numeric_measurement_row_count") == 200288
-        and evidence_state.get("incomplete_numeric_measurement_row_count") == 1
+        and _typed_equal(evidence_state.get("complete_numeric_measurement_row_count"), 200288)
+        and _typed_equal(evidence_state.get("incomplete_numeric_measurement_row_count"), 1)
         and evidence_state.get("isolated_source_missingness_observed") is True,
         "rediagnosis evidence_state lost verified observed evidence",
     )
@@ -468,7 +483,7 @@ def _verify_pretransport_science(root: Path, *, manifest: Mapping[str, Any]) -> 
     _require(
         rediagnosis_quality.get("quality_contract_verified") is True
         and rediagnosis_quality.get("affected_field") == "load_n"
-        and rediagnosis_quality.get("affected_row_count") == 1
+        and _typed_equal(rediagnosis_quality.get("affected_row_count"), 1)
         and rediagnosis_quality.get("missing_value_imputation_authorized") is False
         and rediagnosis_quality.get("inverse_reconstruction_authorized") is False
         and rediagnosis_quality.get("row_exclusion_authorized") is False,
@@ -480,9 +495,12 @@ def _verify_pretransport_science(root: Path, *, manifest: Mapping[str, Any]) -> 
     _verify_comparability_bindings(assessment, repository_root=repository_root)
     source_quality = _mapping(assessment.get("source_quality_constraint"), "physical comparability source_quality_constraint")
     _require(
-        source_quality.get("known_incomplete_row_count") == 1
-        and source_quality.get("known_incomplete_rows") == _EXPECTED_INCOMPLETE_ROWS
-        and source_quality.get("known_incomplete_rows") == quality.get("known_incomplete_rows")
+        _typed_equal(source_quality.get("known_incomplete_row_count"), 1)
+        and _typed_equal(source_quality.get("known_incomplete_rows"), _EXPECTED_INCOMPLETE_ROWS)
+        and _typed_equal(
+            source_quality.get("known_incomplete_rows"),
+            quality.get("known_incomplete_rows"),
+        )
         and source_quality.get("missing_value_imputation_authorized") is False
         and source_quality.get("inverse_reconstruction_authorized") is False
         and source_quality.get("row_exclusion_authorized") is False
@@ -628,7 +646,11 @@ def verify_persisted_semantic_boundaries(output_root: str | Path) -> None:
         "autonomous manifest must explicitly deny paper evidence row-level authority",
     )
     stop = _mapping(manifest.get("stop"), "autonomous production manifest stop")
-    _require(dict(stop) == bounded_stop, "bounded-stop artifact does not match autonomous manifest stop")
+    _require_typed_equal(
+        dict(stop),
+        bounded_stop,
+        "bounded-stop artifact does not match autonomous manifest stop",
+    )
 
     qualification_repository_root = _verify_qualification(root)
     _verify_optional_nist_authorization(root)
