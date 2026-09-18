@@ -83,6 +83,64 @@ def _require(condition: bool, message: str) -> None:
         raise AutonomousProductionSemanticHardeningError(message)
 
 
+def _typed_equal(observed: object, expected: object) -> bool:
+    """Compare JSON-like authority values without Python scalar aliases."""
+    if isinstance(expected, bool):
+        return type(observed) is bool and observed is expected
+    if isinstance(expected, int):
+        return type(observed) is int and observed == expected
+    if isinstance(expected, float):
+        return type(observed) is float and observed == expected
+    if expected is None:
+        return observed is None
+    if isinstance(expected, str):
+        return type(observed) is str and observed == expected
+    if isinstance(expected, list):
+        return (
+            isinstance(observed, list)
+            and len(observed) == len(expected)
+            and all(
+                _typed_equal(left, right)
+                for left, right in zip(observed, expected, strict=True)
+            )
+        )
+    if isinstance(expected, Mapping):
+        return (
+            isinstance(observed, Mapping)
+            and set(observed) == set(expected)
+            and all(_typed_equal(observed[key], expected[key]) for key in expected)
+        )
+    return type(observed) is type(expected) and observed == expected
+
+
+def _require_typed_equal(observed: object, expected: object, message: str) -> None:
+    _require(_typed_equal(observed, expected), message)
+
+
+def _nist_network_contract() -> dict[str, object]:
+    return {
+        "metadata_endpoint": METADATA_ENDPOINT,
+        "expected_nerdm_metadata_sha256": EXPECTED_METADATA_SHA256,
+        "expected_files": {
+            path: {"path": path, **rule} for path, rule in EXPECTED_FILES.items()
+        },
+        "metadata_allowed_hosts": list(METADATA_ALLOWED_HOSTS),
+        "artifact_allowed_hosts": list(ARTIFACT_ALLOWED_HOSTS),
+        "maximum_network_requests": MAX_NETWORK_REQUESTS,
+        "maximum_metadata_bytes": MAX_METADATA_BYTES,
+        "maximum_artifact_bytes": MAX_ARTIFACT_BYTES,
+        "maximum_total_artifact_bytes": MAX_TOTAL_ARTIFACT_BYTES,
+        "timeout_seconds": TIMEOUT_SECONDS,
+    }
+
+
+def _verify_nist_network_contract(
+    value: Mapping[str, Any], *, message: str
+) -> None:
+    for field, expected in _nist_network_contract().items():
+        _require_typed_equal(value.get(field), expected, message)
+
+
 def _canonical_sha(value: object) -> str:
     raw = json.dumps(
         value,
@@ -143,8 +201,9 @@ def _verify_manifest_cycle_chain(manifest: Mapping[str, Any]) -> list[dict[str, 
         _require(isinstance(raw_cycle, dict), f"cycle {expected_index} must be an object")
         cycle = dict(raw_cycle)
         cycle_sha = _verify_self_hash(cycle, "cycle_sha256", label=f"cycle {expected_index}")
-        _require(
-            cycle.get("cycle_index") == expected_index,
+        _require_typed_equal(
+            cycle.get("cycle_index"),
+            expected_index,
             f"cycle {expected_index} index drifted",
         )
         if predecessor_sha is not None:
@@ -264,19 +323,9 @@ def _verify_qualification(root: Path) -> Path:
         and qualification.get("identifier") == NIST_IDENTIFIER,
         "NIST qualification source/frontier identity drifted",
     )
-    _require(
-        qualification.get("metadata_endpoint") == METADATA_ENDPOINT
-        and qualification.get("expected_nerdm_metadata_sha256") == EXPECTED_METADATA_SHA256
-        and qualification.get("expected_files")
-        == {path: {"path": path, **rule} for path, rule in EXPECTED_FILES.items()}
-        and qualification.get("metadata_allowed_hosts") == list(METADATA_ALLOWED_HOSTS)
-        and qualification.get("artifact_allowed_hosts") == list(ARTIFACT_ALLOWED_HOSTS)
-        and qualification.get("maximum_network_requests") == MAX_NETWORK_REQUESTS
-        and qualification.get("maximum_metadata_bytes") == MAX_METADATA_BYTES
-        and qualification.get("maximum_artifact_bytes") == MAX_ARTIFACT_BYTES
-        and qualification.get("maximum_total_artifact_bytes") == MAX_TOTAL_ARTIFACT_BYTES
-        and qualification.get("timeout_seconds") == TIMEOUT_SECONDS,
-        "NIST qualification finite network contract drifted",
+    _verify_nist_network_contract(
+        qualification,
+        message="NIST qualification finite network contract drifted",
     )
     _require(
         qualification.get("issue_76_automatic_promotion_authorized") is False,
@@ -359,10 +408,17 @@ def _verify_pretransport_science(root: Path, *, manifest: Mapping[str, Any]) -> 
     _verify_self_hash(assessment, "assessment_sha256", label="physical comparability assessment")
 
     _require(
-        quality.get("measurement_row_count") == 200289
-        and quality.get("complete_numeric_measurement_row_count") == 200288
-        and quality.get("incomplete_numeric_measurement_row_count") == 1,
+        _typed_equal(quality.get("measurement_row_count"), 200289)
+        and _typed_equal(quality.get("complete_numeric_measurement_row_count"), 200288)
+        and _typed_equal(quality.get("incomplete_numeric_measurement_row_count"), 1),
         "tensile quality row-count identity drifted",
+    )
+    _require(
+        _typed_equal(manifest.get("measurement_row_count"), 200289)
+        and _typed_equal(manifest.get("complete_numeric_measurement_row_count"), 200288)
+        and _typed_equal(manifest.get("incomplete_numeric_measurement_row_count"), 1)
+        and _typed_equal(manifest.get("parallel_test_block_count"), 19),
+        "autonomous manifest row-count identity drifted",
     )
     _require(quality.get("known_incomplete_rows") == _EXPECTED_INCOMPLETE_ROWS, "tensile quality incomplete-row identity drifted")
     _require(
@@ -454,16 +510,6 @@ def _verify_successful_nist_chain(root: Path, *, manifest: Mapping[str, Any], cy
         and authorization.get("action_class") == NIST_ACTION_CLASS
         and authorization.get("candidate_id") == NIST_CANDIDATE_ID
         and authorization.get("product_id") == NIST_PRODUCT_ID
-        and authorization.get("metadata_endpoint") == METADATA_ENDPOINT
-        and authorization.get("expected_nerdm_metadata_sha256") == EXPECTED_METADATA_SHA256
-        and authorization.get("expected_files") == {path: {"path": path, **rule} for path, rule in EXPECTED_FILES.items()}
-        and authorization.get("metadata_allowed_hosts") == list(METADATA_ALLOWED_HOSTS)
-        and authorization.get("artifact_allowed_hosts") == list(ARTIFACT_ALLOWED_HOSTS)
-        and authorization.get("maximum_network_requests") == MAX_NETWORK_REQUESTS
-        and authorization.get("maximum_metadata_bytes") == MAX_METADATA_BYTES
-        and authorization.get("maximum_artifact_bytes") == MAX_ARTIFACT_BYTES
-        and authorization.get("maximum_total_artifact_bytes") == MAX_TOTAL_ARTIFACT_BYTES
-        and authorization.get("timeout_seconds") == TIMEOUT_SECONDS
         and authorization.get("caller_authored_url_used") is False
         and authorization.get("caller_authored_file_queue_used") is False
         and authorization.get("unrestricted_search_authorized") is False
@@ -471,6 +517,10 @@ def _verify_successful_nist_chain(root: Path, *, manifest: Mapping[str, Any], cy
         and authorization.get("network_access_performed") is False
         and authorization.get("scientific_status_changed") is False,
         "NIST successful authorization widened or drifted",
+    )
+    _verify_nist_network_contract(
+        authorization,
+        message="NIST successful authorization widened or drifted",
     )
     _require(
         receipt.get("acquisition_status") == "exact_nist_mds2_2923_source_files_acquired"
@@ -480,8 +530,8 @@ def _verify_successful_nist_chain(root: Path, *, manifest: Mapping[str, Any], cy
         and receipt.get("candidate_id") == NIST_CANDIDATE_ID
         and receipt.get("product_id") == NIST_PRODUCT_ID
         and receipt.get("metadata_sha256") == EXPECTED_METADATA_SHA256
-        and receipt.get("network_requests_performed") == MAX_NETWORK_REQUESTS
-        and receipt.get("network_request_budget") == MAX_NETWORK_REQUESTS
+        and _typed_equal(receipt.get("network_requests_performed"), MAX_NETWORK_REQUESTS)
+        and _typed_equal(receipt.get("network_request_budget"), MAX_NETWORK_REQUESTS)
         and receipt.get("caller_authored_url_used") is False
         and receipt.get("caller_authored_file_queue_used") is False
         and receipt.get("unrestricted_network_search_performed") is False
@@ -507,7 +557,7 @@ def _verify_successful_nist_chain(root: Path, *, manifest: Mapping[str, Any], cy
         and boundary.get("cross_machine_pooling_performed") is False
         and boundary.get("calibration_conversion_performed") is False
         and boundary.get("issue_76_eligible") is False
-        and boundary.get("issue_76_exact_target_cells_satisfied") == 0
+        and _typed_equal(boundary.get("issue_76_exact_target_cells_satisfied"), 0)
         and boundary.get("empirical_model_validation_established") is False
         and boundary.get("hypothesis_truth_established") is False
         and boundary.get("positive_scientific_closeout_established") is False
@@ -535,6 +585,37 @@ def _verify_successful_nist_chain(root: Path, *, manifest: Mapping[str, Any], cy
     )
 
 
+def _verify_optional_nist_authorization(root: Path) -> None:
+    path = root / "nist-network-authorization.json"
+    if not path.is_file():
+        return
+    authorization = _load(root, "nist-network-authorization.json")
+    _verify_self_hash(
+        authorization,
+        "authorization_sha256",
+        label="NIST network authorization",
+    )
+    _require(
+        authorization.get("authorization_status")
+        == "authorized_exact_nist_mds2_2923_acquisition"
+        and authorization.get("policy_id") == NIST_POLICY_ID
+        and authorization.get("action_class") == NIST_ACTION_CLASS
+        and authorization.get("candidate_id") == NIST_CANDIDATE_ID
+        and authorization.get("product_id") == NIST_PRODUCT_ID
+        and authorization.get("network_access_performed") is False
+        and authorization.get("unrestricted_search_authorized") is False
+        and authorization.get("arbitrary_url_fetch_authorized") is False
+        and authorization.get("caller_authored_url_used") is False
+        and authorization.get("caller_authored_file_queue_used") is False
+        and authorization.get("scientific_status_changed") is False,
+        "NIST authorization widened authority",
+    )
+    _verify_nist_network_contract(
+        authorization,
+        message="NIST authorization finite network contract drifted",
+    )
+
+
 def verify_persisted_semantic_boundaries(output_root: str | Path) -> None:
     """Reject self-consistent artifacts that widen persisted scientific authority."""
     root = Path(output_root).expanduser().resolve(strict=True)
@@ -550,6 +631,7 @@ def verify_persisted_semantic_boundaries(output_root: str | Path) -> None:
     _require(dict(stop) == bounded_stop, "bounded-stop artifact does not match autonomous manifest stop")
 
     qualification_repository_root = _verify_qualification(root)
+    _verify_optional_nist_authorization(root)
     predecessor_repository_root = _verify_pretransport_science(root, manifest=manifest)
     _require(
         qualification_repository_root == predecessor_repository_root,
