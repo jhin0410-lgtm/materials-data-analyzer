@@ -183,6 +183,88 @@ def test_rehashed_manifest_cycle_index_drift_is_rejected(
         live_verifier.verify_live_autonomous_output(output)
 
 
+def test_rehashed_manifest_cycle_index_float_alias_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _prepare_hardened(tmp_path)
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    manifest_path = output / "autonomous-production-manifest.json"
+    manifest = _read(manifest_path)
+    manifest["cycles"][0]["cycle_index"] = 1.0
+    _rehash_manifest_cycles(manifest)
+    _write(manifest_path, manifest)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="cycle 1 index drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_rehashed_manifest_measurement_count_float_alias_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _prepare_hardened(tmp_path)
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    manifest_path = output / "autonomous-production-manifest.json"
+    manifest = _read(manifest_path)
+    manifest["measurement_row_count"] = float(manifest["measurement_row_count"])
+    _rehash(manifest, "manifest_sha256")
+    _write(manifest_path, manifest)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="autonomous manifest row-count identity drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_rehashed_qualification_request_budget_float_alias_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _prepare_hardened(tmp_path)
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    path = output / "nist-network-policy-qualification.json"
+    qualification = _read(path)
+    qualification["maximum_network_requests"] = float(
+        qualification["maximum_network_requests"]
+    )
+    _rehash(qualification, "qualification_sha256")
+    _write(path, qualification)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="NIST qualification finite network contract drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_rehashed_qualification_nested_file_size_float_alias_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _prepare_hardened(tmp_path)
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    path = output / "nist-network-policy-qualification.json"
+    qualification = _read(path)
+    expected_files = qualification["expected_files"]
+    first_name = sorted(expected_files)[0]
+    expected_files[first_name]["size_bytes"] = float(
+        expected_files[first_name]["size_bytes"]
+    )
+    _rehash(qualification, "qualification_sha256")
+    _write(path, qualification)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="NIST qualification finite network contract drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
 def test_rehashed_qualification_frontier_sha_drift_is_rejected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
