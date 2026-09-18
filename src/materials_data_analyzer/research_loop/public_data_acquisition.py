@@ -96,6 +96,31 @@ _TRANSIENT_HTTP_STATUS_CODES = frozenset(
 )
 _PERMISSION_ERRNOS = frozenset({errno.EACCES, errno.EPERM})
 _WINDOWS_WSAEACCES = 10013
+_TRANSIENT_NETWORK_ERRNOS = frozenset(
+    value
+    for value in (
+        getattr(errno, "ECONNABORTED", None),
+        getattr(errno, "ECONNREFUSED", None),
+        getattr(errno, "ECONNRESET", None),
+        getattr(errno, "ENETDOWN", None),
+        getattr(errno, "ENETRESET", None),
+        getattr(errno, "ENETUNREACH", None),
+        getattr(errno, "EHOSTDOWN", None),
+        getattr(errno, "EHOSTUNREACH", None),
+        getattr(errno, "ETIMEDOUT", None),
+        getattr(errno, "EPIPE", None),
+        getattr(errno, "WSAECONNABORTED", None),
+        getattr(errno, "WSAECONNREFUSED", None),
+        getattr(errno, "WSAECONNRESET", None),
+        getattr(errno, "WSAENETDOWN", None),
+        getattr(errno, "WSAENETRESET", None),
+        getattr(errno, "WSAENETUNREACH", None),
+        getattr(errno, "WSAEHOSTDOWN", None),
+        getattr(errno, "WSAEHOSTUNREACH", None),
+        getattr(errno, "WSAETIMEDOUT", None),
+    )
+    if isinstance(value, int)
+)
 
 
 class PublicAcquisitionError(ResearchLoopError):
@@ -423,9 +448,15 @@ def plan_public_acquisition_queue(
 
 
 class _RestrictedRedirectHandler(HTTPRedirectHandler):
-    def __init__(self, allowed_hosts: Sequence[str]) -> None:
+    def __init__(
+        self,
+        allowed_hosts: Sequence[str],
+        *,
+        exact_url: str | None = None,
+    ) -> None:
         super().__init__()
         self._allowed_hosts = tuple(allowed_hosts)
+        self._exact_url = exact_url
 
     def redirect_request(
         self,
@@ -439,6 +470,10 @@ class _RestrictedRedirectHandler(HTTPRedirectHandler):
         _validate_https_endpoint(
             newurl, field="redirect endpoint", allowed_hosts=self._allowed_hosts
         )
+        if self._exact_url is not None and newurl != self._exact_url:
+            raise PublicAcquisitionError(
+                "redirect endpoint left the exact authorized fetch URL"
+            )
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -452,6 +487,14 @@ def _is_permission_denial(error: object) -> bool:
     return getattr(error, "winerror", None) == _WINDOWS_WSAEACCES
 
 
+def _is_recognized_transient_delivery_error(error: object) -> bool:
+    """Return true only for explicitly recognized transient delivery failures."""
+
+    if isinstance(error, (TimeoutError, socket.timeout, ConnectionError)):
+        return True
+    return isinstance(error, OSError) and error.errno in _TRANSIENT_NETWORK_ERRNOS
+
+
 def fetch_https_bytes(
     url: str,
     *,
@@ -459,17 +502,31 @@ def fetch_https_bytes(
     max_bytes: int,
     timeout_seconds: float = 60.0,
     headers: Mapping[str, str] | None = None,
+    exact_url: str | None = None,
 ) -> FetchResult:
-    """Fetch HTTPS bytes with exact-host redirect restrictions and a byte ceiling."""
+    """Fetch HTTPS bytes with bounded redirects and optional exact-URL authority."""
 
     if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
         raise PublicAcquisitionError("max_bytes must be a positive integer")
-    if not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
-        raise PublicAcquisitionError("timeout_seconds must be positive")
+    if (
+        isinstance(timeout_seconds, bool)
+        or not isinstance(timeout_seconds, (int, float))
+        or timeout_seconds <= 0
+    ):
+        raise PublicAcquisitionError("timeout_seconds must be a positive numeric duration")
     normalized_hosts = _normalize_hosts(list(allowed_hosts))
     endpoint = _validate_https_endpoint(
         url, field="fetch endpoint", allowed_hosts=normalized_hosts
     )
+    exact_endpoint: str | None = None
+    if exact_url is not None:
+        exact_endpoint = _validate_https_endpoint(
+            exact_url, field="exact fetch endpoint", allowed_hosts=normalized_hosts
+        )
+        if endpoint != exact_endpoint:
+            raise PublicAcquisitionError(
+                "fetch endpoint differs from the exact authorized fetch URL"
+            )
 
     request_headers = {
         "User-Agent": "materials-data-analyzer/automatic-public-acquisition",
@@ -481,7 +538,9 @@ def fetch_https_bytes(
                 value, f"header {key!r}"
             )
 
-    opener = build_opener(_RestrictedRedirectHandler(normalized_hosts))
+    opener = build_opener(
+        _RestrictedRedirectHandler(normalized_hosts, exact_url=exact_endpoint)
+    )
     request = Request(endpoint, headers=request_headers, method="GET")
     try:
         with opener.open(request, timeout=float(timeout_seconds)) as response:
@@ -491,6 +550,10 @@ def fetch_https_bytes(
                 field="final response endpoint",
                 allowed_hosts=normalized_hosts,
             )
+            if exact_endpoint is not None and final_url != exact_endpoint:
+                raise PublicAcquisitionError(
+                    "final response endpoint left the exact authorized fetch URL"
+                )
             status = int(getattr(response, "status", response.getcode()))
             if status < 200 or status >= 300:
                 if status in _TRANSIENT_HTTP_STATUS_CODES:
@@ -501,6 +564,7 @@ def fetch_https_bytes(
                     f"HTTP acquisition returned non-success status {status}"
                 )
             content_length = response.headers.get("Content-Length")
+            declared_length: int | None = None
             if content_length is not None:
                 try:
                     declared_length = int(content_length)
@@ -524,6 +588,11 @@ def fetch_https_bytes(
                         "HTTP response exceeded the configured byte ceiling"
                     )
                 chunks.append(chunk)
+            if declared_length is not None and observed < declared_length:
+                raise PublicAcquisitionTransportError(
+                    "HTTP response ended before declared Content-Length "
+                    f"({observed} < {declared_length})"
+                )
             body = b"".join(chunks)
             content_type = response.headers.get("Content-Type")
             return FetchResult(
@@ -577,8 +646,12 @@ def fetch_https_bytes(
             raise PublicAcquisitionError(
                 f"HTTP acquisition permission/access-control failure: {reason}"
             ) from exc
-        raise PublicAcquisitionTransportError(
-            f"HTTP acquisition failed: {exc}"
+        if _is_recognized_transient_delivery_error(reason):
+            raise PublicAcquisitionTransportError(
+                f"HTTP acquisition failed: {exc}"
+            ) from exc
+        raise PublicAcquisitionError(
+            f"HTTP acquisition unrecognized/non-transient URL failure: {reason}"
         ) from exc
     except ssl.SSLError as exc:
         raise PublicAcquisitionError(
@@ -601,8 +674,12 @@ def fetch_https_bytes(
             raise PublicAcquisitionError(
                 f"HTTP acquisition permission/access-control failure: {exc}"
             ) from exc
-        raise PublicAcquisitionTransportError(
-            f"HTTP acquisition failed: {exc}"
+        if _is_recognized_transient_delivery_error(exc):
+            raise PublicAcquisitionTransportError(
+                f"HTTP acquisition failed: {exc}"
+            ) from exc
+        raise PublicAcquisitionError(
+            f"HTTP acquisition unrecognized/non-transient OS failure: {exc}"
         ) from exc
 
 
