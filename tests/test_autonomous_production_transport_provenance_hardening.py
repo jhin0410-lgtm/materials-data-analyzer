@@ -164,6 +164,47 @@ def _rehash_manifest_cycles(manifest: dict[str, Any]) -> None:
     _rehash(manifest, "manifest_sha256")
 
 
+def test_semantic_typed_equal_rejects_nested_numeric_aliases() -> None:
+    expected = {
+        "rows": [
+            {
+                "block_index": 1,
+                "excel_row_number": 79,
+                "missing": False,
+            }
+        ]
+    }
+    observed = {
+        "rows": [
+            {
+                "block_index": 1.0,
+                "excel_row_number": 79.0,
+                "missing": 0,
+            }
+        ]
+    }
+    assert semantic_hardening._typed_equal(observed, expected) is False
+
+
+def test_rehashed_manifest_nested_incomplete_row_float_alias_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _prepare_hardened(tmp_path)
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+    manifest_path = output / "autonomous-production-manifest.json"
+    manifest = _read(manifest_path)
+    manifest["known_incomplete_rows"][0]["block_index"] = 1.0
+    _rehash(manifest, "manifest_sha256")
+    _write(manifest_path, manifest)
+
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="autonomous manifest incomplete-row identity",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
 def test_rehashed_manifest_cycle_index_drift_is_rejected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -298,6 +339,43 @@ def test_rehashed_secondary_blocker_cannot_authorize_imputation(
     with pytest.raises(
         live_verifier.AutonomousProductionLiveVerificationError,
         match="rediagnosis secondary data-quality authority drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_rehashed_secondary_blocker_count_float_alias_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _prepare_hardened(tmp_path)
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+
+    def mutate(value: dict[str, Any]) -> None:
+        value["secondary_blockers"][0]["affected_row_count"] = 1.0
+
+    _source._rehash_predecessor_chain(output, mutate_rediagnosis=mutate)
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="rediagnosis secondary data-quality authority drifted",
+    ):
+        live_verifier.verify_live_autonomous_output(output)
+
+
+def test_rehashed_comparability_binding_byte_float_alias_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = _prepare_hardened(tmp_path)
+    _base._run_transport_stop(monkeypatch, root=tmp_path)
+
+    def mutate(value: dict[str, Any]) -> None:
+        binding = value["evidence_bindings"]["nist_case_readme"]
+        binding["bytes"] = float(binding["bytes"])
+
+    _source._rehash_predecessor_chain(output, mutate_assessment=mutate)
+    with pytest.raises(
+        live_verifier.AutonomousProductionLiveVerificationError,
+        match="physical comparability evidence binding nist_case_readme byte count mismatch",
     ):
         live_verifier.verify_live_autonomous_output(output)
 
