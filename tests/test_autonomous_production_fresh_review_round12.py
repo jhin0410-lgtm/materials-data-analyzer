@@ -10,10 +10,6 @@ import pytest
 from materials_data_analyzer.research_loop import (
     autonomous_production_fresh_review_round12 as round12,
 )
-from materials_data_analyzer.research_loop import (
-    autonomous_production_live_verifier as live_verifier,
-)
-
 
 def _cycle1_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     repository = tmp_path / "repository"
@@ -388,52 +384,34 @@ def test_derived_artifact_replay_starts_at_cycle10(
     assert len(calls) == expected_calls
 
 
-def _exact_transport_stop_manifest() -> dict[str, Any]:
-    return {
-        "cycles": [
-            {},
-            {},
-            {
-                "cycle_index": 3,
-                "selected_action_class": live_verifier.NIST_ACTION_CLASS,
-                "scientific_status_changed": False,
-            },
-        ],
-        "stop": {
-            "status": "stopped",
-            "reason_code": live_verifier.TRANSPORT_STOP_REASON_CODE,
-            "requested_action_class": live_verifier.NIST_ACTION_CLASS,
-            "scientific_status_changed": False,
-        },
-        "scientific_status_changed": False,
-    }
+def test_short_lifecycle_authenticates_cycle1_without_requiring_promotion_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = {"cycles": [{}, {}, {}]}
+    monkeypatch.setattr(
+        round12._merge_gate,
+        "_load",
+        lambda _root, name: copy.deepcopy(manifest)
+        if name == "autonomous-production-manifest.json"
+        else (_ for _ in ()).throw(AssertionError(f"unexpected artifact load: {name}")),
+    )
+    calls: list[str] = []
+    monkeypatch.setattr(
+        round12,
+        "_verify_cycle1_independent_bindings",
+        lambda *_args: calls.append("cycle1"),
+    )
+    monkeypatch.setattr(
+        round12._round11,
+        "_strict_replay_promotions",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("promotion replay must not run before cycle 5")
+        ),
+    )
 
-
-def test_round12_skip_is_limited_to_exact_three_cycle_transport_stop() -> None:
-    manifest = _exact_transport_stop_manifest()
-    assert live_verifier._is_exact_nist_transport_stop_lifecycle(manifest) is True
-
-    wrong_reason = copy.deepcopy(manifest)
-    wrong_reason["stop"]["reason_code"] = "maximum_cycles_reached"
-    assert live_verifier._is_exact_nist_transport_stop_lifecycle(wrong_reason) is False
-
-    wrong_action = copy.deepcopy(manifest)
-    wrong_action["cycles"][2]["selected_action_class"] = "external_evidence_search"
-    assert live_verifier._is_exact_nist_transport_stop_lifecycle(wrong_action) is False
-
-    widened_science = copy.deepcopy(manifest)
-    widened_science["scientific_status_changed"] = True
-    assert live_verifier._is_exact_nist_transport_stop_lifecycle(widened_science) is False
-
-
-def test_current_output_cannot_delete_round12_fields_and_claim_transport_skip() -> None:
-    manifest = _exact_transport_stop_manifest()
-    manifest["cycles"].append({"cycle_index": 4})
-    assert live_verifier._is_exact_nist_transport_stop_lifecycle(manifest) is False
-
-    manifest = _exact_transport_stop_manifest()
-    manifest["stop"].pop("requested_action_class")
-    assert live_verifier._is_exact_nist_transport_stop_lifecycle(manifest) is False
+    round12.verify_fresh_review_round12_boundaries(tmp_path)
+    assert calls == ["cycle1"]
 
 
 def test_round12_is_wired_and_uploaded_by_the_live_gate() -> None:
