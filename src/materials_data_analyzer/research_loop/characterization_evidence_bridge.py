@@ -298,6 +298,23 @@ def _gap_from_verified(verified: Mapping[str, Any]) -> dict[str, Any] | None:
     return {"gap": gap, "action": action}
 
 
+def build_verified_characterization_planning_requirement(
+    assessment: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Reverify one producer assessment and deterministically project only its first blocker."""
+
+    verified = verify_characterization_evidence_assessment(assessment)
+    projected = _gap_from_verified(verified)
+    return {
+        "verified_assessment": verified,
+        "planning_requirement": None if projected is None else projected["gap"],
+        "planning_action": None if projected is None else projected["action"],
+        "scientific_status_promoted": False,
+        "downstream_use_authorized": False,
+        "automatic_execution_authorized": False,
+    }
+
+
 def apply_characterization_evidence_assessments(
     plan: Mapping[str, Any], assessments: Sequence[Mapping[str, Any]]
 ) -> dict[str, Any]:
@@ -370,5 +387,6 @@ __all__ = [
     "LEVELS",
     "apply_characterization_evidence_assessments",
     "composite_assessment_binding",
+    "build_verified_characterization_planning_requirement",
     "verify_characterization_evidence_assessment",
 ]
