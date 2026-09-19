@@ -180,6 +180,19 @@ def test_complete_characterization_state_adds_no_false_requirement() -> None:
     assert state["unresolved_requirements"] == []
 
 
+def test_characterization_source_assessment_rejects_integral_float_maturity_index() -> None:
+    assessment = _assessment(4)
+    assessment["highest_contiguous_supported_index"] = 4.0
+    assessment["assessment_sha256"] = canonical_sha256(
+        {key: value for key, value in assessment.items() if key != "assessment_sha256"}
+    )
+    with pytest.raises(
+        CharacterizationEvidenceBridgeError,
+        match="highest_contiguous_supported_index",
+    ):
+        adapt_characterization_provider_state(assessment)
+
+
 def test_characterization_adapter_rejects_tampered_domain_assessment() -> None:
     assessment = _assessment(4)
     assessment["declaration"]["subject"]["target_material_domain"] = "forged"
