@@ -331,6 +331,16 @@ def _text(value: object, *, field: str) -> str:
     return value
 
 
+def _trusted_sha256(value: object, *, field: str) -> str:
+    text = _text(value, field=field)
+    _require(
+        len(text) == 64
+        and all(character in "0123456789abcdef" for character in text),
+        f"{field} must be an external lowercase SHA-256 digest",
+    )
+    return text
+
+
 def _unique_text_list(value: object, *, field: str) -> list[str]:
     _require(isinstance(value, list), f"{field} must be a list")
     result: list[str] = []
@@ -374,7 +384,15 @@ def _validate_rule_registry(
         _require(rule.dimension not in seen, "comparability dimensions must be unique")
         seen.add(rule.dimension)
         result.append(rule)
-    return tuple(result)
+    normalized = tuple(result)
+    _require(
+        _typed_equal(
+            _serialized_rules(normalized),
+            _serialized_rules(DEFAULT_RULE_REGISTRY),
+        ),
+        "Comparability Engine v1 rule registry is immutable and may not be narrowed or widened",
+    )
+    return normalized
 
 
 def _validate_claim_scope(
@@ -815,12 +833,21 @@ def assess_comparability(
     right: AuthenticatedEvidenceInput,
     *,
     claim_scope: Mapping[str, Any],
+    trusted_claim_scope_sha256: str,
     rule_registry: Sequence[ComparabilityRule] = DEFAULT_RULE_REGISTRY,
 ) -> dict[str, Any]:
-    """Authenticate both packets and assess only the declared comparison claim."""
+    """Authenticate both packets and the declared claim before comparison."""
 
     rules = _validate_rule_registry(rule_registry)
     claim = _validate_claim_scope(claim_scope, rules)
+    trusted_claim = _trusted_sha256(
+        trusted_claim_scope_sha256,
+        field="trusted_claim_scope_sha256",
+    )
+    _require(
+        canonical_sha256(claim) == trusted_claim,
+        "claim scope does not match the external trust-root SHA-256",
+    )
     left_packet = validate_authenticated_evidence_packet(
         left.packet,
         artifacts=left.artifacts,
@@ -984,6 +1011,7 @@ def verify_comparability_assessment(
     right: AuthenticatedEvidenceInput,
     *,
     claim_scope: Mapping[str, Any],
+    trusted_claim_scope_sha256: str,
     rule_registry: Sequence[ComparabilityRule] = DEFAULT_RULE_REGISTRY,
 ) -> dict[str, Any]:
     """Recompute one assessment from authenticated packets and compare exact JSON types."""
@@ -1003,6 +1031,7 @@ def verify_comparability_assessment(
         left,
         right,
         claim_scope=claim_scope,
+        trusted_claim_scope_sha256=trusted_claim_scope_sha256,
         rule_registry=rule_registry,
     )
     _require(
