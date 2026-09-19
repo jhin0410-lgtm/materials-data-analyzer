@@ -20,6 +20,20 @@ or authorize predictive/engineering use.
 There is intentionally no scalar comparability score. A numeric score would imply an ordering
 and uncertainty meaning that the current evidence does not scientifically calibrate.
 
+## Claim and rule authority
+
+Comparability Engine v1 uses one immutable default rule registry. A caller cannot drop a
+dimension or replace its comparison mode to obtain a weaker result.
+
+The complete declared claim scope is also authenticated against an externally supplied
+SHA-256 trust root before either packet is compared. Changing a required dimension to
+`irrelevant`, changing the independent-replication requirement, or widening allowed
+transformations therefore changes the claim hash and fails under the original trust root.
+
+As with EvidencePacket expectation roots, the trusted claim digest must originate outside the
+mutable claim object (for example from the authenticated mission/science-plane decision record);
+rehashing a caller-edited claim is not independent authorization.
+
 ## Claim completeness
 
 The default registry covers:
