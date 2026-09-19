@@ -14,7 +14,7 @@ from materials_data_analyzer.research_loop.comparability_engine import (
     AuthenticatedEvidenceInput,
     ComparabilityEngineError,
     DEFAULT_RULE_REGISTRY,
-    assess_comparability,
+    assess_comparability as _raw_assess_comparability,
     verify_comparability_assessment,
 )
 from materials_data_analyzer.research_loop.evidence_packet import (
@@ -234,6 +234,22 @@ def _claim(
     }
 
 
+def _assess(
+    left: AuthenticatedEvidenceInput,
+    right: AuthenticatedEvidenceInput,
+    *,
+    claim_scope: dict[str, Any],
+    rule_registry=DEFAULT_RULE_REGISTRY,
+) -> dict[str, Any]:
+    return _raw_assess_comparability(
+        left,
+        right,
+        claim_scope=claim_scope,
+        trusted_claim_scope_sha256=canonical_sha256(claim_scope),
+        rule_registry=rule_registry,
+    )
+
+
 def test_exact_context_can_be_comparable_without_granting_predictive_authority() -> None:
     left_raw = b"left-real-source\n"
     right_raw = b"right-real-source\n"
@@ -253,7 +269,7 @@ def test_exact_context_can_be_comparable_without_granting_predictive_authority()
         "units_reference_conventions",
     )
 
-    result = assess_comparability(
+    result = _assess(
         _input(left, left_raw),
         _input(right, right_raw),
         claim_scope=claim,
@@ -287,7 +303,7 @@ def test_declared_unit_normalization_yields_conditional_not_unqualified_comparab
         "units_reference_conventions",
         allowed_transformations=("units_reference_conventions",),
     )
-    result = assess_comparability(
+    result = _assess(
         _input(left, left_raw),
         _input(right, right_raw),
         claim_scope=claim,
@@ -310,7 +326,7 @@ def test_declared_unit_transformation_rejects_dimensionally_incompatible_units()
         dataset_parent_id="dataset-2",
         sample="sample-2",
     )
-    result = assess_comparability(
+    result = _assess(
         _input(left, left_raw),
         _input(right, right_raw),
         claim_scope=_claim(
@@ -337,7 +353,7 @@ def test_missing_required_protocol_stays_unknown() -> None:
         dataset_parent_id="dataset-2",
         sample="sample-2",
     )
-    result = assess_comparability(
+    result = _assess(
         _input(left, left_raw),
         _input(right, right_raw),
         claim_scope=_claim("protocol_reference_version"),
@@ -368,7 +384,7 @@ def test_unknown_calibration_on_both_packets_does_not_become_comparable() -> Non
         dataset_parent_id="dataset-2",
         sample="sample-2",
     )
-    result = assess_comparability(
+    result = _assess(
         _input(left, left_raw),
         _input(right, right_raw),
         claim_scope=_claim("instrument_state_calibration"),
@@ -395,7 +411,7 @@ def test_same_source_family_blocks_independent_replication_claim() -> None:
         independence_claim_status="independent_within_stated_dimensions",
         overlap_status="no_known_overlap",
     )
-    result = assess_comparability(
+    result = _assess(
         _input(left, left_raw),
         _input(right, right_raw),
         claim_scope=_claim("independence_lineage", independent=True),
@@ -446,7 +462,7 @@ def test_real_in625_nist_vs_zenodo_chain_remains_not_comparable_for_direct_numer
         "units_reference_conventions",
         "protocol_reference_version",
     )
-    result = assess_comparability(
+    result = _assess(
         _input(nist, nist_raw),
         _input(tensile, zenodo_raw),
         claim_scope=claim,
@@ -498,7 +514,7 @@ def test_characterization_software_example_is_not_material_phase_validation() ->
         dataset_parent_id="material-validation",
         sample="foil-1",
     )
-    result = assess_comparability(
+    result = _assess(
         _input(example, example_raw),
         _input(material, material_raw),
         claim_scope=_claim(
@@ -527,7 +543,7 @@ def test_rehashed_assessment_tamper_fails_authenticated_recomputation() -> None:
     left_input = _input(left, left_raw)
     right_input = _input(right, right_raw)
     claim = _claim("material_identity")
-    result = assess_comparability(left_input, right_input, claim_scope=claim)
+    result = _assess(left_input, right_input, claim_scope=claim)
     forged = copy.deepcopy(result)
     forged["assessment_status"] = NOT_COMPARABLE
     forged.pop("assessment_sha256")
@@ -542,6 +558,7 @@ def test_rehashed_assessment_tamper_fails_authenticated_recomputation() -> None:
             left_input,
             right_input,
             claim_scope=claim,
+            trusted_claim_scope_sha256=canonical_sha256(claim),
         )
 
 
@@ -578,10 +595,51 @@ def test_packet_source_substitution_cannot_be_hidden_by_rehashing_packet() -> No
         EvidencePacketError,
         match="source role/path/artifact substitution|packet SHA-256 expectation",
     ):
-        assess_comparability(
+        _assess(
             forged_input,
             _input(other, other_raw),
             claim_scope=_claim("material_identity"),
+        )
+
+
+def test_claim_scope_cannot_be_weakened_under_original_external_trust_root() -> None:
+    raw = b"source\n"
+    packet = _packet(evidence_id="one", artifact=raw, locator="a/one.bin")
+    original = _claim("material_identity", "material_composition")
+    trusted = canonical_sha256(original)
+    weakened = copy.deepcopy(original)
+    weakened["required_dimensions"].remove("material_composition")
+    weakened["irrelevant_dimensions"].append("material_composition")
+    weakened["irrelevant_dimensions"].sort(
+        key=[rule.dimension for rule in DEFAULT_RULE_REGISTRY].index
+    )
+
+    with pytest.raises(
+        ComparabilityEngineError,
+        match="external trust-root",
+    ):
+        _raw_assess_comparability(
+            _input(packet, raw),
+            _input(packet, raw),
+            claim_scope=weakened,
+            trusted_claim_scope_sha256=trusted,
+        )
+
+
+def test_v1_rule_registry_cannot_be_narrowed_by_caller() -> None:
+    raw = b"source\n"
+    packet = _packet(evidence_id="one", artifact=raw, locator="a/one.bin")
+    claim = _claim("material_identity")
+    with pytest.raises(
+        ComparabilityEngineError,
+        match="rule registry is immutable",
+    ):
+        _raw_assess_comparability(
+            _input(packet, raw),
+            _input(packet, raw),
+            claim_scope=claim,
+            trusted_claim_scope_sha256=canonical_sha256(claim),
+            rule_registry=DEFAULT_RULE_REGISTRY[:-1],
         )
 
 
@@ -594,7 +652,7 @@ def test_claim_must_explicitly_classify_every_registered_dimension() -> None:
         ComparabilityEngineError,
         match="every registered comparability dimension",
     ):
-        assess_comparability(
+        _assess(
             _input(packet, raw),
             _input(packet, raw),
             claim_scope=malformed,
