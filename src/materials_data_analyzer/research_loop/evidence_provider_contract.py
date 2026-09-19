@@ -6,6 +6,7 @@ research planner. It is not an EvidencePacket and cannot create empirical/scient
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -94,6 +95,14 @@ _AGGREGATE_KEYS = frozenset(
 
 class EvidenceProviderContractError(ValueError):
     """Raised when provider planning state widens or loses its trust boundary."""
+
+
+@dataclass(frozen=True)
+class AuthenticatedProviderStateInput:
+    """One ProviderState plus an independently obtained complete-state SHA-256 root."""
+
+    state: Mapping[str, Any]
+    trusted_provider_state_sha256: str
 
 
 def _require(condition: bool, message: str) -> None:
@@ -660,11 +669,27 @@ def verify_authenticated_planning_provider_state(
 
 
 def aggregate_provider_requirements(
-    states: Sequence[Mapping[str, Any]],
+    inputs: Sequence[AuthenticatedProviderStateInput],
 ) -> dict[str, Any]:
-    """Aggregate validated ProviderState requirements with immutable SHA ancestry."""
+    """Aggregate externally authenticated ProviderStates with immutable SHA ancestry."""
 
-    validated = [validate_provider_state(item) for item in states]
+    validated: list[dict[str, Any]] = []
+    for index, item in enumerate(inputs):
+        _require(
+            isinstance(item, AuthenticatedProviderStateInput),
+            f"provider input[{index}] must be AuthenticatedProviderStateInput",
+        )
+        state = validate_provider_state(item.state)
+        trusted = _sha(
+            item.trusted_provider_state_sha256,
+            field=f"provider input[{index}].trusted_provider_state_sha256",
+        )
+        _require(
+            state["provider_state_sha256"] == trusted,
+            f"provider input[{index}] does not match its external trust-root SHA-256",
+        )
+        validated.append(state)
+
     provider_ids = [item["provider"]["provider_id"] for item in validated]
     _require(
         len(set(provider_ids)) == len(provider_ids),
@@ -718,12 +743,12 @@ def aggregate_provider_requirements(
 
 def verify_provider_requirement_aggregate(
     value: object,
-    states: Sequence[Mapping[str, Any]],
+    inputs: Sequence[AuthenticatedProviderStateInput],
 ) -> dict[str, Any]:
-    """Recompute one provider aggregate from validated provider states."""
+    """Recompute one provider aggregate from externally authenticated ProviderStates."""
 
     supplied = validate_provider_requirement_aggregate(value)
-    expected = aggregate_provider_requirements(states)
+    expected = aggregate_provider_requirements(inputs)
     _require(
         _typed_equal(supplied, expected),
         "ProviderRequirementAggregate differs from provider-state recomputation",
@@ -766,6 +791,7 @@ def validate_provider_requirement_aggregate(value: object) -> dict[str, Any]:
 
 
 __all__ = [
+    "AuthenticatedProviderStateInput",
     "BINDING_KINDS",
     "EvidenceProviderContractError",
     "PROVIDER_STATE_POLICY_VERSION",
