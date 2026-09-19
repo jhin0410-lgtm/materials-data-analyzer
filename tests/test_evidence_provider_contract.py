@@ -10,6 +10,7 @@ from materials_data_analyzer.research_loop.characterization_evidence_bridge impo
 )
 from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256
 from materials_data_analyzer.research_loop.evidence_provider_contract import (
+    AuthenticatedProviderStateInput,
     EvidenceProviderContractError,
     adapt_authenticated_planning_gaps,
     adapt_characterization_provider_state,
@@ -125,6 +126,13 @@ def _planning_state() -> dict[str, object]:
         },
         "state_semantics": "verified_planning_context_snapshot_not_scientific_truth",
     }
+
+
+def _trusted_provider(state: dict[str, object]) -> AuthenticatedProviderStateInput:
+    return AuthenticatedProviderStateInput(
+        state=state,
+        trusted_provider_state_sha256=state["provider_state_sha256"],  # type: ignore[arg-type]
+    )
 
 
 def _rehash_provider(state: dict[str, object]) -> dict[str, object]:
@@ -294,6 +302,27 @@ def test_provider_state_rejects_boolean_and_float_authority_or_maturity_aliases(
         validate_provider_state(floated)
 
 
+def test_provider_aggregate_rejects_rehashed_state_under_original_external_root() -> None:
+    state = adapt_characterization_provider_state(_assessment(4))
+    trusted = state["provider_state_sha256"]
+    forged = copy.deepcopy(state)
+    forged["unresolved_requirements"][0]["description"] = "forged planning requirement"
+    forged = _rehash_provider(forged)
+
+    with pytest.raises(
+        EvidenceProviderContractError,
+        match="external trust-root",
+    ):
+        aggregate_provider_requirements(
+            [
+                AuthenticatedProviderStateInput(
+                    state=forged,
+                    trusted_provider_state_sha256=trusted,
+                )
+            ]
+        )
+
+
 def test_provider_aggregation_is_deterministic_and_preserves_sha_ancestry() -> None:
     characterization = adapt_characterization_provider_state(_assessment(4))
     planning = _planning_state()
@@ -302,8 +331,14 @@ def test_provider_aggregation_is_deterministic_and_preserves_sha_ancestry() -> N
         trusted_state_sha256=canonical_sha256(planning),
     )
 
-    first = aggregate_provider_requirements([characterization, planning_provider])
-    second = aggregate_provider_requirements([planning_provider, characterization])
+    first = aggregate_provider_requirements([
+        _trusted_provider(characterization),
+        _trusted_provider(planning_provider),
+    ])
+    second = aggregate_provider_requirements([
+        _trusted_provider(planning_provider),
+        _trusted_provider(characterization),
+    ])
 
     assert first == second
     assert len(first["requirements"]) == 2
@@ -322,7 +357,10 @@ def test_rehashed_aggregate_tamper_fails_provider_state_recomputation() -> None:
         planning,
         trusted_state_sha256=canonical_sha256(planning),
     )
-    aggregate = aggregate_provider_requirements([characterization, planning_provider])
+    aggregate = aggregate_provider_requirements([
+        _trusted_provider(characterization),
+        _trusted_provider(planning_provider),
+    ])
     forged = copy.deepcopy(aggregate)
     forged["requirements"][0]["requirement"]["description"] = "forged"
     forged = _rehash_aggregate(forged)
@@ -333,11 +371,17 @@ def test_rehashed_aggregate_tamper_fails_provider_state_recomputation() -> None:
     ):
         verify_provider_requirement_aggregate(
             forged,
-            [characterization, planning_provider],
+            [
+                _trusted_provider(characterization),
+                _trusted_provider(planning_provider),
+            ],
         )
 
 
 def test_duplicate_provider_identity_is_rejected_by_aggregate() -> None:
     state = adapt_characterization_provider_state(_assessment(4))
     with pytest.raises(EvidenceProviderContractError, match="unique provider ids"):
-        aggregate_provider_requirements([state, state])
+        aggregate_provider_requirements([
+            _trusted_provider(state),
+            _trusted_provider(state),
+        ])
