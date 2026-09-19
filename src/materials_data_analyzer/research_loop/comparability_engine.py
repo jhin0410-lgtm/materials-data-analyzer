@@ -173,6 +173,15 @@ DEFAULT_RULE_REGISTRY = (
 
 
 _CONTEXT_ATTRIBUTE_ALIASES: dict[str, frozenset[str]] = {
+    "material_composition": frozenset(
+        {
+            "composition",
+            "chemical_composition",
+            "alloy_composition",
+            "material_grade",
+            "material_specification",
+        }
+    ),
     "feedstock_lot_batch": frozenset(
         {"feedstock_lot", "powder_lot", "lot", "batch", "feedstock_batch"}
     ),
