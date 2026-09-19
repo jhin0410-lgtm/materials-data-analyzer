@@ -185,8 +185,13 @@ def verify_characterization_evidence_assessment(value: Mapping[str, Any]) -> dic
     if _canonical_sha256(declaration) != claimed_declaration:
         raise CharacterizationEvidenceBridgeError("declaration_sha256 mismatch")
     expected_highest = LEVELS[highest_index] if highest_index >= 0 else None
-    if root["highest_contiguous_supported_index"] != highest_index:
-        raise CharacterizationEvidenceBridgeError("highest_contiguous_supported_index mismatch")
+    if (
+        type(root["highest_contiguous_supported_index"]) is not int
+        or root["highest_contiguous_supported_index"] != highest_index
+    ):
+        raise CharacterizationEvidenceBridgeError(
+            "highest_contiguous_supported_index mismatch"
+        )
     if root["highest_contiguous_supported_level"] != expected_highest:
         raise CharacterizationEvidenceBridgeError("highest_contiguous_supported_level mismatch")
     if root["first_blocking_level"] != first_blocker:
