@@ -71,6 +71,7 @@ def _packet(
     acquisition_parent_ids: list[str] | None = None,
     independence_claim_status: str = "not_assessed",
     overlap_status: str = "unknown",
+    reference_convention: str | None = "declared_scalar_quantity_convention",
 ) -> dict[str, Any]:
     process_attributes = []
     if process_route is not None:
@@ -83,6 +84,11 @@ def _packet(
         method_attributes.append(_attribute("protocol", protocol))
     if instrument is not None:
         method_attributes.append(_attribute("instrument", instrument))
+    measurement_attributes = []
+    if reference_convention is not None:
+        measurement_attributes.append(
+            _attribute("reference_convention", reference_convention)
+        )
 
     unsigned: dict[str, Any] = {
         "schema_version": "1.0",
@@ -108,7 +114,10 @@ def _packet(
             "process": {"status": "applicable", "attributes": process_attributes},
             "sample": {"status": "applicable", "attributes": sample_attributes},
             "method": {"status": "applicable", "attributes": method_attributes},
-            "measurement": {"status": "applicable", "attributes": []},
+            "measurement": {
+                "status": "applicable",
+                "attributes": measurement_attributes,
+            },
         },
         "results": [
             {
@@ -154,8 +163,14 @@ def _packet(
         "independence": {
             "source_family_id": source_family_id,
             "dataset_parent_id": dataset_parent_id,
-            "sample_parent_ids": sample_parent_ids or [sample],
-            "acquisition_parent_ids": acquisition_parent_ids or [sample + "-acq"],
+            "sample_parent_ids": (
+                [sample] if sample_parent_ids is None else sample_parent_ids
+            ),
+            "acquisition_parent_ids": (
+                [sample + "-acq"]
+                if acquisition_parent_ids is None
+                else acquisition_parent_ids
+            ),
             "development_family_id": None,
             "overlap_status": overlap_status,
             "overlap_with": [],
@@ -370,6 +385,83 @@ def test_missing_required_protocol_stays_unknown() -> None:
         }
     ]
     assert result["authority_boundary"]["missing_context_inferred"] is False
+
+
+def test_missing_sample_or_acquisition_lineage_stays_unknown() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(
+        evidence_id="left",
+        artifact=left_raw,
+        locator="a/left.bin",
+        sample_parent_ids=[],
+        acquisition_parent_ids=[],
+    )
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        sample_parent_ids=[],
+        acquisition_parent_ids=[],
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("sample_acquisition_identity"),
+    )
+    assert result["assessment_status"] == UNKNOWN
+    assert result["missing_context"] == ["sample_acquisition_identity"]
+
+
+def test_absent_preprocessing_history_does_not_imply_same_processing() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("preprocessing_transformation_history"),
+    )
+    assert result["assessment_status"] == UNKNOWN
+    assert result["missing_context"] == ["preprocessing_transformation_history"]
+
+
+def test_missing_reference_convention_keeps_unit_comparability_unknown() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(
+        evidence_id="left",
+        artifact=left_raw,
+        locator="a/left.bin",
+        reference_convention=None,
+    )
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+        reference_convention=None,
+    )
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("units_reference_conventions"),
+    )
+    assert result["assessment_status"] == UNKNOWN
+    assert result["missing_context"] == ["units_reference_conventions"]
 
 
 def test_unknown_calibration_on_both_packets_does_not_become_comparable() -> None:
