@@ -767,6 +767,8 @@ def _evaluate_units(
 ) -> tuple[str, str]:
     left_refs = left.get("reference_conventions")
     right_refs = right.get("reference_conventions")
+    if not left_refs or not right_refs:
+        return MISSING, "Required reference-convention context is missing."
     if not _typed_equal(left_refs, right_refs):
         return (
             CONFLICT,
