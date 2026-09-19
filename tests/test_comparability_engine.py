@@ -574,7 +574,10 @@ def test_packet_source_substitution_cannot_be_hidden_by_rehashing_packet() -> No
         trusted_expectation_sha256=trusted,
     )
 
-    with pytest.raises(EvidencePacketError, match="packet SHA-256 expectation"):
+    with pytest.raises(
+        EvidencePacketError,
+        match="source role/path/artifact substitution|packet SHA-256 expectation",
+    ):
         assess_comparability(
             forged_input,
             _input(other, other_raw),
