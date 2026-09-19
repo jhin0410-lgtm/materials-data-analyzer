@@ -270,6 +270,15 @@ _CONTEXT_ATTRIBUTE_ALIASES: dict[str, frozenset[str]] = {
             "method_version",
         }
     ),
+    "preprocessing_transformation_history": frozenset(
+        {
+            "preprocessing",
+            "preprocessing_history",
+            "transformation_history",
+            "data_processing",
+            "normalization",
+        }
+    ),
     "units_reference_conventions": frozenset(
         {"reference_convention", "coordinate_convention", "normalization_reference"}
     ),
@@ -498,14 +507,19 @@ def _sample_acquisition_identity(packet: Mapping[str, Any]) -> dict[str, Any] | 
     subject_samples = _subject_identity_values(packet, "sample")
     sample_parents = independence.get("sample_parent_ids")
     acquisition_parents = independence.get("acquisition_parent_ids")
-    result = {
+    if (
+        not subject_samples
+        or not isinstance(sample_parents, list)
+        or not sample_parents
+        or not isinstance(acquisition_parents, list)
+        or not acquisition_parents
+    ):
+        return None
+    return {
         "subject_sample_ids": subject_samples,
         "sample_parent_ids": copy.deepcopy(sample_parents),
         "acquisition_parent_ids": copy.deepcopy(acquisition_parents),
     }
-    if not subject_samples and not sample_parents and not acquisition_parents:
-        return None
-    return result
 
 
 def _instrument_state_calibration(
@@ -536,18 +550,24 @@ def _instrument_state_calibration(
     }
 
 
-def _preprocessing_history(packet: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _preprocessing_history(
+    packet: Mapping[str, Any],
+) -> dict[str, Any] | None:
     lineage = packet["derivation_lineage"]
     assert isinstance(lineage, list)
-    if not lineage:
-        return [{"state": "no_declared_derivation"}]
-    result: list[dict[str, Any]] = []
+    context = _context_values(
+        packet,
+        _CONTEXT_ATTRIBUTE_ALIASES["preprocessing_transformation_history"],
+    )
+    if not lineage and not context:
+        return None
+    derivations: list[dict[str, Any]] = []
     for item in lineage:
         assert isinstance(item, Mapping)
         software = item.get("software")
         if not isinstance(software, Mapping):
             software = {}
-        result.append(
+        derivations.append(
             {
                 "operation": item.get("operation"),
                 "software_name": software.get("name"),
@@ -555,7 +575,10 @@ def _preprocessing_history(packet: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "parameters": copy.deepcopy(item.get("parameters")),
             }
         )
-    return result
+    return {
+        "derivations": derivations,
+        "declared_context": context,
+    }
 
 
 def _units_reference_conventions(packet: Mapping[str, Any]) -> dict[str, Any]:
