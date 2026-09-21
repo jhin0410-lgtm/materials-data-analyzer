@@ -310,7 +310,44 @@ def _text_list(value: object, *, field: str, allow_empty: bool = True) -> list[s
     return result
 
 
+def _enum_text(
+    value: object,
+    allowed: frozenset[str],
+    *,
+    field: str,
+) -> str:
+    _require(isinstance(value, str), f"{field} must be text")
+    _require(value in allowed, f"{field} is unsupported")
+    return value
+
+
+def _validate_json_native(value: object, *, field: str) -> None:
+    if value is None or type(value) in {bool, int, str}:
+        return
+    if type(value) is float:
+        try:
+            canonical_json_bytes(value)
+        except EvidencePacketError as exc:
+            raise EvidencePacketError(
+                f"{field} must contain finite canonical JSON numbers"
+            ) from exc
+        return
+    if type(value) is list:
+        for index, item in enumerate(value):
+            _validate_json_native(item, field=f"{field}[{index}]")
+        return
+    if type(value) is dict:
+        for key, item in value.items():
+            _require(type(key) is str, f"{field} object keys must be JSON strings")
+            _validate_json_native(item, field=f"{field}.{key}")
+        return
+    raise EvidencePacketError(
+        f"{field} must contain JSON-native values only; got {type(value).__name__}"
+    )
+
+
 def _json_value(value: object, *, field: str) -> None:
+    _validate_json_native(value, field=field)
     try:
         canonical_json_bytes(value)
     except EvidencePacketError as exc:
@@ -318,7 +355,7 @@ def _json_value(value: object, *, field: str) -> None:
 
 
 def _validate_typed_value(value: object, value_type: object, *, field: str) -> None:
-    _require(value_type in VALUE_TYPES, f"{field}.value_type is unsupported")
+    value_type = _enum_text(value_type, VALUE_TYPES, field=f"{field}.value_type")
     if value_type == "number":
         _require(
             isinstance(value, (int, float)) and not isinstance(value, bool),
@@ -341,7 +378,7 @@ def _validate_typed_value(value: object, value_type: object, *, field: str) -> N
 
 
 def _validate_unit(unit_state: object, unit: object, *, field: str) -> str | None:
-    _require(unit_state in UNIT_STATES, f"{field}.unit_state is unsupported")
+    unit_state = _enum_text(unit_state, UNIT_STATES, field=f"{field}.unit_state")
     if unit_state == "specified":
         normalized = _text(unit, field=f"{field}.unit")
         assert isinstance(normalized, str)
@@ -397,9 +434,10 @@ def _validate_contexts(value: object, binding_ids: set[str]) -> None:
             _CONTEXT_BLOCK_KEYS,
             field=f"contexts.{context_name}",
         )
-        _require(
-            block.get("status") in CONTEXT_STATUSES,
-            f"contexts.{context_name}.status is unsupported",
+        _enum_text(
+            block.get("status"),
+            CONTEXT_STATUSES,
+            field=f"contexts.{context_name}.status",
         )
         attributes = block.get("attributes")
         _require(isinstance(attributes, list), f"contexts.{context_name}.attributes must be a list")
@@ -490,10 +528,22 @@ def _validate_results(value: object, binding_ids: set[str]) -> tuple[set[str], d
         result = _exact_keys(item, _RESULT_KEYS, field=f"results[{index}]")
         result_id = _text(result.get("result_id"), field=f"results[{index}].result_id")
         _text(result.get("result_kind"), field=f"results[{index}].result_kind")
-        _require(result.get("value_state") in RESULT_VALUE_STATES, f"results[{index}].value_state is unsupported")
+        value_state = _enum_text(
+            result.get("value_state"),
+            RESULT_VALUE_STATES,
+            field=f"results[{index}].value_state",
+        )
         _validate_typed_value(result.get("value"), result.get("value_type"), field=f"results[{index}]")
-        if result.get("value_state") in {"unknown", "not_applicable"}:
-            _require(result.get("value") is None and result.get("value_type") == "null", f"results[{index}] unknown/not_applicable value must remain null")
+        if value_state in {"unknown", "not_applicable"}:
+            _require(
+                result.get("value") is None and result.get("value_type") == "null",
+                f"results[{index}] unknown/not_applicable value must remain null",
+            )
+        else:
+            _require(
+                result.get("value") is not None and result.get("value_type") != "null",
+                f"results[{index}] substantive value_state requires a non-null value",
+            )
         unit = _validate_unit(
             result.get("unit_state"), result.get("unit"), field=f"results[{index}]"
         )
@@ -519,8 +569,11 @@ def _validate_uncertainty(value: object, binding_ids: set[str]) -> tuple[set[str
     for index, item in enumerate(value):
         record = _exact_keys(item, _UNCERTAINTY_KEYS, field=f"uncertainty[{index}]")
         uncertainty_id = _text(record.get("uncertainty_id"), field=f"uncertainty[{index}].uncertainty_id")
-        status = record.get("status")
-        _require(status in UNCERTAINTY_STATUSES, f"uncertainty[{index}].status is unsupported")
+        status = _enum_text(
+            record.get("status"),
+            UNCERTAINTY_STATUSES,
+            field=f"uncertainty[{index}].status",
+        )
         _text(record.get("kind"), field=f"uncertainty[{index}].kind")
         if status == "quantified":
             _require(
@@ -542,7 +595,11 @@ def _validate_uncertainty(value: object, binding_ids: set[str]) -> tuple[set[str
         )
         if status != "quantified":
             _require(confidence is None and distribution is None, "non-quantified uncertainty may not invent distribution/confidence")
-        references = _text_list(record.get("source_binding_ids"), field=f"uncertainty[{index}].source_binding_ids")
+        references = _text_list(
+            record.get("source_binding_ids"),
+            field=f"uncertainty[{index}].source_binding_ids",
+            allow_empty=status != "quantified",
+        )
         _require(set(references) <= binding_ids, "uncertainty references unknown source binding")
         _optional_text(record.get("notes"), field=f"uncertainty[{index}].notes")
         assert isinstance(uncertainty_id, str) and isinstance(status, str)
@@ -554,8 +611,11 @@ def _validate_uncertainty(value: object, binding_ids: set[str]) -> tuple[set[str
 
 def _validate_calibration(value: object, binding_ids: set[str], uncertainty_ids: set[str]) -> str:
     calibration = _exact_keys(value, _CALIBRATION_KEYS, field="calibration")
-    status = calibration.get("status")
-    _require(status in CALIBRATION_STATUSES, "calibration.status is unsupported")
+    status = _enum_text(
+        calibration.get("status"),
+        CALIBRATION_STATUSES,
+        field="calibration.status",
+    )
     records = calibration.get("records")
     _require(isinstance(records, list), "calibration.records must be a list")
     if status == "calibrated":
@@ -584,40 +644,137 @@ def _validate_derivations(
     *,
     binding_ids: set[str],
     result_ids: set[str],
-) -> set[str]:
+) -> dict[str, dict[str, set[str]]]:
     _require(isinstance(value, list), "derivation_lineage must be a list")
-    derivation_ids: set[str] = set()
+    derivations: dict[str, dict[str, set[str]]] = {}
     for index, item in enumerate(value):
         derivation = _exact_keys(item, _DERIVATION_KEYS, field=f"derivation_lineage[{index}]")
-        derivation_id = _text(derivation.get("derivation_id"), field=f"derivation_lineage[{index}].derivation_id")
+        derivation_id = _text(
+            derivation.get("derivation_id"),
+            field=f"derivation_lineage[{index}].derivation_id",
+        )
         _text(derivation.get("operation"), field=f"derivation_lineage[{index}].operation")
-        input_bindings = _text_list(derivation.get("input_binding_ids"), field=f"derivation_lineage[{index}].input_binding_ids")
-        _require(set(input_bindings) <= binding_ids, "derivation references unknown source binding")
-        input_results = _text_list(derivation.get("input_result_ids"), field=f"derivation_lineage[{index}].input_result_ids")
-        output_results = _text_list(derivation.get("output_result_ids"), field=f"derivation_lineage[{index}].output_result_ids", allow_empty=False)
-        _require(set(input_results) <= result_ids and set(output_results) <= result_ids, "derivation references unknown result")
-        software = _exact_keys(derivation.get("software"), _SOFTWARE_KEYS, field=f"derivation_lineage[{index}].software")
+        input_bindings = _text_list(
+            derivation.get("input_binding_ids"),
+            field=f"derivation_lineage[{index}].input_binding_ids",
+        )
+        _require(
+            set(input_bindings) <= binding_ids,
+            "derivation references unknown source binding",
+        )
+        input_results = _text_list(
+            derivation.get("input_result_ids"),
+            field=f"derivation_lineage[{index}].input_result_ids",
+        )
+        output_results = _text_list(
+            derivation.get("output_result_ids"),
+            field=f"derivation_lineage[{index}].output_result_ids",
+            allow_empty=False,
+        )
+        _require(
+            set(input_results) <= result_ids and set(output_results) <= result_ids,
+            "derivation references unknown result",
+        )
+        _require(
+            set(input_results).isdisjoint(output_results),
+            "derivation may not use the same result as both input and output",
+        )
+        software = _exact_keys(
+            derivation.get("software"),
+            _SOFTWARE_KEYS,
+            field=f"derivation_lineage[{index}].software",
+        )
         _text(software.get("name"), field=f"derivation_lineage[{index}].software.name")
         _text(software.get("version"), field=f"derivation_lineage[{index}].software.version")
-        _sha(software.get("sha256"), field=f"derivation_lineage[{index}].software.sha256", allow_none=True)
-        _json_value(derivation.get("parameters"), field=f"derivation_lineage[{index}].parameters")
-        _require(derivation.get("scientific_status_promoted") is False, "derivation lineage may not promote scientific status")
+        _sha(
+            software.get("sha256"),
+            field=f"derivation_lineage[{index}].software.sha256",
+            allow_none=True,
+        )
+        _json_value(
+            derivation.get("parameters"),
+            field=f"derivation_lineage[{index}].parameters",
+        )
+        _require(
+            derivation.get("scientific_status_promoted") is False,
+            "derivation lineage may not promote scientific status",
+        )
         assert isinstance(derivation_id, str)
-        _require(derivation_id not in derivation_ids, "derivation ids must be unique")
-        derivation_ids.add(derivation_id)
-    return derivation_ids
+        _require(derivation_id not in derivations, "derivation ids must be unique")
+        derivations[derivation_id] = {
+            "input_result_ids": set(input_results),
+            "output_result_ids": set(output_results),
+        }
+    return derivations
 
 
-def _validate_result_references(value: Sequence[object], *, derivation_ids: set[str], uncertainty_ids: set[str]) -> None:
+def _validate_result_references(
+    value: Sequence[object],
+    *,
+    derivations: Mapping[str, Mapping[str, set[str]]],
+    uncertainty_ids: set[str],
+) -> None:
+    results_by_id: dict[str, Mapping[str, Any]] = {}
     for index, item in enumerate(value):
         assert isinstance(item, Mapping)
+        result_id = item.get("result_id")
+        assert isinstance(result_id, str)
+        results_by_id[result_id] = item
         referenced_derivations = set(item.get("derivation_ids", []))
-        _require(referenced_derivations <= derivation_ids, f"results[{index}] references unknown derivation")
-        _require(set(item.get("uncertainty_ids", [])) <= uncertainty_ids, f"results[{index}] references unknown uncertainty")
+        _require(
+            referenced_derivations <= set(derivations),
+            f"results[{index}] references unknown derivation",
+        )
+        _require(
+            set(item.get("uncertainty_ids", [])) <= uncertainty_ids,
+            f"results[{index}] references unknown uncertainty",
+        )
         if item.get("value_state") == "derived":
-            _require(bool(referenced_derivations), f"results[{index}] derived value requires derivation lineage")
+            _require(
+                bool(referenced_derivations),
+                f"results[{index}] derived value requires derivation lineage",
+            )
+            for derivation_id in referenced_derivations:
+                _require(
+                    result_id in derivations[derivation_id]["output_result_ids"],
+                    f"results[{index}] cited derivation does not declare this result as output",
+                )
         else:
-            _require(not referenced_derivations, f"results[{index}] non-derived value may not claim derivation lineage")
+            _require(
+                not referenced_derivations,
+                f"results[{index}] non-derived value may not claim derivation lineage",
+            )
+
+    for derivation_id, lineage in derivations.items():
+        for output_result_id in lineage["output_result_ids"]:
+            output = results_by_id[output_result_id]
+            _require(
+                derivation_id in set(output.get("derivation_ids", [])),
+                "derivation output result does not cite the producing derivation",
+            )
+
+    # Build result dependency edges input -> output and reject self/longer cycles.
+    edges: dict[str, set[str]] = {result_id: set() for result_id in results_by_id}
+    for lineage in derivations.values():
+        for input_result_id in lineage["input_result_ids"]:
+            edges[input_result_id].update(lineage["output_result_ids"])
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(result_id: str) -> None:
+        if result_id in visiting:
+            raise EvidencePacketError("derivation result dependency graph must be acyclic")
+        if result_id in visited:
+            return
+        visiting.add(result_id)
+        for successor in edges[result_id]:
+            visit(successor)
+        visiting.remove(result_id)
+        visited.add(result_id)
+
+    for result_id in sorted(edges):
+        visit(result_id)
 
 
 def _validate_independence(value: object) -> tuple[str | None, str]:
@@ -627,11 +784,30 @@ def _validate_independence(value: object) -> tuple[str | None, str]:
     _text_list(independence.get("sample_parent_ids"), field="independence.sample_parent_ids")
     _text_list(independence.get("acquisition_parent_ids"), field="independence.acquisition_parent_ids")
     _optional_text(independence.get("development_family_id"), field="independence.development_family_id")
-    overlap_status = independence.get("overlap_status")
-    claim_status = independence.get("independence_claim_status")
-    _require(overlap_status in OVERLAP_STATUSES, "independence.overlap_status is unsupported")
-    _text_list(independence.get("overlap_with"), field="independence.overlap_with")
-    _require(claim_status in INDEPENDENCE_CLAIM_STATUSES, "independence.independence_claim_status is unsupported")
+    overlap_status = _enum_text(
+        independence.get("overlap_status"),
+        OVERLAP_STATUSES,
+        field="independence.overlap_status",
+    )
+    claim_status = _enum_text(
+        independence.get("independence_claim_status"),
+        INDEPENDENCE_CLAIM_STATUSES,
+        field="independence.independence_claim_status",
+    )
+    overlap_with = _text_list(
+        independence.get("overlap_with"),
+        field="independence.overlap_with",
+    )
+    if overlap_status == "known_overlap":
+        _require(
+            bool(overlap_with),
+            "known_overlap requires at least one overlap_with evidence id",
+        )
+    else:
+        _require(
+            not overlap_with,
+            "no_known_overlap/unknown may not list overlap_with evidence ids",
+        )
     if claim_status == "independent_within_stated_dimensions":
         _require(source_family_id is not None, "independence claim requires source_family_id")
         _require(overlap_status == "no_known_overlap", "independence claim requires no_known_overlap")
@@ -643,8 +819,11 @@ def _validate_independence(value: object) -> tuple[str | None, str]:
 def _validate_scientific_validity(value: object) -> Mapping[str, Any]:
     validity = _exact_keys(value, _SCIENTIFIC_VALIDITY_KEYS, field="scientific_validity")
     _optional_text(validity.get("domain_verifier_id"), field="scientific_validity.domain_verifier_id")
-    status = validity.get("verification_status")
-    _require(status in VERIFICATION_STATUSES, "scientific_validity.verification_status is unsupported")
+    status = _enum_text(
+        validity.get("verification_status"),
+        VERIFICATION_STATUSES,
+        field="scientific_validity.verification_status",
+    )
     _text_list(validity.get("validated_scope"), field="scientific_validity.validated_scope")
     _text_list(validity.get("excluded_scope"), field="scientific_validity.excluded_scope")
     _text_list(validity.get("assumptions"), field="scientific_validity.assumptions")
@@ -667,8 +846,11 @@ def _validate_authority(value: object, *, evidence_kind: str, validity: Mapping[
     authority = _exact_keys(value, _AUTHORITY_KEYS, field="authority")
     for key in _AUTHORITY_KEYS - {"authority_source"}:
         _require(isinstance(authority.get(key), bool), f"authority.{key} must be boolean")
-    authority_source = authority.get("authority_source")
-    _require(authority_source in AUTHORITY_SOURCES, "authority.authority_source is unsupported")
+    authority_source = _enum_text(
+        authority.get("authority_source"),
+        AUTHORITY_SOURCES,
+        field="authority.authority_source",
+    )
     planning_only = authority.get("planning_metadata_only") is True
     _require(
         planning_only == (evidence_kind == "planning_metadata"),
@@ -688,6 +870,12 @@ def _validate_authority(value: object, *, evidence_kind: str, validity: Mapping[
             authority_source == "authority_bearing_epistemic_update",
             "scientific status promotion requires authority-bearing epistemic update",
         )
+        _require(
+            validity.get("verification_status") in {"verified", "limited"}
+            and validity.get("domain_verifier_id") is not None
+            and bool(validity.get("validated_scope")),
+            "scientific status promotion requires positively verified non-empty scientific scope",
+        )
     _require(
         validity.get("scientific_status_promoted") == authority.get("scientific_status_promoted"),
         "scientific validity and authority promotion flags disagree",
@@ -705,8 +893,9 @@ def _validate_authority(value: object, *, evidence_kind: str, validity: Mapping[
         )
         _require(
             validity.get("verification_status") in {"verified", "limited"}
-            and validity.get("domain_verifier_id") is not None,
-            "empirical evidence requires an identified domain verifier",
+            and validity.get("domain_verifier_id") is not None
+            and bool(validity.get("validated_scope")),
+            "empirical evidence requires an identified domain verifier and non-empty validated scope",
         )
         _require(authority_source != "none", "empirical evidence requires explicit authority source")
     if authority.get("row_level_measurement_authority") is True:
@@ -804,9 +993,11 @@ def _validate_evidence_packet(
     _require(packet.get("schema_version") == EVIDENCE_PACKET_SCHEMA_VERSION, "unsupported EvidencePacket schema_version")
     _require(packet.get("packet_type") == EVIDENCE_PACKET_TYPE, "unsupported EvidencePacket packet_type")
     _text(packet.get("evidence_id"), field="evidence_id")
-    evidence_kind = packet.get("evidence_kind")
-    _require(evidence_kind in EVIDENCE_KINDS, "unsupported evidence_kind")
-    assert isinstance(evidence_kind, str)
+    evidence_kind = _enum_text(
+        packet.get("evidence_kind"),
+        EVIDENCE_KINDS,
+        field="evidence_kind",
+    )
 
     packet_sha = _sha(packet.get("packet_sha256"), field="packet_sha256")
     unsigned = dict(packet)
@@ -822,12 +1013,16 @@ def _validate_evidence_packet(
     result_ids, result_units = _validate_results(packet.get("results"), binding_ids)
     uncertainty_ids, uncertainty_statuses = _validate_uncertainty(packet.get("uncertainty"), binding_ids)
     calibration_status = _validate_calibration(packet.get("calibration"), binding_ids, uncertainty_ids)
-    derivation_ids = _validate_derivations(
+    derivations = _validate_derivations(
         packet.get("derivation_lineage"), binding_ids=binding_ids, result_ids=result_ids
     )
     results = packet.get("results")
     assert isinstance(results, list)
-    _validate_result_references(results, derivation_ids=derivation_ids, uncertainty_ids=uncertainty_ids)
+    _validate_result_references(
+        results,
+        derivations=derivations,
+        uncertainty_ids=uncertainty_ids,
+    )
     source_family_id, independence_claim_status = _validate_independence(packet.get("independence"))
     validity = _validate_scientific_validity(packet.get("scientific_validity"))
     _validate_comparability(packet.get("comparability"))

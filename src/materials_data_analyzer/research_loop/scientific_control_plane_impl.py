@@ -721,64 +721,35 @@ def project_legacy_stop_status(stop_status: str) -> dict[str, Any]:
     }
 
 
-def project_legacy_mission_field(
-    *, mission_id: str, mission_text: str
-) -> dict[str, Any]:
-    """Project the exact installed composite mission field without trusting authentication alone."""
+def project_legacy_mission_field(*, mission_bytes: bytes) -> dict[str, Any]:
+    """Project the legacy mission field only through whole-artifact authentication.
 
-    matches = [
-        record
-        for record in LEGACY_MISSION_FIELD_PROJECTIONS
-        if record.mission_id == mission_id
-        and record.source_field == "mission"
-        and record.source_text == mission_text
-    ]
-    if len(matches) != 1:
-        raise ScientificControlPlaneError(
-            "legacy mission field has no exact deterministic Science/Governance classification"
-        )
-    record = matches[0]
-    return {
-        "mission_id": record.mission_id,
-        "source_field": record.source_field,
-        "source_text": record.source_text,
-        "science_projection": record.science_projection,
-        "governance_projection": record.governance_projection,
-        "historical_artifact_rewritten": False,
-        "scientific_status_promoted": False,
-        "execution_authority_granted": False,
-    }
+    This implementation module is importable, so it must not expose a weaker projection path
+    than the public facade. The local import avoids a module import cycle while delegating the
+    actual raw-byte authentication and current whole-mission validation to the facade.
+    """
+
+    from .scientific_control_plane import (
+        project_legacy_mission_field as _project_authenticated_mission_field,
+    )
+
+    return _project_authenticated_mission_field(mission_bytes=mission_bytes)
 
 
 def project_legacy_mission_item(
-    *, mission_id: str, collection: str, item_index: int, item_text: str
+    *, mission_bytes: bytes, collection: str, item_index: int
 ) -> dict[str, Any]:
-    """Return one exact item-level projection; unknown items receive no inferred authority."""
+    """Project one legacy mission item only through whole-artifact authentication."""
 
-    matches = [
-        record
-        for record in LEGACY_MISSION_ITEM_PROJECTIONS
-        if record.mission_id == mission_id
-        and record.collection == collection
-        and record.item_index == item_index
-        and record.item_text == item_text
-    ]
-    if len(matches) != 1:
-        raise ScientificControlPlaneError(
-            "legacy mission item has no exact deterministic Science/Governance classification"
-        )
-    record = matches[0]
-    return {
-        "mission_id": record.mission_id,
-        "collection": record.collection,
-        "item_index": record.item_index,
-        "item_text": record.item_text,
-        "science_semantic": record.science_semantic,
-        "governance_semantic": record.governance_semantic,
-        "historical_artifact_rewritten": False,
-        "scientific_status_promoted": False,
-        "execution_authority_granted": False,
-    }
+    from .scientific_control_plane import (
+        project_legacy_mission_item as _project_authenticated_mission_item,
+    )
+
+    return _project_authenticated_mission_item(
+        mission_bytes=mission_bytes,
+        collection=collection,
+        item_index=item_index,
+    )
 
 
 def build_scientific_control_plane_contract() -> dict[str, Any]:

@@ -210,15 +210,24 @@ def _expectations(packet: dict[str, Any]) -> dict[str, Any]:
         "subject_identities": copy.deepcopy(packet["subject"]["identities"]),
         "source_bindings": copy.deepcopy(packet["source_bindings"]),
         "result_units": {
-            packet["results"][0]["result_id"]: packet["results"][0]["unit"]
+            result["result_id"]: result["unit"]
+            for result in packet["results"]
         },
         "calibration_status": packet["calibration"]["status"],
         "uncertainty_status_by_id": {
-            packet["uncertainty"][0]["uncertainty_id"]: packet["uncertainty"][0]["status"]
+            record["uncertainty_id"]: record["status"]
+            for record in packet["uncertainty"]
         },
         "existing_source_family_ids": [],
         "packet_sha256": packet["packet_sha256"],
     }
+
+
+def _rehash_packet(packet: dict[str, Any]) -> dict[str, Any]:
+    value = copy.deepcopy(packet)
+    value.pop("packet_sha256", None)
+    value["packet_sha256"] = canonical_sha256(value)
+    return value
 
 
 def _input(packet: dict[str, Any], artifact: bytes) -> AuthenticatedEvidenceInput:
@@ -749,3 +758,371 @@ def test_claim_must_explicitly_classify_every_registered_dimension() -> None:
             _input(packet, raw),
             claim_scope=malformed,
         )
+
+
+
+def test_independent_replication_claim_cannot_waive_lineage_dimension() -> None:
+    raw = b"source\n"
+    packet = _packet(evidence_id="one", artifact=raw, locator="a/one.bin")
+    claim = _claim("material_identity", independent=True)
+
+    with pytest.raises(
+        ComparabilityEngineError,
+        match="must require independence_lineage",
+    ):
+        _assess(
+            _input(packet, raw),
+            _input(packet, raw),
+            claim_scope=claim,
+        )
+
+
+def test_material_identity_namespace_is_part_of_identity() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    right["subject"]["identities"][0]["namespace"] = "supplier-code"
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("material_identity"),
+    )
+    assert result["assessment_status"] == NOT_COMPARABLE
+    assert result["conflicting_dimensions"] == ["material_identity"]
+
+
+def test_unknown_quantitative_context_unit_stays_missing() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    unknown_power = {
+        "name": "laser_power",
+        "value": 100,
+        "value_type": "integer",
+        "unit_state": "unknown",
+        "unit": None,
+        "source_binding_ids": ["source-1"],
+    }
+    left["contexts"]["measurement"]["attributes"].append(copy.deepcopy(unknown_power))
+    right["contexts"]["measurement"]["attributes"].append(copy.deepcopy(unknown_power))
+    left = _rehash_packet(left)
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("acquisition_parameters"),
+    )
+    assert result["assessment_status"] == UNKNOWN
+    assert result["missing_context"] == ["acquisition_parameters"]
+
+
+def test_all_duplicate_result_kind_units_are_compared() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+
+    def second_result(result_id: str, unit: str) -> dict[str, Any]:
+        return {
+            "result_id": result_id,
+            "result_kind": "ultimate_tensile_strength",
+            "value_state": "observed",
+            "value": 2.0,
+            "value_type": "number",
+            "unit_state": "specified",
+            "unit": unit,
+            "source_binding_ids": ["source-1"],
+            "derivation_ids": [],
+            "uncertainty_ids": [],
+            "qualifiers": ["second-measurement"],
+        }
+
+    left["results"].append(second_result("result-2", "GPa"))
+    right["results"].append(second_result("result-2", "MPa"))
+    left = _rehash_packet(left)
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("units_reference_conventions"),
+    )
+    assert result["assessment_status"] == NOT_COMPARABLE
+    assert result["conflicting_dimensions"] == ["units_reference_conventions"]
+
+
+def test_one_sided_unknown_result_unit_is_missing_not_conflict() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    right["results"][0]["unit_state"] = "unknown"
+    right["results"][0]["unit"] = None
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("units_reference_conventions"),
+    )
+    assert result["assessment_status"] == UNKNOWN
+    assert result["missing_context"] == ["units_reference_conventions"]
+    assert result["conflicting_dimensions"] == []
+
+
+def test_commanded_and_actual_laser_power_do_not_alias() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    left["contexts"]["measurement"]["attributes"].append(
+        _attribute("actual_laser_power_w", 200, unit="W")
+    )
+    right["contexts"]["measurement"]["attributes"].append(
+        _attribute("commanded_laser_power_w", 200, unit="W")
+    )
+    left = _rehash_packet(left)
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("acquisition_parameters"),
+    )
+    assert result["assessment_status"] == NOT_COMPARABLE
+    assert result["conflicting_dimensions"] == ["acquisition_parameters"]
+
+
+def test_preprocessing_history_preserves_software_sha() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+
+    def make_derived(packet: dict[str, Any], software_sha: str) -> dict[str, Any]:
+        value = copy.deepcopy(packet)
+        value["results"][0]["value_state"] = "derived"
+        value["results"][0]["derivation_ids"] = ["derive-1"]
+        value["derivation_lineage"] = [
+            {
+                "derivation_id": "derive-1",
+                "operation": "deterministic preprocessing",
+                "input_binding_ids": ["source-1"],
+                "input_result_ids": [],
+                "output_result_ids": ["result-1"],
+                "software": {
+                    "name": "processor",
+                    "version": "1.0",
+                    "sha256": software_sha,
+                },
+                "parameters": {"window": 5},
+                "scientific_status_promoted": False,
+            }
+        ]
+        return _rehash_packet(value)
+
+    left = make_derived(left, "a" * 64)
+    right = make_derived(right, "b" * 64)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("preprocessing_transformation_history"),
+    )
+    assert result["assessment_status"] == NOT_COMPARABLE
+    assert result["conflicting_dimensions"] == [
+        "preprocessing_transformation_history"
+    ]
+
+
+def test_explicit_known_overlap_is_independence_conflict() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(
+        evidence_id="left",
+        artifact=left_raw,
+        locator="a/left.bin",
+        source_family_id="family-1",
+        dataset_parent_id="dataset-1",
+        sample="sample-1",
+    )
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    left["independence"]["overlap_status"] = "known_overlap"
+    left["independence"]["overlap_with"] = ["right"]
+    left["independence"]["independence_claim_status"] = "not_independent"
+    right["independence"]["overlap_status"] = "no_known_overlap"
+    right["independence"]["independence_claim_status"] = (
+        "independent_within_stated_dimensions"
+    )
+    left = _rehash_packet(left)
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("independence_lineage", independent=True),
+    )
+    assert result["assessment_status"] == NOT_COMPARABLE
+    assert result["conflicting_dimensions"] == ["independence_lineage"]
+
+
+def test_calibration_identity_and_bound_source_provenance_are_compared() -> None:
+    left_raw = b"left-calibration-source\n"
+    right_raw = b"right-calibration-source\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    left["calibration"] = {
+        "status": "calibrated",
+        "records": [
+            {
+                "calibration_id": "cal-A",
+                "scope": "laser power calibration",
+                "source_binding_ids": ["source-1"],
+                "uncertainty_ids": [],
+                "notes": None,
+            }
+        ],
+    }
+    right["calibration"] = {
+        "status": "calibrated",
+        "records": [
+            {
+                "calibration_id": "cal-B",
+                "scope": "laser power calibration",
+                "source_binding_ids": ["source-1"],
+                "uncertainty_ids": [],
+                "notes": None,
+            }
+        ],
+    }
+    left = _rehash_packet(left)
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("instrument_state_calibration"),
+    )
+    assert result["assessment_status"] == NOT_COMPARABLE
+    assert result["conflicting_dimensions"] == ["instrument_state_calibration"]
+
+
+def test_unknown_target_response_state_stays_missing() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(evidence_id="left", artifact=left_raw, locator="a/left.bin")
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-2",
+    )
+    right["results"][0]["value_state"] = "unknown"
+    right["results"][0]["value"] = None
+    right["results"][0]["value_type"] = "null"
+    right["authority"]["empirical_evidence_created"] = False
+    right["authority"]["row_level_measurement_authority"] = False
+    right["authority"]["authority_source"] = "none"
+    right = _rehash_packet(right)
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("target_response_semantics"),
+    )
+    assert result["assessment_status"] == UNKNOWN
+    assert result["missing_context"] == ["target_response_semantics"]
+
+
+def test_parent_identifier_order_does_not_create_false_conflict() -> None:
+    left_raw = b"left\n"
+    right_raw = b"right\n"
+    left = _packet(
+        evidence_id="left",
+        artifact=left_raw,
+        locator="a/left.bin",
+        sample="sample-shared",
+        sample_parent_ids=["parent-a", "parent-b"],
+        acquisition_parent_ids=["acq-a", "acq-b"],
+    )
+    right = _packet(
+        evidence_id="right",
+        artifact=right_raw,
+        locator="a/right.bin",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+        sample="sample-shared",
+        sample_parent_ids=["parent-b", "parent-a"],
+        acquisition_parent_ids=["acq-b", "acq-a"],
+    )
+
+    result = _assess(
+        _input(left, left_raw),
+        _input(right, right_raw),
+        claim_scope=_claim("sample_acquisition_identity"),
+    )
+    assert result["assessment_status"] == COMPARABLE
+    assert result["satisfied_dimensions"] == ["sample_acquisition_identity"]

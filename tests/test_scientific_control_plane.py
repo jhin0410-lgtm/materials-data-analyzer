@@ -165,6 +165,32 @@ def test_control_plane_validation_rejects_bool_int_and_integral_float_type_drift
         validate_scientific_control_plane_contract(float_drift)
 
 
+def test_internal_legacy_projectors_require_authenticated_whole_mission_bytes() -> None:
+    projected = scientific_control_plane_impl.project_legacy_mission_field(
+        mission_bytes=_mission_bytes()
+    )
+    assert projected["whole_mission_validated"] is True
+    assert projected["mission_sha256"]
+
+    mission = _mission()
+    item = scientific_control_plane_impl.project_legacy_mission_item(
+        mission_bytes=_mission_bytes(),
+        collection="success_criteria",
+        item_index=0,
+    )
+    assert item["item_text"] == mission["success_criteria"][0]
+    assert item["whole_mission_validated"] is True
+
+    tampered = _mission_bytes().replace(b"verified IN625", b"forged IN625", 1)
+    with pytest.raises(
+        scientific_control_plane_impl.ScientificControlPlaneError,
+        match="frozen mission SHA-256",
+    ):
+        scientific_control_plane_impl.project_legacy_mission_field(
+            mission_bytes=tampered
+        )
+
+
 def test_internal_control_plane_validator_is_not_a_weaker_type_boundary() -> None:
     contract = copy.deepcopy(
         scientific_control_plane_impl.build_scientific_control_plane_contract()

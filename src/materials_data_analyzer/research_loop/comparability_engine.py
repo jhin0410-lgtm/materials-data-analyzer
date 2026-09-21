@@ -451,20 +451,29 @@ def _validate_claim_scope(
         set(transforms) <= TRANSFORMABLE_DIMENSIONS,
         "claim requested a transformation for a non-transformable dimension",
     )
+    if claim["requires_independent_replication"] is True:
+        _require(
+            "independence_lineage" in required,
+            "independent-replication claim must require independence_lineage",
+        )
     return copy.deepcopy(claim)
 
 
-def _subject_identity_values(packet: Mapping[str, Any], role: str) -> list[str]:
+def _subject_identity_values(
+    packet: Mapping[str, Any],
+    role: str,
+) -> list[dict[str, str]]:
     identities = packet["subject"]["identities"]
     assert isinstance(identities, list)
-    values = sorted(
+    values = [
         {
-            str(item["value"])
-            for item in identities
-            if isinstance(item, Mapping) and item.get("role") == role
+            "namespace": str(item["namespace"]),
+            "value": str(item["value"]),
         }
-    )
-    return values
+        for item in identities
+        if isinstance(item, Mapping) and item.get("role") == role
+    ]
+    return sorted(values, key=canonical_sha256)
 
 
 def _context_values(
@@ -488,6 +497,7 @@ def _context_values(
                 continue
             result.append(
                 {
+                    "name": attribute.get("name"),
                     "value": copy.deepcopy(attribute.get("value")),
                     "value_type": attribute.get("value_type"),
                     "unit_state": attribute.get("unit_state"),
@@ -497,7 +507,7 @@ def _context_values(
     return sorted(result, key=canonical_sha256)
 
 
-def _material_identity(packet: Mapping[str, Any]) -> list[str]:
+def _material_identity(packet: Mapping[str, Any]) -> list[dict[str, str]]:
     return _subject_identity_values(packet, "material")
 
 
@@ -517,8 +527,10 @@ def _sample_acquisition_identity(packet: Mapping[str, Any]) -> dict[str, Any] | 
         return None
     return {
         "subject_sample_ids": subject_samples,
-        "sample_parent_ids": copy.deepcopy(sample_parents),
-        "acquisition_parent_ids": copy.deepcopy(acquisition_parents),
+        "sample_parent_ids": sorted(set(str(item) for item in sample_parents)),
+        "acquisition_parent_ids": sorted(
+            set(str(item) for item in acquisition_parents)
+        ),
     }
 
 
@@ -535,17 +547,64 @@ def _instrument_state_calibration(
     # "unknown" is epistemic absence, not a comparable calibration state.
     if status == "unknown":
         return None
+
+    source_bindings = packet["source_bindings"]
+    uncertainty = packet["uncertainty"]
+    assert isinstance(source_bindings, list)
+    assert isinstance(uncertainty, list)
+    binding_by_id = {
+        item["binding_id"]: item
+        for item in source_bindings
+        if isinstance(item, Mapping) and isinstance(item.get("binding_id"), str)
+    }
+    uncertainty_by_id = {
+        item["uncertainty_id"]: item
+        for item in uncertainty
+        if isinstance(item, Mapping) and isinstance(item.get("uncertainty_id"), str)
+    }
+
     records = calibration.get("records")
-    scopes: list[str] = []
+    projected_records: list[dict[str, Any]] = []
     if isinstance(records, list):
-        scopes = sorted(
-            str(record.get("scope"))
-            for record in records
-            if isinstance(record, Mapping) and isinstance(record.get("scope"), str)
-        )
+        for record in records:
+            if not isinstance(record, Mapping):
+                continue
+            referenced_bindings = []
+            for binding_id in record.get("source_binding_ids", []):
+                bound = binding_by_id.get(binding_id)
+                if isinstance(bound, Mapping):
+                    referenced_bindings.append(
+                        {
+                            "binding_id": bound.get("binding_id"),
+                            "role": bound.get("role"),
+                            "artifact_id": bound.get("artifact_id"),
+                            "locator": bound.get("locator"),
+                            "sha256": bound.get("sha256"),
+                        }
+                    )
+            referenced_uncertainty = [
+                copy.deepcopy(uncertainty_by_id[uncertainty_id])
+                for uncertainty_id in record.get("uncertainty_ids", [])
+                if uncertainty_id in uncertainty_by_id
+            ]
+            projected_records.append(
+                {
+                    "calibration_id": record.get("calibration_id"),
+                    "scope": record.get("scope"),
+                    "source_bindings": sorted(
+                        referenced_bindings,
+                        key=canonical_sha256,
+                    ),
+                    "uncertainty_records": sorted(
+                        referenced_uncertainty,
+                        key=canonical_sha256,
+                    ),
+                    "notes": record.get("notes"),
+                }
+            )
     return {
         "status": status,
-        "record_scopes": scopes,
+        "records": sorted(projected_records, key=canonical_sha256),
         "instrument_state": instrument_state,
     }
 
@@ -572,6 +631,7 @@ def _preprocessing_history(
                 "operation": item.get("operation"),
                 "software_name": software.get("name"),
                 "software_version": software.get("version"),
+                "software_sha256": software.get("sha256"),
                 "parameters": copy.deepcopy(item.get("parameters")),
             }
         )
@@ -605,16 +665,30 @@ def _units_reference_conventions(packet: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _target_response_semantics(packet: Mapping[str, Any]) -> list[str]:
+def _target_response_semantics(
+    packet: Mapping[str, Any],
+) -> list[dict[str, str]] | None:
     results = packet["results"]
     assert isinstance(results, list)
-    return sorted(
-        {
-            str(item.get("result_kind"))
-            for item in results
-            if isinstance(item, Mapping) and isinstance(item.get("result_kind"), str)
-        }
-    )
+    projected: list[dict[str, str]] = []
+    for item in results:
+        if not isinstance(item, Mapping):
+            continue
+        value_state = item.get("value_state")
+        if value_state in {"unknown", "not_applicable"}:
+            return None
+        result_kind = item.get("result_kind")
+        value_type = item.get("value_type")
+        if not isinstance(result_kind, str) or not isinstance(value_type, str):
+            return None
+        projected.append(
+            {
+                "result_kind": result_kind,
+                "value_state": str(value_state),
+                "value_type": value_type,
+            }
+        )
+    return sorted(projected, key=canonical_sha256)
 
 
 def _independence_lineage(packet: Mapping[str, Any]) -> dict[str, Any]:
@@ -680,6 +754,19 @@ def _is_missing(value: object) -> bool:
     return False
 
 
+def _contains_unknown_quantitative_unit(value: object) -> bool:
+    if isinstance(value, Mapping):
+        if (
+            value.get("value_type") in {"number", "integer"}
+            and value.get("unit_state") == "unknown"
+        ):
+            return True
+        return any(_contains_unknown_quantitative_unit(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_unknown_quantitative_unit(item) for item in value)
+    return False
+
+
 def _independence_relationships(
     left: Mapping[str, Any], right: Mapping[str, Any]
 ) -> tuple[dict[str, bool | None], list[str]]:
@@ -735,6 +822,24 @@ def _evaluate_independence(
         )
     left_claim = left.get("independence_claim_status")
     right_claim = right.get("independence_claim_status")
+    left_overlap = left.get("overlap_status")
+    right_overlap = right.get("overlap_status")
+    left_overlap_with = left.get("overlap_with")
+    right_overlap_with = right.get("overlap_with")
+    if (
+        left_claim == "not_independent"
+        or right_claim == "not_independent"
+        or left_overlap == "known_overlap"
+        or right_overlap == "known_overlap"
+        or (isinstance(left_overlap_with, list) and bool(left_overlap_with))
+        or (isinstance(right_overlap_with, list) and bool(right_overlap_with))
+    ):
+        return (
+            CONFLICT,
+            "Authenticated lineage explicitly declares overlap or non-independence.",
+            relationships,
+            unresolved,
+        )
     if unresolved or left_claim != "independent_within_stated_dimensions" or right_claim != "independent_within_stated_dimensions":
         return (
             MISSING,
@@ -779,47 +884,67 @@ def _evaluate_units(
     right_units = right.get("result_units")
     if not isinstance(left_units, list) or not isinstance(right_units, list):
         return MISSING, "Result-unit context is missing."
-    left_by_kind = {
-        item.get("result_kind"): item
-        for item in left_units
-        if isinstance(item, Mapping)
-    }
-    right_by_kind = {
-        item.get("result_kind"): item
-        for item in right_units
-        if isinstance(item, Mapping)
-    }
+
+    def group(records: list[object]) -> dict[str, list[Mapping[str, Any]]]:
+        grouped: dict[str, list[Mapping[str, Any]]] = {}
+        for item in records:
+            if not isinstance(item, Mapping):
+                continue
+            kind = item.get("result_kind")
+            if not isinstance(kind, str):
+                continue
+            grouped.setdefault(kind, []).append(item)
+        return grouped
+
+    left_by_kind = group(left_units)
+    right_by_kind = group(right_units)
     if set(left_by_kind) != set(right_by_kind):
         return CONFLICT, "Result kinds differ, so unit normalization cannot establish response equivalence."
 
     transformation_needed = False
-    for result_kind in sorted(left_by_kind, key=str):
-        left_record = left_by_kind[result_kind]
-        right_record = right_by_kind[result_kind]
-        left_state = left_record.get("unit_state")
-        right_state = right_record.get("unit_state")
-        if left_state != right_state:
-            return CONFLICT, f"Unit-state semantics differ for {result_kind!r}."
-        if left_state == "unknown" or right_state == "unknown":
-            return MISSING, f"Unit state is unknown for {result_kind!r}."
-        if left_state == "not_applicable":
-            continue
-        left_unit = left_record.get("unit")
-        right_unit = right_record.get("unit")
-        if left_unit == right_unit:
-            continue
-        left_family = _unit_family(left_unit)
-        right_family = _unit_family(right_unit)
-        if (
-            not transformation_allowed
-            or left_family is None
-            or right_family is None
-            or left_family != right_family
-        ):
-            return CONFLICT, (
-                f"Units {left_unit!r} and {right_unit!r} for {result_kind!r} "
-                "lack an explicitly allowed, dimensionally compatible normalization."
+    for result_kind in sorted(left_by_kind):
+        left_records = left_by_kind[result_kind]
+        right_records = right_by_kind[result_kind]
+        if len(left_records) != len(right_records):
+            return (
+                CONFLICT,
+                f"Result count differs for {result_kind!r}; unit comparison is ambiguous.",
             )
+
+        if any(record.get("unit_state") == "unknown" for record in left_records + right_records):
+            return MISSING, f"Unit state is unknown for {result_kind!r}."
+
+        left_states = sorted(str(record.get("unit_state")) for record in left_records)
+        right_states = sorted(str(record.get("unit_state")) for record in right_records)
+        if left_states != right_states:
+            return CONFLICT, f"Unit-state semantics differ for {result_kind!r}."
+
+        left_specified = sorted(
+            str(record.get("unit"))
+            for record in left_records
+            if record.get("unit_state") == "specified"
+        )
+        right_specified = sorted(
+            str(record.get("unit"))
+            for record in right_records
+            if record.get("unit_state") == "specified"
+        )
+        if left_specified == right_specified:
+            continue
+        if not transformation_allowed or len(left_specified) != len(right_specified):
+            return (
+                CONFLICT,
+                f"Units for {result_kind!r} differ without an allowed exact normalization.",
+            )
+        for left_unit, right_unit in zip(left_specified, right_specified, strict=True):
+            left_family = _unit_family(left_unit)
+            right_family = _unit_family(right_unit)
+            if left_family is None or right_family is None or left_family != right_family:
+                return (
+                    CONFLICT,
+                    f"Units {left_unit!r} and {right_unit!r} for {result_kind!r} "
+                    "lack an explicitly allowed, dimensionally compatible normalization.",
+                )
         transformation_needed = True
 
     if transformation_needed:
@@ -827,7 +952,7 @@ def _evaluate_units(
             TRANSFORMATION_REQUIRED,
             "Result units differ only within recognized physical unit families; an explicit normalization is required.",
         )
-    return SATISFIED, "Result units and reference conventions agree exactly."
+    return SATISFIED, "All result units and reference conventions agree exactly."
 
 
 def _packet_binding(packet: Mapping[str, Any]) -> dict[str, Any]:
@@ -936,6 +1061,12 @@ def assess_comparability(
         elif _is_missing(left_value) or _is_missing(right_value):
             status = MISSING
             reason = "Required context is absent on one or both packets."
+        elif (
+            _contains_unknown_quantitative_unit(left_value)
+            or _contains_unknown_quantitative_unit(right_value)
+        ):
+            status = MISSING
+            reason = "Required quantitative context has unknown units."
         elif _typed_equal(left_value, right_value):
             status = SATISFIED
             reason = "Authenticated packet context agrees exactly for this dimension."
