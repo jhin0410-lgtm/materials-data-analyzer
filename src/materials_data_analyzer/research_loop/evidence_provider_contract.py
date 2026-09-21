@@ -13,6 +13,14 @@ from typing import Any
 from .characterization_evidence_bridge import (
     build_verified_characterization_planning_requirement,
 )
+from .comparability_engine import (
+    COMPARABLE,
+    CONDITIONALLY_COMPARABLE,
+    NOT_COMPARABLE,
+    UNKNOWN,
+    AuthenticatedEvidenceInput,
+    verify_comparability_assessment,
+)
 from .evidence_packet import canonical_sha256
 
 PROVIDER_STATE_SCHEMA_VERSION = "1.0"
@@ -664,6 +672,334 @@ def verify_authenticated_planning_provider_state(
     return expected
 
 
+def adapt_verified_comparability_provider_state(
+    assessment: Mapping[str, Any],
+    left: AuthenticatedEvidenceInput,
+    right: AuthenticatedEvidenceInput,
+    *,
+    claim_scope: Mapping[str, Any],
+    trusted_claim_scope_sha256: str,
+) -> dict[str, Any]:
+    """Project one independently recomputed comparability assessment into planning state.
+
+    Only missing scientific context becomes an evidence-acquisition requirement. A verified
+    physical/context conflict is *not* rewritten as a missing-evidence gap, and a conditional
+    normalization requirement remains a limited-readiness blocker rather than silently
+    authorizing a transformation.
+    """
+
+    verified = verify_comparability_assessment(
+        assessment,
+        left,
+        right,
+        claim_scope=claim_scope,
+        trusted_claim_scope_sha256=trusted_claim_scope_sha256,
+    )
+    outcome = _text(
+        verified.get("assessment_status"),
+        field="comparability assessment_status",
+    )
+    _require(
+        outcome in {COMPARABLE, CONDITIONALLY_COMPARABLE, NOT_COMPARABLE, UNKNOWN},
+        "comparability assessment_status is unsupported",
+    )
+
+    assessment_sha = _sha(
+        verified.get("assessment_sha256"),
+        field="comparability assessment_sha256",
+    )
+    claim_sha = _sha(
+        verified.get("claim_scope_sha256"),
+        field="comparability claim_scope_sha256",
+    )
+    claim = _exact_keys(
+        verified.get("claim_scope"),
+        frozenset(
+            {
+                "claim_id",
+                "claim_type",
+                "required_dimensions",
+                "irrelevant_dimensions",
+                "allowed_transformations",
+                "requires_independent_replication",
+                "maximum_downstream_use_requested",
+            }
+        ),
+        field="comparability claim_scope",
+    )
+    claim_id = _text(claim.get("claim_id"), field="comparability claim_scope.claim_id")
+
+    left_packet = _exact_keys(
+        verified.get("left_packet"),
+        frozenset(
+            {
+                "evidence_id",
+                "packet_sha256",
+                "provider_id",
+                "source_bindings",
+            }
+        ),
+        field="comparability left_packet",
+    )
+    right_packet = _exact_keys(
+        verified.get("right_packet"),
+        frozenset(
+            {
+                "evidence_id",
+                "packet_sha256",
+                "provider_id",
+                "source_bindings",
+            }
+        ),
+        field="comparability right_packet",
+    )
+    left_evidence_id = _text(
+        left_packet.get("evidence_id"),
+        field="comparability left_packet.evidence_id",
+    )
+    right_evidence_id = _text(
+        right_packet.get("evidence_id"),
+        field="comparability right_packet.evidence_id",
+    )
+
+    bindings: list[dict[str, Any]] = [
+        {
+            "binding_id": "comparability-assessment",
+            "role": "verified_comparability_assessment",
+            "sha256": assessment_sha,
+            "binding_kind": "canonical_object_sha256",
+            "locator": None,
+        },
+        {
+            "binding_id": "comparability-claim-scope",
+            "role": "authenticated_comparison_claim_scope",
+            "sha256": claim_sha,
+            "binding_kind": "canonical_object_sha256",
+            "locator": None,
+        },
+        {
+            "binding_id": "comparability-left-packet",
+            "role": "authenticated_left_evidence_packet",
+            "sha256": _sha(
+                left_packet.get("packet_sha256"),
+                field="comparability left_packet.packet_sha256",
+            ),
+            "binding_kind": "canonical_object_sha256",
+            "locator": None,
+        },
+        {
+            "binding_id": "comparability-right-packet",
+            "role": "authenticated_right_evidence_packet",
+            "sha256": _sha(
+                right_packet.get("packet_sha256"),
+                field="comparability right_packet.packet_sha256",
+            ),
+            "binding_kind": "canonical_object_sha256",
+            "locator": None,
+        },
+    ]
+
+    for side, packet in (("left", left_packet), ("right", right_packet)):
+        raw_sources = packet.get("source_bindings")
+        _require(
+            isinstance(raw_sources, list),
+            f"comparability {side}_packet.source_bindings must be a list",
+        )
+        for index, raw in enumerate(raw_sources):
+            _require(
+                isinstance(raw, Mapping),
+                f"comparability {side}_packet.source_bindings[{index}] must be an object",
+            )
+            bindings.append(
+                {
+                    "binding_id": f"comparability-{side}-source-{index}",
+                    "role": f"authenticated_{side}_source_artifact",
+                    "sha256": _sha(
+                        raw.get("sha256"),
+                        field=f"comparability {side} source[{index}].sha256",
+                    ),
+                    "binding_kind": "artifact_sha256",
+                    "locator": _optional_text(
+                        raw.get("locator"),
+                        field=f"comparability {side} source[{index}].locator",
+                    ),
+                }
+            )
+
+    gaps = verified.get("planner_evidence_gaps")
+    _require(
+        isinstance(gaps, list),
+        "comparability planner_evidence_gaps must be a list",
+    )
+    missing = verified.get("missing_context")
+    conflicts = verified.get("conflicting_dimensions")
+    normalization = verified.get("required_normalization")
+    _require(
+        isinstance(missing, list)
+        and all(isinstance(item, str) and item for item in missing),
+        "comparability missing_context must be a text list",
+    )
+    _require(
+        isinstance(conflicts, list)
+        and all(isinstance(item, str) and item for item in conflicts),
+        "comparability conflicting_dimensions must be a text list",
+    )
+    _require(
+        isinstance(normalization, list)
+        and all(isinstance(item, str) and item for item in normalization),
+        "comparability required_normalization must be a text list",
+    )
+
+    requirements: list[dict[str, Any]] = []
+    verified_missing_gaps: list[tuple[str, str]] = []
+    for index, raw in enumerate(gaps):
+        _require(
+            isinstance(raw, Mapping),
+            f"comparability planner_evidence_gaps[{index}] must be an object",
+        )
+        gap_id = _text(
+            raw.get("requirement_id"),
+            field=f"comparability planner_evidence_gaps[{index}].requirement_id",
+        )
+        dimension = _text(
+            raw.get("dimension"),
+            field=f"comparability planner_evidence_gaps[{index}].dimension",
+        )
+        _require(
+            dimension in missing,
+            "comparability planner gap must correspond to verified missing context",
+        )
+        _require(
+            raw.get("requirement_status") == "missing_context"
+            and raw.get("action_class") == "evidence_acquisition"
+            and raw.get("scientific_status_promoted") is False,
+            "comparability planner gap semantics drifted",
+        )
+        verified_missing_gaps.append((gap_id, dimension))
+
+    # A missing-context acquisition task is actionable only when missing context is the
+    # reason the declared comparison remains UNKNOWN. If an authenticated conflict already
+    # makes the declared comparison NOT_COMPARABLE, acquiring the additional missing field
+    # must not be presented as though it could erase that conflict.
+    if outcome == UNKNOWN:
+        for gap_id, dimension in verified_missing_gaps:
+            requirements.append(
+                {
+                    "requirement_id": gap_id,
+                    "requirement_class": "evidence_acquisition",
+                    "action_class": "evidence_acquisition",
+                    "description": (
+                        "Acquire authoritative source or experiment evidence for missing "
+                        f"comparability dimension '{dimension}' under claim '{claim_id}'. "
+                        "Preserve sample/acquisition identity, calibration, units, protocol, "
+                        "and exact provenance where applicable; do not infer or impute the "
+                        "missing context."
+                    ),
+                    "status": "unresolved",
+                    "source_binding_ids": [
+                        "comparability-assessment",
+                        "comparability-claim-scope",
+                        "comparability-left-packet",
+                        "comparability-right-packet",
+                    ],
+                    "automatic_execution_authorized": False,
+                    "scientific_status_promoted": False,
+                }
+            )
+
+    if outcome == COMPARABLE:
+        _require(
+            not requirements and not conflicts and not normalization,
+            "COMPARABLE assessment may not retain unresolved comparison blockers",
+        )
+        readiness_status = "ready"
+        first_blocker = None
+    elif outcome == UNKNOWN:
+        _require(
+            bool(requirements) and not conflicts,
+            "UNKNOWN assessment requires verified missing context without conflicts",
+        )
+        readiness_status = "blocked"
+        first_blocker = requirements[0]["requirement_id"]
+    elif outcome == NOT_COMPARABLE:
+        _require(
+            bool(conflicts),
+            "NOT_COMPARABLE assessment requires at least one verified conflict",
+        )
+        _require(
+            not requirements,
+            "NOT_COMPARABLE conflicts may not be rewritten as acquisition requirements",
+        )
+        readiness_status = "blocked"
+        first_blocker = "comparability-conflict:" + ",".join(conflicts)
+    else:
+        _require(
+            outcome == CONDITIONALLY_COMPARABLE
+            and bool(normalization)
+            and not conflicts
+            and not requirements,
+            "CONDITIONALLY_COMPARABLE requires normalization only",
+        )
+        readiness_status = "limited"
+        first_blocker = "comparability-normalization-required:" + ",".join(
+            normalization
+        )
+
+    return finalize_provider_state(
+        {
+            "schema_version": PROVIDER_STATE_SCHEMA_VERSION,
+            "policy_version": PROVIDER_STATE_POLICY_VERSION,
+            "provider_state_type": PROVIDER_STATE_TYPE,
+            "provider": {
+                "provider_id": "provenance-aware-comparability-engine",
+                "contract_version": "1.0",
+                "schema_version": "1.0",
+                "adapter_id": "verified-comparability-provider-state-v1",
+            },
+            "domain": "cross_source_comparability",
+            "modality": "comparability_assessment",
+            "subject_scope": (
+                f"{left_evidence_id} vs {right_evidence_id} | claim {claim_id}"
+            ),
+            "source_bindings": bindings,
+            "readiness": {
+                "status": readiness_status,
+                "maturity_label": outcome,
+                "maturity_index": None,
+                "first_blocker": first_blocker,
+            },
+            "unresolved_requirements": requirements,
+            "authority_boundary": _authority_boundary(),
+        }
+    )
+
+
+def verify_comparability_provider_state(
+    value: object,
+    assessment: Mapping[str, Any],
+    left: AuthenticatedEvidenceInput,
+    right: AuthenticatedEvidenceInput,
+    *,
+    claim_scope: Mapping[str, Any],
+    trusted_claim_scope_sha256: str,
+) -> dict[str, Any]:
+    """Recompute a comparability ProviderState from authenticated scientific inputs."""
+
+    supplied = validate_provider_state(value)
+    expected = adapt_verified_comparability_provider_state(
+        assessment,
+        left,
+        right,
+        claim_scope=claim_scope,
+        trusted_claim_scope_sha256=trusted_claim_scope_sha256,
+    )
+    _require(
+        _typed_equal(supplied, expected),
+        "comparability ProviderState differs from authenticated assessment recomputation",
+    )
+    return expected
+
+
 def aggregate_provider_requirements(
     inputs: Sequence[AuthenticatedProviderStateInput],
 ) -> dict[str, Any]:
@@ -926,11 +1262,13 @@ __all__ = [
     "REQUIREMENT_ACTION_CLASSES",
     "adapt_authenticated_planning_gaps",
     "adapt_characterization_provider_state",
+    "adapt_verified_comparability_provider_state",
     "aggregate_provider_requirements",
     "finalize_provider_state",
     "validate_provider_requirement_aggregate",
     "validate_provider_state",
     "verify_authenticated_planning_provider_state",
     "verify_characterization_provider_state",
+    "verify_comparability_provider_state",
     "verify_provider_requirement_aggregate",
 ]

@@ -97,6 +97,22 @@ Missing required dimensions are emitted as deterministic `planner_evidence_gaps`
 `action_class=evidence_acquisition`. These are planning requirements only. They do not create
 empirical evidence, scientific status, or execution authority.
 
+The Evidence Provider handoff replays the complete assessment from the authenticated packets and
+claim before creating a planning-only `ProviderState`. The handoff deliberately distinguishes
+three different scientific states:
+
+- `UNKNOWN`: missing context is the active blocker, so verified missing dimensions become
+  unresolved evidence-acquisition requirements;
+- `NOT_COMPARABLE`: an authenticated conflict already invalidates the declared comparison, so
+  missing fields are **not** exposed as acquisition tasks that could imply the conflict is
+  repairable; the conflict is retained as the provider readiness blocker;
+- `CONDITIONALLY_COMPARABLE`: an explicitly allowed normalization remains, so the provider is
+  `limited` with a normalization blocker rather than inventing missing empirical evidence.
+
+The provider overlay itself creates no action candidates. Existing self-directed research planning
+may synthesize candidate work from an `UNKNOWN` evidence requirement only after the ProviderState
+has passed the normal external SHA ancestry and recursive planning boundaries.
+
 ## Current real negative control
 
 The first repository-bound benchmark compares the current NIST AMBench 2018-02 IN625 melt-pool
