@@ -59,13 +59,16 @@ def authenticate_validation_expectations(
     """
 
     _require(isinstance(expected, Mapping), "validation expectations must be an object")
+    # Materialize exactly one detached plain-dict snapshot first. Authentication and
+    # delegation must operate on the same bytes/values even for exotic Mapping subclasses.
+    snapshot = copy.deepcopy(dict(expected))
     trusted = _trusted_sha256(trusted_expectation_sha256)
-    observed = _packet.canonical_sha256(expected)
+    observed = _packet.canonical_sha256(snapshot)
     _require(
         observed == trusted,
         "validation expectations do not match the external trust-root digest",
     )
-    return copy.deepcopy(dict(expected))
+    return snapshot
 
 
 def validate_authenticated_evidence_packet(

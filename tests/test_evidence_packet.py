@@ -531,3 +531,209 @@ def test_not_applicable_context_cannot_carry_hidden_attributes() -> None:
 
     with pytest.raises(EvidencePacketError, match="not_applicable must not carry attributes"):
         validate_evidence_packet(packet)
+
+
+
+def test_substantive_result_state_cannot_hide_missing_value_as_null() -> None:
+    packet = _packet()
+    result = packet["results"][0]  # type: ignore[index]
+    result["value_state"] = "observed"
+    result["value"] = None
+    result["value_type"] = "null"
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="substantive value_state requires a non-null"):
+        validate_evidence_packet(packet)
+
+
+def test_quantified_uncertainty_requires_bound_source_evidence() -> None:
+    packet = _packet()
+    uncertainty = packet["uncertainty"][0]  # type: ignore[index]
+    uncertainty.update(
+        {
+            "status": "quantified",
+            "value": 5.0,
+            "unit": "MPa",
+            "distribution": "normal",
+            "confidence_level": 0.95,
+            "source_binding_ids": [],
+        }
+    )
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="source_binding_ids must be non-empty"):
+        validate_evidence_packet(packet)
+
+
+@pytest.mark.parametrize(
+    ("overlap_status", "overlap_with"),
+    [
+        ("no_known_overlap", ["other-evidence"]),
+        ("unknown", ["other-evidence"]),
+        ("known_overlap", []),
+    ],
+)
+def test_independence_overlap_status_and_entries_must_agree(
+    overlap_status: str,
+    overlap_with: list[str],
+) -> None:
+    packet = _packet()
+    independence = packet["independence"]  # type: ignore[assignment]
+    independence["overlap_status"] = overlap_status  # type: ignore[index]
+    independence["overlap_with"] = overlap_with  # type: ignore[index]
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="overlap"):
+        validate_evidence_packet(packet)
+
+
+def test_empirical_authority_requires_nonempty_validated_scope() -> None:
+    packet = _packet()
+    packet["scientific_validity"]["validated_scope"] = []  # type: ignore[index]
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="non-empty validated scope"):
+        validate_evidence_packet(packet)
+
+
+def test_unverified_evidence_cannot_be_scientifically_promoted() -> None:
+    packet = _packet()
+    validity = packet["scientific_validity"]  # type: ignore[assignment]
+    authority = packet["authority"]  # type: ignore[assignment]
+    validity["verification_status"] = "not_verified"  # type: ignore[index]
+    validity["scientific_status_promoted"] = True  # type: ignore[index]
+    authority["empirical_evidence_created"] = False  # type: ignore[index]
+    authority["row_level_measurement_authority"] = False  # type: ignore[index]
+    authority["scientific_status_promoted"] = True  # type: ignore[index]
+    authority["authority_source"] = "authority_bearing_epistemic_update"  # type: ignore[index]
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="positively verified non-empty scientific scope"):
+        validate_evidence_packet(packet)
+
+
+@pytest.mark.parametrize(
+    ("field", "malformed"),
+    [
+        ("evidence_kind", []),
+    ],
+)
+def test_malformed_enum_values_fail_as_evidence_packet_error(
+    field: str,
+    malformed: object,
+) -> None:
+    packet = _packet()
+    packet[field] = malformed
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="must be text"):
+        validate_evidence_packet(packet)
+
+
+def test_python_only_derivation_parameters_are_not_canonical_json_values() -> None:
+    packet = _packet()
+    result = packet["results"][0]  # type: ignore[index]
+    result["value_state"] = "derived"
+    result["derivation_ids"] = ["derivation-1"]
+    packet["derivation_lineage"] = [
+        {
+            "derivation_id": "derivation-1",
+            "operation": "deterministic transform",
+            "input_binding_ids": ["source-1"],
+            "input_result_ids": [],
+            "output_result_ids": ["result-uts"],
+            "software": {"name": "test-transform", "version": "1", "sha256": None},
+            "parameters": {"window": (1, 2)},
+            "scientific_status_promoted": False,
+        }
+    ]
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="JSON-native values only"):
+        validate_evidence_packet(packet)
+
+
+def test_derived_result_must_be_declared_output_of_cited_derivation() -> None:
+    packet = _packet()
+    first = packet["results"][0]  # type: ignore[index]
+    first["value_state"] = "derived"
+    first["derivation_ids"] = ["derivation-1"]
+    packet["results"].append(  # type: ignore[attr-defined]
+        {
+            "result_id": "result-other",
+            "result_kind": "other_measurement",
+            "value_state": "derived",
+            "value": 1.0,
+            "value_type": "number",
+            "unit_state": "specified",
+            "unit": "MPa",
+            "source_binding_ids": ["source-1"],
+            "derivation_ids": ["derivation-1"],
+            "uncertainty_ids": [],
+            "qualifiers": [],
+        }
+    )
+    packet["derivation_lineage"] = [
+        {
+            "derivation_id": "derivation-1",
+            "operation": "other-output transform",
+            "input_binding_ids": ["source-1"],
+            "input_result_ids": [],
+            "output_result_ids": ["result-other"],
+            "software": {"name": "test-transform", "version": "1", "sha256": None},
+            "parameters": {},
+            "scientific_status_promoted": False,
+        }
+    ]
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="cited derivation does not declare this result"):
+        validate_evidence_packet(packet)
+
+
+def test_derivation_result_dependency_graph_must_be_acyclic() -> None:
+    packet = _packet()
+    first = packet["results"][0]  # type: ignore[index]
+    first["value_state"] = "derived"
+    first["derivation_ids"] = ["derivation-a"]
+    packet["results"].append(  # type: ignore[attr-defined]
+        {
+            "result_id": "result-b",
+            "result_kind": "intermediate_measurement",
+            "value_state": "derived",
+            "value": 2.0,
+            "value_type": "number",
+            "unit_state": "specified",
+            "unit": "MPa",
+            "source_binding_ids": ["source-1"],
+            "derivation_ids": ["derivation-b"],
+            "uncertainty_ids": [],
+            "qualifiers": [],
+        }
+    )
+    packet["derivation_lineage"] = [
+        {
+            "derivation_id": "derivation-a",
+            "operation": "cycle-a",
+            "input_binding_ids": [],
+            "input_result_ids": ["result-b"],
+            "output_result_ids": ["result-uts"],
+            "software": {"name": "cycle", "version": "1", "sha256": None},
+            "parameters": {},
+            "scientific_status_promoted": False,
+        },
+        {
+            "derivation_id": "derivation-b",
+            "operation": "cycle-b",
+            "input_binding_ids": [],
+            "input_result_ids": ["result-uts"],
+            "output_result_ids": ["result-b"],
+            "software": {"name": "cycle", "version": "1", "sha256": None},
+            "parameters": {},
+            "scientific_status_promoted": False,
+        },
+    ]
+    packet = _rehash(packet)
+
+    with pytest.raises(EvidencePacketError, match="dependency graph must be acyclic"):
+        validate_evidence_packet(packet)

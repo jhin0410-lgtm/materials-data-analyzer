@@ -62,6 +62,36 @@ def test_missing_or_malformed_external_trust_root_fails_closed() -> None:
             )
 
 
+def test_mapping_subclass_cannot_hash_one_view_and_delegate_another() -> None:
+    expected = _expected()
+    trusted_digest = canonical_sha256(expected)
+
+    class SplitViewExpectation(dict):
+        def keys(self):
+            return list(super().keys())
+
+        def __iter__(self):
+            return iter(self.keys())
+
+        def __getitem__(self, key):
+            if key == "provider_id":
+                return "attacker-provider"
+            return super().__getitem__(key)
+
+    split_view = SplitViewExpectation(expected)
+    # json.dumps on a dict subclass can observe its stored dictionary while dict(mapping)
+    # may use overridden mapping accessors. The trusted snapshot must therefore be created
+    # before hashing and the exact same snapshot delegated.
+    with pytest.raises(
+        trust.EvidenceExpectationTrustError,
+        match="external trust-root digest",
+    ):
+        trust.authenticate_validation_expectations(
+            split_view,
+            trusted_expectation_sha256=trusted_digest,
+        )
+
+
 def test_jointly_rehashed_packet_expectation_pair_cannot_replace_original_trust_root() -> None:
     original_expected = _expected()
     original_trust_root = canonical_sha256(original_expected)
