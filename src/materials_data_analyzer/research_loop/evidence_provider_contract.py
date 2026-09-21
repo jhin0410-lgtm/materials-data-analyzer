@@ -513,14 +513,6 @@ def adapt_characterization_provider_state(
     highest = verified["highest_supported_level"]
     blocker = verified["first_blocking_level"]
     status = "ready" if blocker is None else "blocked"
-    comparison_identity_sha256 = canonical_sha256(
-        {
-            "claim_id": claim_id,
-            "left_evidence_id": left_evidence_id,
-            "right_evidence_id": right_evidence_id,
-        }
-    )
-
     return finalize_provider_state(
         {
             "schema_version": PROVIDER_STATE_SCHEMA_VERSION,
@@ -1007,6 +999,14 @@ def adapt_verified_comparability_provider_state(
         first_blocker = "comparability-normalization-required:" + ",".join(
             normalization
         )
+
+    comparison_identity_sha256 = canonical_sha256(
+        {
+            "claim_id": claim_id,
+            "left_evidence_id": left_evidence_id,
+            "right_evidence_id": right_evidence_id,
+        }
+    )
 
     return finalize_provider_state(
         {
