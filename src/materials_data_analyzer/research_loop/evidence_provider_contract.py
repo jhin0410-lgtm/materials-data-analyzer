@@ -677,16 +677,23 @@ def _comparability_side_missing(value: object) -> bool:
         return True
     if isinstance(value, (list, tuple, set, dict)) and len(value) == 0:
         return True
-    if isinstance(value, Mapping):
-        if (
-            value.get("value_type") in {"number", "integer"}
-            and value.get("unit_state") == "unknown"
-        ):
-            return True
-        return any(_comparability_side_missing(item) for item in value.values())
-    if isinstance(value, (list, tuple, set)):
-        return any(_comparability_side_missing(item) for item in value)
-    return False
+
+    def has_unknown_quantitative_unit(item: object) -> bool:
+        if isinstance(item, Mapping):
+            if (
+                item.get("value_type") in {"number", "integer"}
+                and item.get("unit_state") == "unknown"
+            ):
+                return True
+            return any(
+                has_unknown_quantitative_unit(nested)
+                for nested in item.values()
+            )
+        if isinstance(item, (list, tuple, set)):
+            return any(has_unknown_quantitative_unit(nested) for nested in item)
+        return False
+
+    return has_unknown_quantitative_unit(value)
 
 def adapt_verified_comparability_provider_state(
     assessment: Mapping[str, Any],
