@@ -443,22 +443,6 @@ def _generic_action_class(value: object) -> str:
     return "review_required"
 
 
-def _verify_canonical_object(
-    value: Mapping[str, Any],
-    *,
-    digest_field: str,
-    field: str,
-) -> str:
-    digest = _sha(value.get(digest_field), field=f"{field}.{digest_field}")
-    unsigned = dict(value)
-    unsigned.pop(digest_field, None)
-    _require(
-        canonical_sha256(unsigned) == digest,
-        f"{field} canonical SHA-256 mismatch",
-    )
-    return digest
-
-
 def adapt_characterization_provider_state(
     assessment: Mapping[str, Any],
 ) -> dict[str, Any]:
