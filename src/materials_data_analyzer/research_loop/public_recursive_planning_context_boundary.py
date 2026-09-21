@@ -6,9 +6,10 @@ checkpoint is packaged into the persistent planning context.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
+from .evidence_provider_contract import AuthenticatedProviderStateInput
 from .public_recursive_planning import (
     build_public_recursive_planning_context as _build_context,
     validate_public_recursive_planning_context,
@@ -29,6 +30,8 @@ def build_public_recursive_planning_context(
     minimum_utility: float = 0.01,
     previous_validated_planning_context: Mapping[str, Any] | None = None,
     recursive_limits: Mapping[str, Any] | None = None,
+    provider_state_inputs: Sequence[AuthenticatedProviderStateInput] | None = None,
+    provider_state_transition: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     effective_limits = recursive_limits
     if effective_limits is None and previous_validated_planning_context is not None:
@@ -49,6 +52,8 @@ def build_public_recursive_planning_context(
         minimum_utility=minimum_utility,
         previous_validated_planning_context=previous_validated_planning_context,
         recursive_limits=effective_limits,
+        provider_state_inputs=provider_state_inputs,
+        provider_state_transition=provider_state_transition,
     )
 
 
