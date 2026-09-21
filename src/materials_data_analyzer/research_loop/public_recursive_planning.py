@@ -18,6 +18,18 @@ from typing import Any
 
 from .action_registry import describe_action, load_action_registry
 from .autonomous_inquiry_plan_verifier import validate_autonomous_inquiry_plan
+from .evidence_provider_contract import (
+    AuthenticatedProviderStateInput,
+    EvidenceProviderContractError,
+    aggregate_provider_requirements,
+)
+from .evidence_provider_planning import (
+    EvidenceProviderPlanningError,
+    deserialize_authenticated_provider_inputs,
+    serialize_authenticated_provider_inputs,
+    validate_provider_input_successor,
+    validate_provider_planner_program_state,
+)
 from .heat_conduction_action import ACTION_TYPE as HEAT_ACTION_TYPE
 from .heat_conduction_action import ACTION_VERSION as HEAT_ACTION_VERSION
 from .heat_execution_verifier import verify_heat_execution_handoff
@@ -96,6 +108,25 @@ def _positive_int(value: object, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise PublicRecursivePlanningError(f"{field} must be integer >= 1")
     return value
+
+
+def _provider_inputs(
+    value: Sequence[AuthenticatedProviderStateInput] | None,
+) -> list[AuthenticatedProviderStateInput] | None:
+    if value is None:
+        return None
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise PublicRecursivePlanningError("provider_state_inputs must be a sequence")
+    result = list(value)
+    if not result:
+        raise PublicRecursivePlanningError(
+            "provider_state_inputs must be non-empty when supplied"
+        )
+    if any(not isinstance(item, AuthenticatedProviderStateInput) for item in result):
+        raise PublicRecursivePlanningError(
+            "provider_state_inputs must contain AuthenticatedProviderStateInput values"
+        )
+    return result
 
 
 def _json_file(path: str | Path, *, field: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -566,6 +597,9 @@ def _persistent_state(
     *,
     planning_handoff: Mapping[str, Any],
     fresh_plan: Mapping[str, Any],
+    provider_requirement_aggregate: Mapping[str, Any] | None = None,
+    provider_overlay_verification: Mapping[str, Any] | None = None,
+    provider_successor_verification: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     diagnosis = _mapping(planning_handoff.get("diagnosis_context"), "diagnosis_context")
     objectives = [dict(_mapping(item, "research_objective")) for item in _sequence(planning_handoff.get("research_objectives", []), "research_objectives")]
@@ -577,7 +611,7 @@ def _persistent_state(
         or item.get("source_execution_mode") == "explicit_authorization_required"
     )
     stop = _mapping(fresh_plan.get("stop_decision"), "fresh_plan.stop_decision")
-    return {
+    result: dict[str, Any] = {
         "source_discrepancy_report_sha256": planning_handoff["source_discrepancy_report_sha256"],
         "fresh_plan_sha256": fresh_plan["plan_sha256"],
         "unresolved_evidence_gaps": gaps,
@@ -592,6 +626,28 @@ def _persistent_state(
         },
         "state_semantics": "verified_planning_context_snapshot_not_scientific_truth",
     }
+    if provider_requirement_aggregate is not None:
+        if provider_overlay_verification is None:
+            raise PublicRecursivePlanningError(
+                "provider aggregate requires planner overlay verification"
+            )
+        provider_state = {
+            "provider_requirement_aggregate": copy.deepcopy(
+                dict(provider_requirement_aggregate)
+            ),
+            "planner_overlay_verification": copy.deepcopy(
+                dict(provider_overlay_verification)
+            ),
+            "state_semantics": (
+                "authenticated_provider_requirements_planning_metadata_not_scientific_truth"
+            ),
+        }
+        if provider_successor_verification is not None:
+            provider_state["successor_verification"] = copy.deepcopy(
+                dict(provider_successor_verification)
+            )
+        result["evidence_provider_state"] = provider_state
+    return result
 
 
 def build_public_recursive_planning_checkpoint(
@@ -607,6 +663,8 @@ def build_public_recursive_planning_checkpoint(
     minimum_utility: float = 0.01,
     previous_validated_planning_context: Mapping[str, Any] | None = None,
     recursive_limits: Mapping[str, Any] | None = None,
+    provider_state_inputs: Sequence[AuthenticatedProviderStateInput] | None = None,
+    provider_state_transition: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Publish one checkpoint only from reconstructable public source inputs."""
     handoff_check = validate_public_recursive_discrepancy_planning_handoff(
@@ -635,11 +693,69 @@ def build_public_recursive_planning_checkpoint(
     previous_checkpoint: dict[str, Any] | None = None
     previous_budget: dict[str, Any] | None = None
     previous_context_sha: str | None = None
+    previous_provider_inputs: list[AuthenticatedProviderStateInput] | None = None
+    effective_provider_inputs = _provider_inputs(provider_state_inputs)
+    provider_successor_verification: dict[str, Any] | None = None
     if previous_validated_planning_context is not None:
         previous_verified = validate_public_recursive_planning_context(previous_validated_planning_context)
         previous_checkpoint = dict(previous_verified["recursive_checkpoint"])
         previous_budget = dict(previous_verified["recursive_resource_budget"])
         previous_context_sha = str(previous_verified["context_sha256"])
+        previous_serialized = previous_verified["validation_inputs"].get(
+            "provider_state_inputs"
+        )
+        if previous_serialized is not None:
+            try:
+                previous_provider_inputs = deserialize_authenticated_provider_inputs(
+                    previous_serialized
+                )
+            except (EvidenceProviderPlanningError, EvidenceProviderContractError) as exc:
+                raise PublicRecursivePlanningError(
+                    "previous provider-state inputs failed authenticated reconstruction"
+                ) from exc
+        if effective_provider_inputs is None:
+            effective_provider_inputs = previous_provider_inputs
+
+        if previous_provider_inputs is not None:
+            if effective_provider_inputs is None:
+                raise PublicRecursivePlanningError(
+                    "previous provider state unexpectedly disappeared"
+                )
+            try:
+                provider_successor_verification = validate_provider_input_successor(
+                    previous_provider_inputs,
+                    effective_provider_inputs,
+                    transition=provider_state_transition,
+                )
+            except (EvidenceProviderPlanningError, EvidenceProviderContractError) as exc:
+                raise PublicRecursivePlanningError(
+                    "recursive provider successor failed single-provider transition validation"
+                ) from exc
+        elif provider_state_transition is not None:
+            raise PublicRecursivePlanningError(
+                "provider transition supplied without predecessor provider state"
+            )
+    elif provider_state_transition is not None:
+        raise PublicRecursivePlanningError(
+            "provider transition requires a predecessor planning context"
+        )
+
+    provider_aggregate: dict[str, Any] | None = None
+    provider_overlay_verification: dict[str, Any] | None = None
+    if effective_provider_inputs is not None:
+        try:
+            provider_aggregate = aggregate_provider_requirements(
+                effective_provider_inputs
+            )
+            provider_overlay_verification = validate_provider_planner_program_state(
+                planner_program_state,
+                effective_provider_inputs,
+            )
+        except (EvidenceProviderContractError, EvidenceProviderPlanningError) as exc:
+            raise PublicRecursivePlanningError(
+                "provider planning state failed authenticated provider reconstruction"
+            ) from exc
+
     effective_limits: Mapping[str, Any] | None = recursive_limits
     if effective_limits is None and previous_budget is not None:
         effective_limits = _mapping(previous_budget.get("limits"), "previous recursive limits")
@@ -668,6 +784,9 @@ def build_public_recursive_planning_checkpoint(
     checkpoint["persistent_research_state"] = _persistent_state(
         planning_handoff=planning_handoff,
         fresh_plan=fresh_plan,
+        provider_requirement_aggregate=provider_aggregate,
+        provider_overlay_verification=provider_overlay_verification,
+        provider_successor_verification=provider_successor_verification,
     )
     checkpoint.pop("checkpoint_sha256", None)
     checkpoint["checkpoint_sha256"] = _canonical_sha256(checkpoint)
@@ -713,6 +832,22 @@ def build_public_recursive_planning_checkpoint(
             "scientific_status_changed": False,
         },
     }
+    if provider_overlay_verification is not None:
+        result["evidence_provider_verification"] = copy.deepcopy(
+            provider_overlay_verification
+        )
+        if provider_successor_verification is not None:
+            result["evidence_provider_successor_verification"] = copy.deepcopy(
+                provider_successor_verification
+            )
+        result["autonomy_boundary"].update(
+            {
+                "provider_requirements_authenticated": True,
+                "provider_requirements_persisted": True,
+                "provider_candidates_created": False,
+                "provider_exact_candidate_matching_preserved": True,
+            }
+        )
     result["validated_checkpoint_sha256"] = _canonical_sha256(result)
     return result
 
@@ -731,6 +866,8 @@ def validate_public_recursive_planning_checkpoint(
     minimum_utility: float = 0.01,
     previous_validated_planning_context: Mapping[str, Any] | None = None,
     recursive_limits: Mapping[str, Any] | None = None,
+    provider_state_inputs: Sequence[AuthenticatedProviderStateInput] | None = None,
+    provider_state_transition: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     supplied = dict(_mapping(artifact, "validated_planning_artifact"))
     embedded = _sha(supplied.get("validated_checkpoint_sha256"), "validated_checkpoint_sha256")
@@ -750,10 +887,12 @@ def validate_public_recursive_planning_checkpoint(
         minimum_utility=minimum_utility,
         previous_validated_planning_context=previous_validated_planning_context,
         recursive_limits=recursive_limits,
+        provider_state_inputs=provider_state_inputs,
+        provider_state_transition=provider_state_transition,
     )
     if rebuilt != supplied:
         raise PublicRecursivePlanningError("validated planning artifact differs from deterministic reconstruction")
-    return {
+    result = {
         "validated_checkpoint_sha256": embedded,
         "recursive_checkpoint": dict(rebuilt["recursive_checkpoint"]),
         "recursive_resource_budget": dict(rebuilt["recursive_resource_budget"]),
@@ -764,6 +903,15 @@ def validate_public_recursive_planning_checkpoint(
         "execution_performed": False,
         "scientific_status_changed": False,
     }
+    if "evidence_provider_verification" in rebuilt:
+        result["evidence_provider_verification"] = copy.deepcopy(
+            rebuilt["evidence_provider_verification"]
+        )
+    if "evidence_provider_successor_verification" in rebuilt:
+        result["evidence_provider_successor_verification"] = copy.deepcopy(
+            rebuilt["evidence_provider_successor_verification"]
+        )
+    return result
 
 
 def build_public_recursive_planning_context(
@@ -780,8 +928,27 @@ def build_public_recursive_planning_context(
     minimum_utility: float = 0.01,
     previous_validated_planning_context: Mapping[str, Any] | None = None,
     recursive_limits: Mapping[str, Any] | None = None,
+    provider_state_inputs: Sequence[AuthenticatedProviderStateInput] | None = None,
+    provider_state_transition: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     limits = normalize_recursive_limits(recursive_limits)
+    effective_provider_inputs = _provider_inputs(provider_state_inputs)
+    if effective_provider_inputs is None and previous_validated_planning_context is not None:
+        previous = validate_public_recursive_planning_context(
+            previous_validated_planning_context
+        )
+        previous_serialized = previous["validation_inputs"].get(
+            "provider_state_inputs"
+        )
+        if previous_serialized is not None:
+            try:
+                effective_provider_inputs = deserialize_authenticated_provider_inputs(
+                    previous_serialized
+                )
+            except (EvidenceProviderPlanningError, EvidenceProviderContractError) as exc:
+                raise PublicRecursivePlanningError(
+                    "previous provider-state inputs failed context reconstruction"
+                ) from exc
     verification = validate_public_recursive_planning_checkpoint(
         validated_planning_artifact,
         planning_handoff=planning_handoff,
@@ -795,6 +962,8 @@ def build_public_recursive_planning_context(
         minimum_utility=minimum_utility,
         previous_validated_planning_context=previous_validated_planning_context,
         recursive_limits=limits,
+        provider_state_inputs=effective_provider_inputs,
+        provider_state_transition=provider_state_transition,
     )
     inputs = {
         "planning_handoff": copy.deepcopy(dict(planning_handoff)),
@@ -809,6 +978,14 @@ def build_public_recursive_planning_context(
         "previous_validated_planning_context": None if previous_validated_planning_context is None else copy.deepcopy(dict(previous_validated_planning_context)),
         "recursive_limits": dict(limits),
     }
+    if effective_provider_inputs is not None:
+        inputs["provider_state_inputs"] = serialize_authenticated_provider_inputs(
+            effective_provider_inputs
+        )
+    if provider_state_transition is not None:
+        inputs["provider_state_transition"] = copy.deepcopy(
+            dict(provider_state_transition)
+        )
     result: dict[str, Any] = {
         "schema_version": PUBLIC_RECURSIVE_PLANNING_CONTEXT_SCHEMA_VERSION,
         "policy_version": PUBLIC_RECURSIVE_PLANNING_CONTEXT_POLICY_VERSION,
@@ -829,6 +1006,37 @@ def build_public_recursive_planning_context(
             "scientific_status_changed": False,
         },
     }
+    if effective_provider_inputs is not None:
+        try:
+            aggregate = aggregate_provider_requirements(effective_provider_inputs)
+        except EvidenceProviderContractError as exc:
+            raise PublicRecursivePlanningError(
+                "provider inputs failed context aggregation"
+            ) from exc
+        result["bindings"]["evidence_provider_aggregate_sha256"] = aggregate[
+            "aggregate_sha256"
+        ]
+        result["authority_boundary"].update(
+            {
+                "provider_requirements_authenticated": True,
+                "provider_candidates_created": False,
+            }
+        )
+        successor_verification = verification.get(
+            "evidence_provider_successor_verification"
+        )
+        if isinstance(successor_verification, Mapping):
+            transition_verification = successor_verification.get(
+                "transition_verification"
+            )
+            if isinstance(transition_verification, Mapping):
+                result["bindings"]["evidence_provider_transition_sha256"] = _sha(
+                    transition_verification.get("transition_sha256"),
+                    "provider transition transition_sha256",
+                )
+                result["authority_boundary"][
+                    "provider_single_transition_enforced"
+                ] = True
     result["context_sha256"] = _canonical_sha256(result)
     return result
 
@@ -848,6 +1056,21 @@ def validate_public_recursive_planning_context(context: Mapping[str, Any]) -> di
         inputs.get("previous_validated_planning_context"),
         "previous_validated_planning_context",
     )
+    provider_serialized = inputs.get("provider_state_inputs")
+    provider_transition = _optional_mapping(
+        inputs.get("provider_state_transition"),
+        "provider_state_transition",
+    )
+    provider_inputs = None
+    if provider_serialized is not None:
+        try:
+            provider_inputs = deserialize_authenticated_provider_inputs(
+                provider_serialized
+            )
+        except (EvidenceProviderPlanningError, EvidenceProviderContractError) as exc:
+            raise PublicRecursivePlanningError(
+                "planning context provider-state inputs failed reconstruction"
+            ) from exc
     rebuilt = build_public_recursive_planning_checkpoint(
         planning_handoff=_mapping(inputs.get("planning_handoff"), "validation_inputs.planning_handoff"),
         source_discrepancy_report=_mapping(inputs.get("source_discrepancy_report"), "validation_inputs.source_discrepancy_report"),
@@ -860,12 +1083,14 @@ def validate_public_recursive_planning_context(context: Mapping[str, Any]) -> di
         minimum_utility=float(inputs.get("minimum_utility", 0.01)),
         previous_validated_planning_context=previous_context,
         recursive_limits=_mapping(inputs.get("recursive_limits"), "recursive_limits"),
+        provider_state_inputs=provider_inputs,
+        provider_state_transition=provider_transition,
     )
     if rebuilt != artifact:
         raise PublicRecursivePlanningError("planning context does not reconstruct its validated artifact")
     checkpoint = _mapping(artifact.get("recursive_checkpoint"), "recursive_checkpoint")
     budget = _mapping(artifact.get("recursive_resource_budget"), "recursive_resource_budget")
-    return {
+    result = {
         "context_sha256": embedded,
         "validated_planning_artifact": dict(artifact),
         "validation_inputs": dict(inputs),
@@ -876,6 +1101,16 @@ def validate_public_recursive_planning_context(context: Mapping[str, Any]) -> di
         "authorization_granted": False,
         "execution_performed": False,
     }
+    if provider_inputs is not None:
+        try:
+            aggregate = aggregate_provider_requirements(provider_inputs)
+        except EvidenceProviderContractError as exc:
+            raise PublicRecursivePlanningError(
+                "planning context provider aggregate failed reconstruction"
+            ) from exc
+        result["evidence_provider_aggregate_sha256"] = aggregate["aggregate_sha256"]
+        result["provider_requirements_authenticated"] = True
+    return result
 
 
 build_discrepancy_planning_handoff = build_public_recursive_discrepancy_planning_handoff

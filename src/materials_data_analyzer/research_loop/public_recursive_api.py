@@ -14,6 +14,29 @@ from .authenticated_transition_consumer import authenticate_transition_bundle
 from .autonomous_inquiry import build_autonomous_inquiry_plan
 from .authorized_execution import execute_authorized_action
 from .epistemic_graph import evaluate_epistemic_graph
+from .evidence_provider_contract import (
+    AuthenticatedProviderStateInput,
+    adapt_authenticated_planning_gaps,
+    adapt_characterization_provider_state,
+    aggregate_provider_requirements,
+    validate_provider_requirement_aggregate,
+    validate_provider_state,
+    verify_authenticated_planning_provider_state,
+    verify_characterization_provider_state,
+    verify_provider_requirement_aggregate,
+)
+from .evidence_provider_planning import (
+    apply_provider_state_transition,
+    build_provider_planner_program_state,
+    build_provider_state_transition,
+    build_provider_successor_planner_program_state,
+    deserialize_authenticated_provider_inputs,
+    serialize_authenticated_provider_inputs,
+    validate_provider_input_successor,
+    validate_provider_planner_program_state,
+    validate_provider_state_transition,
+    validate_provider_successor_planner_program_state,
+)
 from .heat_execution_verifier import verify_heat_execution_handoff
 from .heat_transition_verification import (
     HEAT_TRANSITION_VERIFIER_ID,
@@ -87,6 +110,25 @@ complete_recursive_cycle_with_rediagnosis = complete_public_recursive_cycle_with
 build_reviewed_in625_tensile_intake = build_reviewed_in625_tensile_intake_v2
 
 __all__ = [
+    "AuthenticatedProviderStateInput",
+    "adapt_authenticated_planning_gaps",
+    "adapt_characterization_provider_state",
+    "aggregate_provider_requirements",
+    "apply_provider_state_transition",
+    "build_provider_planner_program_state",
+    "build_provider_state_transition",
+    "build_provider_successor_planner_program_state",
+    "deserialize_authenticated_provider_inputs",
+    "serialize_authenticated_provider_inputs",
+    "validate_provider_input_successor",
+    "validate_provider_planner_program_state",
+    "validate_provider_requirement_aggregate",
+    "validate_provider_state",
+    "validate_provider_state_transition",
+    "validate_provider_successor_planner_program_state",
+    "verify_authenticated_planning_provider_state",
+    "verify_characterization_provider_state",
+    "verify_provider_requirement_aggregate",
     "HEAT_TRANSITION_VERIFIER_ID",
     "REFERENCE_HEAT_NUMERICAL_VALIDITY_TARGET",
     "PublicRecursivePlanningError",
