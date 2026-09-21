@@ -92,6 +92,18 @@ _AGGREGATE_KEYS = frozenset(
     }
 )
 
+_AGGREGATE_PROVIDER_STATE_KEYS = frozenset(
+    {"provider_id", "provider_state_sha256"}
+)
+_AGGREGATE_REQUIREMENT_KEYS = frozenset(
+    {
+        "aggregate_requirement_id",
+        "provider_id",
+        "provider_state_sha256",
+        "requirement",
+    }
+)
+
 
 class EvidenceProviderContractError(ValueError):
     """Raised when provider planning state widens or loses its trust boundary."""
@@ -673,6 +685,7 @@ def aggregate_provider_requirements(
 ) -> dict[str, Any]:
     """Aggregate externally authenticated ProviderStates with immutable SHA ancestry."""
 
+    _require(bool(inputs), "provider aggregation requires at least one authenticated state")
     validated: list[dict[str, Any]] = []
     for index, item in enumerate(inputs):
         _require(
@@ -756,6 +769,92 @@ def verify_provider_requirement_aggregate(
     return expected
 
 
+def _validate_aggregate_requirement_record(
+    value: object,
+    *,
+    index: int,
+    provider_hashes: Mapping[str, str],
+) -> dict[str, Any]:
+    record = _exact_keys(
+        value,
+        _AGGREGATE_REQUIREMENT_KEYS,
+        field=f"requirements[{index}]",
+    )
+    provider_id = _text(
+        record.get("provider_id"),
+        field=f"requirements[{index}].provider_id",
+    )
+    _require(
+        provider_id in provider_hashes,
+        f"requirements[{index}] references unknown provider",
+    )
+    provider_sha = _sha(
+        record.get("provider_state_sha256"),
+        field=f"requirements[{index}].provider_state_sha256",
+    )
+    _require(
+        provider_sha == provider_hashes[provider_id],
+        f"requirements[{index}] provider-state SHA does not match provider ancestry",
+    )
+    requirement = _exact_keys(
+        record.get("requirement"),
+        _REQUIREMENT_KEYS,
+        field=f"requirements[{index}].requirement",
+    )
+    requirement_id = _text(
+        requirement.get("requirement_id"),
+        field=f"requirements[{index}].requirement.requirement_id",
+    )
+    requirement_class = _text(
+        requirement.get("requirement_class"),
+        field=f"requirements[{index}].requirement.requirement_class",
+    )
+    action_class = _text(
+        requirement.get("action_class"),
+        field=f"requirements[{index}].requirement.action_class",
+    )
+    _require(
+        requirement_class in REQUIREMENT_ACTION_CLASSES,
+        f"requirements[{index}] requirement_class is unsupported",
+    )
+    _require(
+        action_class in REQUIREMENT_ACTION_CLASSES,
+        f"requirements[{index}] action_class is unsupported",
+    )
+    _text(
+        requirement.get("description"),
+        field=f"requirements[{index}].requirement.description",
+    )
+    _require(
+        requirement.get("status") == "unresolved",
+        f"requirements[{index}] status must remain unresolved",
+    )
+    refs = requirement.get("source_binding_ids")
+    _require(
+        isinstance(refs, list)
+        and all(isinstance(item, str) and bool(item) for item in refs)
+        and len(set(refs)) == len(refs),
+        f"requirements[{index}] source_binding_ids must be unique non-empty text",
+    )
+    _require(
+        requirement.get("automatic_execution_authorized") is False,
+        f"requirements[{index}] may not authorize automatic execution",
+    )
+    _require(
+        requirement.get("scientific_status_promoted") is False,
+        f"requirements[{index}] may not promote scientific status",
+    )
+    aggregate_id = _text(
+        record.get("aggregate_requirement_id"),
+        field=f"requirements[{index}].aggregate_requirement_id",
+    )
+    _require(
+        aggregate_id == f"{provider_id}:{requirement_id}",
+        f"requirements[{index}] aggregate requirement id drifted",
+    )
+    return copy.deepcopy(dict(record))
+
+
 def validate_provider_requirement_aggregate(value: object) -> dict[str, Any]:
     root = dict(_exact_keys(value, _AGGREGATE_KEYS, field="ProviderRequirementAggregate"))
     digest = _sha(root.pop("aggregate_sha256"), field="aggregate_sha256")
@@ -770,16 +869,58 @@ def validate_provider_requirement_aggregate(value: object) -> dict[str, Any]:
         and root.get("aggregate_type") == "evidence_provider_requirement_aggregate",
         "unsupported provider requirement aggregate contract",
     )
+
+    ancestry = root.get("provider_state_sha256s")
     _require(
-        isinstance(root.get("provider_state_sha256s"), list),
-        "provider_state_sha256s must be a list",
+        isinstance(ancestry, list) and bool(ancestry),
+        "provider_state_sha256s must be a non-empty list",
     )
+    provider_hashes: dict[str, str] = {}
+    for index, raw in enumerate(ancestry):
+        item = _exact_keys(
+            raw,
+            _AGGREGATE_PROVIDER_STATE_KEYS,
+            field=f"provider_state_sha256s[{index}]",
+        )
+        provider_id = _text(
+            item.get("provider_id"),
+            field=f"provider_state_sha256s[{index}].provider_id",
+        )
+        _require(
+            provider_id not in provider_hashes,
+            "provider_state_sha256s provider ids must be unique",
+        )
+        provider_hashes[provider_id] = _sha(
+            item.get("provider_state_sha256"),
+            field=f"provider_state_sha256s[{index}].provider_state_sha256",
+        )
+
+    requirements = root.get("requirements")
     _require(
-        isinstance(root.get("requirements"), list),
+        isinstance(requirements, list),
         "aggregate requirements must be a list",
     )
+    aggregate_ids: set[str] = set()
+    for index, raw in enumerate(requirements):
+        record = _validate_aggregate_requirement_record(
+            raw,
+            index=index,
+            provider_hashes=provider_hashes,
+        )
+        aggregate_id = record["aggregate_requirement_id"]
+        _require(
+            aggregate_id not in aggregate_ids,
+            "aggregate requirement ids must be unique",
+        )
+        aggregate_ids.add(aggregate_id)
+
+    boundary = _exact_keys(
+        root.get("authority_boundary"),
+        _AUTHORITY_KEYS,
+        field="authority_boundary",
+    )
     _require(
-        _typed_equal(root.get("authority_boundary"), _authority_boundary()),
+        _typed_equal(boundary, _authority_boundary()),
         "provider aggregate authority boundary drifted",
     )
     expected_composite = canonical_sha256(root["provider_state_sha256s"])
