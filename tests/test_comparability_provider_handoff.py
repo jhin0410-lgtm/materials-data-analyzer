@@ -23,6 +23,7 @@ from materials_data_analyzer.research_loop.evidence_provider_contract import (
     AuthenticatedProviderStateInput,
     EvidenceProviderContractError,
     adapt_verified_comparability_provider_state,
+    aggregate_provider_requirements,
     verify_comparability_provider_state,
 )
 from materials_data_analyzer.research_loop.evidence_provider_planning import (
@@ -31,6 +32,7 @@ from materials_data_analyzer.research_loop.evidence_provider_planning import (
 from materials_data_analyzer.research_loop.self_directed_research import (
     build_self_directed_research_plan,
 )
+from materials_data_analyzer.research_loop import public_recursive_api
 
 
 def _attribute(
@@ -652,3 +654,129 @@ def test_rehashed_provider_tamper_fails_comparability_recomputation() -> None:
             claim_scope=claim,
             trusted_claim_scope_sha256=canonical_sha256(claim),
         )
+
+
+
+def test_two_comparability_assessments_have_distinct_stable_provider_identities() -> None:
+    claim = _claim("instrument_state_calibration")
+
+    left_a_raw = b"left-a\n"
+    right_a_raw = b"right-a\n"
+    left_a = _input(
+        _packet(evidence_id="left-a", artifact=left_a_raw, sample="left-a-sample"),
+        left_a_raw,
+    )
+    right_a = _input(
+        _packet(
+            evidence_id="right-a",
+            artifact=right_a_raw,
+            sample="right-a-sample",
+            source_family_id="family-a2",
+            dataset_parent_id="dataset-a2",
+        ),
+        right_a_raw,
+    )
+    assessment_a = _assessment(left_a, right_a, claim)
+    provider_a = adapt_verified_comparability_provider_state(
+        assessment_a,
+        left_a,
+        right_a,
+        claim_scope=claim,
+        trusted_claim_scope_sha256=canonical_sha256(claim),
+    )
+
+    left_b_raw = b"left-b\n"
+    right_b_raw = b"right-b\n"
+    left_b = _input(
+        _packet(evidence_id="left-b", artifact=left_b_raw, sample="left-b-sample"),
+        left_b_raw,
+    )
+    right_b = _input(
+        _packet(
+            evidence_id="right-b",
+            artifact=right_b_raw,
+            sample="right-b-sample",
+            source_family_id="family-b2",
+            dataset_parent_id="dataset-b2",
+        ),
+        right_b_raw,
+    )
+    assessment_b = _assessment(left_b, right_b, claim)
+    provider_b = adapt_verified_comparability_provider_state(
+        assessment_b,
+        left_b,
+        right_b,
+        claim_scope=claim,
+        trusted_claim_scope_sha256=canonical_sha256(claim),
+    )
+
+    assert provider_a["provider"]["provider_id"] != provider_b["provider"]["provider_id"]
+    assert provider_a["provider"]["provider_id"].startswith(
+        "provenance-aware-comparability-engine:"
+    )
+    aggregate = aggregate_provider_requirements(
+        [
+            AuthenticatedProviderStateInput(
+                state=provider_a,
+                trusted_provider_state_sha256=provider_a["provider_state_sha256"],
+            ),
+            AuthenticatedProviderStateInput(
+                state=provider_b,
+                trusted_provider_state_sha256=provider_b["provider_state_sha256"],
+            ),
+        ]
+    )
+    assert aggregate["provider_count"] == 2
+
+
+def test_asymmetric_missing_context_names_the_missing_evidence_target() -> None:
+    left_raw = b"left-complete\n"
+    right_raw = b"right-missing\n"
+    left_packet = _packet(
+        evidence_id="left-complete",
+        artifact=left_raw,
+        process_route="LPBF",
+        sample="left-sample",
+    )
+    right_packet = _packet(
+        evidence_id="right-missing",
+        artifact=right_raw,
+        process_route="LPBF",
+        sample="right-sample",
+        source_family_id="family-2",
+        dataset_parent_id="dataset-2",
+    )
+    right_packet["contexts"]["process"]["attributes"] = []
+    right_packet = _rehash_assessment(right_packet) if False else right_packet
+    right_packet.pop("packet_sha256", None)
+    right_packet["packet_sha256"] = canonical_sha256(right_packet)
+
+    left = _input(left_packet, left_raw)
+    right = _input(right_packet, right_raw)
+    claim = _claim("process_route")
+    assessment = _assessment(left, right, claim)
+    assert assessment["assessment_status"] == UNKNOWN
+
+    provider = adapt_verified_comparability_provider_state(
+        assessment,
+        left,
+        right,
+        claim_scope=claim,
+        trusted_claim_scope_sha256=canonical_sha256(claim),
+    )
+    requirement = provider["unresolved_requirements"][0]
+    assert "Missing/affected evidence target(s): right-missing." in requirement["description"]
+    assert "left-complete" not in requirement["description"].split(
+        "Missing/affected evidence target(s):", 1
+    )[1].split(".", 1)[0]
+
+
+def test_public_recursive_facade_exports_comparability_provider_handoff() -> None:
+    assert (
+        public_recursive_api.adapt_verified_comparability_provider_state
+        is adapt_verified_comparability_provider_state
+    )
+    assert (
+        public_recursive_api.verify_comparability_provider_state
+        is verify_comparability_provider_state
+    )
