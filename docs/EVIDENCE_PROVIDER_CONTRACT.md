@@ -71,11 +71,14 @@ externally bound planning object.
 
 ## Aggregation
 
-`aggregate_provider_requirements()` combines multiple validated ProviderStates while preserving
-each state SHA-256 as ancestry. Provider identities must be unique.
+`aggregate_provider_requirements()` combines multiple ProviderStates only when each complete
+state is paired with an independently supplied trusted ProviderState SHA-256. A state self-hash
+is therefore not sufficient aggregation authority. Provider identities must be unique.
 
-The aggregate is deterministic and planning-only. A persisted aggregate can be replayed against
-the source ProviderStates with `verify_provider_requirement_aggregate()`.
+The aggregate preserves each trusted state SHA-256 as ancestry and structurally validates nested
+provider hashes, requirement identifiers, generic action classes, and authority flags. A persisted
+aggregate can be replayed against the externally authenticated source ProviderStates with
+`verify_provider_requirement_aggregate()`.
 
 ## Scientific boundary
 
