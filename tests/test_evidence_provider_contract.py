@@ -302,6 +302,54 @@ def test_provider_state_rejects_boolean_and_float_authority_or_maturity_aliases(
         validate_provider_state(floated)
 
 
+def test_provider_aggregate_requires_at_least_one_authenticated_state() -> None:
+    with pytest.raises(
+        EvidenceProviderContractError,
+        match="at least one authenticated state",
+    ):
+        aggregate_provider_requirements([])
+
+
+def test_structural_aggregate_validator_rejects_rehashed_nested_provider_sha_mismatch() -> None:
+    characterization = adapt_characterization_provider_state(_assessment(4))
+    aggregate = aggregate_provider_requirements(
+        [_trusted_provider(characterization)]
+    )
+    forged = copy.deepcopy(aggregate)
+    forged["requirements"][0]["provider_state_sha256"] = "f" * 64
+    forged = _rehash_aggregate(forged)
+
+    with pytest.raises(
+        EvidenceProviderContractError,
+        match="provider-state SHA does not match provider ancestry",
+    ):
+        from materials_data_analyzer.research_loop.evidence_provider_contract import (
+            validate_provider_requirement_aggregate,
+        )
+
+        validate_provider_requirement_aggregate(forged)
+
+
+def test_structural_aggregate_validator_rejects_rehashed_requirement_id_drift() -> None:
+    characterization = adapt_characterization_provider_state(_assessment(4))
+    aggregate = aggregate_provider_requirements(
+        [_trusted_provider(characterization)]
+    )
+    forged = copy.deepcopy(aggregate)
+    forged["requirements"][0]["aggregate_requirement_id"] = "forged:id"
+    forged = _rehash_aggregate(forged)
+
+    with pytest.raises(
+        EvidenceProviderContractError,
+        match="aggregate requirement id drifted",
+    ):
+        from materials_data_analyzer.research_loop.evidence_provider_contract import (
+            validate_provider_requirement_aggregate,
+        )
+
+        validate_provider_requirement_aggregate(forged)
+
+
 def test_provider_aggregate_rejects_rehashed_state_under_original_external_root() -> None:
     state = adapt_characterization_provider_state(_assessment(4))
     trusted = state["provider_state_sha256"]
