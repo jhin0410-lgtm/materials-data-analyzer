@@ -747,7 +747,6 @@ def test_asymmetric_missing_context_names_the_missing_evidence_target() -> None:
         dataset_parent_id="dataset-2",
     )
     right_packet["contexts"]["process"]["attributes"] = []
-    right_packet = _rehash_assessment(right_packet) if False else right_packet
     right_packet.pop("packet_sha256", None)
     right_packet["packet_sha256"] = canonical_sha256(right_packet)
 
