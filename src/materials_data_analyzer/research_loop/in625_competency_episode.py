@@ -102,7 +102,7 @@ def _refine_protocol_gap(planning_state: Mapping[str, Any]) -> dict[str, Any]:
         matched += 1
         raw["requirement"] = (
             "Acquire authoritative source evidence binding the exact spot-diameter "
-            "definition/value, measurement geometry, acquisition protocol and uncertainty "
+            "definition/value, measurement geometry, acquisition protocol and measurement-error "
             "semantics between the NIST AM-Bench trace and the mds2 target experiment. "
             "The authenticated mds2 subset already proves spot diameter is a varying "
             "source-native protocol variable, so it may not be omitted or assumed transferable."
