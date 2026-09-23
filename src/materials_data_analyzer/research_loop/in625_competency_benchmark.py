@@ -195,7 +195,11 @@ def _hypothesis_portfolio(bridge: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _bridge_planning_state(bridge: Mapping[str, Any]) -> dict[str, Any]:
+def _bridge_planning_state(
+    bridge: Mapping[str, Any],
+    *,
+    nist_packet: Mapping[str, Any],
+) -> dict[str, Any]:
     identity = bridge.get("experiment_identity")
     gate = bridge.get("calibration_and_protocol_gate")
     decision = bridge.get("gate_decision")
@@ -256,18 +260,21 @@ def _bridge_planning_state(bridge: Mapping[str, Any]) -> dict[str, Any]:
             }
         )
 
-    gaps.append(
-        {
-            "gap_id": "in625-benchmark:nist-official-trace-provenance",
-            "requirement": (
-                "Acquire and byte-bind the official NIST AM-Bench 2018-02 high-resolution "
-                "cross-section source assets/metadata (mds2-3830) to test whether the current "
-                "reviewed trace transcription can be upgraded in provenance authority without "
-                "changing its scientific scope."
-            ),
-            "action_class_hint": "external_evidence_search",
-        }
-    )
+    authority = nist_packet.get("authority")
+    _require(isinstance(authority, Mapping), "NIST EvidencePacket authority is missing")
+    if authority.get("row_level_measurement_authority") is not True:
+        gaps.append(
+            {
+                "gap_id": "in625-benchmark:nist-official-trace-provenance",
+                "requirement": (
+                    "Acquire and byte-bind the official NIST AM-Bench 2018-02 high-resolution "
+                    "cross-section source assets/metadata (mds2-3830) to test whether the current "
+                    "reviewed trace transcription can be upgraded in provenance authority without "
+                    "changing its scientific scope."
+                ),
+                "action_class_hint": "external_evidence_search",
+            }
+        )
 
     return {
         "schema_version": "1.0",
@@ -328,7 +335,10 @@ def build_in625_competency_bootstrap(
         trusted_claim_scope_sha256=claim_trusted,
     )
     portfolio = _hypothesis_portfolio(bridge)
-    planning_state = _bridge_planning_state(bridge)
+    planning_state = _bridge_planning_state(
+        bridge,
+        nist_packet=nist_evidence.packet,
+    )
 
     result: dict[str, Any] = {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
