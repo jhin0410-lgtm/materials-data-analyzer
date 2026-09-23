@@ -1,0 +1,110 @@
+name: IN625 live spot sensitivity benchmark
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/in625-live-spot-sensitivity.yml"
+      - "scripts/run_live_in625_spot_benchmark.py"
+      - "src/materials_data_analyzer/research_loop/in625_competency_evidence.py"
+      - "src/materials_data_analyzer/research_loop/in625_spot_size_sensitivity.py"
+      - "src/materials_data_analyzer/research_loop/evidence_provider_contract.py"
+      - "src/materials_data_analyzer/research_loop/evidence_provider_planning.py"
+      - "src/materials_data_analyzer/research_loop/research_agent.py"
+      - "configs/research/in625_external_physical_source_frontier.v1.json"
+
+permissions:
+  contents: read
+
+jobs:
+  live-spot-sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+
+      - name: Acquire authoritative NIST mds2-2923 README and workbook
+        run: |
+          mkdir -p outputs/in625-live-spot
+          python -m materials_data_analyzer.public_acquisition_cli             --frontier configs/research/in625_external_physical_source_frontier.v1.json             --candidate-id nist-mds2-2923-cross-sectional-micrographs             --output-root outputs/in625-live-spot/packages             --timeout-seconds 180             --max-auto-mib 8             | tee outputs/in625-live-spot/frontier_acquisition_report.json
+
+      - name: Freeze exact evidence expectation roots
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py freeze-evidence             --acquisition-root outputs/in625-live-spot             --output outputs/in625-live-spot/expectation_roots.json
+          echo "EXPECTATION_ROOTS_FILE_SHA256=$(sha256sum outputs/in625-live-spot/expectation_roots.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Freeze planner-selected live iteration
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py freeze-iteration             --output outputs/in625-live-spot/planner_iteration.json
+          echo "ITERATION_FILE_SHA256=$(sha256sum outputs/in625-live-spot/planner_iteration.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Compile exact selected-action request from frozen state
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py compile-request             --acquisition-root outputs/in625-live-spot             --expectation-roots outputs/in625-live-spot/expectation_roots.json             --expectation-roots-file-sha256 "$EXPECTATION_ROOTS_FILE_SHA256"             --iteration outputs/in625-live-spot/planner_iteration.json             --iteration-file-sha256 "$ITERATION_FILE_SHA256"             --output outputs/in625-live-spot/action_request.json
+          echo "REQUEST_FILE_SHA256=$(sha256sum outputs/in625-live-spot/action_request.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Freeze explicit local-analysis authorization
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py authorize             --request outputs/in625-live-spot/action_request.json             --request-file-sha256 "$REQUEST_FILE_SHA256"             --output outputs/in625-live-spot/authorization_receipt.json
+          echo "AUTHORIZATION_FILE_SHA256=$(sha256sum outputs/in625-live-spot/authorization_receipt.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Execute and independently recompute real-data sensitivity
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py execute             --acquisition-root outputs/in625-live-spot             --expectation-roots outputs/in625-live-spot/expectation_roots.json             --expectation-roots-file-sha256 "$EXPECTATION_ROOTS_FILE_SHA256"             --request outputs/in625-live-spot/action_request.json             --request-file-sha256 "$REQUEST_FILE_SHA256"             --authorization outputs/in625-live-spot/authorization_receipt.json             --authorization-file-sha256 "$AUTHORIZATION_FILE_SHA256"             --output outputs/in625-live-spot/verified_result.json             | tee outputs/in625-live-spot/live_result_summary.json
+
+      - name: Verify bounded scientific result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/in625-live-spot")
+          result = json.loads((root / "verified_result.json").read_text(encoding="utf-8"))
+          analysis = result["analysis"]
+          assert analysis["row_count"] == 18
+          assert analysis["physical_track_count"] == 18
+          assert analysis["spot_level_count"] == 7
+          assert analysis["spot_diameter_range_um"] == [50.0, 256.0]
+          assert result["scientific_interpretation"]["protocol_spot_context_can_be_ignored"] is False
+          assert result["scientific_interpretation"]["causal_spot_size_effect_established"] is False
+          assert result["scientific_interpretation"]["calibrated_power_relation_established"] is False
+          assert result["scientific_interpretation"]["protocol_equivalence_established"] is False
+          assert result["scientific_interpretation"]["cross_source_numerical_validation_authorized"] is False
+          assert result["scientific_interpretation"]["issue_76_exact_target_cells_satisfied"] == 0
+          assert result["authority_boundary"]["new_empirical_measurements_created"] is False
+          assert result["authority_boundary"]["scientific_status_promoted"] is False
+
+          print(json.dumps({
+              "width_slope": analysis["width"]["linear_slope_um_per_um_spot"],
+              "width_r": analysis["width"]["pearson_r_spot_vs_width"],
+              "width_loo_sign_stable": analysis["width"]["leave_one_level_sign_stable"],
+              "depth_slope": analysis["depth"]["linear_slope_um_per_um_spot"],
+              "depth_r": analysis["depth"]["pearson_r_spot_vs_depth"],
+              "depth_loo_sign_stable": analysis["depth"]["leave_one_level_sign_stable"],
+          }, sort_keys=True))
+          PY
+
+      - name: Upload live benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: in625-live-spot-sensitivity
+          path: |
+            outputs/in625-live-spot/frontier_acquisition_report.json
+            outputs/in625-live-spot/expectation_roots.json
+            outputs/in625-live-spot/planner_iteration.json
+            outputs/in625-live-spot/action_request.json
+            outputs/in625-live-spot/authorization_receipt.json
+            outputs/in625-live-spot/verified_result.json
+            outputs/in625-live-spot/live_result_summary.json
+          if-no-files-found: warn
+          retention-days: 30
