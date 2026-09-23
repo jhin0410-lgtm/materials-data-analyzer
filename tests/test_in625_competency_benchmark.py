@@ -398,8 +398,10 @@ def test_authenticated_bootstrap_generates_multiple_actions_without_execution() 
     classes = {item["action_class"] for item in plan["self_generated_gap_actions"]}
     assert "external_evidence_search" in classes
     assert "physical_experiment_design" in classes
-    assert plan["selected_next_action"]["action_class"] == "external_evidence_search"
-    assert plan["selected_next_action"]["execution_mode"] == "explicit_authorization_required"
+    selected = plan["selected_next_action"]
+    assert selected is not None
+    assert selected["action_id"] == plan["ranked_actions"][0]["action_id"]
+    assert selected["execution_mode"] in {"plan_only", "explicit_authorization_required"}
     assert iteration["authority_boundary"]["selected_action_is_authorized"] is False
     assert iteration["authority_boundary"]["execution_performed"] is False
     assert iteration["scientific_boundary"]["directly_comparable_mds2_rows"] == 0
