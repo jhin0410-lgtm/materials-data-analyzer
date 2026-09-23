@@ -438,12 +438,14 @@ def test_spot_size_action_executes_only_after_exact_request_authorization() -> N
     result = execute_in625_spot_size_sensitivity(
         request,
         authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
         evidence_inputs=inputs,
     )
     verified = verify_in625_spot_size_sensitivity(
         result,
         request=request,
         authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
         evidence_inputs=inputs,
     )
 
@@ -506,12 +508,14 @@ def test_verified_spot_result_changes_planning_state_and_prevents_repeat_design(
     result = execute_in625_spot_size_sensitivity(
         request,
         authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
         evidence_inputs=inputs,
     )
     verified = verify_in625_spot_size_sensitivity(
         result,
         request=request,
         authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
         evidence_inputs=inputs,
     )
     reassessment = build_in625_post_sensitivity_reassessment(
@@ -562,6 +566,7 @@ def test_reassessment_rejects_rehashed_scientific_promotion() -> None:
     result = execute_in625_spot_size_sensitivity(
         request,
         authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
         evidence_inputs=inputs,
     )
     trusted_result = canonical_sha256(result)
