@@ -726,7 +726,7 @@ def test_two_comparability_assessments_have_distinct_stable_provider_identities(
             ),
         ]
     )
-    assert aggregate["provider_count"] == 2
+    assert len(aggregate["provider_state_sha256s"]) == 2
 
 
 def test_asymmetric_missing_context_names_the_missing_evidence_target() -> None:
