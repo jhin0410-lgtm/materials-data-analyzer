@@ -86,10 +86,6 @@ def _authenticate_bridge_state(
         decision = snapshot.get("calibration_and_protocol_gate")
     _require(isinstance(decision, Mapping), "mds2 bridge gate decision is missing")
 
-    required_false = (
-        "direct_numerical_cross_source_validation_authorized",
-        "cross_machine_pooling_authorized",
-    )
     # Historical geometry mapping uses the shorter direct_numerical_validation_authorized key.
     direct = decision.get("direct_numerical_cross_source_validation_authorized")
     if direct is None:
@@ -395,6 +391,9 @@ def build_in625_competency_iteration(
 
     planning_state = snapshot.get("planning_state")
     _require(isinstance(planning_state, Mapping), "benchmark planning_state is missing")
+    # The complete bootstrap has already matched an external trust root above.  This
+    # nested hash therefore authenticates a member of that externally bound object; it
+    # is not an independent producer-side trust root for an otherwise mutable state.
     planning_state_sha = canonical_sha256(planning_state)
     provider = adapt_authenticated_planning_gaps(
         planning_state,
