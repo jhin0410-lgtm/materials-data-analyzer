@@ -672,6 +672,29 @@ def verify_authenticated_planning_provider_state(
     return expected
 
 
+def _comparability_side_missing(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, (list, tuple, set, dict)) and len(value) == 0:
+        return True
+
+    def has_unknown_quantitative_unit(item: object) -> bool:
+        if isinstance(item, Mapping):
+            if (
+                item.get("value_type") in {"number", "integer"}
+                and item.get("unit_state") == "unknown"
+            ):
+                return True
+            return any(
+                has_unknown_quantitative_unit(nested)
+                for nested in item.values()
+            )
+        if isinstance(item, (list, tuple, set)):
+            return any(has_unknown_quantitative_unit(nested) for nested in item)
+        return False
+
+    return has_unknown_quantitative_unit(value)
+
 def adapt_verified_comparability_provider_state(
     assessment: Mapping[str, Any],
     left: AuthenticatedEvidenceInput,
@@ -850,8 +873,29 @@ def adapt_verified_comparability_provider_state(
         "comparability required_normalization must be a text list",
     )
 
+    dimension_results = verified.get("dimension_results")
+    _require(
+        isinstance(dimension_results, list),
+        "comparability dimension_results must be a list",
+    )
+    dimension_by_name: dict[str, Mapping[str, Any]] = {}
+    for index, raw in enumerate(dimension_results):
+        _require(
+            isinstance(raw, Mapping),
+            f"comparability dimension_results[{index}] must be an object",
+        )
+        dimension_name = _text(
+            raw.get("dimension"),
+            field=f"comparability dimension_results[{index}].dimension",
+        )
+        _require(
+            dimension_name not in dimension_by_name,
+            "comparability dimension_results contain duplicate dimensions",
+        )
+        dimension_by_name[dimension_name] = raw
+
     requirements: list[dict[str, Any]] = []
-    verified_missing_gaps: list[tuple[str, str]] = []
+    verified_missing_gaps: list[tuple[str, str, tuple[str, ...]]] = []
     for index, raw in enumerate(gaps):
         _require(
             isinstance(raw, Mapping),
@@ -875,14 +919,31 @@ def adapt_verified_comparability_provider_state(
             and raw.get("scientific_status_promoted") is False,
             "comparability planner gap semantics drifted",
         )
-        verified_missing_gaps.append((gap_id, dimension))
+        dimension_result = dimension_by_name.get(dimension)
+        _require(
+            isinstance(dimension_result, Mapping)
+            and dimension_result.get("status") == "MISSING",
+            "comparability planner gap lacks matching MISSING dimension result",
+        )
+        left_missing = _comparability_side_missing(dimension_result.get("left"))
+        right_missing = _comparability_side_missing(dimension_result.get("right"))
+        if left_missing and not right_missing:
+            missing_evidence_ids = (left_evidence_id,)
+        elif right_missing and not left_missing:
+            missing_evidence_ids = (right_evidence_id,)
+        else:
+            # Cross-packet lineage/relationship gaps can be unresolved without one
+            # packet carrying a syntactically empty value; preserve both targets.
+            missing_evidence_ids = (left_evidence_id, right_evidence_id)
+        verified_missing_gaps.append((gap_id, dimension, missing_evidence_ids))
 
     # A missing-context acquisition task is actionable only when missing context is the
     # reason the declared comparison remains UNKNOWN. If an authenticated conflict already
     # makes the declared comparison NOT_COMPARABLE, acquiring the additional missing field
     # must not be presented as though it could erase that conflict.
     if outcome == UNKNOWN:
-        for gap_id, dimension in verified_missing_gaps:
+        for gap_id, dimension, missing_evidence_ids in verified_missing_gaps:
+            missing_targets = ", ".join(missing_evidence_ids)
             requirements.append(
                 {
                     "requirement_id": gap_id,
@@ -891,6 +952,7 @@ def adapt_verified_comparability_provider_state(
                     "description": (
                         "Acquire authoritative source or experiment evidence for missing "
                         f"comparability dimension '{dimension}' under claim '{claim_id}'. "
+                        f"Missing/affected evidence target(s): {missing_targets}. "
                         "Preserve sample/acquisition identity, calibration, units, protocol, "
                         "and exact provenance where applicable; do not infer or impute the "
                         "missing context."
@@ -945,13 +1007,24 @@ def adapt_verified_comparability_provider_state(
             normalization
         )
 
+    comparison_identity_sha256 = canonical_sha256(
+        {
+            "claim_id": claim_id,
+            "left_evidence_id": left_evidence_id,
+            "right_evidence_id": right_evidence_id,
+        }
+    )
+
     return finalize_provider_state(
         {
             "schema_version": PROVIDER_STATE_SCHEMA_VERSION,
             "policy_version": PROVIDER_STATE_POLICY_VERSION,
             "provider_state_type": PROVIDER_STATE_TYPE,
             "provider": {
-                "provider_id": "provenance-aware-comparability-engine",
+                "provider_id": (
+                    "provenance-aware-comparability-engine:"
+                    + comparison_identity_sha256
+                ),
                 "contract_version": "1.0",
                 "schema_version": "1.0",
                 "adapter_id": "verified-comparability-provider-state-v1",
