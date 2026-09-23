@@ -446,13 +446,22 @@ def execute_in625_spot_size_sensitivity(
     request: Mapping[str, Any],
     *,
     authorization_receipt: Mapping[str, Any],
+    trusted_authorization_sha256: str,
     evidence_inputs: Sequence[AuthenticatedEvidenceInput],
 ) -> dict[str, Any]:
-    """Execute the deterministic local analysis after exact authorization verification."""
+    """Execute only after an externally pinned authorization receipt is authenticated."""
 
     request_snapshot = copy.deepcopy(dict(request))
     request_sha = _verify_self_hash(request_snapshot, "request_sha256")
     receipt = copy.deepcopy(dict(authorization_receipt))
+    trusted_authorization = _sha(
+        trusted_authorization_sha256,
+        "trusted_authorization_sha256",
+    )
+    _require(
+        canonical_sha256(receipt) == trusted_authorization,
+        "authorization receipt does not match external trust-root SHA-256",
+    )
     authorization_sha = _verify_self_hash(receipt, "authorization_sha256")
     _require(
         receipt.get("action_type") == ACTION_TYPE
@@ -517,6 +526,7 @@ def verify_in625_spot_size_sensitivity(
     *,
     request: Mapping[str, Any],
     authorization_receipt: Mapping[str, Any],
+    trusted_authorization_sha256: str,
     evidence_inputs: Sequence[AuthenticatedEvidenceInput],
 ) -> dict[str, Any]:
     """Independently recompute the exact action result from authenticated evidence."""
@@ -526,6 +536,7 @@ def verify_in625_spot_size_sensitivity(
     expected = execute_in625_spot_size_sensitivity(
         request,
         authorization_receipt=authorization_receipt,
+        trusted_authorization_sha256=trusted_authorization_sha256,
         evidence_inputs=evidence_inputs,
     )
     _require(
