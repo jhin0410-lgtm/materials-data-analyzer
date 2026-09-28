@@ -1,0 +1,214 @@
+name: IN625 live full autonomous episode
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/in625-live-full-episode.yml"
+      - "scripts/run_live_in625_full_episode.py"
+      - "scripts/run_live_in625_spot_benchmark.py"
+      - "src/materials_data_analyzer/research_loop/in625_competency_benchmark.py"
+      - "src/materials_data_analyzer/research_loop/in625_competency_evidence.py"
+      - "src/materials_data_analyzer/research_loop/in625_spot_size_sensitivity.py"
+      - "src/materials_data_analyzer/research_loop/in625_competency_episode.py"
+      - "src/materials_data_analyzer/research_loop/in625_competency_epistemic.py"
+      - "src/materials_data_analyzer/research_loop/in625_competency_closeout.py"
+      - "src/materials_data_analyzer/research_loop/comparability_engine.py"
+      - "src/materials_data_analyzer/research_loop/scientific_critic.py"
+      - "src/materials_data_analyzer/research_loop/evidence_packet_adapters.py"
+      - "src/materials_data_analyzer/research_loop/in625_geometry_condition_*.py"
+      - "configs/research/autonomous_in625_production_mission.v1.json"
+      - "configs/research/in625_geometry_condition_multisource_acquisition_policy.v1.json"
+      - "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
+      - "configs/research/in625_external_physical_source_frontier.v1.json"
+      - "data/case_studies/nist_ambench_2018_02/**"
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_MISSION_SHA256: 98d8730a4ba1221685267ed56cd7ae75f2ce60fcfdd8f8bb426a3825986c70ea
+
+jobs:
+  live-full-episode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+
+      - name: Acquire authoritative NIST mds2-2923 README and workbook
+        run: |
+          mkdir -p outputs/in625-live-full
+          python -m materials_data_analyzer.public_acquisition_cli \
+            --frontier configs/research/in625_external_physical_source_frontier.v1.json \
+            --candidate-id nist-mds2-2923-cross-sectional-micrographs \
+            --output-root outputs/in625-live-full/packages \
+            --timeout-seconds 180 \
+            --max-auto-mib 8 \
+            | tee outputs/in625-live-full/frontier_acquisition_report.json
+
+      - name: Freeze real evidence, literature bridge, comparison claim, and trust roots
+        run: |
+          python scripts/run_live_in625_full_episode.py freeze-context \
+            --repository-root . \
+            --acquisition-root outputs/in625-live-full \
+            --expected-mission-sha256 "$EXPECTED_MISSION_SHA256" \
+            --output-dir outputs/in625-live-full \
+            | tee outputs/in625-live-full/freeze_context_summary.json
+          echo "CONTEXT_FILE_SHA256=$(sha256sum outputs/in625-live-full/full_episode_context.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "CONTEXT_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-live-full/full_episode_context.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+          echo "EXPECTATION_ROOTS_FILE_SHA256=$(sha256sum outputs/in625-live-full/expectation_roots.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Build full authenticated benchmark bootstrap and autonomous first iteration
+        run: |
+          python scripts/run_live_in625_full_episode.py build-bootstrap \
+            --repository-root . \
+            --acquisition-root outputs/in625-live-full \
+            --context outputs/in625-live-full/full_episode_context.json \
+            --context-file-sha256 "$CONTEXT_FILE_SHA256" \
+            --context-object-sha256 "$CONTEXT_OBJECT_SHA256" \
+            --bootstrap-output outputs/in625-live-full/bootstrap.json \
+            --iteration-output outputs/in625-live-full/planner_iteration.json \
+            | tee outputs/in625-live-full/bootstrap_summary.json
+          echo "BOOTSTRAP_FILE_SHA256=$(sha256sum outputs/in625-live-full/bootstrap.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "BOOTSTRAP_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-live-full/bootstrap.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+          echo "ITERATION_FILE_SHA256=$(sha256sum outputs/in625-live-full/planner_iteration.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "ITERATION_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-live-full/planner_iteration.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+
+      - name: Compile exact planner-selected local action request
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py compile-request \
+            --acquisition-root outputs/in625-live-full \
+            --expectation-roots outputs/in625-live-full/expectation_roots.json \
+            --expectation-roots-file-sha256 "$EXPECTATION_ROOTS_FILE_SHA256" \
+            --iteration outputs/in625-live-full/planner_iteration.json \
+            --iteration-file-sha256 "$ITERATION_FILE_SHA256" \
+            --iteration-object-sha256 "$ITERATION_OBJECT_SHA256" \
+            --output outputs/in625-live-full/action_request.json
+          echo "REQUEST_FILE_SHA256=$(sha256sum outputs/in625-live-full/action_request.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "REQUEST_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-live-full/action_request.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+
+      - name: Freeze explicit authorization for the exact request
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py authorize \
+            --request outputs/in625-live-full/action_request.json \
+            --request-file-sha256 "$REQUEST_FILE_SHA256" \
+            --request-object-sha256 "$REQUEST_OBJECT_SHA256" \
+            --output outputs/in625-live-full/authorization_receipt.json
+          echo "AUTHORIZATION_FILE_SHA256=$(sha256sum outputs/in625-live-full/authorization_receipt.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "AUTHORIZATION_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-live-full/authorization_receipt.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+
+      - name: Execute and independently recompute the real-data action
+        run: |
+          python scripts/run_live_in625_spot_benchmark.py execute \
+            --acquisition-root outputs/in625-live-full \
+            --expectation-roots outputs/in625-live-full/expectation_roots.json \
+            --expectation-roots-file-sha256 "$EXPECTATION_ROOTS_FILE_SHA256" \
+            --request outputs/in625-live-full/action_request.json \
+            --request-file-sha256 "$REQUEST_FILE_SHA256" \
+            --authorization outputs/in625-live-full/authorization_receipt.json \
+            --authorization-file-sha256 "$AUTHORIZATION_FILE_SHA256" \
+            --authorization-object-sha256 "$AUTHORIZATION_OBJECT_SHA256" \
+            --output outputs/in625-live-full/verified_result.json \
+            | tee outputs/in625-live-full/live_action_summary.json
+          echo "RESULT_FILE_SHA256=$(sha256sum outputs/in625-live-full/verified_result.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "RESULT_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-live-full/verified_result.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+
+      - name: Reassess, publish epistemic transition, re-criticize, and close episode
+        run: |
+          python scripts/run_live_in625_full_episode.py closeout \
+            --repository-root . \
+            --acquisition-root outputs/in625-live-full \
+            --context outputs/in625-live-full/full_episode_context.json \
+            --context-file-sha256 "$CONTEXT_FILE_SHA256" \
+            --context-object-sha256 "$CONTEXT_OBJECT_SHA256" \
+            --bootstrap outputs/in625-live-full/bootstrap.json \
+            --bootstrap-file-sha256 "$BOOTSTRAP_FILE_SHA256" \
+            --bootstrap-object-sha256 "$BOOTSTRAP_OBJECT_SHA256" \
+            --iteration outputs/in625-live-full/planner_iteration.json \
+            --iteration-file-sha256 "$ITERATION_FILE_SHA256" \
+            --iteration-object-sha256 "$ITERATION_OBJECT_SHA256" \
+            --request outputs/in625-live-full/action_request.json \
+            --request-file-sha256 "$REQUEST_FILE_SHA256" \
+            --request-object-sha256 "$REQUEST_OBJECT_SHA256" \
+            --authorization outputs/in625-live-full/authorization_receipt.json \
+            --authorization-file-sha256 "$AUTHORIZATION_FILE_SHA256" \
+            --authorization-object-sha256 "$AUTHORIZATION_OBJECT_SHA256" \
+            --result outputs/in625-live-full/verified_result.json \
+            --result-file-sha256 "$RESULT_FILE_SHA256" \
+            --result-object-sha256 "$RESULT_OBJECT_SHA256" \
+            --epistemic-output-root outputs/in625-live-full/epistemic_transition \
+            --output outputs/in625-live-full/final_closeout.json \
+            | tee outputs/in625-live-full/closeout_summary.json
+
+      - name: Verify final scientific boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/in625-live-full")
+          closeout = json.loads((root / "final_closeout.json").read_text(encoding="utf-8"))
+          assert closeout["episode_stage"] == "bounded_scientific_closeout"
+          assert closeout["episode_status"] == "external_evidence_required_before_direct_comparison"
+          assert closeout["comparability_reassessment"]["assessment_unchanged"] is True
+          assert closeout["comparability_reassessment"]["direct_comparison_authorized"] is False
+          assert closeout["action_trace"]["execution_verified"] is True
+          assert closeout["action_trace"]["independent_recomputation_performed"] is True
+          assert closeout["action_trace"]["epistemic_transition_published_and_reauthenticated"] is True
+          assert closeout["action_trace"]["scientific_critic_rerun"] is True
+          assert "sensitivity_analysis" not in closeout["action_trace"]["next_candidate_action_classes"]
+          assert closeout["bounded_conclusion"]["new_verified_information_obtained"] is True
+          assert closeout["bounded_conclusion"]["direct_numerical_cross_source_validation_authorized"] is False
+          assert closeout["bounded_conclusion"]["directly_comparable_mds2_rows"] == 0
+          assert closeout["bounded_conclusion"]["issue_76_exact_target_cells_satisfied"] == 0
+          assert closeout["bounded_conclusion"]["calibrated_power_relation_established"] is False
+          assert closeout["bounded_conclusion"]["protocol_equivalence_established"] is False
+          assert closeout["bounded_conclusion"]["causal_spot_size_effect_established"] is False
+          assert closeout["stop_decision"]["stop_current_episode"] is True
+          assert closeout["authority_boundary"]["positive_scientific_closeout_granted"] is False
+          assert closeout["authority_boundary"]["scientific_status_promoted"] is False
+          print(json.dumps({
+              "closeout_sha256": closeout["closeout_sha256"],
+              "final_status": closeout["episode_status"],
+              "comparability_status": closeout["comparability_reassessment"]["final_status"],
+              "next_candidate_action_classes": closeout["action_trace"]["next_candidate_action_classes"],
+              "stable_signed_association": closeout["bounded_conclusion"]["leave_one_spot_level_signed_association_stable"],
+          }, sort_keys=True))
+          PY
+
+      - name: Upload provenance-bound full episode
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: in625-live-full-autonomous-episode
+          path: |
+            outputs/in625-live-full/frontier_acquisition_report.json
+            outputs/in625-live-full/freeze_context_summary.json
+            outputs/in625-live-full/full_episode_context.json
+            outputs/in625-live-full/expectation_roots.json
+            outputs/in625-live-full/multisource_policy_qualification.json
+            outputs/in625-live-full/multisource_source_acquisition.json
+            outputs/in625-live-full/geometry_condition_mapping_assessment.json
+            outputs/in625-live-full/direct_comparison_claim.json
+            outputs/in625-live-full/bootstrap.json
+            outputs/in625-live-full/bootstrap_summary.json
+            outputs/in625-live-full/planner_iteration.json
+            outputs/in625-live-full/action_request.json
+            outputs/in625-live-full/authorization_receipt.json
+            outputs/in625-live-full/verified_result.json
+            outputs/in625-live-full/live_action_summary.json
+            outputs/in625-live-full/epistemic_transition/**
+            outputs/in625-live-full/final_closeout.json
+            outputs/in625-live-full/closeout_summary.json
+          if-no-files-found: warn
+          retention-days: 30
