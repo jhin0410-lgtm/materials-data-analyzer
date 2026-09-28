@@ -17,6 +17,10 @@ from materials_data_analyzer.research_loop.in625_competency_episode import (
     In625CompetencyEpisodeError,
     build_in625_post_sensitivity_reassessment,
 )
+from materials_data_analyzer.research_loop.in625_competency_epistemic import (
+    SPOT_CONTEXT_CLAIM_ID,
+    run_in625_spot_epistemic_transition_and_critic,
+)
 from materials_data_analyzer.research_loop.in625_spot_size_sensitivity import (
     In625SpotSizeSensitivityError,
     authorize_in625_spot_size_sensitivity_request,
@@ -584,3 +588,52 @@ def test_reassessment_rejects_rehashed_scientific_promotion() -> None:
             sensitivity_result=forged,
             trusted_result_sha256=trusted_result,
         )
+
+
+def test_verified_action_enters_authenticated_epistemic_graph_and_critic(tmp_path) -> None:
+    inputs = _mds2_inputs()
+    bootstrap, iteration = _bootstrap_and_iteration()
+    request = build_in625_spot_size_sensitivity_request(
+        iteration,
+        trusted_iteration_sha256=canonical_sha256(iteration),
+        evidence_inputs=inputs,
+    )
+    authorization = authorize_in625_spot_size_sensitivity_request(
+        request,
+        trusted_request_sha256=canonical_sha256(request),
+    )
+    result = execute_in625_spot_size_sensitivity(
+        request,
+        authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
+        evidence_inputs=inputs,
+    )
+    episode = run_in625_spot_epistemic_transition_and_critic(
+        bootstrap=bootstrap,
+        trusted_bootstrap_sha256=canonical_sha256(bootstrap),
+        request=request,
+        authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
+        sensitivity_result=result,
+        trusted_result_sha256=canonical_sha256(result),
+        evidence_inputs=inputs,
+        output_root=tmp_path / "in625-episode",
+    )
+
+    assert episode["transition_consumer"]["current_transition_exact_provenance_authenticated"] is True
+    assert episode["scientific_boundary"]["spot_context_explicitness_supported_by_verified_action"] is True
+    assert episode["scientific_boundary"]["original_competing_hypotheses_closed"] is False
+    assert episode["scientific_boundary"]["direct_numerical_cross_source_validation_authorized"] is False
+    assert episode["scientific_boundary"]["positive_scientific_closeout_granted"] is False
+
+    target_reports = episode["post_action_critic"]["target_reports"]
+    spot = next(item for item in target_reports if item["target_node_id"] == SPOT_CONTEXT_CLAIM_ID)
+    assessment = spot["epistemic_assessment"]
+    assert assessment["status"] == "inconclusive"
+    assert assessment["verified_support_edges"] == []
+    assert "supports:spot-context-explicitness" in assessment["diagnostic_relation_edges"]
+
+    original_ids = {"H_protocol_comparability", "H_artifact_or_lineage"}
+    reported_ids = {item["target_node_id"] for item in target_reports}
+    assert original_ids <= reported_ids
+    assert episode["authority_boundary"]["scientific_status_promoted"] is False
