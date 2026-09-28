@@ -1,0 +1,218 @@
+name: IN625 published retrospective model comparator
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/in625-published-model-comparator.yml"
+      - "scripts/run_in625_published_model_comparator.py"
+      - "src/materials_data_analyzer/research_loop/in625_published_model_comparator.py"
+      - "src/materials_data_analyzer/research_loop/in625_geometry_condition_source_acquisition.py"
+      - "src/materials_data_analyzer/research_loop/in625_model_holdout_benchmark.py"
+      - "tests/test_in625_published_model_comparator.py"
+      - "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
+      - "data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv"
+
+permissions:
+  contents: read
+
+jobs:
+  freeze-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      contract_file_sha256: ${{ steps.freeze.outputs.contract_file_sha256 }}
+      contract_object_sha256: ${{ steps.freeze.outputs.contract_object_sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+
+      - name: Freeze existing Case-B/A-C benchmark contract
+        id: freeze
+        run: |
+          mkdir -p outputs/in625-published-comparator
+          python scripts/run_in625_published_model_comparator.py freeze-contract \
+            --repository-root . \
+            --output outputs/in625-published-comparator/contract.json \
+            | tee outputs/in625-published-comparator/contract_summary.json
+          CONTRACT_FILE_SHA256="$(sha256sum outputs/in625-published-comparator/contract.json | cut -d' ' -f1)"
+          CONTRACT_OBJECT_SHA256="$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-published-comparator/contract.json", encoding="utf-8"))))')"
+          echo "contract_file_sha256=$CONTRACT_FILE_SHA256" >> "$GITHUB_OUTPUT"
+          echo "contract_object_sha256=$CONTRACT_OBJECT_SHA256" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: in625-published-comparator-contract
+          path: |
+            outputs/in625-published-comparator/contract.json
+            outputs/in625-published-comparator/contract_summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  acquire-published-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      evidence_file_sha256: ${{ steps.acquire.outputs.evidence_file_sha256 }}
+      evidence_object_sha256: ${{ steps.acquire.outputs.evidence_object_sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+
+      - name: Acquire finite institutional publication evidence
+        id: acquire
+        run: |
+          set -o pipefail
+          mkdir -p outputs/in625-published-comparator
+          python scripts/run_in625_published_model_comparator.py acquire \
+            --output outputs/in625-published-comparator/published_evidence.json \
+            | tee outputs/in625-published-comparator/acquisition_summary.json
+          EVIDENCE_FILE_SHA256="$(sha256sum outputs/in625-published-comparator/published_evidence.json | cut -d' ' -f1)"
+          EVIDENCE_OBJECT_SHA256="$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-published-comparator/published_evidence.json", encoding="utf-8"))))')"
+          echo "evidence_file_sha256=$EVIDENCE_FILE_SHA256" >> "$GITHUB_OUTPUT"
+          echo "evidence_object_sha256=$EVIDENCE_OBJECT_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Verify retrospective authority boundary before upload
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          value = json.loads(
+              Path(
+                  "outputs/in625-published-comparator/published_evidence.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert value["calibration_record"]["parameter_fit_case_ids"] == ["B"]
+          assert value["calibration_record"][
+              "parameters_reported_fixed_for_validation_case_ids"
+          ] == ["A", "C"]
+          assert value["retrospective_scope"][
+              "strict_prospective_holdout_model_selection_established"
+          ] is False
+          assert value["retrospective_scope"]["eligible_claim"] == (
+              "retrospective_published_model_comparison"
+          )
+          assert value["authority_boundary"]["strict_blind_validation_claimed"] is False
+          assert value["authority_boundary"]["scientific_status_promoted"] is False
+          PY
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: in625-published-comparator-evidence
+          path: |
+            outputs/in625-published-comparator/published_evidence.json
+            outputs/in625-published-comparator/acquisition_summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  evaluate-retrospective-comparator:
+    needs:
+      - freeze-contract
+      - acquire-published-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: in625-published-comparator-contract
+          path: downloaded-contract
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: in625-published-comparator-evidence
+          path: downloaded-evidence
+
+      - name: Evaluate published A-C predictions against current NIST measurements
+        env:
+          CONTRACT_FILE_SHA256: ${{ needs.freeze-contract.outputs.contract_file_sha256 }}
+          CONTRACT_OBJECT_SHA256: ${{ needs.freeze-contract.outputs.contract_object_sha256 }}
+          EVIDENCE_FILE_SHA256: ${{ needs.acquire-published-evidence.outputs.evidence_file_sha256 }}
+          EVIDENCE_OBJECT_SHA256: ${{ needs.acquire-published-evidence.outputs.evidence_object_sha256 }}
+        run: |
+          set -o pipefail
+          mkdir -p outputs/in625-published-comparator
+          cp downloaded-contract/contract.json outputs/in625-published-comparator/contract.json
+          cp downloaded-evidence/published_evidence.json outputs/in625-published-comparator/published_evidence.json
+          python scripts/run_in625_published_model_comparator.py evaluate \
+            --repository-root . \
+            --contract outputs/in625-published-comparator/contract.json \
+            --contract-file-sha256 "$CONTRACT_FILE_SHA256" \
+            --contract-object-sha256 "$CONTRACT_OBJECT_SHA256" \
+            --evidence outputs/in625-published-comparator/published_evidence.json \
+            --evidence-file-sha256 "$EVIDENCE_FILE_SHA256" \
+            --evidence-object-sha256 "$EVIDENCE_OBJECT_SHA256" \
+            --output outputs/in625-published-comparator/evaluation.json \
+            | tee outputs/in625-published-comparator/evaluation_summary.json
+
+      - name: Verify bounded retrospective result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          value = json.loads(
+              Path(
+                  "outputs/in625-published-comparator/evaluation.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert value["aggregate_ac_metrics"]["case_b_included"] is False
+          assert value["aggregate_ac_metrics"]["width_mae_um"] > 0
+          assert value["aggregate_ac_metrics"]["depth_mae_um"] > 0
+          assert value["scientific_interpretation"][
+              "parameter_fit_reported_case_b_only"
+          ] is True
+          assert value["scientific_interpretation"][
+              "published_parameters_fixed_for_a_c"
+          ] is True
+          assert value["scientific_interpretation"][
+              "strict_blind_model_selection_established"
+          ] is False
+          assert value["scientific_interpretation"][
+              "eligible_as_strict_phase1_holdout_prediction"
+          ] is False
+          assert value["scientific_boundary"][
+              "prospective_blind_validation_established"
+          ] is False
+          assert value["scientific_boundary"]["scientific_status_promoted"] is False
+          print(json.dumps(value["aggregate_ac_metrics"], sort_keys=True))
+          PY
+
+      - name: Focused comparator regressions
+        run: python -m pytest tests/test_in625_published_model_comparator.py -q
+
+      - name: Upload comparator evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: in625-published-retrospective-model-comparator
+          path: outputs/in625-published-comparator/**
+          if-no-files-found: error
+          retention-days: 30
