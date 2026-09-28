@@ -304,7 +304,7 @@ def compile_request(args: argparse.Namespace) -> int:
     inputs = _build_inputs(material, roots)
     request = build_in625_spot_size_sensitivity_request(
         iteration,
-        trusted_iteration_sha256=canonical_sha256(iteration),
+        trusted_iteration_sha256=args.iteration_object_sha256,
         evidence_inputs=inputs,
     )
     _write_json(args.output, request)
@@ -327,7 +327,7 @@ def authorize(args: argparse.Namespace) -> int:
     request = _load_json(args.request)
     receipt = authorize_in625_spot_size_sensitivity_request(
         request,
-        trusted_request_sha256=canonical_sha256(request),
+        trusted_request_sha256=args.request_object_sha256,
     )
     _write_json(args.output, receipt)
     print(
@@ -360,14 +360,14 @@ def execute(args: argparse.Namespace) -> int:
     result = execute_in625_spot_size_sensitivity(
         request,
         authorization_receipt=receipt,
-        trusted_authorization_sha256=canonical_sha256(receipt),
+        trusted_authorization_sha256=args.authorization_object_sha256,
         evidence_inputs=inputs,
     )
     verified = verify_in625_spot_size_sensitivity(
         result,
         request=request,
         authorization_receipt=receipt,
-        trusted_authorization_sha256=canonical_sha256(receipt),
+        trusted_authorization_sha256=args.authorization_object_sha256,
         evidence_inputs=inputs,
     )
     if verified != result:
@@ -438,12 +438,14 @@ def _parser() -> argparse.ArgumentParser:
     compile_cmd.add_argument("--expectation-roots-file-sha256", required=True)
     compile_cmd.add_argument("--iteration", type=Path, required=True)
     compile_cmd.add_argument("--iteration-file-sha256", required=True)
+    compile_cmd.add_argument("--iteration-object-sha256", required=True)
     compile_cmd.add_argument("--output", type=Path, required=True)
     compile_cmd.set_defaults(func=compile_request)
 
     auth = sub.add_parser("authorize")
     auth.add_argument("--request", type=Path, required=True)
     auth.add_argument("--request-file-sha256", required=True)
+    auth.add_argument("--request-object-sha256", required=True)
     auth.add_argument("--output", type=Path, required=True)
     auth.set_defaults(func=authorize)
 
@@ -455,6 +457,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--request-file-sha256", required=True)
     run.add_argument("--authorization", type=Path, required=True)
     run.add_argument("--authorization-file-sha256", required=True)
+    run.add_argument("--authorization-object-sha256", required=True)
     run.add_argument("--output", type=Path, required=True)
     run.set_defaults(func=execute)
     return parser
