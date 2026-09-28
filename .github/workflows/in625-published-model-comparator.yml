@@ -7,6 +7,9 @@ on:
       - ".github/workflows/in625-published-model-comparator.yml"
       - "scripts/run_in625_published_model_comparator.py"
       - "src/materials_data_analyzer/research_loop/in625_published_model_comparator.py"
+      - "src/materials_data_analyzer/research_loop/in625_model_discrepancy_inquiry.py"
+      - "scripts/run_in625_model_discrepancy_inquiry.py"
+      - "tests/test_in625_model_discrepancy_inquiry.py"
       - "src/materials_data_analyzer/research_loop/in625_geometry_condition_source_acquisition.py"
       - "src/materials_data_analyzer/research_loop/in625_model_holdout_benchmark.py"
       - "tests/test_in625_published_model_comparator.py"
@@ -207,6 +210,60 @@ jobs:
 
       - name: Focused comparator regressions
         run: python -m pytest tests/test_in625_published_model_comparator.py -q
+
+      - name: Feed authenticated comparator discrepancy through critic and planner
+        run: |
+          set -o pipefail
+          EVALUATION_FILE_SHA256="$(sha256sum outputs/in625-published-comparator/evaluation.json | cut -d' ' -f1)"
+          EVALUATION_OBJECT_SHA256="$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-published-comparator/evaluation.json", encoding="utf-8"))))')"
+          python scripts/run_in625_model_discrepancy_inquiry.py \
+            --evaluation outputs/in625-published-comparator/evaluation.json \
+            --evaluation-file-sha256 "$EVALUATION_FILE_SHA256" \
+            --evaluation-object-sha256 "$EVALUATION_OBJECT_SHA256" \
+            --output-root outputs/in625-published-comparator/model-discrepancy-inquiry \
+            | tee outputs/in625-published-comparator/model_discrepancy_summary.json
+
+      - name: Verify bounded discrepancy inquiry and autonomous next action
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          value = json.loads(
+              Path(
+                  "outputs/in625-published-comparator/model-discrepancy-inquiry/"
+                  "model_discrepancy_inquiry.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert len(value["competing_hypotheses"]) >= 4
+          assert all(
+              item["verified_positive"] is False
+              for item in value["competing_hypotheses"]
+          )
+          assert value["plan"]["scientific_critic_adapter"][
+              "current_public_critic_contract_consumed"
+          ] is True
+          selected = value["plan"]["selected_next_action"]
+          assert selected["action_class"] == "external_evidence_search"
+          assert selected["automatic_execution_authorized"] is False
+          assert value["bounded_interpretation"][
+              "prospective_blind_validation_established"
+          ] is False
+          assert value["bounded_interpretation"][
+              "generalizable_physics_established"
+          ] is False
+          assert value["authority_boundary"]["hypothesis_truth_established"] is False
+          assert value["authority_boundary"]["scientific_status_promoted"] is False
+          print(json.dumps({
+              "selected_action_id": selected["action_id"],
+              "selected_action_class": selected["action_class"],
+              "candidate_count": len(value["plan"]["ranked_actions"]),
+              "hypothesis_count": len(value["competing_hypotheses"]),
+          }, sort_keys=True))
+          PY
+
+      - name: Focused discrepancy-inquiry regressions
+        run: python -m pytest tests/test_in625_model_discrepancy_inquiry.py -q
 
       - name: Upload comparator evidence
         if: always()
