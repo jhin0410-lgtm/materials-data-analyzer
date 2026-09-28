@@ -94,6 +94,7 @@ def _csv_rows(raw: bytes, label: str) -> list[dict[str, str]]:
 
 
 def _number(value: object, field: str) -> float:
+    _require(not isinstance(value, bool), f"{field} must be numeric, not boolean")
     try:
         number = float(value)
     except (TypeError, ValueError) as exc:
