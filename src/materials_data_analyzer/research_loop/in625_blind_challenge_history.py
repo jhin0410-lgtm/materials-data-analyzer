@@ -387,7 +387,7 @@ def _report_from_source_bytes(
                 "requested_url": item["url"],
                 "source_sha256": hashlib.sha256(raw).hexdigest(),
                 "source_size_bytes": len(raw),
-                "retained_path": str(path),
+                "retained_filename": str(item["filename"]),
                 "claim_anchors": anchors,
                 "all_claim_anchors_matched": True,
             }
@@ -405,7 +405,7 @@ def _report_from_source_bytes(
         "verified_historical_context": {
             "amb2018_total_blind_modeling_simulations": 46,
             "amb2018_02_melt_pool_geometry_submission_count": 10,
-            "nist_retrospective_statement_that_2018_mp_groups_came_close_to_measurements": False,
+            "nist_retrospective_statement_none_of_10_mp_groups_came_close_to_measurements": True,
             "current_corrected_ammt_process_conditions": {
                 "A": {"actual_power_w": 137.9, "scan_speed_mm_s": 400.0},
                 "B": {"actual_power_w": 179.2, "scan_speed_mm_s": 800.0},
