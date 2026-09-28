@@ -202,7 +202,7 @@ def acquire_kollmannsberger_retrospective_evidence() -> dict[str, Any]:
     )
     validation_index, validation_page = _find_unique_page(
         pages,
-        r"In the validation step, we keep the calibration parameters fixed",
+        r"cases A and C of the AMMT machine",
         "fixed-parameter-a-c-validation-statement",
     )
     table_index, table_page = _find_unique_page(
@@ -225,8 +225,8 @@ def acquire_kollmannsberger_retrospective_evidence() -> dict[str, Any]:
         _anchor_receipt(
             validation_page,
             (
-                r"In the validation step, we keep the calibration parameters fixed"
-                r".{0,400}cases A and C"
+                r"keep the calibration parameters.{0,40}xed"
+                r".{0,500}cases A and C of the AMMT machine"
             ),
             "fixed-parameter-a-c-validation-statement",
         ),
