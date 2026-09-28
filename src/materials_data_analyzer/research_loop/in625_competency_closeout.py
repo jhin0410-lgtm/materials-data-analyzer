@@ -234,6 +234,23 @@ def build_in625_competency_bounded_closeout(
         sensitivity_result.get("result_sha256"),
         "sensitivity_result.result_sha256",
     )
+    sensitivity_analysis = sensitivity_result.get("analysis")
+    _require(
+        isinstance(sensitivity_analysis, Mapping),
+        "sensitivity_result.analysis is missing",
+    )
+    width_analysis = sensitivity_analysis.get("width")
+    depth_analysis = sensitivity_analysis.get("depth")
+    _require(
+        isinstance(width_analysis, Mapping) and isinstance(depth_analysis, Mapping),
+        "sensitivity result width/depth analysis is missing",
+    )
+    stable_signed_association = (
+        width_analysis.get("leave_one_level_sign_stable") is True
+        and depth_analysis.get("leave_one_level_sign_stable") is True
+        and width_analysis.get("slope_sign") in {-1, 1}
+        and depth_analysis.get("slope_sign") in {-1, 1}
+    )
     next_plan_sha = _sha(next_plan.get("plan_sha256"), "next_plan.plan_sha256")
     episode_transition_sha = _sha(
         epistemic.get("episode_transition_sha256"),
@@ -311,14 +328,23 @@ def build_in625_competency_bounded_closeout(
         },
         "bounded_conclusion": {
             "statement": (
-                "The authenticated mds2 AMMT 195 W / 800 mm/s subset contains a stable "
-                "within-source association between source-native spot diameter and melt-pool "
-                "geometry, so spot/protocol context cannot be silently erased. The diagnostic "
+                (
+                    "The authenticated mds2 AMMT 195 W / 800 mm/s subset shows a leave-one-"
+                    "spot-level sign-stable within-source association between source-native "
+                    "spot diameter and melt-pool geometry, so spot/protocol context cannot be "
+                    "silently erased. "
+                    if stable_signed_association
+                    else
+                    "The authenticated mds2 AMMT 195 W / 800 mm/s subset contains seven "
+                    "source-native spot levels that must remain explicit comparison context. "
+                )
+                + "The diagnostic "
                 "action does not alter the original NIST-vs-mds2 ComparabilityAssessment; direct "
                 "quantitative cross-source comparison remains unauthorized pending external "
                 "experiment/protocol/calibration evidence."
             ),
             "new_verified_information_obtained": True,
+            "leave_one_spot_level_signed_association_stable": stable_signed_association,
             "scientific_status_promoted": False,
             "direct_numerical_cross_source_validation_authorized": False,
             "directly_comparable_mds2_rows": 0,
