@@ -117,12 +117,20 @@ def _authenticate_evaluation(
 
     interpretation = snapshot.get("scientific_interpretation")
     boundary = snapshot.get("scientific_boundary")
+    calibration = snapshot.get("calibration_record")
     aggregate = snapshot.get("aggregate_ac_metrics")
     cases = snapshot.get("case_metrics")
     _require(isinstance(interpretation, Mapping), "scientific_interpretation is missing")
     _require(isinstance(boundary, Mapping), "scientific_boundary is missing")
+    _require(isinstance(calibration, Mapping), "calibration_record is missing")
     _require(isinstance(aggregate, Mapping), "aggregate_ac_metrics is missing")
     _require(isinstance(cases, list), "case_metrics is missing")
+    _require(
+        calibration.get("parameter_fit_case_ids") == ["B"]
+        and calibration.get("parameters_reported_fixed_for_validation_case_ids")
+        == ["A", "C"],
+        "comparator calibration partition drifted",
+    )
     _require(
         interpretation.get("parameter_fit_reported_case_b_only") is True
         and interpretation.get("published_parameters_fixed_for_a_c") is True
@@ -155,6 +163,42 @@ def _authenticate_evaluation(
         "comparator must preserve exactly one A and one C case metric",
     )
     return snapshot, embedded
+
+
+def _range_membership_summary(evaluation: Mapping[str, Any]) -> dict[str, Any]:
+    cases = evaluation.get("case_metrics")
+    _require(isinstance(cases, list), "case_metrics is missing")
+    inside = 0
+    total = 0
+    by_case: dict[str, dict[str, bool]] = {}
+    for case in cases:
+        _require(isinstance(case, Mapping), "case_metrics must contain objects")
+        case_id = str(case.get("case_id"))
+        responses = case.get("responses")
+        _require(isinstance(responses, Mapping), f"{case_id} responses are missing")
+        per_response: dict[str, bool] = {}
+        for response_name in ("width", "depth"):
+            response = responses.get(response_name)
+            _require(
+                isinstance(response, Mapping),
+                f"{case_id}.{response_name} response metrics are missing",
+            )
+            membership = response.get("prediction_within_observed_trace_mean_range")
+            _require(
+                isinstance(membership, bool),
+                f"{case_id}.{response_name} range-membership flag must be boolean",
+            )
+            per_response[response_name] = membership
+            total += 1
+            inside += int(membership)
+        by_case[case_id] = per_response
+    _require(total == 4, "A/C comparator must contain four response comparisons")
+    return {
+        "response_comparison_count": total,
+        "predictions_inside_observed_trace_mean_range_count": inside,
+        "all_predictions_inside_observed_trace_mean_ranges": inside == total,
+        "range_membership_by_case": by_case,
+    }
 
 
 def _number(value: object, field: str) -> float:
@@ -452,7 +496,8 @@ def run_in625_model_discrepancy_inquiry(
         "planning_state": planning_state,
         "plan": plan,
         "bounded_interpretation": {
-            "retrospective_agreement_observed": True,
+            "retrospective_prediction_measurement_comparison_performed": True,
+            **_range_membership_summary(snapshot),
             "prospective_blind_validation_established": False,
             "generalizable_physics_established": False,
             "post_challenge_refinement_established": False,
