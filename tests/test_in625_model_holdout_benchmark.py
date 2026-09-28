@@ -64,12 +64,9 @@ def test_case_b_persistence_baseline_never_consumes_holdout_responses() -> None:
         "holdout_response_values_consumed_before_prediction_freeze": False,
     }
     assert {item["case_id"] for item in baseline["predictions"]} == {"A", "C"}
-    assert {
-        item["melt_pool_width_mean_um"] for item in baseline["predictions"]
-    } == {pytest.approx(123.46666666666667)}
-    assert {
-        item["melt_pool_depth_mean_um"] for item in baseline["predictions"]
-    } == {pytest.approx(35.96666666666667)}
+    for item in baseline["predictions"]:
+        assert item["melt_pool_width_mean_um"] == pytest.approx(123.46666666666667)
+        assert item["melt_pool_depth_mean_um"] == pytest.approx(35.96666666666667)
     assert baseline["scientific_boundary"]["physics_model_claimed"] is False
 
 
