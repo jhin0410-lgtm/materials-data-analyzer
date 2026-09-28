@@ -20,6 +20,7 @@ import hashlib
 import html
 import math
 import re
+import unicodedata
 from collections.abc import Mapping
 from html.parser import HTMLParser
 from io import BytesIO
@@ -113,17 +114,19 @@ def _normalized_pdf_pages(raw: bytes) -> list[str]:
     _require(raw.startswith(b"%PDF-"), "institutional thesis source is not a PDF")
     try:
         reader = PdfReader(BytesIO(raw), strict=False)
-        pages = [
-            re.sub(r"\s+", " ", (page.extract_text() or "")).strip()
-            for page in reader.pages
-        ]
+        pages: list[str] = []
+        for page in reader.pages:
+            text = unicodedata.normalize("NFKC", page.extract_text() or "")
+            # Rejoin words split specifically by a PDF line-break hyphen.
+            # Ordinary inline hyphens remain untouched.
+            text = re.sub(r"(?<=\\w)-[ \\t]*\\n[ \\t]*(?=\\w)", "", text)
+            pages.append(re.sub(r"\\s+", " ", text).strip())
     except Exception as exc:
         raise In625PublishedComparatorError(
             f"institutional thesis PDF could not be parsed: {exc}"
         ) from exc
     _require(any(pages), "institutional thesis PDF produced no extractable text")
     return pages
-
 
 def _find_unique_page(
     pages: list[str],
@@ -202,7 +205,7 @@ def acquire_kollmannsberger_retrospective_evidence() -> dict[str, Any]:
     )
     validation_index, validation_page = _find_unique_page(
         pages,
-        r"cases A and C of the AMMT machine",
+        r"In the validation step, we keep the calibration parameters fixed",
         "fixed-parameter-a-c-validation-statement",
     )
     table_index, table_page = _find_unique_page(
@@ -225,7 +228,7 @@ def acquire_kollmannsberger_retrospective_evidence() -> dict[str, Any]:
         _anchor_receipt(
             validation_page,
             (
-                r"keep the calibration parameters.{0,40}xed"
+                r"In the validation step, we keep the calibration parameters fixed"
                 r".{0,500}cases A and C of the AMMT machine"
             ),
             "fixed-parameter-a-c-validation-statement",
