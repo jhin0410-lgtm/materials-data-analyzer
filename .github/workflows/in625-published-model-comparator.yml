@@ -77,6 +77,7 @@ jobs:
       - name: Acquire finite institutional publication evidence
         id: acquire
         run: |
+          set -o pipefail
           mkdir -p outputs/in625-published-comparator
           python scripts/run_in625_published_model_comparator.py acquire \
             --output outputs/in625-published-comparator/published_evidence.json \
@@ -155,6 +156,7 @@ jobs:
           EVIDENCE_FILE_SHA256: ${{ needs.acquire-published-evidence.outputs.evidence_file_sha256 }}
           EVIDENCE_OBJECT_SHA256: ${{ needs.acquire-published-evidence.outputs.evidence_object_sha256 }}
         run: |
+          set -o pipefail
           mkdir -p outputs/in625-published-comparator
           cp downloaded-contract/contract.json outputs/in625-published-comparator/contract.json
           cp downloaded-evidence/published_evidence.json outputs/in625-published-comparator/published_evidence.json
