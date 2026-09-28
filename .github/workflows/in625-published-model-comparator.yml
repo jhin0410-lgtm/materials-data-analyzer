@@ -10,6 +10,9 @@ on:
       - "src/materials_data_analyzer/research_loop/in625_model_discrepancy_inquiry.py"
       - "scripts/run_in625_model_discrepancy_inquiry.py"
       - "tests/test_in625_model_discrepancy_inquiry.py"
+      - "src/materials_data_analyzer/research_loop/in625_blind_challenge_history.py"
+      - "scripts/run_in625_blind_challenge_history.py"
+      - "tests/test_in625_blind_challenge_history.py"
       - "src/materials_data_analyzer/research_loop/in625_geometry_condition_source_acquisition.py"
       - "src/materials_data_analyzer/research_loop/in625_model_holdout_benchmark.py"
       - "tests/test_in625_published_model_comparator.py"
@@ -264,6 +267,99 @@ jobs:
 
       - name: Focused discrepancy-inquiry regressions
         run: python -m pytest tests/test_in625_model_discrepancy_inquiry.py -q
+
+      - name: Freeze selected discrepancy inquiry
+        run: |
+          INQUIRY="outputs/in625-published-comparator/model-discrepancy-inquiry/model_discrepancy_inquiry.json"
+          echo "INQUIRY_FILE_SHA256=$(sha256sum "$INQUIRY" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "INQUIRY_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-published-comparator/model-discrepancy-inquiry/model_discrepancy_inquiry.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+
+      - name: Compile planner-selected fixed NIST history request
+        run: |
+          python scripts/run_in625_blind_challenge_history.py compile-request \
+            --inquiry outputs/in625-published-comparator/model-discrepancy-inquiry/model_discrepancy_inquiry.json \
+            --inquiry-file-sha256 "$INQUIRY_FILE_SHA256" \
+            --inquiry-object-sha256 "$INQUIRY_OBJECT_SHA256" \
+            --output outputs/in625-published-comparator/blind_history_request.json \
+            | tee outputs/in625-published-comparator/blind_history_request_summary.json
+          echo "BLIND_REQUEST_FILE_SHA256=$(sha256sum outputs/in625-published-comparator/blind_history_request.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "BLIND_REQUEST_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-published-comparator/blind_history_request.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+
+      - name: Explicitly authorize exact fixed NIST history request
+        run: |
+          python scripts/run_in625_blind_challenge_history.py authorize \
+            --request outputs/in625-published-comparator/blind_history_request.json \
+            --request-file-sha256 "$BLIND_REQUEST_FILE_SHA256" \
+            --request-object-sha256 "$BLIND_REQUEST_OBJECT_SHA256" \
+            --output outputs/in625-published-comparator/blind_history_authorization.json \
+            | tee outputs/in625-published-comparator/blind_history_authorization_summary.json
+          echo "BLIND_AUTH_FILE_SHA256=$(sha256sum outputs/in625-published-comparator/blind_history_authorization.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "BLIND_AUTH_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-published-comparator/blind_history_authorization.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
+
+      - name: Execute fixed-source NIST history acquisition and retained-byte replay
+        run: |
+          set -o pipefail
+          python scripts/run_in625_blind_challenge_history.py execute \
+            --request outputs/in625-published-comparator/blind_history_request.json \
+            --request-file-sha256 "$BLIND_REQUEST_FILE_SHA256" \
+            --request-object-sha256 "$BLIND_REQUEST_OBJECT_SHA256" \
+            --authorization outputs/in625-published-comparator/blind_history_authorization.json \
+            --authorization-file-sha256 "$BLIND_AUTH_FILE_SHA256" \
+            --authorization-object-sha256 "$BLIND_AUTH_OBJECT_SHA256" \
+            --source-output-dir outputs/in625-published-comparator/blind-history-sources \
+            --output outputs/in625-published-comparator/blind_history_result.json \
+            | tee outputs/in625-published-comparator/blind_history_result_summary.json
+
+      - name: Verify bounded blind-history evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          value = json.loads(
+              Path(
+                  "outputs/in625-published-comparator/blind_history_result.json"
+              ).read_text(encoding="utf-8")
+          )
+          facts = value["verified_historical_context"]
+          assert value["source_count"] == 4
+          assert facts["amb2018_total_blind_modeling_simulations"] == 46
+          assert facts["amb2018_02_melt_pool_geometry_submission_count"] == 10
+          assert facts[
+              "nist_retrospective_statement_none_of_10_mp_groups_came_close_to_measurements"
+          ] is True
+          assert facts["current_corrected_ammt_process_conditions"] == {
+              "A": {"actual_power_w": 137.9, "scan_speed_mm_s": 400.0},
+              "B": {"actual_power_w": 179.2, "scan_speed_mm_s": 800.0},
+              "C": {"actual_power_w": 179.2, "scan_speed_mm_s": 1200.0},
+          }
+          assert facts["current_corrected_spot_d4sigma_um"] == {
+              "AMMT": 170.0,
+              "CBM": 100.0,
+          }
+          assert facts["individual_blind_submission_numeric_predictions_acquired"] is False
+          assert value["bounded_interpretation"][
+              "retrospective_published_accuracy_equals_original_blind_accuracy_established"
+          ] is False
+          assert value["bounded_interpretation"][
+              "specific_cause_of_retrospective_improvement_established"
+          ] is False
+          assert value["authority_boundary"][
+              "prospective_blind_validation_established"
+          ] is False
+          assert value["authority_boundary"]["scientific_status_promoted"] is False
+          print(json.dumps({
+              "source_count": value["source_count"],
+              "blind_simulations": facts["amb2018_total_blind_modeling_simulations"],
+              "mp_submissions": facts["amb2018_02_melt_pool_geometry_submission_count"],
+              "individual_predictions_acquired": facts[
+                  "individual_blind_submission_numeric_predictions_acquired"
+              ],
+          }, sort_keys=True))
+          PY
+
+      - name: Focused blind-history regressions
+        run: python -m pytest tests/test_in625_blind_challenge_history.py -q
 
       - name: Upload comparator evidence
         if: always()
