@@ -85,7 +85,7 @@ jobs:
       - name: Install frozen predictor package without repository checkout
         run: |
           python -m pip install --upgrade pip
-          python -m pip install isolated-input/outputs/in625-model-holdout/wheel/*.whl
+          python -m pip install isolated-input/wheel/*.whl
 
       - name: Freeze calibration-only smoke baseline without holdout access
         id: freeze
@@ -105,7 +105,7 @@ jobs:
               build_case_b_persistence_baseline,
           )
 
-          contract_path = Path("isolated-input/outputs/in625-model-holdout/contract.json")
+          contract_path = Path("isolated-input/contract.json")
           raw = contract_path.read_bytes()
           assert hashlib.sha256(raw).hexdigest() == os.environ["CONTRACT_FILE_SHA256"]
           contract = json.loads(raw.decode("utf-8"))
@@ -177,7 +177,7 @@ jobs:
           PREDICTION_OBJECT_SHA256: ${{ needs.freeze-prediction.outputs.prediction_object_sha256 }}
         run: |
           mkdir -p outputs/in625-model-holdout
-          cp downloaded-contract/outputs/in625-model-holdout/contract.json outputs/in625-model-holdout/contract.json
+          cp downloaded-contract/contract.json outputs/in625-model-holdout/contract.json
           cp downloaded-prediction/prediction.json outputs/in625-model-holdout/prediction.json
           python scripts/run_in625_model_holdout_benchmark.py evaluate \
             --repository-root . \
