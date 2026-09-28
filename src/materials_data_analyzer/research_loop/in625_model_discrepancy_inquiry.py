@@ -205,6 +205,7 @@ def _graph(
         {
             "node_id": ANALYSIS_NODE_ID,
             "node_type": "analysis",
+            "execution_status": "completed",
             "statement": (
                 f"The source-bound retrospective comparator reports A/C width MAE "
                 f"{width_mae:.6g} um and depth MAE {depth_mae:.6g} um, while its authenticated "
