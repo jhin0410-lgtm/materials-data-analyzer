@@ -391,8 +391,14 @@ def _authenticate_prediction(
     prediction: Mapping[str, Any],
     *,
     contract: Mapping[str, Any],
+    trusted_prediction_sha256: str,
 ) -> dict[str, Any]:
+    trusted = _sha(trusted_prediction_sha256, "trusted_prediction_sha256")
     snapshot = copy.deepcopy(dict(prediction))
+    _require(
+        canonical_sha256(snapshot) == trusted,
+        "prediction does not match external freeze-root SHA-256",
+    )
     embedded = _sha(
         snapshot.pop("prediction_sha256", None),
         "prediction.prediction_sha256",
@@ -455,6 +461,7 @@ def evaluate_in625_ambench_holdout_predictions(
     prediction: Mapping[str, Any],
     *,
     trusted_contract_sha256: str,
+    trusted_prediction_sha256: str,
     repository_root: str | Path,
 ) -> dict[str, Any]:
     """Reveal A/C responses only after prediction freeze and compute descriptive metrics."""
@@ -463,7 +470,11 @@ def evaluate_in625_ambench_holdout_predictions(
         contract,
         trusted_contract_sha256=trusted_contract_sha256,
     )
-    pred = _authenticate_prediction(prediction, contract=frozen)
+    pred = _authenticate_prediction(
+        prediction,
+        contract=frozen,
+        trusted_prediction_sha256=trusted_prediction_sha256,
+    )
     _process_rows, response_rows = _validated_sources(repository_root)
     holdout_observed = {
         case_id: _case_response_summary(response_rows, case_id)
