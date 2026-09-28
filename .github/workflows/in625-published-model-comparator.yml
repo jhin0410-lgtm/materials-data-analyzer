@@ -7,6 +7,7 @@ on:
       - ".github/workflows/in625-published-model-comparator.yml"
       - "scripts/run_in625_published_model_comparator.py"
       - "src/materials_data_analyzer/research_loop/in625_published_model_comparator.py"
+      - "src/materials_data_analyzer/research_loop/in625_geometry_condition_source_acquisition.py"
       - "src/materials_data_analyzer/research_loop/in625_model_holdout_benchmark.py"
       - "tests/test_in625_published_model_comparator.py"
       - "data/case_studies/nist_ambench_2018_02/source_process_conditions.csv"
