@@ -119,8 +119,8 @@ def _normalized_pdf_pages(raw: bytes) -> list[str]:
             text = unicodedata.normalize("NFKC", page.extract_text() or "")
             # Rejoin words split specifically by a PDF line-break hyphen.
             # Ordinary inline hyphens remain untouched.
-            text = re.sub(r"(?<=\\w)-[ \\t]*\\n[ \\t]*(?=\\w)", "", text)
-            pages.append(re.sub(r"\\s+", " ", text).strip())
+            text = re.sub(r"(?<=\w)-[ \t]*\n[ \t]*(?=\w)", "", text)
+            pages.append(re.sub(r"\s+", " ", text).strip())
     except Exception as exc:
         raise In625PublishedComparatorError(
             f"institutional thesis PDF could not be parsed: {exc}"
