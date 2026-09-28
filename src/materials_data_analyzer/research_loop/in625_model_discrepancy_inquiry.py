@@ -335,6 +335,9 @@ def _base_program() -> dict[str, Any]:
                 "physical_experiment_execution": "external_only",
             },
         },
+        "mission_binding": None,
+        "runtime_context_binding": None,
+        "workstreams": [],
         "generated_goals": [],
     }
 
