@@ -208,3 +208,88 @@ def test_missing_ac_prediction_fails_closed() -> None:
             trusted_evidence_sha256=canonical_sha256(evidence),
             repository_root=str(ROOT),
         )
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value", "message"),
+    [
+        (
+            "retrospective_scope",
+            "case_b_parameter_calibration_reported",
+            False,
+            "retrospective boundary drifted",
+        ),
+        (
+            "retrospective_scope",
+            "a_c_parameters_reported_fixed_after_case_b_calibration",
+            False,
+            "retrospective boundary drifted",
+        ),
+        (
+            "authority_boundary",
+            "published_values_promoted_to_empirical",
+            True,
+            "authority was widened",
+        ),
+        (
+            "authority_boundary",
+            "engineering_readiness_established",
+            True,
+            "authority was widened",
+        ),
+    ],
+)
+def test_rehashed_scope_or_authority_promotion_fails_closed(
+    section: str,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    contract = build_in625_ambench_holdout_contract(ROOT)
+    evidence = _published_fixture()
+    forged = copy.deepcopy(evidence)
+    forged[section][field] = value
+    forged.pop("report_sha256")
+    forged["report_sha256"] = canonical_sha256(forged)
+
+    with pytest.raises(In625PublishedComparatorError, match=message):
+        evaluate_kollmannsberger_retrospective_comparator(
+            contract,
+            forged,
+            trusted_contract_sha256=canonical_sha256(contract),
+            trusted_evidence_sha256=canonical_sha256(forged),
+            repository_root=str(ROOT),
+        )
+
+
+@pytest.mark.parametrize("duplicate_case_id", ["A", "C"])
+def test_duplicate_holdout_prediction_case_fails_closed(
+    duplicate_case_id: str,
+) -> None:
+    contract = build_in625_ambench_holdout_contract(ROOT)
+    evidence = _published_fixture()
+    duplicate = copy.deepcopy(
+        next(
+            item
+            for item in evidence["published_predictions"]
+            if item["case_id"] == duplicate_case_id
+        )
+    )
+    duplicate["melt_pool_width_mean_um"] = float(
+        duplicate["melt_pool_width_mean_um"]
+    ) + 10.0
+    evidence["published_predictions"].append(duplicate)
+    evidence.pop("report_sha256")
+    evidence["report_sha256"] = canonical_sha256(evidence)
+
+    with pytest.raises(
+        In625PublishedComparatorError,
+        match="duplicate published holdout prediction case_id",
+    ):
+        evaluate_kollmannsberger_retrospective_comparator(
+            contract,
+            evidence,
+            trusted_contract_sha256=canonical_sha256(contract),
+            trusted_evidence_sha256=canonical_sha256(evidence),
+            repository_root=str(ROOT),
+        )
