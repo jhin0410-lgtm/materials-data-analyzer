@@ -207,7 +207,7 @@ def acquire_kollmannsberger_retrospective_evidence() -> dict[str, Any]:
     )
     table_index, table_page = _find_unique_page(
         pages,
-        r"Anisotropic conductivity model:\s*computed values",
+        r"A\s+304\s+146\.4\s+44\.6\s+0\.82",
         "anisotropic-computed-values-table",
     )
 
