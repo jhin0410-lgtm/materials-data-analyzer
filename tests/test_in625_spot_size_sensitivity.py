@@ -8,10 +8,15 @@ import pytest
 
 from materials_data_analyzer.research_loop.comparability_engine import (
     AuthenticatedEvidenceInput,
+    DEFAULT_RULE_REGISTRY,
+    assess_comparability,
 )
 from materials_data_analyzer.research_loop.evidence_packet import (
     canonical_sha256,
     finalize_evidence_packet,
+)
+from materials_data_analyzer.research_loop.in625_competency_closeout import (
+    build_in625_competency_bounded_closeout,
 )
 from materials_data_analyzer.research_loop.in625_competency_episode import (
     In625CompetencyEpisodeError,
@@ -637,3 +642,90 @@ def test_verified_action_enters_authenticated_epistemic_graph_and_critic(tmp_pat
     reported_ids = {item["target_node_id"] for item in target_reports}
     assert original_ids <= reported_ids
     assert episode["authority_boundary"]["scientific_status_promoted"] is False
+
+
+def test_first_episode_closes_only_at_external_evidence_boundary(tmp_path) -> None:
+    inputs = _mds2_inputs()
+    bootstrap, iteration = _bootstrap_and_iteration()
+
+    required = {"material_identity", "process_route", "instrument_state_calibration"}
+    dimensions = [rule.dimension for rule in DEFAULT_RULE_REGISTRY]
+    claim = {
+        "claim_id": "fixture-direct-comparison-closeout",
+        "claim_type": "direct_quantitative_cross_source_validation",
+        "required_dimensions": [
+            dimension for dimension in dimensions if dimension in required
+        ],
+        "irrelevant_dimensions": [
+            dimension for dimension in dimensions if dimension not in required
+        ],
+        "allowed_transformations": [],
+        "requires_independent_replication": False,
+        "maximum_downstream_use_requested": "comparative",
+    }
+    assessment = assess_comparability(
+        inputs[0],
+        inputs[1],
+        claim_scope=claim,
+        trusted_claim_scope_sha256=canonical_sha256(claim),
+    )
+    assert assessment["assessment_status"] != "COMPARABLE"
+
+    bootstrap = copy.deepcopy(bootstrap)
+    bootstrap["comparability_assessment"] = assessment
+    bootstrap.pop("bootstrap_sha256")
+    bootstrap["bootstrap_sha256"] = canonical_sha256(bootstrap)
+
+    iteration = copy.deepcopy(iteration)
+    iteration["bootstrap_sha256"] = bootstrap["bootstrap_sha256"]
+    iteration.pop("iteration_sha256")
+    iteration["iteration_sha256"] = canonical_sha256(iteration)
+
+    request = build_in625_spot_size_sensitivity_request(
+        iteration,
+        trusted_iteration_sha256=canonical_sha256(iteration),
+        evidence_inputs=inputs,
+    )
+    authorization = authorize_in625_spot_size_sensitivity_request(
+        request,
+        trusted_request_sha256=canonical_sha256(request),
+    )
+    result = execute_in625_spot_size_sensitivity(
+        request,
+        authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
+        evidence_inputs=inputs,
+    )
+
+    closeout = build_in625_competency_bounded_closeout(
+        bootstrap=bootstrap,
+        trusted_bootstrap_sha256=canonical_sha256(bootstrap),
+        first_iteration=iteration,
+        trusted_iteration_sha256=canonical_sha256(iteration),
+        nist_evidence=inputs[0],
+        mds2_comparison_evidence=inputs[1],
+        direct_comparison_claim=claim,
+        trusted_claim_scope_sha256=canonical_sha256(claim),
+        request=request,
+        authorization_receipt=authorization,
+        trusted_authorization_sha256=canonical_sha256(authorization),
+        sensitivity_result=result,
+        trusted_result_sha256=canonical_sha256(result),
+        spot_evidence_inputs=inputs,
+        epistemic_output_root=tmp_path / "closeout-epistemic",
+    )
+
+    assert closeout["episode_stage"] == "bounded_scientific_closeout"
+    assert closeout["episode_status"] == "external_evidence_required_before_direct_comparison"
+    assert closeout["comparability_reassessment"]["assessment_unchanged"] is True
+    assert closeout["comparability_reassessment"]["direct_comparison_authorized"] is False
+    assert closeout["action_trace"]["execution_verified"] is True
+    assert closeout["action_trace"]["independent_recomputation_performed"] is True
+    assert closeout["action_trace"]["epistemic_transition_published_and_reauthenticated"] is True
+    assert closeout["action_trace"]["scientific_critic_rerun"] is True
+    assert "sensitivity_analysis" not in closeout["action_trace"]["next_candidate_action_classes"]
+    assert closeout["bounded_conclusion"]["new_verified_information_obtained"] is True
+    assert closeout["bounded_conclusion"]["protocol_equivalence_established"] is False
+    assert closeout["bounded_conclusion"]["issue_76_exact_target_cells_satisfied"] == 0
+    assert closeout["stop_decision"]["stop_current_episode"] is True
+    assert closeout["authority_boundary"]["positive_scientific_closeout_granted"] is False
