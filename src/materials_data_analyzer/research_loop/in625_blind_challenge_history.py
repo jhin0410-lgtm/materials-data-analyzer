@@ -380,7 +380,6 @@ def _report_from_source_bytes(
             _anchor(text, str(claim["pattern"]), str(claim["claim_id"]))
             for claim in item["claims"]
         ]
-        path = source_root / str(item["filename"])
         receipts.append(
             {
                 "source_id": source_id,
@@ -420,7 +419,7 @@ def _report_from_source_bytes(
         },
         "bounded_interpretation": {
             "historical_blind_challenge_performance_context_acquired": True,
-            "retrospective_published_accuracy_equals_original_blind_accuracy": False,
+            "retrospective_published_accuracy_equals_original_blind_accuracy_established": False,
             "specific_cause_of_retrospective_improvement_established": False,
             "post_challenge_refinement_established_for_specific_model": False,
             "corrected_input_semantics_explain_improvement_established": False,
