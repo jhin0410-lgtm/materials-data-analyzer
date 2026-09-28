@@ -119,6 +119,24 @@ def test_declared_holdout_leakage_fails_even_when_prediction_is_rehashed() -> No
         )
 
 
+
+def test_boolean_prediction_value_fails_closed() -> None:
+    contract, baseline = _frozen()
+    forged = copy.deepcopy(baseline)
+    forged["predictions"][0]["melt_pool_width_mean_um"] = True
+    forged.pop("prediction_sha256")
+    forged["prediction_sha256"] = canonical_sha256(forged)
+
+    with pytest.raises(In625ModelHoldoutBenchmarkError, match="not boolean"):
+        evaluate_in625_ambench_holdout_predictions(
+            contract,
+            forged,
+            trusted_contract_sha256=canonical_sha256(contract),
+            trusted_prediction_sha256=canonical_sha256(forged),
+            repository_root=ROOT,
+        )
+
+
 def test_prediction_mutation_after_external_freeze_fails() -> None:
     contract, baseline = _frozen()
     trusted_prediction = canonical_sha256(baseline)
