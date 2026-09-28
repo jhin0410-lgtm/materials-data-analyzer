@@ -56,7 +56,7 @@ def _evaluation() -> dict:
                         "absolute_error_um": 2.1,
                         "relative_error_fraction": 0.049412,
                         "absolute_error_over_trace_mean_sample_sd": 1.05,
-                        "prediction_within_observed_trace_mean_range": True,
+                        "prediction_within_observed_trace_mean_range": False,
                         "trace_spread_is_calibrated_uncertainty_interval": False,
                     },
                 },
@@ -83,7 +83,7 @@ def _evaluation() -> dict:
                         "absolute_error_um": 2.3,
                         "relative_error_fraction": 0.077703,
                         "absolute_error_over_trace_mean_sample_sd": 1.277778,
-                        "prediction_within_observed_trace_mean_range": True,
+                        "prediction_within_observed_trace_mean_range": False,
                         "trace_spread_is_calibrated_uncertainty_interval": False,
                     },
                 },
@@ -130,7 +130,24 @@ def test_retrospective_discrepancy_reaches_critic_and_selects_evidence_search(
         item["verified_positive"] is False
         for item in result["competing_hypotheses"]
     )
-    assert result["bounded_interpretation"]["retrospective_agreement_observed"] is True
+    assert (
+        result["bounded_interpretation"][
+            "retrospective_prediction_measurement_comparison_performed"
+        ]
+        is True
+    )
+    assert (
+        result["bounded_interpretation"][
+            "predictions_inside_observed_trace_mean_range_count"
+        ]
+        == 2
+    )
+    assert (
+        result["bounded_interpretation"][
+            "all_predictions_inside_observed_trace_mean_ranges"
+        ]
+        is False
+    )
     assert (
         result["bounded_interpretation"]["prospective_blind_validation_established"]
         is False
@@ -154,6 +171,16 @@ def test_retrospective_discrepancy_reaches_critic_and_selects_evidence_search(
 @pytest.mark.parametrize(
     ("path", "value", "message"),
     [
+        (
+            ("calibration_record", "parameter_fit_case_ids"),
+            ["B", "A"],
+            "calibration partition drifted",
+        ),
+        (
+            ("calibration_record", "parameters_reported_fixed_for_validation_case_ids"),
+            ["A"],
+            "calibration partition drifted",
+        ),
         (
             ("scientific_interpretation", "strict_blind_model_selection_established"),
             True,
