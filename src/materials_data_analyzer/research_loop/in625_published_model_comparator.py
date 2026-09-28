@@ -375,7 +375,10 @@ def _authenticate_evidence(
         "published comparator calibration partition drifted",
     )
     _require(
-        scope.get("strict_prospective_holdout_model_selection_established")
+        scope.get("case_b_parameter_calibration_reported") is True
+        and scope.get("a_c_parameters_reported_fixed_after_case_b_calibration")
+        is True
+        and scope.get("strict_prospective_holdout_model_selection_established")
         is False
         and scope.get("eligible_claim")
         == "retrospective_published_model_comparison"
@@ -384,7 +387,9 @@ def _authenticate_evidence(
     )
     _require(
         boundary.get("empirical_measurement_created") is False
+        and boundary.get("published_values_promoted_to_empirical") is False
         and boundary.get("strict_blind_validation_claimed") is False
+        and boundary.get("engineering_readiness_established") is False
         and boundary.get("scientific_status_promoted") is False,
         "published comparator authority was widened",
     )
@@ -414,11 +419,21 @@ def evaluate_kollmannsberger_retrospective_comparator(
         isinstance(predictions_raw, list),
         "published predictions are missing",
     )
-    predictions = {
-        str(item.get("case_id")): item
-        for item in predictions_raw
-        if isinstance(item, Mapping) and item.get("case_id") in HOLDOUT_CASES
-    }
+    predictions: dict[str, Mapping[str, Any]] = {}
+    for index, item in enumerate(predictions_raw):
+        _require(
+            isinstance(item, Mapping),
+            f"published_predictions[{index}] must be an object",
+        )
+        case_id = item.get("case_id")
+        if case_id not in HOLDOUT_CASES:
+            continue
+        normalized_case_id = str(case_id)
+        _require(
+            normalized_case_id not in predictions,
+            f"duplicate published holdout prediction case_id: {normalized_case_id}",
+        )
+        predictions[normalized_case_id] = item
     _require(
         set(predictions) == set(HOLDOUT_CASES),
         "published A/C prediction coverage incomplete",
