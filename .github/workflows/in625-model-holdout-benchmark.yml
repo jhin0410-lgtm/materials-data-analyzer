@@ -15,7 +15,136 @@ permissions:
   contents: read
 
 jobs:
-  calibration-holdout:
+  freeze-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      contract_file_sha256: ${{ steps.freeze.outputs.contract_file_sha256 }}
+      contract_object_sha256: ${{ steps.freeze.outputs.contract_object_sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install package and build isolated predictor wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-release.txt
+          mkdir -p outputs/in625-model-holdout/wheel
+          python -m pip wheel . --no-deps --wheel-dir outputs/in625-model-holdout/wheel
+
+      - name: Freeze Case-B calibration / A-C holdout contract
+        id: freeze
+        run: |
+          mkdir -p outputs/in625-model-holdout
+          python scripts/run_in625_model_holdout_benchmark.py freeze-contract \
+            --repository-root . \
+            --output outputs/in625-model-holdout/contract.json \
+            | tee outputs/in625-model-holdout/contract_summary.json
+          CONTRACT_FILE_SHA256="$(sha256sum outputs/in625-model-holdout/contract.json | cut -d' ' -f1)"
+          CONTRACT_OBJECT_SHA256="$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-model-holdout/contract.json", encoding="utf-8"))))')"
+          echo "contract_file_sha256=$CONTRACT_FILE_SHA256" >> "$GITHUB_OUTPUT"
+          echo "contract_object_sha256=$CONTRACT_OBJECT_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload contract and predictor wheel only
+        uses: actions/upload-artifact@v7
+        with:
+          name: in625-holdout-contract-and-wheel
+          path: |
+            outputs/in625-model-holdout/contract.json
+            outputs/in625-model-holdout/contract_summary.json
+            outputs/in625-model-holdout/wheel/*.whl
+          if-no-files-found: error
+          retention-days: 30
+
+  freeze-prediction:
+    needs: freeze-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      prediction_file_sha256: ${{ steps.freeze.outputs.prediction_file_sha256 }}
+      prediction_object_sha256: ${{ steps.freeze.outputs.prediction_object_sha256 }}
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: in625-holdout-contract-and-wheel
+          path: isolated-input
+
+      - name: Prove holdout response source is physically absent
+        run: |
+          test ! -e data/case_studies/nist_ambench_2018_02/source_melt_pool_measurements.csv
+          test ! -e tests/test_in625_model_holdout_benchmark.py
+          find isolated-input -maxdepth 4 -type f -print
+
+      - name: Install frozen predictor package without repository checkout
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install isolated-input/outputs/in625-model-holdout/wheel/*.whl
+
+      - name: Freeze calibration-only smoke baseline without holdout access
+        id: freeze
+        env:
+          CONTRACT_FILE_SHA256: ${{ needs.freeze-contract.outputs.contract_file_sha256 }}
+          CONTRACT_OBJECT_SHA256: ${{ needs.freeze-contract.outputs.contract_object_sha256 }}
+        run: |
+          mkdir -p isolated-output
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256
+          from materials_data_analyzer.research_loop.in625_model_holdout_benchmark import (
+              build_case_b_persistence_baseline,
+          )
+
+          contract_path = Path("isolated-input/outputs/in625-model-holdout/contract.json")
+          raw = contract_path.read_bytes()
+          assert hashlib.sha256(raw).hexdigest() == os.environ["CONTRACT_FILE_SHA256"]
+          contract = json.loads(raw.decode("utf-8"))
+          assert canonical_sha256(contract) == os.environ["CONTRACT_OBJECT_SHA256"]
+
+          prediction = build_case_b_persistence_baseline(
+              contract,
+              trusted_contract_sha256=os.environ["CONTRACT_OBJECT_SHA256"],
+          )
+          output = Path("isolated-output/prediction.json")
+          output.write_text(
+              json.dumps(prediction, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "model_class": prediction["model"]["model_class"],
+              "fit_response_cases": prediction["calibration_provenance"]["response_case_ids_used_for_fit"],
+              "holdout_response_values_consumed_before_prediction_freeze": prediction[
+                  "calibration_provenance"
+              ]["holdout_response_values_consumed_before_prediction_freeze"],
+          }, sort_keys=True))
+          PY
+          PREDICTION_FILE_SHA256="$(sha256sum isolated-output/prediction.json | cut -d' ' -f1)"
+          PREDICTION_OBJECT_SHA256="$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("isolated-output/prediction.json", encoding="utf-8"))))')"
+          echo "prediction_file_sha256=$PREDICTION_FILE_SHA256" >> "$GITHUB_OUTPUT"
+          echo "prediction_object_sha256=$PREDICTION_OBJECT_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable prediction only
+        uses: actions/upload-artifact@v7
+        with:
+          name: in625-holdout-frozen-prediction
+          path: isolated-output/prediction.json
+          if-no-files-found: error
+          retention-days: 30
+
+  evaluate-holdout:
+    needs:
+      - freeze-contract
+      - freeze-prediction
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -25,34 +154,31 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install package
+      - name: Install evaluator
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]" -c constraints-release.txt
 
-      - name: Freeze Case-B calibration / A-C holdout contract
+      - uses: actions/download-artifact@v8
+        with:
+          name: in625-holdout-contract-and-wheel
+          path: downloaded-contract
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: in625-holdout-frozen-prediction
+          path: downloaded-prediction
+
+      - name: Re-open A-C responses only after immutable prediction exists
+        env:
+          CONTRACT_FILE_SHA256: ${{ needs.freeze-contract.outputs.contract_file_sha256 }}
+          CONTRACT_OBJECT_SHA256: ${{ needs.freeze-contract.outputs.contract_object_sha256 }}
+          PREDICTION_FILE_SHA256: ${{ needs.freeze-prediction.outputs.prediction_file_sha256 }}
+          PREDICTION_OBJECT_SHA256: ${{ needs.freeze-prediction.outputs.prediction_object_sha256 }}
         run: |
           mkdir -p outputs/in625-model-holdout
-          python scripts/run_in625_model_holdout_benchmark.py freeze-contract \
-            --repository-root . \
-            --output outputs/in625-model-holdout/contract.json \
-            | tee outputs/in625-model-holdout/contract_summary.json
-          echo "CONTRACT_FILE_SHA256=$(sha256sum outputs/in625-model-holdout/contract.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
-          echo "CONTRACT_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-model-holdout/contract.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
-
-      - name: Freeze calibration-only smoke baseline before holdout reveal
-        run: |
-          python scripts/run_in625_model_holdout_benchmark.py freeze-baseline \
-            --contract outputs/in625-model-holdout/contract.json \
-            --contract-file-sha256 "$CONTRACT_FILE_SHA256" \
-            --contract-object-sha256 "$CONTRACT_OBJECT_SHA256" \
-            --output outputs/in625-model-holdout/prediction.json \
-            | tee outputs/in625-model-holdout/prediction_summary.json
-          echo "PREDICTION_FILE_SHA256=$(sha256sum outputs/in625-model-holdout/prediction.json | cut -d' ' -f1)" >> "$GITHUB_ENV"
-          echo "PREDICTION_OBJECT_SHA256=$(python -c 'import json; from materials_data_analyzer.research_loop.evidence_packet import canonical_sha256; print(canonical_sha256(json.load(open("outputs/in625-model-holdout/prediction.json", encoding="utf-8"))))')" >> "$GITHUB_ENV"
-
-      - name: Reveal A-C measurements only after prediction freeze and score holdout
-        run: |
+          cp downloaded-contract/outputs/in625-model-holdout/contract.json outputs/in625-model-holdout/contract.json
+          cp downloaded-prediction/prediction.json outputs/in625-model-holdout/prediction.json
           python scripts/run_in625_model_holdout_benchmark.py evaluate \
             --repository-root . \
             --contract outputs/in625-model-holdout/contract.json \
