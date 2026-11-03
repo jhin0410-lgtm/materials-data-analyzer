@@ -57,6 +57,26 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+      - name: Install sandbox dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends bubblewrap
+          command -v bwrap
+          command -v prlimit
+          bwrap --version
+      - name: Verify sandbox isolation before installing the historical parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST_NETNS=$(stat -Lc '%i' /proc/self/ns/net)
+          prlimit --as=1610612736 --cpu=90 --nofile=256 \
+            bwrap --die-with-parent --unshare-net --ro-bind / / \
+            --proc /proc --dev /dev --tmpfs /tmp \
+            --setenv PYTHONDONTWRITEBYTECODE 1 \
+            python validation/historical_pdf_sandbox_preflight.py \
+            --host-netns "$HOST_NETNS"
       - name: Install the immutable historical baseline separately
         shell: bash
         run: |
