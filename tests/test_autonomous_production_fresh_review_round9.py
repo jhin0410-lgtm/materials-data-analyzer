@@ -90,7 +90,12 @@ def test_multisource_report_requires_exact_pinned_pdf_extractor_version() -> Non
 
 
 @pytest.mark.parametrize("field", round9._NETWORK_FALSE_FIELDS)
-def test_multisource_report_rejects_rehashed_network_history_promotion(field: str) -> None:
+def test_multisource_report_rejects_rehashed_network_history_promotion(
+    field: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Unit-test the network boundary in the exact historical parser context.
+    # validation/historical_pdf_replay.py repeats this against the real old parser.
+    monkeypatch.setattr(round9.importlib.metadata, "version", lambda _name: "6.18.1")
     report = _multisource_report()
     report[field] = True
     with pytest.raises(

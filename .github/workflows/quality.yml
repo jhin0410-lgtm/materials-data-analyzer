@@ -48,6 +48,48 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  historical-pdf-replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install the immutable historical baseline separately
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASELINE="$RUNNER_TEMP/pdf-baseline"
+          mkdir -p "$BASELINE"
+          git archive 257dcfb3e51602119eeddb6f7da2226d66771ca2 | tar -x -C "$BASELINE"
+          python -m pip install 'build>=1.2,<2'
+          python -m build --wheel "$BASELINE" --outdir "$RUNNER_TEMP/pdf-baseline-wheel"
+          python -m venv "$RUNNER_TEMP/pdf-replay-venv"
+          "$RUNNER_TEMP/pdf-replay-venv/bin/python" -m pip install \
+            -r requirements-historical-replay.txt 'pytest>=8,<10' \
+            "$RUNNER_TEMP"/pdf-baseline-wheel/*.whl
+          "$RUNNER_TEMP/pdf-replay-venv/bin/python" -m pip check
+      - name: Validate the historical contract offline with a read-only filesystem
+        shell: bash
+        env:
+          OPENBLAS_NUM_THREADS: "1"
+          OMP_NUM_THREADS: "1"
+          MPLBACKEND: Agg
+        run: |
+          set -euo pipefail
+          RESULT="$RUNNER_TEMP/pdf-replay-result"
+          mkdir -p "$RESULT"
+          prlimit --as=1610612736 --cpu=90 --nofile=256 \
+            bwrap --die-with-parent --unshare-net --ro-bind / / \
+            --proc /proc --dev /dev --tmpfs /tmp --bind "$RESULT" "$RESULT" \
+            --setenv PYTHONDONTWRITEBYTECODE 1 \
+            "$RUNNER_TEMP/pdf-replay-venv/bin/python" -m pytest -q \
+            -c /dev/null --confcutdir=validation validation/historical_pdf_replay.py \
+            -o cache_dir="$RESULT/cache" --basetemp="$RESULT/tmp" \
+            --junitxml="$RESULT/junit.xml"
+
   python-compatibility:
     strategy:
       fail-fast: false

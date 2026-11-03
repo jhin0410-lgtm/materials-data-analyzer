@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-_EXPECTED_PIN = "pypdf==6.18.1"
+_EXPECTED_PIN = "pypdf==6.21.4"
 
 
 def test_historical_replay_pypdf_pin_is_synchronized_across_install_surfaces() -> None:
@@ -15,3 +15,6 @@ def test_historical_replay_pypdf_pin_is_synchronized_across_install_surfaces() -
     assert _EXPECTED_PIN in {line.strip() for line in requirements.splitlines()}
     assert "pypdf>=5,<7" not in pyproject
     assert "pypdf>=5,<7" not in requirements
+    historical = (_REPOSITORY_ROOT / "requirements-historical-replay.txt").read_text()
+    assert "pypdf==6.18.1" in historical.splitlines()
+    assert "pypdf==6.18.1" not in requirements.splitlines()

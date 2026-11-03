@@ -17,6 +17,8 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from pypdf import PdfReader
 
+from .pdf_runtime import require_current_pdf_parser
+
 from .in625_geometry_condition_multisource_policy import (
     ACTION_CLASS,
     ALLOWED_HOSTS,
@@ -204,6 +206,7 @@ def _pdf_pages(
             f"(content_type={content_type!r}, size={len(body)}, sha256={_sha256(body)})"
         )
     try:
+        require_current_pdf_parser()
         reader = PdfReader(BytesIO(body), strict=False)
         pages = [_normalize_text(page.extract_text() or "") for page in reader.pages]
     except Exception as exc:

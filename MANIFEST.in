@@ -1,4 +1,5 @@
 include README.md LICENSE pyproject.toml requirements.txt constraints-release.txt
+include requirements-historical-replay.txt
 include TESTING.md CONTRIBUTING.md SECURITY.md CITATION.cff CHANGELOG.md
 include src/cli.py
 
@@ -7,6 +8,7 @@ graft scripts
 graft configs
 graft data
 graft docs
+graft validation
 
 prune outputs
 prune data/raw
