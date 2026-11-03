@@ -57,40 +57,43 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install sandbox dependencies
+      - name: Build immutable historical baseline image
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends bubblewrap
-          command -v bwrap
-          command -v prlimit
-          bwrap --version
-      - name: Verify sandbox isolation before installing the historical parser
-        shell: bash
-        run: |
-          set -euo pipefail
-          HOST_NETNS=$(stat -Lc '%i' /proc/self/ns/net)
-          prlimit --as=1610612736 --cpu=90 --nofile=256 \
-            bwrap --die-with-parent --unshare-net --ro-bind / / \
-            --proc /proc --dev /dev --tmpfs /tmp \
-            --setenv PYTHONDONTWRITEBYTECODE 1 \
-            python validation/historical_pdf_sandbox_preflight.py \
-            --host-netns "$HOST_NETNS"
-      - name: Install the immutable historical baseline separately
-        shell: bash
-        run: |
-          set -euo pipefail
+          command -v docker
           BASELINE="$RUNNER_TEMP/pdf-baseline"
-          mkdir -p "$BASELINE"
+          IMAGE_CONTEXT="$RUNNER_TEMP/pdf-replay-image"
+          mkdir -p "$BASELINE" "$IMAGE_CONTEXT"
           git archive 257dcfb3e51602119eeddb6f7da2226d66771ca2 | tar -x -C "$BASELINE"
           python -m pip install 'build>=1.2,<2'
-          python -m build --wheel "$BASELINE" --outdir "$RUNNER_TEMP/pdf-baseline-wheel"
-          python -m venv "$RUNNER_TEMP/pdf-replay-venv"
-          "$RUNNER_TEMP/pdf-replay-venv/bin/python" -m pip install \
-            -r requirements-historical-replay.txt 'pytest>=8,<10' \
-            "$RUNNER_TEMP"/pdf-baseline-wheel/*.whl
-          "$RUNNER_TEMP/pdf-replay-venv/bin/python" -m pip check
+          python -m build --wheel "$BASELINE" --outdir "$IMAGE_CONTEXT"
+          cp requirements-historical-replay.txt "$IMAGE_CONTEXT/"
+          cat > "$IMAGE_CONTEXT/Dockerfile" <<'DOCKERFILE'
+          FROM python:3.11-slim-bookworm
+          RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
+          COPY requirements-historical-replay.txt /tmp/requirements-historical-replay.txt
+          COPY *.whl /tmp/pdf-dist/
+          RUN python -m pip install --no-cache-dir -r /tmp/requirements-historical-replay.txt 'pytest>=8,<10' /tmp/pdf-dist/*.whl \
+              && python -m pip check \
+              && rm -rf /tmp/pdf-dist
+          WORKDIR /work
+          DOCKERFILE
+          docker build --tag mda-historical-pdf-replay:pr --file "$IMAGE_CONTEXT/Dockerfile" "$IMAGE_CONTEXT"
+      - name: Verify sandbox isolation before executing the historical parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST_NETNS="$(stat -Lc '%i' /proc/self/ns/net)"
+          docker run --rm \
+            --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --pids-limit 128 --memory 1536m --cpus 1 \
+            --ulimit as=1610612736:1610612736 --ulimit cpu=90:90 --ulimit nofile=256:256 \
+            --tmpfs /tmp:rw,nosuid,noexec,size=64m \
+            --mount "type=bind,src=$PWD/validation,dst=/validation,readonly" \
+            --env PYTHONDONTWRITEBYTECODE=1 \
+            mda-historical-pdf-replay:pr \
+            python /validation/historical_pdf_sandbox_preflight.py --host-netns "$HOST_NETNS"
       - name: Validate the historical contract offline with a read-only filesystem
         shell: bash
         env:
@@ -101,14 +104,20 @@ jobs:
           set -euo pipefail
           RESULT="$RUNNER_TEMP/pdf-replay-result"
           mkdir -p "$RESULT"
-          prlimit --as=1610612736 --cpu=90 --nofile=256 \
-            bwrap --die-with-parent --unshare-net --ro-bind / / \
-            --proc /proc --dev /dev --tmpfs /tmp --bind "$RESULT" "$RESULT" \
-            --setenv PYTHONDONTWRITEBYTECODE 1 \
-            "$RUNNER_TEMP/pdf-replay-venv/bin/python" -m pytest -q \
-            -c /dev/null --confcutdir=validation validation/historical_pdf_replay.py \
-            -o cache_dir="$RESULT/cache" --basetemp="$RESULT/tmp" \
-            --junitxml="$RESULT/junit.xml"
+          docker run --rm \
+            --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --pids-limit 128 --memory 1536m --cpus 1 \
+            --ulimit as=1610612736:1610612736 --ulimit cpu=90:90 --ulimit nofile=256:256 \
+            --tmpfs /tmp:rw,nosuid,noexec,size=64m \
+            --mount "type=bind,src=$PWD/validation,dst=/validation,readonly" \
+            --mount "type=bind,src=$RESULT,dst=/result" \
+            --env PYTHONDONTWRITEBYTECODE=1 \
+            --env OPENBLAS_NUM_THREADS=1 --env OMP_NUM_THREADS=1 --env MPLBACKEND=Agg \
+            mda-historical-pdf-replay:pr \
+            python -m pytest -q \
+              -c /dev/null --confcutdir=/validation /validation/historical_pdf_replay.py \
+              -o cache_dir=/result/cache --basetemp=/result/tmp \
+              --junitxml=/result/junit.xml
 
   python-compatibility:
     strategy:
