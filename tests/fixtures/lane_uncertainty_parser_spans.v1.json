@@ -1,0 +1,24 @@
+{
+  "record_kind": "parser_specific_claim_spans_not_an_accepted_witness",
+  "source_id": "lane-2020-melt-pool-geometry",
+  "claim_id": "lane-cross-section-uncertainty-exists",
+  "source_pdf_sha256": "39de5e6987461c3cf607e544d202cfdc3f28dffd2e0ec298175df63803b99640",
+  "page_index_zero_based": 15,
+  "claim_match_index_zero_based": 1,
+  "deleted_ascii_space_offsets_from_6_18_1": [
+    47,
+    72
+  ],
+  "parser_spans": {
+    "6.18.1": {
+      "text": "melt pool width and depth, respectively. (13)u2 c (w) = /uni2211.s1 i u2 i (w). Discussion and Conclusions This paper described the experiment setup and measurement results for the AMB2018-02 measurement challenges for melt pool geometry. These experiments consisted of LPBF tracks scanned on bare IN625 plates, in situ melt pool length and cooling rate measurements via thermography and ex situ transverse cross section geometry (width and depth) via optical microscopy. A summary of compiled results is pro- vided in Table 4, and preliminary measurement uncertainty analysis",
+      "utf8_bytes": 576,
+      "sha256": "89e4fba7148a813550309020f98b1c5613498824c6569f8bd30ac6797766886f"
+    },
+    "6.21.4": {
+      "text": "melt pool width and depth, respectively. (13)u2c (w) = /uni2211.s1 i u2i (w). Discussion and Conclusions This paper described the experiment setup and measurement results for the AMB2018-02 measurement challenges for melt pool geometry. These experiments consisted of LPBF tracks scanned on bare IN625 plates, in situ melt pool length and cooling rate measurements via thermography and ex situ transverse cross section geometry (width and depth) via optical microscopy. A summary of compiled results is pro- vided in Table 4, and preliminary measurement uncertainty analysis",
+      "utf8_bytes": 574,
+      "sha256": "bde857eb1311accf47ad864786526e3b891f86221b68a9a1a2230b50ae65c328"
+    }
+  }
+}

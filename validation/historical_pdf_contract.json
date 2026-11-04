@@ -1,0 +1,11 @@
+{
+  "baseline_commit": "257dcfb3e51602119eeddb6f7da2226d66771ca2",
+  "pypdf_version": "6.18.1",
+  "module_sha256": {
+    "autonomous_production_fresh_review_round9.py": "f25abdb0f51cbef34c398e87fba3bb15a4207ac57749302f581f83dc11248272",
+    "in625_geometry_condition_source_acquisition.py": "ae45fd87050a7235f73efa657dc4560286f2a76bc9e29bba8db0900f52f43f80",
+    "nist_ammt_calibration_candidate_acquisition.py": "b0e989d656f9237a6491ab22473faab4828ac25886478a9d46ed062a90f68f98",
+    "nist_mds2_2923_reference_chain_evidence.py": "23c4365a88e0826de03212ce5e621d3bfc07b27bb71685d9e3520e7a19f5326b",
+    "in625_published_model_comparator.py": "d02a7bf65ccbb8b224ae2da80d837594f57bdf21717664bed33e9f44a924a7db"
+  }
+}

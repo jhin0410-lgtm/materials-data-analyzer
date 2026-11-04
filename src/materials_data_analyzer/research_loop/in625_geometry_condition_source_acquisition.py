@@ -5,9 +5,12 @@ import hashlib
 import html
 import importlib.metadata
 import json
+import math
 import re
 import socket
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from io import BytesIO
 from typing import Any, Callable, Mapping, Sequence
@@ -16,6 +19,8 @@ from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from pypdf import PdfReader
+
+from .pdf_runtime import require_current_pdf_parser
 
 from .in625_geometry_condition_multisource_policy import (
     ACTION_CLASS,
@@ -124,6 +129,45 @@ def _validate_https_url(url: str, allowed_hosts: Sequence[str], field: str) -> N
         )
 
 
+def _retry_after_seconds(value: str | None, now: datetime) -> int | None:
+    """Interpret a bounded Retry-After without inventing a cooldown when absent."""
+    if value is None or len(value) > 128:
+        return None
+    value = value.strip()
+    if re.fullmatch(r"[0-9]+", value):
+        return int(value)
+    try:
+        deadline = parsedate_to_datetime(value)
+        if deadline.tzinfo is None:
+            return None
+        return max(0, math.ceil((deadline - now).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+class SourceRateLimitedError(GeometryConditionSourceAcquisitionError):
+    """Provider throttling is an acquisition deferral, never scientific evidence."""
+
+    http_status = 429
+
+    def __init__(self, retry_after: str | None) -> None:
+        now = datetime.now(timezone.utc)
+        self.retry_after_seconds = _retry_after_seconds(retry_after, now)
+        self.retry_not_before_utc: str | None = None
+        if self.retry_after_seconds is not None:
+            try:
+                self.retry_not_before_utc = (now + timedelta(seconds=self.retry_after_seconds)).isoformat()
+            except OverflowError:
+                pass  # Preserve a very large delay; never shorten it to fit a date.
+            guidance = f"wait at least {self.retry_after_seconds} seconds before a later authorized attempt"
+        else:
+            guidance = "Retry-After absent or invalid; obtain the provider cooldown before retrying"
+        super().__init__(
+            "source fetch failed operationally: HTTP Error 429: Too Many Requests; "
+            f"{guidance}; no automatic retry performed"
+        )
+
+
 def fetch_exact_source(
     url: str,
     *,
@@ -173,7 +217,15 @@ def fetch_exact_source(
             )
     except GeometryConditionSourceAcquisitionError:
         raise
-    except (HTTPError, URLError, TimeoutError, socket.timeout, OSError) as exc:
+    except HTTPError as exc:
+        if exc.code == 429:
+            retry_after = exc.headers.get("Retry-After") if exc.headers is not None else None
+            exc.close()
+            raise SourceRateLimitedError(retry_after) from exc
+        raise GeometryConditionSourceAcquisitionError(
+            f"source fetch failed operationally: {exc}"
+        ) from exc
+    except (URLError, TimeoutError, socket.timeout, OSError) as exc:
         raise GeometryConditionSourceAcquisitionError(
             f"source fetch failed operationally: {exc}"
         ) from exc
@@ -204,6 +256,7 @@ def _pdf_pages(
             f"(content_type={content_type!r}, size={len(body)}, sha256={_sha256(body)})"
         )
     try:
+        require_current_pdf_parser()
         reader = PdfReader(BytesIO(body), strict=False)
         pages = [_normalize_text(page.extract_text() or "") for page in reader.pages]
     except Exception as exc:

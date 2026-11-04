@@ -1,0 +1,4 @@
+# Only for a separate environment containing the baseline MDA distribution at
+# 257dcfb3e51602119eeddb6f7da2226d66771ca2. Never install this over the current MDA.
+# Run validation/historical_pdf_replay.py offline; see docs/PDF_ENVIRONMENTS.md.
+pypdf==6.18.1

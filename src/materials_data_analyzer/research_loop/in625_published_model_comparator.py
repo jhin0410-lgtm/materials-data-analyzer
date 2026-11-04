@@ -28,6 +28,8 @@ from typing import Any
 
 from pypdf import PdfReader
 
+from .pdf_runtime import require_current_pdf_parser
+
 from .evidence_packet import canonical_sha256
 from .in625_geometry_condition_source_acquisition import fetch_exact_source
 from .in625_model_holdout_benchmark import (
@@ -113,6 +115,7 @@ def _normalized_html_text(raw: bytes) -> str:
 def _normalized_pdf_pages(raw: bytes) -> list[str]:
     _require(raw.startswith(b"%PDF-"), "institutional thesis source is not a PDF")
     try:
+        require_current_pdf_parser()
         reader = PdfReader(BytesIO(raw), strict=False)
         pages: list[str] = []
         for page in reader.pages:
