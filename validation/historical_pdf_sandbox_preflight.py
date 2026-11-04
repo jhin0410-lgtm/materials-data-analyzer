@@ -36,8 +36,11 @@ def verify_sandbox(host_netns: int) -> dict:
     try:
         descriptor = os.open(source, os.O_WRONLY)
     except OSError as exc:
-        if exc.errno != errno.EROFS:
-            raise RuntimeError("source write failed for a reason other than read-only isolation") from exc
+        # A read-only mount is already independently confirmed by statvfs.
+        # Docker can return EACCES/EPERM rather than EROFS on a denied write,
+        # especially when capabilities are dropped.  Never accept a write.
+        if exc.errno not in {errno.EROFS, errno.EACCES, errno.EPERM}:
+            raise RuntimeError("source write was denied for an unexpected reason") from exc
     else:
         os.close(descriptor)  # No write or truncate is performed, even on failure.
         raise RuntimeError("historical sandbox allowed source write access")
