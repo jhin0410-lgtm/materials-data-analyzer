@@ -20,10 +20,17 @@
           "claim_id": "weaver-current-deliberate-spot-diameter-range"
         }
       ],
-      "title": null,
-      "doi": null,
+      "title": "Laser spot size and scaling laws for laser beam additive manufacturing",
+      "doi": "10.1016/j.jmapro.2021.10.053",
       "observation_date": "2026-11-04",
-      "historical_source_replacement_authorized": false
+      "historical_source_replacement_authorized": false,
+      "authors": [
+        "Jordan Weaver",
+        "Jarred C. Heigel",
+        "Brandon Lane"
+      ],
+      "publication_date": "2021-11-03",
+      "authority": "NIST official publication record"
     }
   ],
   "source_reviews": {

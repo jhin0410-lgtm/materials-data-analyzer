@@ -19,7 +19,7 @@ from ..pdf_runtime import CURRENT_PYPDF_VERSION, require_current_pdf_parser
 from . import in625_geometry_condition_source_acquisition as acquisition
 
 CONTRACT_PATH = "configs/research/pdf_evidence_reprocessing.v1.json"
-CONTRACT_SHA256 = "55856da65b30107ce8bb5513b05cc0f169c311fd72c7e389c21c5df98747d158"
+CONTRACT_SHA256 = "5995694309d4ed7550ff15892a1f7dcc5a70388763ab2933ffac9c98a5119c25"
 HISTORICAL_PATH = "configs/research/in625_geometry_condition_multisource_reviewed_witness.v1.json"
 HISTORICAL_SHA256 = "923eb2158a29541eacd6f1b6bbdace77ac2fa52e0365572f4953e00e12715589"
 REGISTRY_PATH = "configs/research/in625_geometry_condition_source_reconnaissance.v1.json"
@@ -131,11 +131,12 @@ def reprocess_retained_sources(retained: Mapping[str, bytes]) -> dict[str, Any]:
     for source_id, spec in specs.items():
         old = historical_sources.get(source_id)
         review = contract["source_reviews"][source_id]
+        metadata = registered[source_id] if old else spec
         result: dict[str, Any] = {
             "source_id": source_id, "requested_url": spec["requested_url"],
             "source_sha256": spec["source_sha256"], "media_type": spec["media_type"],
-            "source_metadata": {key: spec.get(key) for key in
-                                ("title", "authors", "doi", "publication_date", "authority")},
+            "source_metadata": {key: metadata.get(key) for key in
+                                ("title", "authors", "doi", "publication_date", "authority", "observation_date")},
             "lineage": "historical_original" if old else "new_source_observation",
             "historical_claim_receipts": old["claims"] if old else [],
             "technical_checks_passed": False, "source_review_complete": False,

@@ -59,7 +59,7 @@ def fixture_contract(raw: bytes) -> tuple[dict, dict, dict]:
                                           "value": "50", "unit": "um"}]}]}
     contract = {"contract_id": "synthetic-test-only", "parser": {"package": "pypdf", "version": "6.21.4", "strict": False},
                 "additional_sources": [], "source_reviews": {"synthetic": review}}
-    return contract, {"sources": [source]}, {"sources": [{"source_id": "synthetic", "claims_under_review": [claim]}]}
+    return contract, {"sources": [source]}, {"sources": [{"source_id": "synthetic", "title": "Synthetic fixture, not research data", "claims_under_review": [claim]}]}
 
 
 def install_fixture(monkeypatch: pytest.MonkeyPatch, raw: bytes):
@@ -73,6 +73,7 @@ def test_reviewed_source_accepted_without_promoting_physical_validation(monkeypa
     records = install_fixture(monkeypatch, raw)
     before = copy.deepcopy(records)
     report = evidence.verify_reprocessed_sources({"synthetic": raw})
+    assert report["sources"][0]["source_metadata"]["title"] == "Synthetic fixture, not research data"
     assert report["complete_source_review"] is True
     assert report["physical_or_model_validation_demonstrated"] is False
     assert report["network_requests_performed"] == 0
@@ -145,6 +146,8 @@ def test_parser_change_rejected_before_source_use(monkeypatch, version) -> None:
 
 
 def test_checkout_contract_and_history_are_pinned_and_missing_is_not_success() -> None:
+    contract, _, _ = evidence._load_contract()
+    assert contract["additional_sources"][0]["doi"] == "10.1016/j.jmapro.2021.10.053"
     before = (ROOT / evidence.HISTORICAL_PATH).read_bytes()
     report = evidence.reprocess_retained_sources({})
     assert len(report["sources"]) == 9
