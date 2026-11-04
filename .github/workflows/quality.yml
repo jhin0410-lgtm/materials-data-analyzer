@@ -88,12 +88,13 @@ jobs:
           docker run --rm \
             --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges --pids-limit 128 --memory 1536m --cpus 1 \
-            --ulimit as=1610612736:1610612736 --ulimit cpu=90:90 --ulimit nofile=256:256 \
+            --ulimit cpu=90:90 --ulimit nofile=256:256 \
             --tmpfs /tmp:rw,nosuid,noexec,size=64m \
             --mount "type=bind,src=$PWD/validation,dst=/validation,readonly" \
             --env PYTHONDONTWRITEBYTECODE=1 \
             mda-historical-pdf-replay:pr \
-            python /validation/historical_pdf_sandbox_preflight.py --host-netns "$HOST_NETNS"
+            python -c 'import os, resource, sys; resource.setrlimit(resource.RLIMIT_AS, (1610612736, 1610612736)); os.execvp(sys.argv[1], sys.argv[1:])' \
+              python /validation/historical_pdf_sandbox_preflight.py --host-netns "$HOST_NETNS"
       - name: Validate the historical contract offline with a read-only filesystem
         shell: bash
         env:
@@ -107,14 +108,15 @@ jobs:
           docker run --rm \
             --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges --pids-limit 128 --memory 1536m --cpus 1 \
-            --ulimit as=1610612736:1610612736 --ulimit cpu=90:90 --ulimit nofile=256:256 \
+            --ulimit cpu=90:90 --ulimit nofile=256:256 \
             --tmpfs /tmp:rw,nosuid,noexec,size=64m \
             --mount "type=bind,src=$PWD/validation,dst=/validation,readonly" \
             --mount "type=bind,src=$RESULT,dst=/result" \
             --env PYTHONDONTWRITEBYTECODE=1 \
             --env OPENBLAS_NUM_THREADS=1 --env OMP_NUM_THREADS=1 --env MPLBACKEND=Agg \
             mda-historical-pdf-replay:pr \
-            python -m pytest -q \
+            python -c 'import os, resource, sys; resource.setrlimit(resource.RLIMIT_AS, (1610612736, 1610612736)); os.execvp(sys.argv[1], sys.argv[1:])' \
+              python -m pytest -q \
               -c /dev/null --confcutdir=/validation /validation/historical_pdf_replay.py \
               -o cache_dir=/result/cache --basetemp=/result/tmp \
               --junitxml=/result/junit.xml
