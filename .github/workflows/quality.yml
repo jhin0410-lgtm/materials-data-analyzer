@@ -103,15 +103,13 @@ jobs:
           MPLBACKEND: Agg
         run: |
           set -euo pipefail
-          RESULT="$RUNNER_TEMP/pdf-replay-result"
-          mkdir -p "$RESULT"
           docker run --rm \
             --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges --pids-limit 128 --memory 1536m --cpus 1 \
             --ulimit cpu=90:90 --ulimit nofile=256:256 \
             --tmpfs /tmp:rw,nosuid,noexec,size=64m \
             --mount "type=bind,src=$PWD/validation,dst=/validation,readonly" \
-            --mount "type=bind,src=$RESULT,dst=/result" \
+            --tmpfs /result:rw,nosuid,noexec,size=64m,mode=1777 \
             --env PYTHONDONTWRITEBYTECODE=1 \
             --env OPENBLAS_NUM_THREADS=1 --env OMP_NUM_THREADS=1 --env MPLBACKEND=Agg \
             mda-historical-pdf-replay:pr \
