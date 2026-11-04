@@ -8,3 +8,8 @@ configs/research/*.json text eol=lf
 # Preserve their repository LF representation on Windows checkout as well.
 data/case_studies/nist_ambench_2018_02/*.csv text eol=lf
 data/case_studies/nist_ambench_2018_02/README.md text eol=lf
+
+# Archived replay records retain their original, checksum-bound LF bytes.
+docs/history/pdf-replay/historical_pdf_contract.json text eol=lf
+docs/history/pdf-replay/historical_pdf_replay.py.record text eol=lf
+docs/history/pdf-replay/requirements-historical-replay.txt.record text eol=lf
