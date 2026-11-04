@@ -1,0 +1,52 @@
+{
+  "record_kind": "proposed_review_requirements_not_an_accepted_witness",
+  "proposed_contract_version": "2.0",
+  "activation_authorized": false,
+  "status": "pending_independent_review",
+  "historical_v1_sha256": "923eb2158a29541eacd6f1b6bbdace77ac2fa52e0365572f4953e00e12715589",
+  "required_current_parser": "6.21.4",
+  "historical_parser": "6.18.1",
+  "lane": {
+    "source_pdf_sha256": "39de5e6987461c3cf607e544d202cfdc3f28dffd2e0ec298175df63803b99640",
+    "versioned_span_fixture": "tests/fixtures/lane_uncertainty_parser_spans.v1.json",
+    "observed_claim_difference": "two ASCII spaces at squared-uncertainty subscript boundaries",
+    "limited_source_review": "supports existence of preliminary cross-section uncertainty analysis; no measured numeric/unit change in this span",
+    "full_document_diff": {
+      "page_count": 17,
+      "changed_page_indices": [
+        6,
+        8,
+        12,
+        13,
+        14,
+        15
+      ],
+      "additional_changes": "glyph-name decoding to epsilon/partial derivative and spacing",
+      "global_extraction_equivalence_authorized": false
+    },
+    "equation_text_suitable_for_quantitative_evaluation": false
+  },
+  "weaver": {
+    "historical_original_recovered": false,
+    "historical_original_sha256": "8bdc0f69eeeba587386a8779823896a4700ad7725da6f1625ecbc1de7907c879",
+    "archived_nist_capture": "2026-01-21T05:55:50Z",
+    "archived_payload_sha256": "da13f415c9915f67e23ed41e32504de47e4bff1e1671abcdb5fc60b0c8715c1c",
+    "current_payload_sha256": "17692f3d18c20bd0067af0f82f400f3e8bc4ccd3a1b8091735d0bf76a55770d3",
+    "current_and_archive_abstract_utf8_sha256": "7d6f5dbf68231788632e4e70cc4b26d425a9c3ade98b994c92a7e37667233a79",
+    "abstract_equal_between_these_two_captures": true,
+    "published_metadata_claim": {
+      "D4_sigma_spot_diameter_min_um": 50,
+      "D4_sigma_spot_diameter_max_um": 322,
+      "doi": "10.1016/j.jmapro.2021.10.053"
+    },
+    "historical_v1_claim_text_equivalence": "UNKNOWN",
+    "independent_expert_approval_obtained": false
+  },
+  "requirements_before_activation": [
+    "Retain exact new source bytes and parser identity, not just updated hashes.",
+    "Review new claim scope against the publications; avoid making site navigation authority-bearing.",
+    "Keep v1 immutable and keep historical replay isolated.",
+    "Prove acceptance of only the approved new version and rejection of changed source/parser/units.",
+    "Obtain independent source/scientific review before wiring any new contract into live verification."
+  ]
+}
