@@ -15,6 +15,10 @@ def test_historical_replay_pypdf_pin_is_synchronized_across_install_surfaces() -
     assert _EXPECTED_PIN in {line.strip() for line in requirements.splitlines()}
     assert "pypdf>=5,<7" not in pyproject
     assert "pypdf>=5,<7" not in requirements
-    historical = (_REPOSITORY_ROOT / "requirements-historical-replay.txt").read_text()
-    assert "pypdf==6.18.1" in historical.splitlines()
-    assert "pypdf==6.18.1" not in requirements.splitlines()
+    assert not (_REPOSITORY_ROOT / "requirements-historical-replay.txt").exists()
+    workflow = (_REPOSITORY_ROOT / ".github/workflows/quality.yml").read_text()
+    assert "requirements-historical-replay.txt" not in workflow
+    assert "git archive 257dcf" not in workflow
+    assert "--network none --read-only --cap-drop ALL" in workflow
+    assert "--memory 1536m" in workflow
+    assert "resource.RLIMIT_AS" in workflow

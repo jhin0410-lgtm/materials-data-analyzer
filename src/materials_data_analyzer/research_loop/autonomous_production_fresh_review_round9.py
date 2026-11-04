@@ -2,8 +2,8 @@
 
 This gate is deliberately additive.  It reconstructs policy qualifications from the trusted
 checkout instead of trusting persisted, attacker-rehashable summaries; requires mutable discovery
-fingerprints to exist before their values may be projected away; pins the PDF parser environment
-used by retained multisource replay; and enforces the complete no-unrestricted-network execution
+fingerprints to exist before their values may be projected away; pins the safe PDF parser environment
+used by current multisource reprocessing; and enforces the complete no-unrestricted-network execution
 boundary of the cycle-4 acquisition report.
 """
 from __future__ import annotations
@@ -15,6 +15,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable
 
+from ..pdf_runtime import CURRENT_PYPDF_VERSION
 from . import autonomous_production_exact_head_p2_round7 as _round7
 from . import autonomous_production_exact_head_p2_round8 as _round8
 from . import autonomous_production_merge_gate_hardening as _merge_gate
@@ -27,7 +28,7 @@ AutonomousProductionFreshReviewRound9Error = (
     _merge_gate.AutonomousProductionMergeGateHardeningError
 )
 
-_EXPECTED_PYPDF_VERSION = "6.18.1"
+_EXPECTED_PYPDF_VERSION = CURRENT_PYPDF_VERSION
 _MULTISOURCE_POLICY_PATH = (
     "configs/research/in625_geometry_condition_multisource_acquisition_policy.v1.json"
 )
@@ -106,11 +107,11 @@ def _validate_multisource_report_boundaries(report: Mapping[str, Any]) -> None:
         installed = importlib.metadata.version("pypdf")
     except importlib.metadata.PackageNotFoundError as exc:
         raise AutonomousProductionFreshReviewRound9Error(
-            "pypdf is missing from the historical replay environment"
+            "pypdf is missing from the approved reprocessing environment"
         ) from exc
     _require(
         installed == _EXPECTED_PYPDF_VERSION,
-        "installed pypdf version drifted from historical replay contract",
+        "installed pypdf version drifted from approved reprocessing contract",
     )
     for field in _NETWORK_FALSE_FIELDS:
         _require(

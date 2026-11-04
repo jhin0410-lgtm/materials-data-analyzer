@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "contract_id": "in625-safe-parser-reprocessing-v1",
+  "parser": {
+    "package": "pypdf",
+    "version": "6.21.4",
+    "strict": false
+  },
+  "historical_witness_sha256": "923eb2158a29541eacd6f1b6bbdace77ac2fa52e0365572f4953e00e12715589",
+  "registry_sha256": "0f6082921d557f85ddb4ed86d7c835837fa3b174a612cbf6244a6d5c344288ee",
+  "additional_sources": [
+    {
+      "source_id": "weaver-2021-current-metadata-20261104",
+      "requested_url": "https://www.nist.gov/publications/laser-spot-size-and-scaling-laws-laser-beam-additive-manufacturing",
+      "media_type": "html",
+      "source_sha256": "17692f3d18c20bd0067af0f82f400f3e8bc4ccd3a1b8091735d0bf76a55770d3",
+      "source_size_bytes": 82601,
+      "claims": [
+        {
+          "claim_id": "weaver-current-deliberate-spot-diameter-range"
+        }
+      ],
+      "title": null,
+      "doi": null,
+      "observation_date": "2026-11-04",
+      "historical_source_replacement_authorized": false
+    }
+  ],
+  "source_reviews": {
+    "nist-official-amb2018-02-description": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": []
+    },
+    "nist-official-amb2018-benchmark-test-data": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": []
+    },
+    "nist-official-amb2018-challenges-description": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": []
+    },
+    "ricker-2019-topographic-tracks": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": []
+    },
+    "lane-2020-melt-pool-geometry": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": [
+        {
+          "claim_id": "lane-cross-section-uncertainty-exists",
+          "scope": "existence of preliminary cross-section uncertainty analysis only; not executable equations or transferred measurement uncertainty",
+          "page_index_zero_based": 15,
+          "context_regex": "These experiments consisted.{0,900}?preliminary measurement uncertainty analysis",
+          "quantities": []
+        }
+      ]
+    },
+    "weaver-2021-spot-size-scaling-metadata": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": []
+    },
+    "naderi-2022-scaling-fidelity": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": []
+    },
+    "nist-2026-ambench-uncertainty-synthesis": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": []
+    },
+    "weaver-2021-current-metadata-20261104": {
+      "review_status": "pending_review",
+      "review_reference": null,
+      "claims": [
+        {
+          "claim_id": "weaver-current-deliberate-spot-diameter-range",
+          "scope": "current official metadata states deliberate D4-sigma spot-diameter variation; no per-row calibration or model validation",
+          "page_index_zero_based": 0,
+          "context_regex": "Consequently, single track laser scans.{0,350}?These were characterized",
+          "quantities": [
+            {
+              "name": "spot_diameter_min",
+              "pattern": "range of (?P<value>[+-]?[0-9.]+) (?P<unit>[^\\s]+)",
+              "value": "50",
+              "unit": "μm"
+            },
+            {
+              "name": "spot_diameter_max",
+              "pattern": "μm to (?P<value>[+-]?[0-9.]+) (?P<unit>[^\\s]+)",
+              "value": "322",
+              "unit": "μm"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

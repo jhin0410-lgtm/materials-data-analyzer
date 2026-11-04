@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from materials_data_analyzer import pdf_runtime
 from materials_data_analyzer.research_loop import (
     autonomous_production_fresh_review_round9 as round9,
 )
@@ -17,9 +18,6 @@ from materials_data_analyzer.research_loop import (
 from materials_data_analyzer.research_loop import (
     nist_mds2_2923_reference_chain_evidence as reference,
 )
-from materials_data_analyzer.research_loop import (
-    pdf_runtime,
-)
 
 
 @pytest.mark.parametrize("module", [geometry, comparator, calibration, reference])
@@ -32,7 +30,7 @@ def test_external_pdf_paths_reject_old_parser_before_reading(
     def forbidden_reader(*args, **kwargs):
         pytest.fail("an unsupported parser must never receive external bytes")
 
-    monkeypatch.setattr(module, "PdfReader", forbidden_reader)
+    monkeypatch.setattr(pdf_runtime, "PdfReader", forbidden_reader)
     with pytest.raises(ValueError, match="external PDF processing requires pypdf==6.21.4"):
         if module is geometry:
             module._pdf_pages(b"%PDF-untrusted", source_id="test", content_type=None)
@@ -51,5 +49,15 @@ def test_current_parser_environment_is_supported() -> None:
 def test_current_environment_cannot_claim_historical_replay() -> None:
     report = {"pdf_extractor": {"package": "pypdf", "version": "6.18.1", "strict": False}}
     with pytest.raises(round9.AutonomousProductionFreshReviewRound9Error,
-                       match="installed pypdf version drifted"):
+                       match="PDF extractor environment drifted"):
         round9._validate_multisource_report_boundaries(report)
+
+
+def test_current_environment_accepts_current_network_contract() -> None:
+    report = {
+        "pdf_extractor": {"package": "pypdf", "version": "6.21.4", "strict": False},
+        "network_requests_performed": 8, "network_request_budget": 8,
+        "source_bytes_persisted": True, "retained_source_bytes_count": 8,
+        **{field: False for field in round9._NETWORK_FALSE_FIELDS},
+    }
+    round9._validate_multisource_report_boundaries(report)

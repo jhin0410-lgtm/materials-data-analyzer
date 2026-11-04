@@ -188,14 +188,15 @@ def _pdf_pages(body: bytes, *, source_id: str, content_type: str | None) -> list
             f"{source_id} expected PDF bytes but transport returned non-PDF body "
             f"(content_type={content_type!r}, size={len(body)}, sha256={_sha256(body)})"
         )
-    try:
-        from pypdf import PdfReader
-    except ImportError as exc:  # pragma: no cover - workflow installs the recon dependency.
-        raise ReconError("PDF reconnaissance requires pypdf") from exc
-    from io import BytesIO
+    # This standalone workflow installs only pypdf. Load the lightweight shared
+    # package from this checkout without importing the research-loop namespace.
+    source_root = str(Path(__file__).resolve().parents[1] / "src")
+    if source_root not in sys.path:
+        sys.path.insert(0, source_root)
+    from materials_data_analyzer.pdf_runtime import read_pdf
 
     try:
-        reader = PdfReader(BytesIO(body), strict=False)
+        reader = read_pdf(body)
     except Exception as exc:  # pragma: no cover - external source parser errors vary.
         raise ReconError(
             f"{source_id} failed to parse exact PDF bytes "

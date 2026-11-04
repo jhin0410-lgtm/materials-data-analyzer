@@ -1,6 +1,6 @@
-"""Fail closed unless the historical parser's sandbox is actually in effect.
+"""Fail closed unless the PDF reprocessing sandbox is actually in effect.
 
-This stdlib-only probe runs before the vulnerable parser is installed or loaded.
+This stdlib-only probe runs before the PDF parser is installed or loaded.
 It neither changes host security settings nor permits an unsandboxed fallback.
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 def verify_sandbox(host_netns: int) -> dict:
     isolated_netns = os.stat("/proc/self/ns/net").st_ino
     if isolated_netns == host_netns:
-        raise RuntimeError("historical sandbox did not isolate the network namespace")
+        raise RuntimeError("PDF sandbox did not isolate the network namespace")
 
     limits = {}
     for name, kind, maximum in (
@@ -27,12 +27,12 @@ def verify_sandbox(host_netns: int) -> dict:
     ):
         soft, hard = resource.getrlimit(kind)
         if not (0 < soft <= maximum and 0 < hard <= maximum):
-            raise RuntimeError(f"historical sandbox {name} limit is missing or too large")
+            raise RuntimeError(f"PDF sandbox {name} limit is missing or too large")
         limits[name] = [soft, hard]
 
     source = Path(__file__).resolve()
     if not os.statvfs(source).f_flag & os.ST_RDONLY:
-        raise RuntimeError("historical sandbox source filesystem is not read-only")
+        raise RuntimeError("PDF sandbox source filesystem is not read-only")
     try:
         descriptor = os.open(source, os.O_WRONLY)
     except OSError as exc:
@@ -43,7 +43,7 @@ def verify_sandbox(host_netns: int) -> dict:
             raise RuntimeError("source write was denied for an unexpected reason") from exc
     else:
         os.close(descriptor)  # No write or truncate is performed, even on failure.
-        raise RuntimeError("historical sandbox allowed source write access")
+        raise RuntimeError("PDF sandbox allowed source write access")
 
     # UDP connect checks routing without sending payload or using DNS.
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as connection:
@@ -53,7 +53,7 @@ def verify_sandbox(host_netns: int) -> dict:
             if exc.errno != errno.ENETUNREACH:
                 raise RuntimeError("network probe did not establish a missing external route") from exc
         else:
-            raise RuntimeError("historical sandbox has an external route")
+            raise RuntimeError("PDF sandbox has an external route")
     return {"isolated_netns": isolated_netns, "source_read_only": True, "limits": limits}
 
 

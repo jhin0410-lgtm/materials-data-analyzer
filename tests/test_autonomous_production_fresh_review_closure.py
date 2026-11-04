@@ -331,12 +331,12 @@ def test_historical_replay_pypdf_dependency_is_exactly_pinned() -> None:
     pyproject = (_REPOSITORY_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '"pypdf==6.21.4"' in pyproject
     assert '"pypdf>=5,<7"' not in pyproject
-    historical = (_REPOSITORY_ROOT / "requirements-historical-replay.txt").read_text()
+    historical = (_REPOSITORY_ROOT / "docs/history/pdf-replay/requirements-historical-replay.txt.record").read_text()
     assert "pypdf==6.18.1" in historical.splitlines()
     from materials_data_analyzer.research_loop import (
         autonomous_production_fresh_review_round9 as round9,
     )
-    assert round9._EXPECTED_PYPDF_VERSION == "6.18.1"
+    assert round9._EXPECTED_PYPDF_VERSION == "6.21.4"
 
 
 def test_untrusted_provenance_json_preflight_is_bounded(

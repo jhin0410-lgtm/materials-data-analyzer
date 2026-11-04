@@ -65,7 +65,7 @@ def test_discovery_mutable_fingerprint_must_be_typed(field: str, value: object) 
 
 def _multisource_report() -> dict[str, object]:
     return {
-        "pdf_extractor": {"package": "pypdf", "version": "6.18.1", "strict": False},
+        "pdf_extractor": {"package": "pypdf", "version": "6.21.4", "strict": False},
         "network_requests_performed": 8,
         "network_request_budget": 8,
         "source_bytes_persisted": True,
@@ -91,11 +91,9 @@ def test_multisource_report_requires_exact_pinned_pdf_extractor_version() -> Non
 
 @pytest.mark.parametrize("field", round9._NETWORK_FALSE_FIELDS)
 def test_multisource_report_rejects_rehashed_network_history_promotion(
-    field: str, monkeypatch: pytest.MonkeyPatch,
+    field: str,
 ) -> None:
-    # Unit-test the network boundary in the exact historical parser context.
-    # validation/historical_pdf_replay.py repeats this against the real old parser.
-    monkeypatch.setattr(round9.importlib.metadata, "version", lambda _name: "6.18.1")
+    # Use the real approved parser; no legacy runtime is needed for the boundary.
     report = _multisource_report()
     report[field] = True
     with pytest.raises(

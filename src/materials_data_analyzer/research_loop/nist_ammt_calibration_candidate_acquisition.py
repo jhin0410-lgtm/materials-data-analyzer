@@ -12,14 +12,10 @@ import importlib.metadata
 import json
 import re
 from html.parser import HTMLParser
-from io import BytesIO
 from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import parse_qs, urljoin, urlparse
 
-from pypdf import PdfReader
-
-from .pdf_runtime import require_current_pdf_parser
-
+from ..pdf_runtime import read_pdf
 from .in625_geometry_condition_source_acquisition import FetchResult, fetch_exact_source
 from .nist_ammt_candidate_acquisition_policy import (
     ACTION_CLASS,
@@ -229,8 +225,7 @@ def _parse_candidate_page(body: bytes, candidate_url: str) -> tuple[str, str]:
 def _pdf_pages(body: bytes, content_type: str | None) -> list[str]:
     _require(body.startswith(b"%PDF-"), f"full text was not PDF bytes (content_type={content_type!r})")
     try:
-        require_current_pdf_parser()
-        reader = PdfReader(BytesIO(body), strict=False)
+        reader = read_pdf(body)
         pages = [_normalize_text(page.extract_text() or "") for page in reader.pages]
     except Exception as exc:
         raise NistAmmtCalibrationCandidateAcquisitionError(

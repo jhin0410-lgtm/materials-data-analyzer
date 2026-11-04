@@ -6,13 +6,9 @@ import importlib.metadata
 import json
 import re
 import unicodedata
-from io import BytesIO
 from typing import Any, Callable, Mapping, Sequence
 
-from pypdf import PdfReader
-
-from .pdf_runtime import require_current_pdf_parser
-
+from ..pdf_runtime import read_pdf
 from .in625_geometry_condition_source_acquisition import FetchResult, fetch_exact_source
 from .nist_mds2_2923_reference_chain_policy import (
     ACTION_CLASS,
@@ -91,8 +87,7 @@ def _pdf_views(body: bytes) -> dict[str, list[str]]:
     """Build two deterministic textual views from the same exact PDF bytes."""
     _require(body.startswith(b"%PDF-"), "Naderi reference source is not PDF bytes")
     try:
-        require_current_pdf_parser()
-        reader = PdfReader(BytesIO(body), strict=False)
+        reader = read_pdf(body)
         views = {
             mode: [_extract_page_text(page, mode) for page in reader.pages]
             for mode in TEXT_EXTRACTION_MODES

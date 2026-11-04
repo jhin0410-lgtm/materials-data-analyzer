@@ -48,7 +48,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  historical-pdf-replay:
+  safe-pdf-reprocessing:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -57,45 +57,42 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Build immutable historical baseline image
+      - name: Build current approved-parser image
         shell: bash
         run: |
           set -euo pipefail
           command -v docker
-          BASELINE="$RUNNER_TEMP/pdf-baseline"
           IMAGE_CONTEXT="$RUNNER_TEMP/pdf-replay-image"
-          mkdir -p "$BASELINE" "$IMAGE_CONTEXT"
-          git archive 257dcfb3e51602119eeddb6f7da2226d66771ca2 | tar -x -C "$BASELINE"
+          mkdir -p "$IMAGE_CONTEXT"
           python -m pip install 'build>=1.2,<2'
-          python -m build --wheel "$BASELINE" --outdir "$IMAGE_CONTEXT"
-          cp requirements-historical-replay.txt "$IMAGE_CONTEXT/"
+          python -m build --wheel . --outdir "$IMAGE_CONTEXT"
           cat > "$IMAGE_CONTEXT/Dockerfile" <<'DOCKERFILE'
           FROM python:3.11-slim-bookworm
           RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
-          COPY requirements-historical-replay.txt /tmp/requirements-historical-replay.txt
           COPY *.whl /tmp/pdf-dist/
-          RUN python -m pip install --no-cache-dir -r /tmp/requirements-historical-replay.txt 'pytest>=8,<10' /tmp/pdf-dist/*.whl \
+          RUN python -m pip install --no-cache-dir 'pytest>=8,<10' /tmp/pdf-dist/*.whl \
               && python -m pip check \
               && rm -rf /tmp/pdf-dist
           WORKDIR /work
           DOCKERFILE
-          docker build --tag mda-historical-pdf-replay:pr --file "$IMAGE_CONTEXT/Dockerfile" "$IMAGE_CONTEXT"
-      - name: Verify sandbox isolation before executing the historical parser
+          docker build --tag mda-safe-pdf-reprocessing:pr --file "$IMAGE_CONTEXT/Dockerfile" "$IMAGE_CONTEXT"
+      - name: Verify sandbox isolation before PDF reprocessing
         shell: bash
         run: |
           set -euo pipefail
           HOST_NETNS="$(stat -Lc '%i' /proc/self/ns/net)"
           docker run --rm \
+            --workdir /source --env PYTHONPATH=/source/src \
             --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges --pids-limit 128 --memory 1536m --cpus 1 \
             --ulimit cpu=90:90 --ulimit nofile=256:256 \
             --tmpfs /tmp:rw,nosuid,noexec,size=64m \
-            --mount "type=bind,src=$PWD/validation,dst=/validation,readonly" \
+            --mount "type=bind,src=$PWD,dst=/source,readonly" \
             --env PYTHONDONTWRITEBYTECODE=1 \
-            mda-historical-pdf-replay:pr \
+            mda-safe-pdf-reprocessing:pr \
             python -c 'import os, resource, sys; resource.setrlimit(resource.RLIMIT_AS, (1610612736, 1610612736)); os.execvp(sys.argv[1], sys.argv[1:])' \
-              python /validation/historical_pdf_sandbox_preflight.py --host-netns "$HOST_NETNS"
-      - name: Validate the historical contract offline with a read-only filesystem
+              python /source/validation/pdf_sandbox_preflight.py --host-netns "$HOST_NETNS"
+      - name: Validate current reprocessing offline with a read-only filesystem
         shell: bash
         env:
           OPENBLAS_NUM_THREADS: "1"
@@ -104,18 +101,22 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm \
+            --workdir /source --env PYTHONPATH=/source/src \
             --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges --pids-limit 128 --memory 1536m --cpus 1 \
             --ulimit cpu=90:90 --ulimit nofile=256:256 \
             --tmpfs /tmp:rw,nosuid,noexec,size=64m \
-            --mount "type=bind,src=$PWD/validation,dst=/validation,readonly" \
+            --mount "type=bind,src=$PWD,dst=/source,readonly" \
             --tmpfs /result:rw,nosuid,noexec,size=64m,mode=1777 \
             --env PYTHONDONTWRITEBYTECODE=1 \
             --env OPENBLAS_NUM_THREADS=1 --env OMP_NUM_THREADS=1 --env MPLBACKEND=Agg \
-            mda-historical-pdf-replay:pr \
+            mda-safe-pdf-reprocessing:pr \
             python -c 'import os, resource, sys; resource.setrlimit(resource.RLIMIT_AS, (1610612736, 1610612736)); os.execvp(sys.argv[1], sys.argv[1:])' \
               python -m pytest -q \
-              -c /dev/null --confcutdir=/validation /validation/historical_pdf_replay.py \
+              -c /dev/null --confcutdir=/source/tests \
+              /source/tests/test_pdf_runtime_separation.py \
+              /source/tests/test_unified_pdf_evidence.py \
+              /source/tests/test_historical_replay_dependency_sync.py \
               -o cache_dir=/result/cache --basetemp=/result/tmp \
               --junitxml=/result/junit.xml
 

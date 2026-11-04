@@ -1,99 +1,86 @@
-# Current PDF processing and historical replay
+# One approved PDF runtime, immutable historical evidence
 
-Develop on branch `fix/pypdf-security-replay-separation` in this worktree using
-its own `.venv`. Check `git branch --show-current` and the imported package's
-`__file__` when selecting an interpreter. An editable installation must point
-to this same checkout, not another worktree. The original main checkout stays
-unchanged and has no active development environment until separately prepared.
+All five PDF entry points use `materials_data_analyzer.pdf_runtime.read_pdf`.
+The approved parser is exactly **pypdf 6.21.4**. Python 3.11 remains supported.
+Both current and retained originals use this runtime. No historical parser
+installation, fallback or environment override is part of validation.
+Plain/layout extraction and each caller's established normalization are preserved.
+Shared byte/page limits supplement existing acquisition and process limits.
 
-Current development and CLI environments install `pypdf==6.21.4` through both
-`pyproject.toml` and `requirements.txt`. Use a Python 3.11 runtime and an editable
-install for development:
+For a new development environment in this checkout:
 
 ```bash
 python3.11 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]' -c constraints-release.txt
+.venv/bin/python -c 'import materials_data_analyzer as m; print(m.__file__)'
 .venv/bin/python -m pytest -q
 ```
 
-All four external PDF parsing paths check the installed parser before giving it
-input bytes. An old parser cannot be enabled with an environment variable or a
-fallback. The two standalone acquisition workflows also pin the current version.
-These checks do not replace download policy, provenance, or resource isolation.
+Imported source must belong to this checkout. A wheel installation remains
+appropriate for distribution testing. This branch does not modify existing
+environments in other worktrees.
 
-## Immutable historical environment
+## Offline reprocessing
 
-The retained multisource contract still requires pypdf **6.18.1**, strict=False,
-the original report fingerprints and all existing network/scientific boundaries.
-The original round-9 verifier is unchanged. A current environment must reject a
-claim that it executed that exact historical contract. A historical environment
-must reject reports claiming a different parser. Do not rewrite old report
-versions/hashes or install the historical requirements over current MDA.
-
-Use the baseline MDA distribution at commit
-`257dcfb3e51602119eeddb6f7da2226d66771ca2` in its own environment. Build it from
-that commit or use a previously verified wheel from that commit. Do not install
-the current checkout with `--no-deps` into the old environment: that would lie
-about its dependency requirements. The historical environment is a baseline
-wheel install; the current environment remains editable.
-
-Example provisioning (separate scratch directories; never overwrite an existing
-environment or evidence directory):
+Keep raw originals in their existing evidence storage. The command accepts only
+registered source IDs and exact bytes; it never downloads replacements:
 
 ```bash
-mkdir -p /path/to/new-baseline-source
-git archive 257dcfb3e51602119eeddb6f7da2226d66771ca2 |
-  tar -x -C /path/to/new-baseline-source
-.venv/bin/python -m build --wheel /path/to/new-baseline-source \
-  --outdir /path/to/new-baseline-wheel
-python3.11 -m venv .venv-historical
-.venv-historical/bin/python -m pip install \
-  -r requirements-historical-replay.txt 'pytest>=8,<10' \
-  /path/to/new-baseline-wheel/*.whl
-.venv-historical/bin/python -m pip check
+.venv/bin/python -m materials_data_analyzer.research_loop.pdf_evidence_reprocessing \
+  --source lane-2020-melt-pool-geometry=/absolute/path/to/lane-original.pdf \
+  --output /absolute/path/to/a-new-report.json
 ```
 
-Provisioning can access the package index. **Execution must be offline** and use
-only reviewed, checksum-bound retained inputs. Do not fetch or parse new external
-PDFs using this vulnerable environment. A venv alone is not a security sandbox.
-On Linux, the independent contract suite is run with existing bubblewrap and
-prlimit tools. Missing isolation tools are a validation failure, not a reason to
-skip these tests or run them without isolation:
+Run document processing inside the read-only, offline, resource-limited sandbox.
+On this development host, use the established bubblewrap/prlimit boundary:
 
 ```bash
-RESULT=/absolute/path/to/new-replay-results
+RESULT=/absolute/path/to/new-review-results
 mkdir -p "$RESULT"
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 MPLBACKEND=Agg \
-prlimit --as=1610612736 --cpu=90 --nofile=256 \
+HOST_NETNS=$(stat -Lc '%i' /proc/self/ns/net)
+env PYTHONDONTWRITEBYTECODE=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+  prlimit --as=1610612736 --cpu=90 --nofile=256 \
   bwrap --die-with-parent --unshare-net --ro-bind / / --proc /proc --dev /dev \
   --tmpfs /tmp --bind "$RESULT" "$RESULT" \
-  --setenv PYTHONDONTWRITEBYTECODE 1 \
-  "$PWD/.venv-historical/bin/python" -m pytest -q -ra \
-  -c /dev/null --confcutdir=validation validation/historical_pdf_replay.py \
-  -o cache_dir="$RESULT/cache" --basetemp="$RESULT/tmp" \
-  --junitxml="$RESULT/junit.xml"
+  .venv/bin/python validation/pdf_sandbox_preflight.py --host-netns "$HOST_NETNS"
+env PYTHONDONTWRITEBYTECODE=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+  prlimit --as=1610612736 --cpu=90 --nofile=256 \
+  bwrap --die-with-parent --unshare-net --ro-bind / / --proc /proc --dev /dev \
+  --tmpfs /tmp --bind "$RESULT" "$RESULT" \
+  .venv/bin/python -m materials_data_analyzer.research_loop.pdf_evidence_reprocessing \
+  --source lane-2020-melt-pool-geometry=/absolute/path/to/lane-original.pdf \
+  --output "$RESULT/reprocessed.json"
 ```
 
-`--confcutdir` prevents current tests/conftest.py from injecting current src into
-the baseline process. The validation checks installed site-packages file hashes
-for the five relevant baseline modules against historical_pdf_contract.json.
-It tests the real historical parser and all four network-promotion rejections
-without mocking its installed version. The normal unit suite independently
-tests those conditions and verifies that current PDF paths reject old parsers.
-The quality workflow has separate current and historical jobs.
-The historical suite also checks the address-space, CPU and file-descriptor
-limits in the executing process; omitting the limits is a validation failure.
+The host filesystem remains readable; this is not a confidentiality boundary.
+Never bind canonical research data or an existing output directory writable.
+The preflight independently tests network namespace, route absence, mount write
+denial and address-space/CPU/open-file limits. Missing isolation is a failure.
+CI retains Docker network-none/read-only/capability/resource restrictions, using
+the current safe-parser distribution instead of the old baseline.
 
-The historical checks use synthetic text-only PDF bytes. They establish code
-identity and software contracts, not a rerun of the retained research campaign,
-equivalence of text extracted by two parser versions, or scientific validation.
-Any real historical replay still requires its original authenticated inputs and
-the unchanged full verifier, under the same offline/read-only/resource limits.
-The sandbox permits host-file reads; it is not a confidentiality sandbox. Only
-the specified result directory and ephemeral /tmp are writable. Never bind a
-canonical dataset or existing research output directory as a writable result.
+## Report interpretation and completion
 
-The old parser deliberately retains known vulnerabilities. Its audit result is
-reported separately and never used to declare the current environment safe.
-Store exact environment freezes, baseline artifact hashes and replay diagnostics
-with the run. Current dependency audit failures remain release failures.
+Exit **0** means every required source is present and its source review complete.
+Exit **2** writes an explicitly incomplete report for missing originals or pending
+reviews. Identity/semantic/parse errors fail with a nonzero exit. Existing output
+files are never overwritten.
+
+Original receipt values and new receipts are recorded separately. Extraction
+equality is not scientific validation. The contract binds exact source identity,
+parser identity, scope, page/context and linked values/units.
+`verify_reprocessed_sources` recomputes from raw bytes; a self-hashed JSON success
+flag cannot satisfy the gate. Parser upgrades and source-contract changes need
+explicit review and regression tests, not automatic digest updates.
+
+The initial contract has pending reviews and cannot produce campaign-wide
+completion even when available PDFs extract successfully. Current Weaver metadata
+is a separate observation with explicit 50–322 μm checks. It cannot substitute
+for the missing original Weaver HTML. Existing v1 witness verification still
+rejects changed historical claim receipts. The live authority dispatcher was not
+switched to an incomplete new contract.
+
+Old runtime contract/tests/requirements are exact inactive records under
+`docs/history/pdf-replay/`. Git history and research results remain intact.
+They are unnecessary to execute the new path. Deleting old environments outside
+this branch is a separate operation after adoption and preservation review.

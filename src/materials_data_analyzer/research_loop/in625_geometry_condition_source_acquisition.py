@@ -12,16 +12,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
-from io import BytesIO
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from pypdf import PdfReader
-
-from .pdf_runtime import require_current_pdf_parser
-
+from ..pdf_runtime import read_pdf
 from .in625_geometry_condition_multisource_policy import (
     ACTION_CLASS,
     ALLOWED_HOSTS,
@@ -256,8 +252,7 @@ def _pdf_pages(
             f"(content_type={content_type!r}, size={len(body)}, sha256={_sha256(body)})"
         )
     try:
-        require_current_pdf_parser()
-        reader = PdfReader(BytesIO(body), strict=False)
+        reader = read_pdf(body)
         pages = [_normalize_text(page.extract_text() or "") for page in reader.pages]
     except Exception as exc:
         raise GeometryConditionSourceAcquisitionError(
