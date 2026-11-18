@@ -153,6 +153,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum audited production cycles (1-12). Defaults to 12.",
     )
 
+    autonomous.add_argument("--rod-request", type=Path, help="Explicitly authorize one pinned local rod action.")
+    autonomous.add_argument(
+        "--rod-identifiability", action="store_true",
+        help="Authorize one result-selected identifiability diagnostic with the pinned rod case.",
+    )
+    autonomous.add_argument("--rod-request-sha256", help="Independently supplied SHA-256 of exact rod request bytes.")
+    autonomous.add_argument("--rod-prior-ledger", type=Path, help="Read-only prior ledger pinned by the rod request.")
+
     show = subparsers.add_parser(
         "show",
         help=(
@@ -279,6 +287,18 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
         return authenticate_transition_bundle(args.bundle)
     if args.command == "run-autonomous":
         repository_root = args.repository_root.expanduser().resolve(strict=True)
+        if args.rod_request is not None:
+            from .research_loop.rod_thermal_profile import run_rod_episode
+
+            if args.output == _AUTONOMOUS_PRODUCTION_OUTPUT:
+                raise ResearchLoopError("Rod execution requires an explicit isolated --output")
+            return run_rod_episode(
+                repository_root=repository_root, output_root=args.output, request_path=args.rod_request,
+                expected_sha256=args.rod_request_sha256, prior_run=args.rod_prior_ledger,
+                max_cycles=args.max_cycles, authorize_identifiability=args.rod_identifiability,
+            )
+        if args.rod_request_sha256 is not None or args.rod_prior_ledger is not None or args.rod_identifiability:
+            raise ResearchLoopError("Rod pins require --rod-request")
         return run_autonomous_production(
             repository_root=repository_root,
             mission_path=repository_root / _AUTONOMOUS_PRODUCTION_MISSION,
@@ -366,6 +386,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Research program command failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
+    if args.command == "run-autonomous" and args.rod_request is not None:
+        last_report = result.get("identifiability_action_report", result["action_report"])
+        return 0 if last_report["execution_status"] == "completed" else 1
     return 0
 
 
