@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "registry_id": "rod-identifiability-actions-v1",
+  "domain": "measured_boundary_rod_heat_transfer",
+  "actions": [
+    {
+      "action_type": "diagnose_rod_parameter_identifiability",
+      "version": "1.0",
+      "availability": "available",
+      "binding": {
+        "kind": "installed_command",
+        "name": "mda-research-program",
+        "path": null,
+        "platform": "cross_platform"
+      },
+      "category": "simulation",
+      "cost_units": 1,
+      "scientific_purpose": "Verify local k and effective heat-loss separation without refitting.",
+      "target_blockers": [
+        "conductivity_heat_loss_tradeoff"
+      ],
+      "preconditions": [
+        "verified_same_episode_comparison",
+        "pinned_calibration",
+        "interior_fit",
+        "explicit_followup_authorization"
+      ],
+      "required_inputs": [
+        {
+          "name": "rod_request",
+          "kind": "json_file",
+          "required": true,
+          "description": "Versioned rod experiment, calibrated and held-out sources, and numerical verification contract."
+        }
+      ],
+      "expected_outputs": [
+        {
+          "path": "action_result.json",
+          "kind": "json_report",
+          "required": true,
+          "description": "Ledger-bound diagnostic execution result."
+        }
+      ],
+      "verifier_checks": [
+        "source_and_prior_artifact_hashes",
+        "centered_log_differences",
+        "independent_bdf",
+        "refined_grid",
+        "no_science_promotion"
+      ],
+      "allowed_outcomes": [
+        "local_identifiability_verified",
+        "rod_verification_failed"
+      ],
+      "prohibited_effects": [
+        "physical_experiment_execution",
+        "scientific_evidence_promotion",
+        "engineering_decision"
+      ]
+    }
+  ]
+}

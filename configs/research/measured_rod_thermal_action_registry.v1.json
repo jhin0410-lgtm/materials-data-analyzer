@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "registry_id": "measured-rod-thermal-actions-v1",
+  "domain": "measured_boundary_rod_heat_transfer",
+  "actions": [
+    {
+      "action_type": "measured_boundary_rod_heat_transfer",
+      "version": "1.0",
+      "availability": "available",
+      "binding": {"kind": "installed_command", "name": "mda-research-program", "path": null, "platform": "cross_platform"},
+      "category": "simulation",
+      "cost_units": 1,
+      "scientific_purpose": "Compare two bounded rod models driven by an independently bound temperature input.",
+      "target_blockers": ["held_out_rod_response_not_compared"],
+      "preconditions": ["independently_pinned_request", "disjoint_typed_observation_views", "planner_selects_rod_action"],
+      "required_inputs": [{"name": "rod_request", "kind": "json_file", "required": true, "description": "Versioned rod experiment, calibrated and held-out sources, and numerical verification contract."}],
+      "expected_outputs": [{"path": "action_result.json", "kind": "json_report", "required": true, "description": "Ledger-bound diagnostic execution result."}],
+      "verifier_checks": ["sha256_inputs", "frozen_predictions", "independent_bdf_and_steady_limit", "independent_residual_aggregation", "non_empirical_evidence_packet"],
+      "allowed_outcomes": ["conditional_comparison_verified", "rod_verification_failed"],
+      "prohibited_effects": ["physical_experiment_execution", "scientific_evidence_promotion", "engineering_decision"]
+    }
+  ]
+}
